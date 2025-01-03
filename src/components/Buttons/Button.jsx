@@ -1,8 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import React from "react";
-import { theme } from "../constants/theme";
-import { hp } from "../helpers/common";
-import Loading from "./Loading";
+import { theme } from "../../constants/theme";
+import Loading from "../Loadings/Loading";
+import {styles} from "./styles";
 
 const Button = ({
   buttonStyle,
@@ -45,18 +45,4 @@ const Button = ({
 
 export default Button;
 
-const styles = StyleSheet.create({
-  button: {
-    backgroundColor: theme.colors.primary,
-    height: hp(6),
-    justifyContent: "center",
-    alignItems: "center",
-    borderCurve: "continuous",
-    borderRadius: theme.radius.xl,
-  },
-  text: {
-    fontSize: hp(2.2),
-    color: theme.colors.white,
-    fontWeight: theme.fontWeight.bold,
-  },
-});
+
