@@ -1,8 +1,8 @@
 import { Image, StyleSheet, Text, View } from "react-native";
 import React from "react";
-import ScreenWrapper from "../../components/ScreenWrappers/ScreenWrapper";
-import { theme } from "../../constants/theme";
-import { wp, hp } from "../../helpers/common";
+import ScreenWrapper from "../../../components/ScreenWrappers/ScreenWrapper";
+import { theme } from "../../../constants/theme";
+import { wp, hp } from "../../../helpers/common";
 import { StatusBar } from "expo-status-bar";
 
 const Splash = () => {
@@ -10,7 +10,7 @@ const Splash = () => {
     <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
       <StatusBar style="dark" />
       <Image
-        source={require("../../assets/images/logo.png")}
+        source={require("../../../assets/images/logo.png")}
         style={styles.logo}
       />
     </View>
