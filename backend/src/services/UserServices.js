@@ -2,7 +2,7 @@ const Customer = require('../models/Customer');
 const bcrypt = require('bcrypt');
 const { generalAccessToken } = require('./JwtService');
 
-const creatUser = (newUser) => {
+const createUser = (newUser) => {
   return new Promise(async (resolve, reject) => {
     const {
       fullName,
@@ -139,7 +139,7 @@ const updateUser = (id, data) => {
   });
 };
 module.exports = {
-  creatUser,
+  createUser,
   loginUser,
   updateUser,
 };
