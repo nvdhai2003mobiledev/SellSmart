@@ -1,12 +1,12 @@
 // Kho hàng
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const Depot = new Schema(
   {
     product: {
       type: Schema.Types.ObjectId,
-      ref: "Product",
+      ref: 'Product',
       required: true,
     },
     quantity: {
@@ -19,7 +19,7 @@ const Depot = new Schema(
       required: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-module.exports = mongoose.model("Depot", Depot);
+module.exports = mongoose.model('Depot', Depot);

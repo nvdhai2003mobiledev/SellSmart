@@ -1,5 +1,5 @@
 // Nhân viên
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const Employee = new Schema(
@@ -47,15 +47,15 @@ const Employee = new Schema(
     status: {
       type: String,
       required: true,
-      default: "active",
+      default: 'active',
     },
     role: {
       type: String,
       required: true,
-      default: "staff",
+      default: 'staff',
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-module.exports = mongoose.model("Employee", Employee);
+module.exports = mongoose.model('Employee', Employee);

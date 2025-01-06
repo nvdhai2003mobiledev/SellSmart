@@ -1,5 +1,5 @@
 // Khách hàng
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const Customer = new Schema(
@@ -19,12 +19,12 @@ const Customer = new Schema(
       unique: true,
     },
     password: {
-      type : String,
-      required : true,
+      type: String,
+      required: true,
     },
     confirmPassword: {
-      type : String,
-      required : true,
+      type: String,
+      required: true,
     },
     birthDate: {
       type: Date,
@@ -37,16 +37,16 @@ const Customer = new Schema(
       type: String,
     },
     access_token: {
-      type : String,
+      type: String,
       // required : true,
-      default: "", // Giá trị mặc định
+      default: '', // Giá trị mặc định
     },
     refresh_token: {
-      type : String,
+      type: String,
       // required : true,
-      default: "", // Giá trị mặc định
-    }
+      default: '', // Giá trị mặc định
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
-module.exports = mongoose.model("Customer", Customer);
+module.exports = mongoose.model('Customer', Customer);

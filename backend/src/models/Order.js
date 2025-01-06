@@ -1,5 +1,5 @@
 // Đơn hàng
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const Order = new Schema(
@@ -12,14 +12,14 @@ const Order = new Schema(
     },
     customer: {
       type: Schema.Types.ObjectId,
-      ref: "Customer",
+      ref: 'Customer',
       required: true,
     },
     products: [
       {
         product: {
           type: Schema.Types.ObjectId,
-          ref: "Product",
+          ref: 'Product',
           required: true,
         },
         name: {
@@ -45,18 +45,18 @@ const Order = new Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "processing", "shipping", "delivered", "canceled"],
-      default: "pending",
+      enum: ['pending', 'processing', 'shipping', 'delivered', 'canceled'],
+      default: 'pending',
     },
     paymentMethod: {
       type: String,
-      enum: ["cash", "credit card", "debit card", "e-wallet"],
+      enum: ['cash', 'credit card', 'debit card', 'e-wallet'],
       required: true,
     },
     paymentStatus: {
       type: String,
-      enum: ["paid", "unpaid", "refunded"],
-      default: "paid",
+      enum: ['paid', 'unpaid', 'refunded'],
+      default: 'paid',
     },
     shippingAddress: {
       type: String,
@@ -64,13 +64,13 @@ const Order = new Schema(
     },
     employeeID: {
       type: Schema.Types.ObjectId,
-      ref: "Employee",
+      ref: 'Employee',
     },
     notes: {
       type: String,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-module.exports = mongoose.model("Order", Order);
+module.exports = mongoose.model('Order', Order);

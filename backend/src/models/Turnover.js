@@ -1,12 +1,12 @@
 // Doanh thu
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const Turnover = new Schema(
   {
     orderID: {
       type: Schema.Types.ObjectId,
-      ref: "Order",
+      ref: 'Order',
       required: true,
     },
     totalAmount: {
@@ -18,7 +18,7 @@ const Turnover = new Schema(
       {
         productID: {
           type: Schema.Types.ObjectId,
-          ref: "Product",
+          ref: 'Product',
           required: true,
         },
         name: {
@@ -39,31 +39,31 @@ const Turnover = new Schema(
     ],
     employeeID: {
       type: Schema.Types.ObjectId,
-      ref: "Employee",
+      ref: 'Employee',
       required: true,
     },
     customerID: {
       type: Schema.Types.ObjectId,
-      ref: "Customer",
+      ref: 'Customer',
       required: true,
     },
     paymentMethod: {
       type: String,
-      enum: ["cash", "credit card", "debit card", "e-wallet"],
+      enum: ['cash', 'credit card', 'debit card', 'e-wallet'],
       required: true,
     },
     paymentStatus: {
       type: String,
-      enum: ["paid", "unpaid", "refunded"],
-      default: "paid",
+      enum: ['paid', 'unpaid', 'refunded'],
+      default: 'paid',
     },
     period: {
       type: String,
-      enum: ["daily", "weekly", "monthly", "yearly"],
+      enum: ['daily', 'weekly', 'monthly', 'yearly'],
       required: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-module.exports = mongoose.model("Turnover", Turnover);
+module.exports = mongoose.model('Turnover', Turnover);

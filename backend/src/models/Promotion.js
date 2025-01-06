@@ -1,5 +1,5 @@
 // Khuyến mãi
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const Promotion = new Schema(
@@ -26,7 +26,7 @@ const Promotion = new Schema(
       {
         productID: {
           type: Schema.Types.ObjectId,
-          ref: "Product",
+          ref: 'Product',
           required: true,
         },
         name: {
@@ -44,7 +44,7 @@ const Promotion = new Schema(
     status: {
       type: String,
       required: true,
-      default: "active",
+      default: 'active',
     },
     startDate: {
       type: Date,
@@ -55,7 +55,7 @@ const Promotion = new Schema(
       required: true,
     },
   },
-  { timestamps }
+  { timestamps },
 );
 
-module.exports = mongoose.model("Promotion", Promotion);
+module.exports = mongoose.model('Promotion', Promotion);

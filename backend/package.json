@@ -10,6 +10,14 @@
   "author": "",
   "license": "ISC",
   "description": "",
+  "lint-staged": {
+    "src/**/*.{js, json, ejs}": "prettier --single-quote --trailing-comma all --tab-width 2 --write"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
   "dependencies": {
     "bcrypt": "^5.1.1",
     "body-parser": "^1.20.3",
@@ -22,6 +30,9 @@
     "mongoose": "^8.8.2"
   },
   "devDependencies": {
-    "nodemon": "^3.1.9"
+    "husky": "^9.1.7",
+    "lint-staged": "^15.3.0",
+    "nodemon": "^3.1.9",
+    "prettier": "^3.4.2"
   }
 }
