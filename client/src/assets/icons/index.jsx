@@ -9,7 +9,7 @@ import Plus from './Plus';
 import Search from './Search';
 import Location from './Location';
 import Call from './Call';
-import { theme } from '../../constants/theme';
+import { theme } from '../../utils/theme';
 import Camera from './Camera';
 import Edit from './Edit';
 import ArrowLeft from './ArrowLeft';
@@ -47,7 +47,7 @@ const icons = {
     video: Video,
 }
 
-const Icon = ({name, ...props}) => {
+export const Icon = ({name, ...props}) => {
     const IconComponent = icons[name];
   return (
     <IconComponent
@@ -60,4 +60,3 @@ const Icon = ({name, ...props}) => {
   )
 }
 
-export default Icon;

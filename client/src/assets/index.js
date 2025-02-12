@@ -1,7 +1,2 @@
-export const Images = {
-  welcome: require('./images/welcome.png'),
-}
-
-export const Fonts = {
-
-}
+export * from './icons'
+export * from './images'

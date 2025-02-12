@@ -1,14 +1,8 @@
-import {Button, StyleSheet, Text, View} from "react-native";
 import React from "react";
-import {useRouter} from "expo-router";
-import {Login} from "./screens";
-
+import AppNavigation from "@src/navigation/AppNavigation";
 
 const Index = () => {
-  const router = useRouter();
-  return (
-    <Login/>
-  );
+  return <AppNavigation />;
 };
 
 export default Index;
