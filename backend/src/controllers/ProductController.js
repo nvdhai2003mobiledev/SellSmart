@@ -5,19 +5,29 @@ const Product = require('../models/Product');
 const getProduct = async (req, res) => {
     try {
         const products = await Product.find(); // Lấy tất cả sản phẩm
-        res.render('product', { products });
-        // res.json(products); // Gửi danh sách sản phẩm
+        res.json(products); // Gửi danh sách sản phẩm dưới dạng JSON
     } catch (error) {
         console.error(error); // Ghi log lỗi
         res.status(500).json({ message: 'Lỗi khi lấy danh sách sản phẩm' });
     }
 };
-
+const getProductAsJson = async (req, res) => {
+    try {
+        const products = await Product.find();
+        console.log('Fetched Products:', products);  // Log danh sách sản phẩm để kiểm tra
+        res.json(products); // Gửi danh sách sản phẩm dưới dạng JSON
+    } catch (error) {
+        console.error('Error fetching products:', error);  // Log lỗi cụ thể
+        if (!res.headersSent) {
+            res.status(500).json({ message: 'Lỗi khi lấy danh sách sản phẩm' });
+        }
+    }
+};
 // Thêm sản phẩm
 const addProduct = async (req, res) => {
     try {
         console.log('req.body', req.body);
-        const { name, price, thumbnail, description, category, stockQuantity, status } = req.body;
+        const { name, price, thumbnail, description, category, stockQuantity, status, attributes } = req.body;
 
         // Kiểm tra input
         if (!name || !price || !thumbnail || !description || !category || !stockQuantity || !status) {
@@ -88,6 +98,7 @@ const deleteProduct = async (req, res) => {
 
 module.exports = {
     getProduct,
+    getProductAsJson,
     addProduct,
     updateProduct,
     deleteProduct,

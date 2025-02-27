@@ -1,12 +1,13 @@
 const Product = require('../models/Product');
 
+// Thêm sản phẩm mới
 const addProduct = (newProduct) => {
     return new Promise(async (resolve, reject) => {
-        const { name, price, thumbnail, description, category, stockQuantity, status } = newProduct;
+        const { name, price, thumbnail, description, category, stockQuantity, status, attributes } = newProduct;
         try {
             const checkProduct = await Product.findOne({ name });
             if (checkProduct) {
-                resolve({
+                return resolve({
                     status: 'Error',
                     message: 'Product already exists',
                 });
@@ -19,6 +20,7 @@ const addProduct = (newProduct) => {
                 category,
                 stockQuantity,
                 status,
+                attributes // Thêm phần attributes vào
             });
 
             if (createProduct) {
@@ -45,17 +47,16 @@ const updateProduct = (productId, updatedData) => {
         try {
             const updatedProduct = await Product.findByIdAndUpdate(productId, updatedData, { new: true });
             if (!updatedProduct) {
-                resolve({
+                return resolve({
                     status: 'Error',
                     message: 'Product not found',
                 });
-            } else {
-                resolve({
-                    status: 'Ok',
-                    message: 'Product updated successfully',
-                    data: updatedProduct,
-                });
-            }
+            } 
+            resolve({
+                status: 'Ok',
+                message: 'Product updated successfully',
+                data: updatedProduct,
+            });
         } catch (error) {
             console.error('Database Error:', error);
             reject({
@@ -73,17 +74,16 @@ const deleteProduct = (productId) => {
         try {
             const deletedProduct = await Product.findByIdAndDelete(productId);
             if (!deletedProduct) {
-                resolve({
+                return resolve({
                     status: 'Error',
                     message: 'Product not found',
                 });
-            } else {
-                resolve({
-                    status: 'Ok',
-                    message: 'Product deleted successfully',
-                    data: deletedProduct,
-                });
-            }
+            } 
+            resolve({
+                status: 'Ok',
+                message: 'Product deleted successfully',
+                data: deletedProduct,
+            });
         } catch (error) {
             console.error('Database Error:', error);
             reject({

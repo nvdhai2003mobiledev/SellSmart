@@ -4,6 +4,7 @@ const productController = require('../../src/controllers/ProductController');
 
 // Lấy danh sách sản phẩm
 router.get('/', productController.getProduct);
+router.get('/json/', productController.getProduct);
 
 // Thêm sản phẩm
 router.post('/create', productController.addProduct);
