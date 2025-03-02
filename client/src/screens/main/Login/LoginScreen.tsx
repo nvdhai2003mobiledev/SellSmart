@@ -113,7 +113,8 @@ const styles = StyleSheet.create({
   },
   form: {
     gap: scaleHeight(20),
-    marginTop: scaleHeight(80)
+    marginTop: scaleHeight(80),
+    padding:scaleHeight(10)
   },
   errorText: {
     color: color.accentColor.errorColor,
