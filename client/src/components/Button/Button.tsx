@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: color.primaryColor,
     borderRadius: moderateScale(14),
-    height: scaleHeight(45),
+    height: scaleHeight(50),
     width: '100%',
   },
   titleContainer: {

@@ -1,8 +1,8 @@
 import { Image, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import React, { useState } from 'react';
 import { useNavigation } from '@react-navigation/native'; // Import useNavigation
-import { BaseLayout, Button, DynamicText, Input } from '../../../components';
-import { color, scaledSize, scaleHeight, scaleWidth } from '../../../utils';
+import { BaseLayout, Button, DynamicText, Input ,Header } from '../../../components';
+import { color, scaledSize, scaleHeight } from '../../../utils';
 import { Fonts, Images } from '../../../assets';
 import { Controller, useForm } from 'react-hook-form';
 import { contents } from '../../../context';
@@ -10,7 +10,8 @@ import { RegexPatterns } from '../../../constants';
 import Icon from 'react-native-vector-icons/Ionicons';
 import RNPickerSelect from 'react-native-picker-select';
 
-const LoginScreen = () => {
+
+const NewPass = () => {
   const navigation = useNavigation(); // Khai báo navigation
 
   const {
@@ -37,31 +38,11 @@ const LoginScreen = () => {
 
   return (
     <BaseLayout style={styles.container}>
-      <Image source={Images.Logo5} style={styles.logoImage} />
+          <Header title="Đặt lại mật khẩu" showBackIcon onPressBack={() => { }} />
+      <Image source={Images.Key} style={styles.logoImage} />
       <View style={styles.form}>
-        {/* Tài khoản */}
-        <Controller
-          control={control}
-          name="username"
-          rules={{
-            required: contents.login.username_required,
-          }}
-          render={({ field: { onChange, value } }) => (
-            <View>
-              <Input
-                placeholderText={contents.login.username_placeholder}
-                onChangeText={onChange}
-                value={value}
-                iconType="clear"
-              />
-              {errors.username && (
-                <DynamicText style={styles.errorText}>
-                  {errors.username.message}
-                </DynamicText>
-              )}
-            </View>
-          )}
-        />
+    
+     
         {/* Mật khẩu */}
         <Controller
           control={control}
@@ -80,7 +61,7 @@ const LoginScreen = () => {
           render={({ field: { onChange, value } }) => (
             <View style={styles.passwordContainer}>
               <Input
-                placeholderText={contents.login.password_placeholder}
+                placeholderText={contents.login.password_placeholder1}
                 onChangeText={onChange}
                 value={value}
                 secureTextEntry={!isPasswordVisible}
@@ -96,20 +77,56 @@ const LoginScreen = () => {
             </View>
           )}
         />
+
+
+
+      {/* Mật khẩu */}
+      <Controller
+          control={control}
+          name="password"
+          rules={{
+            required: contents.login.password_required,
+            minLength: {
+              value: 8,
+              message: contents.login.password_min_length,
+            },
+            pattern: {
+              value: RegexPatterns.PASSWORD,
+              message: contents.login.password_pattern,
+            },
+          }}
+          render={({ field: { onChange, value } }) => (
+            <View style={styles.passwordContainer}>
+              <Input
+                placeholderText={contents.login.password_placeholder2}
+                onChangeText={onChange}
+                value={value}
+                secureTextEntry={!isPasswordVisible}
+              />
+              <TouchableOpacity onPress={togglePasswordVisibility} style={styles.eyeIcon}>
+                <Icon name={isPasswordVisible ? "eye" : "eye-off"} size={20} color="gray" />
+              </TouchableOpacity>
+              {errors.password && (
+                <DynamicText style={styles.errorText}>
+                  {errors.password.message}
+                </DynamicText>
+              )}
+            </View>
+          )}
+        />
+
+
+
+
         {/* Button Đăng nhập */}
         <Button
-          title={contents.login.button_title}
+          title={contents.login.next}
           onPress={handleSubmit(onSubmit)}
           buttonContainerStyle={styles.buttonContainer}
         />
       </View>
       
-      {/* Forgot password */}
-      <TouchableOpacity onPress={() => navigation.navigate('ForgotPasswordScreen')}>
-        <DynamicText style={styles.forgotPassword}>
-          {contents.login.forgot_password}
-        </DynamicText>
-      </TouchableOpacity>
+
 
       {/* Dropdown chọn ngôn ngữ */}
       <View style={styles.languagePickerContainer}>
@@ -127,20 +144,20 @@ const LoginScreen = () => {
   );
 };
 
-export default LoginScreen;
+export default NewPass;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#FFF",
+    paddingTop: scaleHeight(20)
   },
   logoImage: {
-    width: scaledSize(330),
-    height: scaledSize(130),
+    width: scaledSize(320),
+    height: scaledSize(120),
     resizeMode: 'contain',
     alignSelf: 'center',
-    marginTop: scaleHeight(140),
-    marginLeft:scaleWidth(30)
+    marginTop: scaleHeight(70),
   },
   form: {
     gap: scaleHeight(20),
