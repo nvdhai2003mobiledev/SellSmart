@@ -24,7 +24,9 @@ import HomeScreen from '../screens/bottomTab/Home/HomeScreen';
 import OrderScreen from '../screens/bottomTab/Order/OrderScreen';
 import ProductScreen from '../screens/bottomTab/Product/ProductScreen';
 import StatisticalScreen from '../screens/bottomTab/Statistical/StatisticalScreen';
-import MenuScreen from '../screens/bottomTab/Menu/MenuScreen';
+import { MenuScreen } from '../screens/bottomTab/Menu/MenuScreen';
+
+
 
 const BottomTab = createBottomTabNavigator<BottomRootStackParamList>();
 

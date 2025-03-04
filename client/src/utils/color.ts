@@ -10,4 +10,5 @@ export const color = {
   },
   backgroundColor: '#F9F9FF',
   inputColor: '#F6F7F9',
+  
 };
