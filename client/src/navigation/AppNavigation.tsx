@@ -3,16 +3,10 @@ import { createNativeStackNavigator, NativeStackNavigationOptions } from '@react
 import { BottomNavigation } from './BottomNavigation';
 import { HomeScreen, LoginScreen, SplashScreen } from '../screens';
 import { Screen } from './navigation.type';
-<<<<<<< HEAD
 import OnboardingScreen from '../screens/main/Splash/OnboardingScreen';
 import ForgotPasswordScreen from '../screens/main/Splash/ForgotPasswordScreen';
 import XacMinh from '../screens/main/Splash/XacMinh';
 import NewPass from '../screens/main/Splash/NewPass';
-
-
-
-
-=======
 import AddStaffScreen from '../screens/main/AddStaff/AddStaffScreen';
 import StaffDetailScreen from '../screens/main/StaffDetail/StaffDetailScreen';
 import UpdateStaffScreen from '../screens/main/UpdateStaff/UpdateStaffScreen';
@@ -23,7 +17,6 @@ import ConfigScreen from '../screens/main/Config/ConfigScreen';
 import NotificationScreen from '../screens/main/Notification/NotificationScreen';
 import { StaffScreen } from '../screens/main/Staff/StaffScreen';
 import { CustomerScreen } from '../screens/main/Custemer/CustomerScreen';
->>>>>>> 3cbe10814c328dd86256de046af4ba894fec51b1
 
 const RootStack = createNativeStackNavigator();
 const screenOptions: NativeStackNavigationOptions = {
@@ -33,7 +26,6 @@ const screenOptions: NativeStackNavigationOptions = {
 export const AppNavigation = () => {
   return (
     <RootStack.Navigator
-<<<<<<< HEAD
       // initialRouteName= "LoginScreen"
       initialRouteName={Screen.BOTTOM_TAB}
       screenOptions={screenOptions}>
@@ -44,10 +36,6 @@ export const AppNavigation = () => {
       <RootStack.Screen name= "XacMinh" component={XacMinh} />
       <RootStack.Screen name= "NewPass" component={NewPass} />
       <RootStack.Screen name= "LoginScreen" component={LoginScreen} />
-
-=======
-      initialRouteName={Screen.NOTIFI}
-      screenOptions={screenOptions}>
       <RootStack.Screen name={Screen.NOTIFI} component={NotificationScreen} />
       <RootStack.Screen name={Screen.CONFIG} component={ConfigScreen} />
       <RootStack.Screen name={Screen.CUSTOMERDETAIL} component={CustomerDetailScreen} />
@@ -62,7 +50,6 @@ export const AppNavigation = () => {
       <RootStack.Screen name={Screen.BOTTOM_TAB} component={BottomNavigation} />
       <RootStack.Screen name={Screen.SPLASH} component={SplashScreen} />
  
->>>>>>> 3cbe10814c328dd86256de046af4ba894fec51b1
     </RootStack.Navigator>
   );
 };
