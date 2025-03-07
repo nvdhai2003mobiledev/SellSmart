@@ -33,7 +33,6 @@ export const contents = {
     password_error: 'Mật khẩu không chính xác. Kiểm tra lại!',
     next : 'Tiếp tục'
   },
-<<<<<<< HEAD
 
 order:{
   createOrder: 'Tạo đơn hàng ',
@@ -61,9 +60,7 @@ nhapma:'Nhập mã xác minh chúng tôi đã gửi tới',
 phone:'+84 309290017',
 guilai:'Gửi lại!',
 }
-
-
-=======
+,
  menu:{
   title: 'Menu',
     account: {
@@ -313,5 +310,5 @@ titlee: "Chuyển khoản vào ngân hàng",
         timee: "03:52:55 - 12/05",
         descriptionn: "Customer Nguyễn Ngọc Minh has successfully paid for order #95111 with a value of 20.00 USD...",
   }
->>>>>>> 3cbe10814c328dd86256de046af4ba894fec51b1
+
 };
