@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const routes = require('./routes');
 const bodyParser = require('body-parser');
 const path = require('path');
-
+const connectDB=require('./config/db')
 dotenv.config();
 
 const app = express();
@@ -28,18 +28,11 @@ routes(app);
 // });
 
 // Kết nối MongoDB
-mongoose
-  .connect(process.env.MONGO_URI || 'mongodb://localhost:27017/DuAnTotNghiep')
-  .then(() => {
-    console.log('Connect success');
-  })
-  .catch((error) => {
-    console.error('Connect failure: ', error);
-  });
-
+connectDB();
 // Lắng nghe cổng
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
+  
 });
 
 module.exports = app;
