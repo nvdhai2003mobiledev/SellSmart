@@ -23,7 +23,7 @@ const createUser = async (req, res) => {
       !confirmPassword ||
       !birthDate ||
       !address ||
-      !avatar
+      !avatar 
     ) {
       return res.status(400).json({
         status: 'ERR',
@@ -82,7 +82,7 @@ const loginUser = async (req, res) => {
       !confirmPassword ||
       !birthDate ||
       !address ||
-      !avatar
+      !avatar 
     ) {
       return res.status(400).json({
         status: 'ERR',
