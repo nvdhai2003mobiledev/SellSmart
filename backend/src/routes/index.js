@@ -1,8 +1,9 @@
-const userRoute = require('./UserRoute');
-const productRouter = require('./ProductRouter');
-const routes = (app) => {
-  app.use('/user', userRoute);
-  app.use('/product', productRouter);
+const authRoutes = require("./auth");
+const dashboardRoutes = require("./dashboard");
+const employeeRoutes = require("./employee");
+const routers = (app) => {
+  app.use("/", authRoutes);
+  app.use("/employees", employeeRoutes);
 };
 
-module.exports = routes;
+module.exports = routers;
