@@ -5,152 +5,291 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Danh sách sản phẩm</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
+<<<<<<< HEAD
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+=======
     <style>
-        body {
-            height: 100vh;
-            overflow-y: auto;
-        }
-        .container {
-            padding: 20px;
-        }
+      body {
+        height: 100vh;
+        overflow-y: auto;
+      }
+
+      .container {
+        padding: 20px;
+      }
     </style>
+>>>>>>> refs/remotes/origin/master
 </head>
 <body>
-    <div class="container mt-5">
-        <h1 class="text-center mb-4">Danh sách sản phẩm</h1>
+<div class="container mt-5">
+    <h1 class="text-center mb-4">Danh sách sản phẩm</h1>
 
-        <!-- Thêm sản phẩm -->
+<<<<<<< HEAD
+        <!-- Form thêm sản phẩm -->
         <div class="mb-4">
             <h3>Thêm sản phẩm mới</h3>
-            <form id="addProductForm" action="/products/add" method="POST">
-                <div class="mb-3">
-                    <label for="name" class="form-label">Tên sản phẩm</label>
-                    <input type="text" class="form-control" id="name" name="name" placeholder="Nhập tên sản phẩm" required>
-                </div>
-                <div class="mb-3">
-                    <label for="thumbnail" class="form-label">URL hình ảnh</label>
-                    <input type="text" class="form-control" id="thumbnail" name="thumbnail" placeholder="Nhập URL hình ảnh">
-                </div>
-                <div class="mb-3">
-                    <label for="price" class="form-label">Giá</label>
-                    <input type="number" class="form-control" id="price" name="price" placeholder="Nhập giá sản phẩm" required>
-                </div>
-                <div class="mb-3">
-                    <label for="description" class="form-label">Mô tả</label>
-                    <textarea class="form-control" id="description" name="description" placeholder="Nhập mô tả sản phẩm"></textarea>
-                </div>
-                <div class="mb-3">
-                    <label for="category" class="form-label">Danh mục</label>
-                    <input type="text" class="form-control" id="category" name="category" placeholder="Nhập danh mục" required>
-                </div>
-                <div class="mb-3">
-                    <label for="stockQuantity" class="form-label">Số lượng trong kho</label>
-                    <input type="number" class="form-control" id="stockQuantity" name="stockQuantity" placeholder="Nhập số lượng" required min="0">
-                </div>
+            <form id="addProductForm">
+                <input type="text" id="name" placeholder="Tên sản phẩm" required class="form-control mb-2">
+                <input type="text" id="thumbnail" placeholder="URL hình ảnh" class="form-control mb-2">
+                <input type="number" id="price" placeholder="Giá" required class="form-control mb-2">
+                <textarea id="description" placeholder="Mô tả" class="form-control mb-2"></textarea>
+                <input type="text" id="category" placeholder="Danh mục" required class="form-control mb-2">
+                <input type="number" id="stockQuantity" placeholder="Số lượng trong kho" required min="0" class="form-control mb-2">
                 <button type="submit" class="btn btn-primary">Thêm sản phẩm</button>
             </form>
         </div>
 
-        <!-- Hiển thị danh sách sản phẩm -->
-        <div style="max-height: 400px; overflow-y: auto;">
-            <table class="table table-bordered">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Tên sản phẩm</th>
-                        <th>Giá</th>
-                        <th>Hình ảnh</th>
-                        <th>Mô tả</th>
-                        <th>Danh mục</th>
-                        <th>Số lượng</th>
-                        <th>Trạng thái</th>
-                        <th>Hành động</th>
+        <!-- Danh sách sản phẩm -->
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Tên sản phẩm</th>
+                    <th>Giá</th>
+                    <th>Hình ảnh</th>
+                    <th>Danh mục</th>
+                    <th>Số lượng</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody id="productTableBody">
+                <% products.forEach(product => { %>
+                    <tr id="row-<%= product._id %>">
+                        <td><%= product._id %></td>
+                        <td><%= product.name %></td>
+                        <td><%= product.price %></td>
+                        <td><img src="<%= product.thumbnail %>" width="100"></td>
+                        <td><%= product.category %></td>
+                        <td><%= product.stockQuantity %></td>
+                        <td>
+                            <button class="btn btn-warning btn-sm" onclick="editProduct('<%= product._id %>')">Sửa</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteProduct('<%= product._id %>')">Xóa</button>
+                        </td>
                     </tr>
-                </thead>
-                <tbody>
-                    <% products.forEach(function(product) { %>
-                        <tr>
-                            <td><%= product._id %></td>
-                            <td><%= product.name %></td>
-                            <td><%= product.price %></td>
-                            <td><img src="<%= product.thumbnail %>" alt="Product Image" width="100"></td>
-                            <td><%= product.description %></td>
-                            <td><%= product.category %></td>
-                            <td><%= product.stockQuantity %></td>
-                            <td><%= product.status %></td>
-                            <td>
-                                <button class="btn btn-warning btn-sm" onclick="editProduct('<%= product._id %>')">Sửa</button>
-                                <form action="/products/delete/<%= product._id %>" method="POST" style="display:inline;">
-                                    <button type="submit" class="btn btn-danger btn-sm">Xóa</button>
-                                </form>
-                            </td>
-                        </tr>
-                    <% }); %>
-                </tbody>
-            </table>
-        </div>
+                <% }); %>
+            </tbody>
+        </table>
 
         <!-- Modal chỉnh sửa sản phẩm -->
-        <div class="modal fade" id="editProductModal" tabindex="-1" aria-labelledby="editProductModalLabel" aria-hidden="true">
+        <div class="modal fade" id="editProductModal" tabindex="-1">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="editProductModalLabel">Sửa sản phẩm</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <h5 class="modal-title">Sửa sản phẩm</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
-                        <form id="editProductForm" action="/products/edit" method="POST">
-                            <input type="hidden" id="editProductId" name="id">
-                            <div class="mb-3">
-                                <label for="editName" class="form-label">Tên sản phẩm</label>
-                                <input type="text" class="form-control" id="editName" name="name" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="editThumbnail" class="form-label">URL hình ảnh</label>
-                                <input type="text" class="form-control" id="editThumbnail" name="thumbnail">
-                            </div>
-                            <div class="mb-3">
-                                <label for="editPrice" class="form-label">Giá</label>
-                                <input type="number" class="form-control" id="editPrice" name="price" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="editDescription" class="form-label">Mô tả</label>
-                                <textarea class="form-control" id="editDescription" name="description"></textarea>
-                            </div>
-                            <div class="mb-3">
-                                <label for="editCategory" class="form-label">Danh mục</label>
-                                <input type="text" class="form-control" id="editCategory" name="category" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="editStockQuantity" class="form-label">Số lượng</label>
-                                <input type="number" class="form-control" id="editStockQuantity" name="stockQuantity" required min="0">
-                            </div>
+                        <form id="editProductForm">
+                            <input type="hidden" id="editProductId">
+                            <input type="text" id="editName" class="form-control mb-2">
+                            <input type="text" id="editThumbnail" class="form-control mb-2">
+                            <input type="number" id="editPrice" class="form-control mb-2">
+                            <input type="text" id="editCategory" class="form-control mb-2">
+                            <input type="number" id="editStockQuantity" class="form-control mb-2">
                             <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
+=======
+    <!-- Thêm sản phẩm -->
+    <div class="mb-4">
+        <h3>Thêm sản phẩm mới</h3>
+        <form id="addProductForm" action="/products/add" method="POST">
+            <div class="mb-3">
+                <label for="name" class="form-label">Tên sản phẩm</label>
+                <input type="text" class="form-control" id="name" name="name" placeholder="Nhập tên sản phẩm" required>
+            </div>
+            <div class="mb-3">
+                <label for="thumbnail" class="form-label">URL hình ảnh</label>
+                <input type="text" class="form-control" id="thumbnail" name="thumbnail" placeholder="Nhập URL hình ảnh">
+            </div>
+            <div class="mb-3">
+                <label for="price" class="form-label">Giá</label>
+                <input type="number" class="form-control" id="price" name="price" placeholder="Nhập giá sản phẩm"
+                       required>
+            </div>
+            <div class="mb-3">
+                <label for="description" class="form-label">Mô tả</label>
+                <textarea class="form-control" id="description" name="description"
+                          placeholder="Nhập mô tả sản phẩm"></textarea>
+            </div>
+            <div class="mb-3">
+                <label for="category" class="form-label">Danh mục</label>
+                <input type="text" class="form-control" id="category" name="category" placeholder="Nhập danh mục"
+                       required>
+            </div>
+            <div class="mb-3">
+                <label for="stockQuantity" class="form-label">Số lượng trong kho</label>
+                <input type="number" class="form-control" id="stockQuantity" name="stockQuantity"
+                       placeholder="Nhập số lượng" required min="0">
+            </div>
+            <button type="submit" class="btn btn-primary">Thêm sản phẩm</button>
+        </form>
+    </div>
+
+    <!-- Hiển thị danh sách sản phẩm -->
+    <div style="max-height: 400px; overflow-y: auto;">
+        <table class="table table-bordered">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Tên sản phẩm</th>
+                <th>Giá</th>
+                <th>Hình ảnh</th>
+                <th>Mô tả</th>
+                <th>Danh mục</th>
+                <th>Số lượng</th>
+                <th>Trạng thái</th>
+                <th>Hành động</th>
+            </tr>
+            </thead>
+            <tbody>
+            <% products.forEach(function(product) { %>
+                <tr>
+                    <td><%= product._id %></td>
+                    <td><%= product.name %></td>
+                    <td><%= product.price %></td>
+                    <td><img src="<%= product.thumbnail %>" alt="Product Image" width="100"></td>
+                    <td><%= product.description %></td>
+                    <td><%= product.category %></td>
+                    <td><%= product.stockQuantity %></td>
+                    <td><%= product.status %></td>
+                    <td>
+                        <button class="btn btn-warning btn-sm" onclick="editProduct('<%= product._id %>')">Sửa</button>
+                        <form action="/products/delete/<%= product._id %>" method="POST" style="display:inline;">
+                            <button type="submit" class="btn btn-danger btn-sm">Xóa</button>
+>>>>>>> refs/remotes/origin/master
                         </form>
-                    </div>
+                    </td>
+                </tr>
+            <% }); %>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Modal chỉnh sửa sản phẩm -->
+    <div class="modal fade" id="editProductModal" tabindex="-1" aria-labelledby="editProductModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editProductModalLabel">Sửa sản phẩm</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editProductForm" action="/products/edit" method="POST">
+                        <input type="hidden" id="editProductId" name="id">
+                        <div class="mb-3">
+                            <label for="editName" class="form-label">Tên sản phẩm</label>
+                            <input type="text" class="form-control" id="editName" name="name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editThumbnail" class="form-label">URL hình ảnh</label>
+                            <input type="text" class="form-control" id="editThumbnail" name="thumbnail">
+                        </div>
+                        <div class="mb-3">
+                            <label for="editPrice" class="form-label">Giá</label>
+                            <input type="number" class="form-control" id="editPrice" name="price" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editDescription" class="form-label">Mô tả</label>
+                            <textarea class="form-control" id="editDescription" name="description"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editCategory" class="form-label">Danh mục</label>
+                            <input type="text" class="form-control" id="editCategory" name="category" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editStockQuantity" class="form-label">Số lượng</label>
+                            <input type="number" class="form-control" id="editStockQuantity" name="stockQuantity"
+                                   required min="0">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
+                    </form>
                 </div>
             </div>
         </div>
+<<<<<<< HEAD
 
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
         <script>
+            $(document).ready(() => {
+                $('#addProductForm').submit(function(event) {
+                    event.preventDefault();
+                    const data = {
+                        name: $('#name').val(),
+                        thumbnail: $('#thumbnail').val(),
+                        price: $('#price').val(),
+                        description: $('#description').val(),
+                        category: $('#category').val(),
+                        stockQuantity: $('#stockQuantity').val()
+                    };
+                    $.post('/products/create', data, () => location.reload());
+                });
+            });
+
             function editProduct(id) {
                 fetch(`/products/${id}`)
                     .then(res => res.json())
                     .then(product => {
-                        document.getElementById('editProductId').value = product._id;
-                        document.getElementById('editName').value = product.name;
-                        document.getElementById('editThumbnail').value = product.thumbnail;
-                        document.getElementById('editPrice').value = product.price;
-                        document.getElementById('editDescription').value = product.description;
-                        document.getElementById('editCategory').value = product.category;
-                        document.getElementById('editStockQuantity').value = product.stockQuantity;
-
-                        const modal = new bootstrap.Modal(document.getElementById('editProductModal'));
-                        modal.show();
+                        $('#editProductId').val(product._id);
+                        $('#editName').val(product.name);
+                        $('#editThumbnail').val(product.thumbnail);
+                        $('#editPrice').val(product.price);
+                        $('#editCategory').val(product.category);
+                        $('#editStockQuantity').val(product.stockQuantity);
+                        new bootstrap.Modal(document.getElementById('editProductModal')).show();
                     });
             }
+
+            $('#editProductForm').submit(function(event) {
+                event.preventDefault();
+                const id = $('#editProductId').val();
+                const data = {
+                    name: $('#editName').val(),
+                    thumbnail: $('#editThumbnail').val(),
+                    price: $('#editPrice').val(),
+                    category: $('#editCategory').val(),
+                    stockQuantity: $('#editStockQuantity').val()
+                };
+                $.ajax({
+                    url: `/products/edit/${id}`,
+                    type: 'PUT',
+                    data,
+                    success: () => location.reload()
+                });
+            });
+
+            function deleteProduct(id) {
+                if (confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) {
+                    $.ajax({
+                        url: `/products/delete/${id}`,
+                        type: 'DELETE',
+                        success: () => location.reload()
+                    });
+                }
+            }
         </script>
+=======
+>>>>>>> refs/remotes/origin/master
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      function editProduct(id) {
+        fetch(`/products/${id}`)
+          .then(res => res.json())
+          .then(product => {
+            document.getElementById('editProductId').value = product._id;
+            document.getElementById('editName').value = product.name;
+            document.getElementById('editThumbnail').value = product.thumbnail;
+            document.getElementById('editPrice').value = product.price;
+            document.getElementById('editDescription').value = product.description;
+            document.getElementById('editCategory').value = product.category;
+            document.getElementById('editStockQuantity').value = product.stockQuantity;
+
+            const modal = new bootstrap.Modal(document.getElementById('editProductModal'));
+            modal.show();
+          });
+      }
+    </script>
+</div>
 </body>
 </html>

@@ -5,6 +5,7 @@ const Product = require('../models/Product');
 const getProduct = async (req, res) => {
     try {
         const products = await Product.find(); // Lấy tất cả sản phẩm
+<<<<<<< HEAD
         
         // Nếu request là API (kiểm tra path hoặc header)
         if (req.path.includes('/json') || req.headers.accept === 'application/json') {
@@ -14,6 +15,9 @@ const getProduct = async (req, res) => {
         // Render view cho giao diện web
         res.render('product', { products: products }); // Render file product.ejs với dữ liệu products
         
+=======
+        res.render('product', { products });
+>>>>>>> 020b47ca46b2e2cab43ec38af5437ee7a01f20e2
     } catch (error) {
         console.error(error); // Ghi log lỗi
         res.status(500).json({ message: 'Lỗi khi lấy danh sách sản phẩm' });

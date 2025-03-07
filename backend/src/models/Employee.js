@@ -1,61 +1,64 @@
-// Nhân viên
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
 const Employee = new Schema(
   {
-    fullName: {
-      type: String,
-      required: true,
-    },
-    phoneNumber: {
-      type: String,
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
       required: true,
       unique: true,
     },
-    email: {
+    employeeId: {
       type: String,
       required: true,
       unique: true,
+      trim: true,
     },
-    password: {
+    department: {
       type: String,
       required: true,
-    },
-    birthDate: {
-      type: Date,
-      required: true,
-    },
-    address: {
-      type: String,
-    },
-    avatar: {
-      type: String,
-    },
-    hireDate: {
-      type: Date,
-      required: true,
+      trim: true,
     },
     position: {
       type: String,
       required: true,
+      trim: true,
     },
     salary: {
       type: Number,
       required: true,
     },
-    status: {
-      type: String,
+    hireDate: {
+      type: Date,
       required: true,
-      default: 'active',
+      default: Date.now,
     },
-    role: {
+    workStatus: {
       type: String,
-      required: true,
-      default: 'staff',
+      enum: ["active", "inactive", "leave"],
+      default: "active",
+    },
+    bankAccount: {
+      bankName: String,
+      accountNumber: String,
+      accountHolder: String,
     },
   },
   { timestamps: true },
 );
 
-module.exports = mongoose.model('Employee', Employee);
+// Virtual để tính số năm làm việc
+Employee.virtual("yearsOfService").get(function () {
+  const now = new Date();
+  const hireDate = this.hireDate;
+  const diffTime = Math.abs(now - hireDate);
+  const diffYears = diffTime / (1000 * 60 * 60 * 24 * 365.25);
+  return Math.floor(diffYears);
+});
+
+// Đảm bảo virtuals được bao gồm khi chuyển đổi sang JSON
+Employee.set("toJSON", { virtuals: true });
+Employee.set("toObject", { virtuals: true });
+
+module.exports = mongoose.model("Employee", Employee);

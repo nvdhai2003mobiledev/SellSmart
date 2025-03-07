@@ -20,13 +20,7 @@ import Animated, {
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { BottomRootStackParamList, Screen } from './navigation.type';
 import { color, moderateScale, scaledSize, scaleHeight, scaleWidth } from '../utils';
-import HomeScreen from '../screens/bottomTab/Home/HomeScreen';
-import OrderScreen from '../screens/bottomTab/Order/OrderScreen';
-import ProductScreen from '../screens/bottomTab/Product/ProductScreen';
-import StatisticalScreen from '../screens/bottomTab/Statistical/StatisticalScreen';
-import { MenuScreen } from '../screens/bottomTab/Menu/MenuScreen';
-
-
+import { HomeScreen, MenuScreen, OrderScreen, ProductScreen, StatisticalScreen } from '../screens';
 
 const BottomTab = createBottomTabNavigator<BottomRootStackParamList>();
 

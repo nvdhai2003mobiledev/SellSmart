@@ -11,7 +11,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import RNPickerSelect from 'react-native-picker-select';
 
 const LoginScreen = () => {
-  const navigation = useNavigation(); // Khai báo navigation
+  const navigation = useNavigation<any>(); // Khai báo navigation
 
   const {
     control,
@@ -145,6 +145,7 @@ const styles = StyleSheet.create({
   form: {
     gap: scaleHeight(20),
     marginTop: scaleHeight(80),
+    padding:scaleHeight(10)
   },
   errorText: {
     color: color.accentColor.errorColor,
