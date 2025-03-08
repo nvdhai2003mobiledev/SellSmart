@@ -17,6 +17,8 @@ exports.createSupplier = async (req, res) => {
         const supplier = new Supplier(req.body);
         await supplier.save();
         res.status(201).json(supplier);
+        console.log("Thêm nhà cung cấp mới");
+        
     } catch (error) {
         res.status(400).json({ message: error.message });
     }
