@@ -36,8 +36,6 @@ export const AppNavigation = () => {
       <RootStack.Screen name= "XacMinh" component={XacMinh} />
       <RootStack.Screen name= "NewPass" component={NewPass} />
       <RootStack.Screen name= "LoginScreen" component={LoginScreen} />
-
-    
       <RootStack.Screen name={Screen.NOTIFI} component={NotificationScreen} />
       <RootStack.Screen name={Screen.CONFIG} component={ConfigScreen} />
       <RootStack.Screen name={Screen.CUSTOMERDETAIL} component={CustomerDetailScreen} />

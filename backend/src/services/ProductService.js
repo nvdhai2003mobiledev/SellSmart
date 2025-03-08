@@ -95,8 +95,51 @@ const deleteProduct = (productId) => {
     });
 };
 
+const addProductVariant = (productId, newAttribute) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const product = await Product.findById(productId);
+            if (!product) {
+                return resolve({
+                    status: 'Error',
+                    message: 'Product not found',
+                });
+            }
+
+            // Kiểm tra xem thuộc tính đã tồn tại chưa
+            const existingAttribute = product.attributes.find(attr => attr.name === newAttribute.name);
+            if (existingAttribute) {
+                // Nếu thuộc tính đã có, thêm giá trị mới nếu chưa tồn tại
+                newAttribute.values.forEach(value => {
+                    if (!existingAttribute.values.includes(value)) {
+                        existingAttribute.values.push(value);
+                    }
+                });
+            } else {
+                // Nếu thuộc tính chưa tồn tại, thêm mới
+                product.attributes.push(newAttribute);
+            }
+
+            const updatedProduct = await product.save();
+            resolve({
+                status: 'Ok',
+                message: 'Product variant added successfully',
+                data: updatedProduct,
+            });
+        } catch (error) {
+            console.error('Database Error:', error);
+            reject({
+                status: 'Error',
+                message: 'Failed to add product variant',
+                error: error.message,
+            });
+        }
+    });
+};
+
 module.exports = {
     addProduct,
     updateProduct,
     deleteProduct,
+    addProductVariant,
 };

@@ -1,5 +1,7 @@
+
 // Nhà cung cấp
 const mongoose = require('mongoose');
+
 const Schema = mongoose.Schema;
 
 const Supplier = new Schema(
@@ -31,4 +33,6 @@ const Supplier = new Schema(
   { timestamps:true },
 );
 
-module.exports = mongoose.model('Supplier', Supplier);
+
+module.exports = mongoose.model("Supplier", Supplier);
+

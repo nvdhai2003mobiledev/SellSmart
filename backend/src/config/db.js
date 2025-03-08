@@ -42,5 +42,4 @@ process.on("SIGINT", async () => {
   console.log("Mongoose connection closed through app termination");
   process.exit(0);
 });
-
 module.exports = connectDB;

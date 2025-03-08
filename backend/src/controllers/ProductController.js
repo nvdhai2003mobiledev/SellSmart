@@ -5,7 +5,7 @@ const Product = require('../models/Product');
 const getProduct = async (req, res) => {
     try {
         const products = await Product.find(); // Lấy tất cả sản phẩm
-        res.json(products); // Gửi danh sách sản phẩm dưới dạng JSON
+        res.render('product', { products });
     } catch (error) {
         console.error(error); // Ghi log lỗi
         res.status(500).json({ message: 'Lỗi khi lấy danh sách sản phẩm' });
