@@ -1,6 +1,6 @@
 const User = require('../models/User');
 const bcrypt = require('bcrypt');
-const { generalAccessToken } = require('./JwtService');
+// const { generalAccessToken } = require('./JwtService');
 
 const loginUserMobile = (userLogin) => {
   return new Promise(async (resolve, reject) => {

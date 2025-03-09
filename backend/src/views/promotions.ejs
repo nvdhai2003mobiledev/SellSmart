@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý Khuyến mãi</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { height: 100vh; overflow-y: auto; }
+        .container { padding: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center mb-4">Danh sách Khuyến mãi</h1>
+
+        <!-- Form thêm/sửa khuyến mãi -->
+        <div class="mb-4">
+            <h3 id="formTitle">Thêm Khuyến mãi</h3>
+            <form id="promotionForm">
+                <input type="hidden" id="promotionId" value="">
+                <div class="mb-3">
+                    <label class="form-label">Tên khuyến mãi</label>
+                    <input type="text" class="form-control" id="name" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Loại khuyến mãi</label>
+                    <select class="form-control" id="type">
+                        <option value="percent">Phần trăm (%)</option>
+                        <option value="fixed">Số tiền cố định</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Giảm giá (%)</label>
+                    <input type="number" class="form-control" id="discount" min="1" max="100" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Giá trị đơn hàng tối thiểu</label>
+                    <input type="number" class="form-control" id="minOrderValue" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Giảm giá tối đa</label>
+                    <input type="number" class="form-control" id="maxDiscount" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Trạng thái</label>
+                    <select class="form-control" id="status">
+                        <option value="sapdienra">Sắp diễn ra</option>
+                        <option value="active">Đang diễn ra</option>
+                        <option value="expired">Hết hạn</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Ngày bắt đầu</label>
+                    <input type="date" class="form-control" id="startDate" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Ngày kết thúc</label>
+                    <input type="date" class="form-control" id="endDate" required>
+                </div>
+                <button type="submit" class="btn btn-primary" id="submitBtn">Thêm</button>
+                <button type="button" class="btn btn-secondary" id="cancelBtn" style="display: none;">Hủy</button>
+            </form>
+        </div>
+
+        <!-- Danh sách khuyến mãi -->
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Tên</th>
+                    <th>Loại</th>
+                    <th>Giảm giá</th>
+                    <th>Giá trị đơn tối thiểu</th>
+                    <th>Giảm giá tối đa</th>
+                    <th>Trạng thái</th>
+                    <th>Ngày bắt đầu</th>
+                    <th>Ngày kết thúc</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody id="promotionList">
+                <% promotions.forEach(function(promotion) { %>
+                    <tr>
+                        <td><%= promotion._id %></td>
+                        <td><%= promotion.name %></td>
+                        <td><%= promotion.type === "percent" ? "Phần trăm (%)" : "Số tiền cố định" %></td>
+                        <td><%= promotion.discount %></td>
+                        <td><%= promotion.minOrderValue %></td>
+                        <td><%= promotion.maxDiscount %></td>
+                        <td>
+                            <% 
+                              if (promotion.status === "active") { 
+                                %>Đang diễn ra<% 
+                              } else if (promotion.status === "sapdienra") { 
+                                %>Sắp diễn ra<% 
+                              } else { 
+                                %>Hết hạn<% 
+                              } 
+                            %>
+                          </td>
+                          
+                          
+                        <td><%= new Date(promotion.startDate).toLocaleDateString() %></td>
+                        <td><%= new Date(promotion.endDate).toLocaleDateString() %></td>
+                        <td>
+                            <button class="btn btn-warning btn-sm" onclick="editPromotion('<%= promotion._id %>', '<%= promotion.name %>', '<%= promotion.type %>', '<%= promotion.discount %>', '<%= promotion.minOrderValue %>', '<%= promotion.maxDiscount %>', '<%= promotion.status %>', '<%= promotion.startDate %>', '<%= promotion.endDate %>')">Sửa</button>
+                            <button onclick="deletePromotion('<%= promotion._id %>')" class="btn btn-danger btn-sm">Xóa</button>
+                        </td>
+                    </tr>
+                <% }); %>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const promotionForm = document.getElementById("promotionForm");
+        const formTitle = document.getElementById("formTitle");
+        const submitBtn = document.getElementById("submitBtn");
+        const cancelBtn = document.getElementById("cancelBtn");
+        const promotionIdField = document.getElementById("promotionId");
+
+        // Xử lý sự kiện submit form
+        promotionForm.addEventListener("submit", function(event) {
+    event.preventDefault();
+    
+    const promotionData = {
+        name: document.getElementById("name").value,
+        type: document.getElementById("type").value,
+        discount: document.getElementById("discount").value,
+        minOrderValue: document.getElementById("minOrderValue").value,
+        maxDiscount: document.getElementById("maxDiscount").value,
+        status: document.getElementById("status").value,
+        startDate: document.getElementById("startDate").value,
+        endDate: document.getElementById("endDate").value
+    };
+
+    // Kiểm tra dữ liệu nhập vào
+    const validationError = validatePromotion(promotionData);
+    if (validationError) {
+        alert(validationError);
+        return;
+    }
+
+    const promotionId = promotionIdField.value;
+    
+    if (promotionId) {
+        // Cập nhật khuyến mãi hiện có
+        updatePromotion(promotionId, promotionData);
+    } else {
+        // Thêm khuyến mãi mới
+        addPromotion(promotionData);
+    }
+});
+
+
+  // Hàm kiểm tra và xử lý trạng thái "Sắp hết hạn"
+  statusField.addEventListener("change", function() {
+        if (statusField.value === "expired") {
+            // Ẩn hoặc thay đổi các trường nếu trạng thái là "Sắp hết hạn"
+            document.getElementById("endDate").disabled = true;
+        } else {
+            document.getElementById("endDate").disabled = false;
+        }
+    });
+
+// Hàm validate dữ liệu khuyến mãi
+function validatePromotion(promotionData) {
+    // Kiểm tra tên khuyến mãi
+    if (!promotionData.name.trim()) {
+        return "Tên khuyến mãi không được để trống";
+    }
+
+    // Kiểm tra giảm giá
+    if (promotionData.discount <= 0 || promotionData.discount > 100) {
+        return "Giảm giá phải trong khoảng từ 1% đến 100%";
+    }
+
+    // Kiểm tra giá trị đơn hàng tối thiểu và giảm giá tối đa
+    if (promotionData.minOrderValue <= 0) {
+        return "Giá trị đơn hàng tối thiểu phải lớn hơn 0";
+    }
+    if (promotionData.maxDiscount <= 0) {
+        return "Giảm giá tối đa phải lớn hơn 0";
+    }
+
+    // Kiểm tra maxDiscount có lớn hơn minOrderValue hay không
+    if (parseFloat(promotionData.maxDiscount) <= parseFloat(promotionData.minOrderValue)) {
+        return "Giảm giá tối đa phải lớn hơn giá trị đơn hàng tối thiểu";
+    }
+
+    // Kiểm tra ngày bắt đầu và kết thúc
+    const startDate = new Date(promotionData.startDate);
+    const endDate = new Date(promotionData.endDate);
+    if (endDate < startDate) {
+        return "Ngày kết thúc phải sau ngày bắt đầu";
+    }
+
+    // Nếu không có lỗi thì trả về null
+    return null;
+}
+
+// Hàm thêm khuyến mãi mới
+function addPromotion(promotionData) {
+    fetch("http://localhost:3000/api/promotions", { // Đổi đường dẫn API
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(promotionData)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`Lỗi HTTP: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => { 
+        alert("Thêm khuyến mãi thành công!");
+        resetForm();
+        location.reload();
+    })
+    .catch(error => {
+        console.error("Lỗi:", error);
+        alert("Có lỗi xảy ra khi thêm khuyến mãi!");
+    });
+}
+
+
+
+        // Hàm cập nhật khuyến mãi
+    // Hàm cập nhật khuyến mãi
+function updatePromotion(promotionId, promotionData) {
+    fetch(`http://localhost:3000/api/promotions/${promotionId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(promotionData)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`Lỗi HTTP: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        alert("Cập nhật khuyến mãi thành công!");
+        resetForm();
+        location.reload();
+    })
+    .catch(error => {
+        console.error("Lỗi:", error);
+        alert("Có lỗi xảy ra khi cập nhật khuyến mãi!");
+    });
+}
+
+   
+ // Hàm xóa khuyến mãi
+ function deletePromotion(id) {
+    console.log("ID cần xóa:", id);
+
+    if (!id) {
+        alert("Không tìm thấy ID khuyến mãi!");
+        return;
+    }
+
+    if (window.confirm("Bạn có chắc chắn muốn xóa khuyến mãi này không?")) {
+        fetch(`/api/promotions/${id}`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === "Error") {
+                throw new Error(data.message);
+            }
+            alert(data.message || "Xóa khuyến mãi thành công!");
+            location.reload();
+        })
+        .catch(error => {
+            console.error("Lỗi khi xóa khuyến mãi:", error);
+            alert("Có lỗi xảy ra khi xóa khuyến mãi! " + error.message);
+        });
+    }
+}
+
+
+
+
+      
+        function editPromotion(id, name, type, discount, minOrderValue, maxDiscount, status, startDate, endDate) {
+            // Cập nhật tiêu đề form và nút submit
+            formTitle.textContent = "Sửa Khuyến mãi";
+            submitBtn.textContent = "Cập nhật";
+            cancelBtn.style.display = "inline-block";
+            
+            // Lưu ID của khuyến mãi đang chỉnh sửa
+            promotionIdField.value = id;
+            
+         
+            document.getElementById("name").value = name;
+            document.getElementById("type").value = type;
+            document.getElementById("discount").value = discount;
+            document.getElementById("minOrderValue").value = minOrderValue;
+            document.getElementById("maxDiscount").value = maxDiscount;
+            document.getElementById("status").value = status;
+            document.getElementById("startDate").value = new Date(startDate).toISOString().split('T')[0];
+            document.getElementById("endDate").value = new Date(endDate).toISOString().split('T')[0];
+
+            
+  // Thực hiện điều chỉnh cho trạng thái "Sắp hết hạn"
+  if (status === "expired") {
+            document.getElementById("endDate").disabled = true;
+        } else {
+            document.getElementById("endDate").disabled = false;
+        }
+
+
+            // Cuộn lên đầu form
+            window.scrollTo({
+                top: promotionForm.offsetTop - 50,
+                behavior: 'smooth'
+            });
+        }
+
+        // Nút hủy chỉnh sửa
+        cancelBtn.addEventListener("click", function() {
+            resetForm();
+        });
+
+        // Hàm reset form về trạng thái ban đầu
+        function resetForm() {
+            formTitle.textContent = "Thêm Khuyến mãi";
+            submitBtn.textContent = "Thêm";
+            cancelBtn.style.display = "none";
+            promotionIdField.value = "";
+            promotionForm.reset();
+        }
+    </script>
+</body>
+</html>
