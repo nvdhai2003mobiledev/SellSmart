@@ -43,8 +43,4 @@ process.on("SIGINT", async () => {
   process.exit(0);
 });
 
-<<<<<<< HEAD
 module.exports = connectDB;
-=======
-module.exports = connectDB;
->>>>>>> 020b47ca46b2e2cab43ec38af5437ee7a01f20e2

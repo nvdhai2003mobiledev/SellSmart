@@ -1,11 +1,9 @@
 const express = require("express");
 const router = express.Router();
-const { loginForm, login, logout } = require("../controllers/AuthController");
-const { protect } = require("../middleware/auth");
+const AuthController = require("../controllers/AuthController");
 
-// Định nghĩa routes
-router.get("/login", loginForm);
-router.post("/login", login);
-router.get("/logout", protect, logout);
+router.get("/login", AuthController.getLogin);
+router.post("/login", AuthController.login);
+router.get("/logout", AuthController.logout);
 
 module.exports = router;
