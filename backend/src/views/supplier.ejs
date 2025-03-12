@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Danh sách nhà cung cấp</title>
+    <!-- Bootstrap CSS -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
+
+</head>
+<body>
+<div class="container mt-5">
+    <h1 class="text-center mb-4">Danh sách nhà cung cấp</h1>
+    
+    <!-- Form thêm nhà cung cấp -->
+    <div class="mb-4">
+        <h3>Thêm nhà cung cấp mới</h3>
+        <form id="addSupplierForm">
+            <input type="text" id="fullName" placeholder="Tên đầy đủ" required class="form-control mb-2">
+            <input type="text" id="phoneNumber" placeholder="Số điện thoại" required class="form-control mb-2">
+            <input type="email" id="email" placeholder="Email" required class="form-control mb-2">
+            <input type="text" id="address" placeholder="Địa chỉ" required class="form-control mb-2">
+            <select id="status" class="form-control mb-2">
+                <option value="active">Hoạt động</option>
+                <option value="inactive">Ngừng hoạt động</option>
+            </select>
+            <button type="submit" class="btn btn-primary">Thêm nhà cung cấp</button>
+        </form>
+    </div>
+    
+    <!-- Danh sách nhà cung cấp -->
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Tên đầy đủ</th>
+                <th>Số điện thoại</th>
+                <th>Email</th>
+                <th>Địa chỉ</th>
+                <th>Trạng thái</th>
+                <th>Hành động</th>
+            </tr>
+        </thead>
+        <tbody id="supplierTableBody">
+            <% suppliers.forEach(supplier => { %>
+                <tr id="row-<%= supplier._id %>">
+                    <td><%= supplier._id %></td>
+                    <td><%= supplier.fullName %></td>
+                    <td><%= supplier.phoneNumber %></td>
+                    <td><%= supplier.email %></td>
+                    <td><%= supplier.address %></td>
+                    <td><%= supplier.status %></td>
+                    <td>
+                        <!-- <button class="btn btn-warning btn-sm" onclick="editSupplier('<%= supplier._id %>')">Sửa</button> -->
+                        <button class="btn btn-warning btn-sm" onclick="editSupplier('<%= supplier._id %>')">Sửa</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteSupplier('<%= supplier._id %>')">Xóa</button>
+                    </td>
+                </tr>
+            <% }); %>
+        </tbody>
+    </table>
+</div>
+
+<!-- Modal chỉnh sửa nhà cung cấp -->
+<div class="modal fade" id="editSupplierModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Chỉnh sửa nhà cung cấp</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editSupplierId">
+                <input type="text" id="editFullName" class="form-control mb-2" placeholder="Tên đầy đủ">
+                <input type="text" id="editPhoneNumber" class="form-control mb-2" placeholder="Số điện thoại">
+                <input type="email" id="editEmail" class="form-control mb-2" placeholder="Email">
+                <input type="text" id="editAddress" class="form-control mb-2" placeholder="Địa chỉ">
+                <select id="editStatus" class="form-control mb-2">
+                    <option value="active">Hoạt động</option>
+                    <option value="inactive">Ngừng hoạt động</option>
+                </select>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-primary" onclick="updateSupplier()">Lưu</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    
+   $(document).ready(() => {
+    $('#addSupplierForm').submit(function(event) {
+        event.preventDefault();
+        
+        const data = {
+            fullName: $('#fullName').val(),
+            phoneNumber: $('#phoneNumber').val(),
+            email: $('#email').val(),
+            address: $('#address').val(),
+            status: $('#status').val()
+        };
+
+        console.log("📤 Gửi request thêm nhà cung cấp:", data); // Log trước khi gửi
+
+        $.post('/suppliers/create', data, function(response) {
+            console.log("✅ Thêm thành công! Dữ liệu:", response); // Log khi thêm thành công
+            alert("Thêm thành công!");
+            location.reload();
+        }).fail(function(xhr) {
+            console.error("❌ Lỗi khi thêm:", xhr.responseText);
+            alert("Lỗi khi thêm nhà cung cấp: " + xhr.responseText);
+        });
+    });
+});
+// Hàm gọi API cập nhật nhà cung cấp
+function updateSupplier() {
+    const id = document.getElementById("editSupplierId").value.trim();
+
+    if (!id) {
+        alert("Lỗi: Không tìm thấy ID nhà cung cấp!");
+        return;
+    }
+
+    const data = {
+        fullName: document.getElementById("editFullName").value.trim(),
+        phoneNumber: document.getElementById("editPhoneNumber").value.trim(),
+        email: document.getElementById("editEmail").value.trim(),
+        address: document.getElementById("editAddress").value.trim(),
+        status: document.getElementById("editStatus").value
+    };
+
+    console.log("📡 Gửi request cập nhật:", JSON.stringify(data));
+
+    $.ajax({
+        url: `/suppliers/update/${id}`,
+        type: "PUT",
+        contentType: "application/json",
+        data: JSON.stringify(data),
+        success: function (response) {
+            alert(response.message || "Cập nhật thành công!");
+            location.reload();
+        },
+        error: function (xhr) {
+            console.error("❌ Lỗi khi cập nhật:", xhr.responseText);
+            alert("Lỗi khi cập nhật: " + (xhr.responseJSON?.message || "Không xác định"));
+        }
+    });
+}
+
+
+// Sử dụng trong form submit
+$('#editSupplierForm').submit(function(event) {
+    event.preventDefault();
+    
+    const supplierId = $('#editSupplierId').val();
+    const supplierData = {
+        name: $('#editSupplierName').val().trim(),
+        phone: $('#editSupplierPhone').val().trim(),
+        address: $('#editSupplierAddress').val().trim(),
+        email: $('#editSupplierEmail').val().trim()
+        // Thêm các trường khác nếu cần
+    };
+    
+    updateSupplier(supplierId, supplierData);
+});
+function editSupplier(id) {
+    
+    // Tìm phần tử chứa dữ liệu trong bảng
+    const row = document.getElementById(`row-${id}`);
+    if (!row) {
+        alert("Không tìm thấy nhà cung cấp!");
+        return;
+    }
+
+    // Lấy dữ liệu từ hàng tương ứng
+    const fullName = row.children[1].textContent;
+    const phoneNumber = row.children[2].textContent;
+    const email = row.children[3].textContent;
+    const address = row.children[4].textContent;
+    const status = row.children[5].textContent;
+
+    // Điền dữ liệu vào modal chỉnh sửa
+    document.getElementById("editSupplierId").value = id;
+    document.getElementById("editFullName").value = fullName;
+    document.getElementById("editPhoneNumber").value = phoneNumber;
+    document.getElementById("editEmail").value = email;
+    document.getElementById("editAddress").value = address;
+    document.getElementById("editStatus").value = status;
+
+    // Hiển thị modal Bootstrap
+    const editModal = new bootstrap.Modal(document.getElementById("editSupplierModal"));
+    editModal.show();
+}
+
+
+async function deleteSupplier(id) {
+    if (!confirm("Bạn có chắc muốn xóa nhà cung cấp này không?")) return;
+
+    try {
+        const response = await fetch(`http://localhost:3000/suppliers/delete/${id}`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" }
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.message || "Xóa thất bại!");
+        }
+
+        alert("Xóa thành công!");
+        document.getElementById(`row-${id}`).remove(); // Xóa hàng khỏi bảng mà không cần reload
+    } catch (error) {
+        console.error("Lỗi khi xóa:", error);
+        alert(`Lỗi khi xóa: ${error.message}`);
+    }
+}
+
+</script>
+</body>
+</html>

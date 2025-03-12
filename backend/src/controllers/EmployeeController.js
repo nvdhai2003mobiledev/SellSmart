@@ -3,7 +3,7 @@ const User = require("../models/User");
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const multer = require("multer");
-
+const path = require("path");
 // Cấu hình multer
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {

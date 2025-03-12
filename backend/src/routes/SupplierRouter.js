@@ -1,10 +1,20 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const SupplierController = require('../controllers/SupplierController');
+const SupplierController = require("../controllers/SupplierController");
 
-router.get('/', SupplierController.getAllSuppliers); //lấy danh sách
-router.post('/create', SupplierController.createSupplier); // thêm 
-router.delete('/:id', SupplierController.deleteSupplier); // xóa
-router.get('/:id', SupplierController.getSupplierById); // tìm kiêm nhà cung cấp theo ID
-router.put('/:id', SupplierController.updateSupplier); // cập nhật
+// 📌 Lấy danh sách nhà cung cấp
+router.get("/", SupplierController.getAllSuppliers);
+
+// 📌 Tạo nhà cung cấp mới (Thêm)
+router.post("/create", SupplierController.createSupplier);
+
+// 📌 Xóa nhà cung cấp
+router.delete("/delete/:id", SupplierController.deleteSupplier); 
+
+// 📌 Lấy thông tin nhà cung cấp theo ID
+router.get("/:id", SupplierController.getSupplierById);
+
+// 📌 Cập nhật nhà cung cấp
+router.put("/update/:id", SupplierController.updateSupplier);
+
 module.exports = router;

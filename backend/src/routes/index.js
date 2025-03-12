@@ -5,8 +5,8 @@ const supplierRouter=require('./SupplierRouter')
 const routers = (app) => {
   
   app.use('/product', productRouter);
-  app.use('/employee', employeeRouter);
-  app.use('/supplier', supplierRouter);
+  app.use('/employees', employeeRouter);
+  app.use('/suppliers', supplierRouter);
 }
 
 module.exports = routers;

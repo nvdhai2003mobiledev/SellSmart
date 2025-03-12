@@ -44,6 +44,10 @@ const Employee = new Schema(
       accountNumber: String,
       accountHolder: String,
     },
+    avatar: {
+      type: String,
+      default: "default-avatar.png", // Giá trị mặc định nếu chưa có ảnh
+    },
   },
   { timestamps: true },
 );
