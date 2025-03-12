@@ -5,15 +5,15 @@ const customerRoutes = require("./routes/CustomerRoutes");
 const bodyParser = require("body-parser");
 const path = require("path");
 const connectDB = require("./config/db");
-
-dotenv.config();
-connectDB();
-
 const cookieParser = require("cookie-parser");
 const methodOverride = require("method-override");
 const flash = require("connect-flash");
 const session = require("express-session");
 const routes = require("./routes");
+const promotionRouter = require("./routes/PromotionRouter");
+
+dotenv.config();
+connectDB();
 
 // Khởi tạo ứng dụng
 const app = express();
@@ -22,13 +22,10 @@ const app = express();
 app.set("views", path.join(__dirname, "views"));
 app.set("view engine", "ejs");
 
-
-
-
 // Middleware
 app.use(bodyParser.json());
-app.use(express.urlencoded({ extended: false }));
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.urlencoded({ extended: false })); // Hỗ trợ xử lý form
+app.use(express.static(path.join(__dirname, "public"))); // Tài nguyên tĩnh
 app.use(cookieParser());
 app.use(methodOverride("_method"));
 
@@ -51,21 +48,12 @@ app.use((req, res, next) => {
   next();
 });
 
-
-
-// Import routes Customer
+// Import routes
 app.use("/api", customerRoutes);
+app.use("/api", promotionRouter);
 routes(app);
 
-
-// router Promotion
-const promotionRouter = require("./routes/PromotionRouter"); // Đảm bảo đường dẫn đúng
-app.use("/api", promotionRouter); // Đảm bảo sử dụng đúng đường dẫn API
-
-
-
-
-//========================================================KHÁCH HÀNG =======================================
+//======================================================== KHÁCH HÀNG =======================================
 // Route hiển thị danh sách khách hàng
 app.get("/customers", async (req, res) => {
   try {
@@ -76,8 +64,6 @@ app.get("/customers", async (req, res) => {
     res.status(500).json({ message: "Lỗi lấy danh sách khách hàng" });
   }
 });
-
-
 
 // Route thêm khách hàng
 app.post("/customers", async (req, res) => {
@@ -117,7 +103,7 @@ app.delete("/customers/delete/:id", async (req, res) => {
 });
 
 // Route cập nhật khách hàng
-app.put('/api/customers/:id', async (req, res) => {
+app.put("/api/customers/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
@@ -133,18 +119,13 @@ app.put('/api/customers/:id', async (req, res) => {
   }
 });
 
-
-//======================================================== Promotion =======================================
-// thêm khuyến mãi
+//======================================================== PROMOTION =======================================
+// Thêm khuyến mãi
 app.post("/api/promotions", (req, res) => {
   const newPromotion = req.body;
   console.log("Dữ liệu nhận được:", newPromotion);
   res.json({ message: "Khuyến mãi đã được thêm!", promotion: newPromotion });
 });
-
-
-
-
 
 // Middleware xử lý lỗi
 app.use((err, req, res, next) => {

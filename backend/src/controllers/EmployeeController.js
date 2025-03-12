@@ -133,11 +133,22 @@ exports.upload = upload.single("avatarFile");
 // Lấy tất cả nhân viên
 exports.getAllEmployees = async (req, res) => {
   try {
+    // Lấy tất cả Employee và populate thông tin User
     const employees = await Employee.find().populate({
       path: "userId",
       select: "username fullName email phoneNumber avatar gender role",
     });
-    res.render("employees", { title: "Quản lý nhân viên", employees });
+
+    // Lọc chỉ giữ lại những Employee mà userId có role là "employee"
+    const filteredEmployees = employees.filter(
+      (emp) => emp.userId && emp.userId.role === "employee",
+    );
+
+    // Render danh sách nhân viên đã lọc
+    res.render("dashboard/employees", {
+      title: "Quản lý nhân viên",
+      employees: filteredEmployees,
+    });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }

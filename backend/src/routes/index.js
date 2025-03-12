@@ -1,18 +1,11 @@
-
-const productRouter = require('./ProductRouter');
-const mobileUserRouter = require('./UserRouterMobile'); // Import file router của mobile
-
-const authRoutes = require("./auth");
-const dashboardRoutes = require("./dashboard");
-const employeeRoutes = require("./employee");
-
+const productRouter = require("./product");
+const employeeRouter = require("./employee");
+const authRouter = require("./auth");
+const dashboardRouter = require("./dashboard");
 const routes = (app) => {
-  app.use('/product', productRouter);
-  app.use('/mobile/users', mobileUserRouter); // ✅ API dành riêng cho mobile
-
-  app.use("/", authRoutes);
-  app.use("/dashboard", dashboardRoutes);
-  app.use("/employees", employeeRoutes);
+  app.use("/", authRouter);
+  app.use("/dashboard", dashboardRouter);
+  app.use("/product", productRouter);
+  app.use("/employees", employeeRouter);
 };
-
 module.exports = routes;
