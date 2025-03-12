@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Danh sách đơn hàng</title>
+    <link rel="stylesheet" href="/styles.css"> <!-- File CSS nếu cần -->
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; padding: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background-color: #f4f4f4; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+    </style>
+    <script>
+        function loadOrders() {
+            let orderTable = document.getElementById("orderTableBody");
+            orderTable.innerHTML = "";
+      
+            let orders = JSON.parse(localStorage.getItem("orders")) || [];
+      
+            orders.forEach(order => {
+                let productDetails = order.products.map(p => `
+                    <li>${p.name} - ${p.quantity} x ${p.price.toLocaleString("vi-VN")} VND</li>
+                `).join("");
+      
+                orderTable.innerHTML += `
+                    <tr>
+                        <td>${order.orderID}</td>
+                        <td>${order.customer.name}</td>
+                        <td><ul>${productDetails}</ul></td>
+                        <td>${order.totalAmount}</td>
+                        <td>${order.status}</td>
+                    </tr>
+                `;
+            });
+        }
+      
+        window.onload = loadOrders;
+      </script>
+      
+</head>
+<body>
+
+    <h1>Danh sách đơn hàng</h1>
+    <div class="button-container">
+        <a href="/orders/create"><button class="btn">Tạo Đơn Hàng</button></a>
+    </div>
+    <table border="1">
+        <tr>
+            <th>Mã đơn hàng</th>
+            <th>Khách hàng</th>
+            <th>Tên sản phẩm</th>
+            <th>Tổng tiền</th>
+            <th>Trạng thái</th>
+        </tr>
+        <% orders.forEach(order => { %>
+            <tr>
+                <td><%= order.orderID %></td>
+                <td><%= order.customerID ? order.customerID.fullName : "Unknown Customer" %></td>
+                <td>
+                    <% if (order.products && order.products.length > 0) { %>
+                        <ul>
+                            <% order.products.forEach(product => { %>
+                                <li>
+                                    <b><%= product.productID ? product.productID.name : "Không có sản phẩm" %></b> - 
+                                    <%= product.quantity %> x 
+                                    <%= product.price.toLocaleString("vi-VN") %> VND
+                                    
+                                    <% if (product.productID && product.productID.attributes && product.productID.attributes.length > 0) { %>
+                                        <ul>
+                                            <% product.productID.attributes.forEach(attr => { %>
+                                                <% if (attr.values.length > 0) { %>
+                                                    <li><b><%= attr.name %></b>: <%= attr.values.join(", ") %></li>
+                                                <% } %>
+                                            <% }) %>
+                                        </ul>
+                                    <% } else { %>
+                                        <p>Không có thuộc tính</p>
+                                    <% } %>
+                                </li>
+                            <% }) %>
+                        </ul>
+                    <% } else { %>
+                        Không có sản phẩm
+                    <% } %>
+                </td>
+                
+                
+                <td><%= order.totalAmount %></td>
+                <td><%= order.status %></td>
+            </tr>
+        <% }) %>
+        
+    </table>
+
+</body>
+</html>

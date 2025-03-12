@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tạo Đơn Hàng</title>
+  
+    <script>
+      function validateOrderData() {
+    let customerID = document.getElementById("customerID").value;  // Lấy từ input ẩn
+    let customerName = document.getElementById("customerName").value;
+    let customerPhone = document.getElementById("customerPhone").value;
+    let customerEmail = document.getElementById("customerEmail").value;
+    let customerAddress = document.getElementById("customerAddress").value;
+    // let paymentMethod = document.querySelector('input[name="paymentMethod"]:checked');
+    let shippingNotes = document.getElementById("shippingNotes").value;
+
+    // Kiểm tra nếu chưa chọn khách hàng
+    if (!customerID) {
+        alert("Vui lòng chọn khách hàng từ danh sách!");
+        return false;
+    }
+
+    if (!customerName || !customerPhone || !customerEmail || !customerAddress) {
+        alert("Vui lòng nhập đầy đủ thông tin khách hàng!");
+        return false;
+    }
+
+    if (selectedProducts.length === 0) {
+        alert("Bạn cần chọn ít nhất một sản phẩm!");
+        return false;
+    }
+
+    // if (!paymentMethod) {
+    //     alert("Vui lòng chọn phương thức thanh toán!");
+    //     return false;
+    // }
+
+    return {
+        customerID,
+        products: selectedProducts.map(p => ({
+            productID: p.productID,
+            name: p.name,
+            quantity: p.quantity,
+            price: p.price,
+            attributes: Object.entries(p.attributes).map(([key, value]) => ({
+                name: key,
+                value: [value]  // Mảng giá trị theo schema
+            }))
+        })),
+        totalAmount: selectedProducts.reduce((sum, p) => sum + (p.price * p.quantity), 0),
+        paymentMethod: 'cash',
+        shippingAddress: customerAddress,
+        notes: shippingNotes || ""
+    };
+}
+
+
+function createOrder() {
+    let orderData = validateOrderData();
+    if (!orderData) return;
+
+    fetch("http://localhost:3000/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert("Đơn hàng đã được tạo thành công!");
+            window.location.href = "http://localhost:3000/orders"; // Chuyển về danh sách đơn hàng
+        } else {
+            alert("Có lỗi khi tạo đơn hàng: " + data.message);
+        }
+    })
+    .catch(error => console.error("Lỗi:", error));
+}
+
+let selectedProducts = [];
+let selectedAttributes = {}; // Lưu các thuộc tính đã chọn của sản phẩm
+
+function openProductDialog() {
+    document.getElementById("productDialog").style.display = "block";
+}
+
+function closeProductDialog() {
+    // Reset tất cả dữ liệu thuộc tính đã chọn khi đóng dialog chọn sản phẩm
+    selectedAttributes = {};
+    document.getElementById("productDialog").style.display = "none";
+
+    // Reset checkbox sản phẩm và disable lại
+    document.querySelectorAll("input[type=checkbox][id^=productCheckbox]").forEach(checkbox => {
+        checkbox.checked = false;
+        checkbox.disabled = true;
+    });
+
+    // Reset hiển thị thuộc tính
+    document.querySelectorAll("[id^=selected-attributes]").forEach(span => {
+        span.innerText = "Chưa chọn";
+    });
+}
+
+function openAttributeDialog(productID, productName, attributes) {
+    let attributeDiv = document.getElementById("attributeOptions");
+    attributeDiv.innerHTML = `<h4>Thuộc tính cho <b>${productName}</b></h4>`;
+
+    document.getElementById("attributeDialog").dataset.productId = productID;
+    document.getElementById("attributeDialog").dataset.attributes = JSON.stringify(attributes);
+
+    attributes.forEach(attribute => {
+        let optionsHTML = `<p><b>${attribute.name}</b></p>`;
+        optionsHTML += `<div class="attribute-group">`;
+
+        attribute.values.forEach(value => {
+            let isChecked = selectedAttributes[productID] && selectedAttributes[productID][attribute.name] === value;
+            optionsHTML += `
+                <label class="attribute-item">
+                    <input type="checkbox" name="attr-${productID}-${attribute.name}" value="${value}" 
+                           ${isChecked ? 'checked' : ''} 
+                           onchange="updateAttributeSelection('${productID}', '${attribute.name}', '${value}', this)">
+                    ${value}
+                </label>
+            `;
+        });
+
+        optionsHTML += `</div>`;
+        attributeDiv.innerHTML += optionsHTML;
+    });
+
+    document.getElementById("attributeDialog").style.display = "block";
+}
+
+function closeAttributeDialog() {
+    document.getElementById("attributeDialog").style.display = "none";
+}
+
+function updateAttributeSelection(productID, attributeName, value, checkbox) {
+    if (!selectedAttributes[productID]) {
+        selectedAttributes[productID] = {};
+    }
+
+    // Hủy chọn tất cả checkbox khác trong nhóm
+    document.querySelectorAll(`input[name="attr-${productID}-${attributeName}"]`).forEach(cb => {
+        if (cb !== checkbox) cb.checked = false;
+    });
+
+    selectedAttributes[productID][attributeName] = value;
+
+    // Kiểm tra nếu đã chọn đủ thuộc tính -> bật checkbox sản phẩm
+    checkAndEnableProductCheckbox(productID);
+}
+
+function checkAttributesSelected(productID, attributes) {
+    let selectedValues = selectedAttributes[productID] || {};
+    return attributes.every(attr => selectedValues[attr.name]);
+}
+
+function checkAndEnableProductCheckbox(productID) {
+    let attributes = JSON.parse(document.getElementById("attributeDialog").dataset.attributes);
+    let checkbox = document.getElementById(`productCheckbox-${productID}`);
+
+    if (checkAttributesSelected(productID, attributes)) {
+        checkbox.disabled = false; // Bật checkbox khi đã chọn đủ thuộc tính
+    } else {
+        checkbox.disabled = true; // Vô hiệu hóa nếu chưa chọn đủ
+    }
+}
+
+function toggleProductSelection(checkbox, productID, name, price, thumbnail, stockQuantity, attributesJSON) {
+    let attributes;
+    try {
+        attributes = JSON.parse(attributesJSON);
+    } catch (e) {
+        console.error("Lỗi parse JSON:", e);
+        attributes = [];
+    }
+
+    if (!checkAttributesSelected(productID, attributes)) {
+        alert("Bạn cần chọn đầy đủ tất cả các thuộc tính trước khi chọn sản phẩm!");
+        checkbox.checked = false;
+        return;
+    }
+
+    let productIndex = selectedProducts.findIndex(p => p.productID === productID);
+    if (checkbox.checked) {
+        if (productIndex === -1) {
+            selectedProducts.push({
+                productID,
+                name,
+                price,
+                thumbnail,
+                stockQuantity,
+                quantity: 1,
+                attributes: selectedAttributes[productID] || {}
+            });
+        }
+    } else {
+        if (productIndex !== -1) {
+            selectedProducts.splice(productIndex, 1);
+        }
+    }
+}
+
+function saveSelectedProducts() {
+    updateSelectedProductsTable();
+    closeProductDialog();
+}
+
+function updateSelectedProductsTable() {
+    let productTable = document.getElementById("selectedProducts");
+    productTable.innerHTML = "";
+
+    let totalAmount = 0;
+
+    selectedProducts.forEach((product, index) => {
+        let totalPrice = product.price * product.quantity;
+        totalAmount += totalPrice;
+
+        let attributesText = Object.entries(product.attributes || {})
+            .map(([key, value]) => `${key}: ${value}`)
+            .join(', ') || "Chưa chọn";
+
+        productTable.innerHTML += `
+            <tr>
+                <td><img src="${product.thumbnail}" width="50"></td>
+                <td>${product.name}</td>
+                <td>${attributesText}</td>
+                <td>${product.stockQuantity}</td>
+                <td>${product.price.toLocaleString()} VND</td>
+                <td>
+                    <input type="number" value="${product.quantity}" min="1" max="${product.stockQuantity}" 
+                           onchange="updateQuantity(${index}, this.value)" style="width: 60px;">
+                </td>
+                <td>${totalPrice.toLocaleString()} VND</td>
+                <td><button class="delete-btn" onclick="removeProduct(${index}, '${product.productID}')">❌</button></td>
+            </tr>
+        `;
+    });
+
+    document.getElementById("totalAmount").innerText = totalAmount.toLocaleString() + " VND";
+}
+
+function updateQuantity(index, quantity) {
+    selectedProducts[index].quantity = parseInt(quantity);
+    updateSelectedProductsTable();
+}
+
+function removeProduct(index, productID) {
+    selectedProducts.splice(index, 1);
+    delete selectedAttributes[productID]; // Xóa thuộc tính đã chọn của sản phẩm đó
+    updateSelectedProductsTable();
+
+    // Reset checkbox trong dialog chọn sản phẩm
+    let productCheckbox = document.getElementById(`productCheckbox-${productID}`);
+    if (productCheckbox) {
+        productCheckbox.checked = false;
+        productCheckbox.disabled = true;
+    }
+
+    // Reset hiển thị thuộc tính
+    let attributeSpan = document.getElementById(`selected-attributes-${productID}`);
+    if (attributeSpan) {
+        attributeSpan.innerText = "Chưa chọn";
+    }
+}
+
+function saveAttributeSelection() {
+    let productID = document.getElementById("attributeDialog").dataset.productId;
+    let productAttributes = JSON.parse(document.getElementById("attributeDialog").dataset.attributes);
+
+    let allSelected = true;
+    let selectedValues = {};
+
+    productAttributes.forEach(attribute => {
+        let selected = document.querySelector(`input[name="attr-${productID}-${attribute.name}"]:checked`);
+        if (selected) {
+            selectedValues[attribute.name] = selected.value;
+        } else {
+            allSelected = false;
+        }
+    });
+
+    if (!allSelected) {
+        alert("Bạn cần chọn đầy đủ tất cả các thuộc tính trước khi lưu!");
+        return;
+    }
+
+    selectedAttributes[productID] = selectedValues;
+
+    document.getElementById(`selected-attributes-${productID}`).innerText = Object.entries(selectedValues)
+        .map(([key, value]) => `${key}: ${value}`)
+        .join(', ');
+
+    closeAttributeDialog();
+}
+
+
+        function openCustomerDialog() {
+            document.getElementById("customerDialog").style.display = "block";
+        }
+
+        function closeCustomerDialog() {
+            document.getElementById("customerDialog").style.display = "none";
+        }
+
+  
+
+
+
+
+        function toggleShippingInfo() {
+        let shippingInfo = document.getElementById("shippingInfo");
+        let selfDelivery = document.querySelector('input[name="shippingMethod"]:checked').value === "self";
+
+        if (selfDelivery) {
+            shippingInfo.style.display = "block"; // Hiển thị thông tin giao hàng
+
+            // Cập nhật thông tin từ phần nhập khách hàng
+            document.getElementById("shippingCustomerNameText").innerText = document.getElementById("customerName").value;
+            document.getElementById("shippingCustomerPhoneText").innerText = document.getElementById("customerPhone").value;
+            document.getElementById("shippingCustomerEmailText").innerText = document.getElementById("customerEmail").value;
+            document.getElementById("shippingCustomerAddressText").innerText = document.getElementById("customerAddress").value;
+        } else {
+            shippingInfo.style.display = "none"; // Ẩn khi chọn "Giao hàng qua đơn vị vận chuyển"
+        }
+    }
+
+    function selectCustomer(id,name, phone, email, address) {
+        // Cập nhật thông tin khách hàng
+        document.getElementById("customerID").value = id; 
+        document.getElementById("customerName").value = name;
+        document.getElementById("customerPhone").value = phone;
+        document.getElementById("customerEmail").value = email;
+        document.getElementById("customerAddress").value = address;
+
+        toggleShippingInfo(); // Cập nhật thông tin giao hàng khi chọn khách hàng
+        closeCustomerDialog();
+    }
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 20px;
+            padding: 20px;
+        }
+    
+        h1, h3 {
+            color: #333;
+            text-align: center;
+        }
+    
+        .container {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+          
+        }
+    
+        .box {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            width: 48%;
+        }
+    
+        label {
+            font-weight: bold;
+            display: block;
+            margin-top: 10px;
+        }
+    
+        input, textarea {
+            width: 97%;
+            padding: 8px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+           
+        }
+    
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+    
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+    
+        th {
+            background-color: #007bff;
+            color: white;
+        }
+    
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+    
+        button {
+            background-color: #28a745;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+    
+        button:hover {
+            background-color: #218838;
+        }
+    
+        .dialog {
+            display: none;
+            position: fixed;
+            top: 20%;
+            left: 30%;
+            width: 40%;
+            background: white;
+            padding: 20px;
+            border: 2px solid #333;
+            border-radius: 8px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.3);
+        }
+    
+        .close-btn {
+            background-color: red;
+            float: right;
+        }
+    
+        .total {
+            font-size: 18px;
+            font-weight: bold;
+            text-align: right;
+            margin-top: 10px;
+        }
+        .box1 {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            width: 47%;
+            padding-bottom: 30px;
+           
+}
+#attributeDialog {
+    display: none;
+    position: fixed;
+    top: 20%;
+    left: 30%;
+    width: 40%;
+    background: white;
+    align-content: center;
+    padding: 20px;
+    border: 2px solid #333;
+    border-radius: 8px;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* Nhóm thuộc tính */
+.attribute-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+/* Mỗi item của thuộc tính */
+.attribute-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: #f9f9f9;
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+/* Chỉnh sửa button chọn thuộc tính */
+.small-btn {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    margin-left: 5px;
+}
+
+.small-btn:hover {
+    background-color: #0056b3;
+}
+/* Tổng tiền & Nút Tạo Đơn Hàng nổi cố định ở bottom */
+.fixed-bottom-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: #ffffff;
+    padding: 15px 20px;
+    border-top: 2px solid #ddd;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0px -2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Tổng tiền */
+.total-text {
+    font-size: 20px;
+    font-weight: bold;
+    color: #333;
+}
+
+/* Nút Tạo Đơn Hàng */
+.submit-btn {
+    background-color: #007bff;
+    color: white;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    margin-right: 60px;
+    font-weight: bold;
+}
+
+.submit-btn:hover {
+    background-color: #0056b3;
+}
+    </style>
+    
+</head>
+<body>
+
+    <h1>Tạo Đơn Hàng</h1>
+
+    <div class="container">
+        <!-- Thông tin khách hàng -->
+        <div class="box">
+            <h3>Thông tin khách hàng</h3>
+            <input type="hidden" id="customerID">
+            <label>Tên khách hàng:</label>
+            <input type="text" id="customerName" name="customerName" required>
+            
+            <label>Số điện thoại:</label>
+            <input type="text" id="customerPhone" name="customerPhone" required>
+            
+            <label>Email:</label>
+            <input type="email" id="customerEmail" name="customerEmail" required>
+            
+            <label>Địa chỉ:</label>
+            <input type="text" id="customerAddress" name="customerAddress" required>
+    
+            <button type="button" onclick="openCustomerDialog()">Chọn Khách Hàng</button>
+        </div>
+    
+        <!-- Thông tin sản phẩm -->
+        <div class="box">
+            <h3>Chọn Sản Phẩm</h3>
+            <button type="button" onclick="openProductDialog()" >Thêm Sản Phẩm</button>
+            <table>
+                <tr>
+                    <th>Ảnh</th>
+                    <th>Tên</th>
+                    <th>Thuộc tính</th>
+                    <th>Số lượng tồn</th>
+                    <th>Giá</th>
+                    <th>Số lượng</th>
+                    <th>Thành tiền</th>
+                </tr>
+                <tbody id="selectedProducts"></tbody>
+            </table>
+        </div>
+    </div>
+<div style="margin-top: 30px;display: flex;justify-content: space-between;margin-bottom: 70px;">
+    <div class="box1">
+        <h3>Hình thức giao hàng</h3>
+        <input type="radio" name="shippingMethod" value="self" checked onchange="toggleShippingInfo()"> Tự giao hàng
+        <input type="radio" name="shippingMethod" value="service" onchange="toggleShippingInfo()"> Giao hàng qua đơn vị vận chuyển
+    </div>
+    
+    <!-- Thông tin giao hàng khi chọn "Tự giao hàng" -->
+    <div class="box1" id="shippingInfo" style="display:block;">
+        <h3>Thông tin giao hàng</h3>
+        <div style="display: flex;justify-content: space-between;">
+        <div style="width: 45%;
+        height: 100%;
+     
+        align-items: center;
+        justify-content: center;">
+        <label>Tên khách hàng:</label> <span id="shippingCustomerNameText">Chưa có</span>
+        <label>Số điện thoại:</label> <span id="shippingCustomerPhoneText">Chưa có</span>
+        </div>
+       <div style="width: 45%;
+       height: 100%;
+       align-items: center;
+       justify-content: center;">
+         <label>Email:</label> <span id="shippingCustomerEmailText">Chưa có</span>
+        <label>Địa chỉ giao hàng:</label> <span id="shippingCustomerAddressText">Chưa có</span>
+    
+       </div>
+        </div>
+        <label>Ghi chú:</label>
+        <textarea id="shippingNotes" name="shippingNotes" rows="3" placeholder="Nhập ghi chú nếu cần..."></textarea>
+    </div>
+</div>
+<div class="fixed-bottom-bar">
+    <h3 class="total-text" style="margin-left: 20px;">Tổng tiền: <span id="totalAmount">0</span> VND</h3>
+    <button type="submit" class="submit-btn" onclick='createOrder()'>Tạo Đơn Hàng</button>
+</div>
+
+ <!-- Dialog chọn sản phẩm -->
+ <div id="productDialog" style="display:none; position:fixed; top:20%; left:30%; width:40%; background:white; padding:20px; border:1px solid black;">
+    <h3>Chọn Sản Phẩm</h3>
+    <table border="1">
+        <tr>
+            <th>Ảnh</th>
+            <th>Tên</th>
+            <th>Thuộc tính</th>
+            <th>Giá</th>
+            <th>Số lượng</th>
+            <th>Chọn</th>
+        </tr>
+        <% products.forEach(product => { %>
+            <tr>
+                <td><img src="<%= product.thumbnail %>" width="50"></td>
+                <td><%= product.name %></td>
+                <td>
+                   
+    <span id="selected-attributes-<%= product._id %>">Chưa chọn</span>
+    <button type="button" class="small-btn" 
+        onclick='openAttributeDialog("<%= product._id %>", "<%= product.name %>", <%- JSON.stringify(product.attributes) %>)'>
+        🛠️
+    </button>
+
+                 
+                </td>
+                <td><%= product.price.toLocaleString() %> VND</td>
+                <td><%= product.stockQuantity %></td>
+                <td>
+                    <input type="checkbox" id="productCheckbox-<%= product._id %>" 
+                    disabled 
+                    onchange="toggleProductSelection(this, '<%= product._id %>', '<%= product.name %>', '<%= product.price %>', '<%= product.thumbnail %>', '<%= product.stockQuantity %>', decodeURIComponent('<%= encodeURIComponent(JSON.stringify(product.attributes)) %>'))">
+     </td>
+            </tr>
+        <% }) %>
+    </table>
+    <button onclick="saveSelectedProducts()">Lưu</button>
+    <button onclick="closeProductDialog()">Đóng</button>
+</div>
+<!-- Dialog chọn thuộc tính -->
+<div id="attributeDialog" class="dialog" style="display:none;">
+    <h3>Chọn Thuộc Tính</h3>
+    <div id="attributeOptions"></div>
+    <button onclick="saveAttributeSelection()">Lưu</button>
+    <button onclick="closeAttributeDialog()">Đóng</button>
+</div>
+    <!-- Dialog chọn khách hàng -->
+    <div id="customerDialog" style="display:none; position:fixed; top:20%; left:30%; width:40%; background:white; padding:20px; border:1px solid black;">
+        <h3>Chọn Khách Hàng</h3>
+        <table border="1">
+            <tr>
+                <th>Tên</th>
+                <th>Điện thoại</th>
+                <th>Email</th>
+                <th>Địa chỉ</th>
+                <th>Chọn</th>
+            </tr>
+            <% customers.forEach(customer => { %>
+                <tr>
+                    <td><%= customer.fullName %></td>
+                    <td><%= customer.phoneNumber %></td>
+                    <td><%= customer.email %></td>
+                    <td><%= customer.address %></td>
+                    <td><button type="button" onclick="selectCustomer( '<%= customer.id %>', '<%= customer.fullName %>', '<%= customer.phoneNumber %>', '<%= customer.email %>', '<%= customer.address %>')">Chọn</button></td>
+                </tr>
+            <% }) %>
+        </table>
+        <button onclick="closeCustomerDialog()">Đóng</button>
+    </div>
+
+</body>
+</html>
