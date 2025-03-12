@@ -1,3 +1,3 @@
 exports.getDashboard = (req, res) => {
-  res.render("layout", { title: "Dashboard" });
+  res.render("dashboard/home", { title: "Dashboard", page: "home" });
 };

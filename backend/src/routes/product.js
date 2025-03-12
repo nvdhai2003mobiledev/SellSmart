@@ -2,9 +2,10 @@ const express = require("express");
 const router = express.Router();
 const productController = require("../../src/controllers/ProductController");
 const variantController = require("../controllers/VariantController");
+const { protect } = require("../middleware/auth");
 
 // Lấy danh sách sản phẩm
-router.get("/", productController.getProduct);
+router.get("/", protect, productController.getProduct);
 router.get("/json/", productController.getProduct);
 
 // Thêm sản phẩm

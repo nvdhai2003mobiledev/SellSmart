@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8"/>
+    <title>Quản lý Nhân Viên</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+
+    <style>
+        /* Sidebar cố định */
+        .sidebar {
+            position: fixed;
+            top: 0px;
+            bottom: 0;
+            left: 0;
+            width: 220px;
+            padding: 1rem;
+            background-color: #fff;
+            margin-top: 4rem;
+        }
+
+        .sidebar a {
+            color: #000000;
+            text-decoration: none;
+            display: block;
+            margin: 0.5rem 0;
+        }
+
+        .sidebar a.active {
+            background-color: rgba(0, 0, 0, 0.06); /* Màu nền khi chọn */
+            color: #000000; /* Màu chữ */
+            font-weight: bold;
+            padding: .5rem;
+            border-radius: 10px;
+        }
+
+        .sidebar a i {
+            margin-right: 0.5rem;
+        }
+
+        .sidebar a.active i {
+            color: #000000; /* Màu icon khi chọn */
+        }
+
+        .navbar {
+            padding: 10px 20px;
+        }
+
+        .navbar-brand img {
+            height: 40px;
+        }
+
+        .dropdown-toggle {
+            background: none;
+            border: none;
+            padding: 0;
+        }
+
+        .dropdown-menu {
+            min-width: 150px;
+        }
+
+        .dropdown-item i {
+            margin-right: 10px;
+        }
+
+        .main-content {
+            margin-left: 220px;
+            padding: 1rem;
+            margin-top: 4rem;
+        }
+    </style>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-light bg-white fixed-top shadow-sm">
+    <div class="container-fluid">
+        <!-- Logo và Tên Công Ty -->
+        <a class="navbar-brand d-flex align-items-center" href="#">
+            <img src="/images/logo.png" alt="Logo">
+            <span class="fw-bold ms-3">SellSmart</span>
+        </a>
+        <!-- Avatar và Tên Admin -->
+        <div class="dropdown ms-auto">
+            <button class="btn btn-light dropdown-toggle d-flex align-items-center" type="button" id="userDropdown"
+                    data-bs-toggle="dropdown" aria-expanded="false">
+                <% if (admin && admin.avatar) { %>
+                    <img src="<%= admin.avatar %>" alt="Avatar" class="rounded-circle me-2">
+                <% } else { %>
+                    <img src="/images/default_user.png" alt="Avatar" class="rounded-circle me-2">
+                <% } %>
+                <span><%= admin ? admin.fullName : 'Tài khoản' %></span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                <li><a class="dropdown-item" href="/logout"><i class="fas fa-sign-out-alt me-2"></i> Đăng xuất</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+<!-- Sidebar -->
+<nav class="sidebar border-end">
+    <a href="/dashboard" class="mb-3 <%= page === 'home' ? 'active' : '' %>">
+        <i class="fas fa-home"></i> Trang chủ
+    </a>
+    <a href="/employees" class="mb-3 <%= page === 'employees' ? 'active' : '' %>">
+        <i class="fas fa-users"></i> Nhân viên
+    </a>
+    <a href="/products" class="mb-3 <%= page === 'products' ? 'active' : '' %>">
+        <i class="fas fa-box"></i> Sản phẩm
+    </a>
+    <a href="/customers" class="mb-3 <%= page === 'customers' ? 'active' : '' %>">
+        <i class="fas fa-users"></i> Khách hàng
+    </a>
+</nav>
+
+<!-- Nội dung chính -->
+<main><%- typeof body !== 'undefined' ? body : '' %></main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js"></script>
+</body>
+</html>

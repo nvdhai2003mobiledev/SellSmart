@@ -15,9 +15,7 @@ const getProduct = async (req, res) => {
     }
 
     // Render view cho giao diện web
-    res.render("product", { products: products }); // Render file product.ejs với dữ liệu products
-
-    res.render("product", { products });
+    res.render("dashboard/products", { products: products, page: "products" }); // Render file product.ejs với dữ liệu products
   } catch (error) {
     console.error(error); // Ghi log lỗi
     res.status(500).json({ message: "Lỗi khi lấy danh sách sản phẩm" });

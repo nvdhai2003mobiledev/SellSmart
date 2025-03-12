@@ -3,7 +3,7 @@ const jwt = require("jsonwebtoken");
 
 // Render trang đăng nhập
 exports.getLogin = (req, res) => {
-  res.render("login", { title: "Đăng nhập" });
+  res.render("auth/login", { title: "Đăng nhập" });
 };
 
 // Xử lý đăng nhập
@@ -11,7 +11,7 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
-      return res.status(400).render("login", {
+      return res.status(400).render("auth/login", {
         title: "Đăng nhập",
         error: "Vui lòng cung cấp username và password",
       });
@@ -19,22 +19,22 @@ exports.login = async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(401).render("login", {
+      return res.status(401).render("auth/login", {
         title: "Đăng nhập",
-        error: "Username không tồn tại",
+        error: "Email không tồn tại",
       });
     }
 
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
-      return res.status(401).render("login", {
+      return res.status(401).render("auth/login", {
         title: "Đăng nhập",
         error: "Mật khẩu không đúng",
       });
     }
 
     if (user.role !== "admin") {
-      return res.status(403).render("login", {
+      return res.status(403).render("auth/login", {
         title: "Đăng nhập",
         error: "Chỉ admin mới được phép đăng nhập",
       });
@@ -46,10 +46,10 @@ exports.login = async (req, res) => {
       { expiresIn: "1h" },
     );
     res.cookie("token", token, { httpOnly: true, maxAge: 3600000 }); // 1 giờ
-    res.redirect("/employees");
+    res.redirect("/dashboard");
   } catch (error) {
     console.error("Lỗi đăng nhập:", error.message);
-    res.status(500).render("login", {
+    res.status(500).render("auth/login", {
       title: "Đăng nhập",
       error: "Đã xảy ra lỗi khi đăng nhập",
     });
@@ -58,6 +58,6 @@ exports.login = async (req, res) => {
 
 // Đăng xuất
 exports.logout = (req, res) => {
-  res.clearCookie("token");
-  res.redirect("login");
+  res.cookie("token", "", { expires: new Date(0), httpOnly: true });
+  res.redirect("/login");
 };

@@ -52,7 +52,7 @@ const User = new Schema(
       default: "admin",
     },
   },
-  { timestamps: true },
+  { timestamps: true }
 );
 
 // Phương thức kiểm tra mật khẩu
