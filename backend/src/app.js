@@ -9,11 +9,10 @@ const cookieParser = require("cookie-parser");
 const methodOverride = require("method-override");
 const flash = require("connect-flash");
 const session = require("express-session");
-const orderService = require('./services/orderService');
+
 const routes = require("./routes");
-const Customer = require('./models/Customer'); 
-const Product = require('./models/Product');
-const Order = require('./models/Order');
+
+const orderRoutes = require('./routes/orderRoutes')
 
 // const promotionRouter = require("./routes/PromotionRouter");
 
@@ -56,56 +55,8 @@ app.use((req, res, next) => {
 // Import routes
 app.use("/api", customerRoutes);
 // app.use("/api", promotionRouter);
+app.use("/orders", orderRoutes);
 routes(app);
-app.post("/orders", async (req, res) => {
-  try {
-      const { customerID, products, totalAmount, paymentMethod, shippingAddress, notes } = req.body;
-
-      if (!customerID || !products || products.length === 0 || !totalAmount || !paymentMethod || !shippingAddress) {
-          return res.status(400).json({ success: false, message: "Dữ liệu đơn hàng không hợp lệ" });
-      }
-
-      const newOrder = new Order({
-          orderID: `ORD-${Date.now()}`,  // 🔹 Tạo orderID ngẫu nhiên
-          customerID,
-          products,
-          totalAmount,
-          paymentMethod,
-          shippingAddress,
-          notes
-      });
-
-      await newOrder.save();
-      res.json({ success: true, message: "Đơn hàng đã được tạo thành công!", order: newOrder });
-
-  } catch (error) {
-      console.error("Lỗi khi tạo đơn hàng:", error);
-      res.status(500).json({ success: false, message: "Lỗi server khi tạo đơn hàng" });
-  }
-});
-
-app.get('/orders', async (req, res) => {
-  try {
-      const orders = await orderService.getAllOrders();
-      console.log("✅ Lấy danh sách đơn hàng:", orders); // Kiểm tra dữ liệu lấy ra
-      res.render('dashboard/orders', { orders });
-  } catch (error) {
-      console.error("🔥 Lỗi server khi lấy danh sách đơn hàng:", error);
-      res.status(500).json({ message: "Lỗi máy chủ nội bộ!", error: error.message });
-  }
-});
-app.get('/orders/create', async (req, res) => {
-  try {
-    const customers = await Customer.find();
-    const products = await Product.find();
-    console.log("📌 Customers:", customers);
-    console.log("📌 Products:", products);
-    res.render('dashboard/createOrder', { customers, products });
-  } catch (error) {
-    console.error("🔥 Lỗi khi tải trang tạo đơn hàng:", error);
-    res.status(500).send("Lỗi server khi tải trang!");
-  }
-});
 
 //======================================================== KHÁCH HÀNG =======================================
 // Route hiển thị danh sách khách hàng

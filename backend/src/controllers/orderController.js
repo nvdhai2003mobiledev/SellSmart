@@ -7,60 +7,39 @@ const Employee = require('../models/Employee');
 
 const createOrder = async (req, res) => {
     try {
-        const { customerID, products, totalAmount, paymentMethod, shippingAddress, notes, employeeID } = req.body;
-
-        // Kiểm tra `customerID` có hợp lệ không
-        if (!mongoose.Types.ObjectId.isValid(customerID)) {
-            return res.status(400).json({ message: `Invalid customer ID format: ${customerID}` });
+        const { customerID, products, totalAmount, paymentMethod, shippingAddress, notes } = req.body;
+    
+        if (!customerID || !products || products.length === 0 || !totalAmount || !paymentMethod || !shippingAddress) {
+          return res.status(400).json({ success: false, message: "Dữ liệu đơn hàng không hợp lệ" });
         }
-
-        // Kiểm tra `employeeID` (nếu có)
-        if (employeeID && !mongoose.Types.ObjectId.isValid(employeeID)) {
-            return res.status(400).json({ message: `Invalid employee ID format: ${employeeID}` });
-        }
-
-        // Kiểm tra từng `productID` trong danh sách `products`
-        const formattedProducts = await Promise.all(products.map(async (p) => {
-            if (!mongoose.Types.ObjectId.isValid(p.productID)) {
-                throw new Error(`Invalid product ID format: ${p.productID}`);
-            }
-            // Kiểm tra sản phẩm có tồn tại không
-            const product = await Product.findById(p.productID);
-            if (!product) {
-                throw new Error(`Product not found: ${p.productID}`);
-            }
-            return {
-                productID: new mongoose.Types.ObjectId(p.productID),
-                name: product.name,
-                quantity: p.quantity,
-                price: product.price
-            };
-        }));
-
+    
         const newOrder = new Order({
-            customerID: new mongoose.Types.ObjectId(customerID),
-            products: formattedProducts,
-            totalAmount,
-            paymentMethod,
-            shippingAddress,
-            notes,
-            employeeID: employeeID ? new mongoose.Types.ObjectId(employeeID) : null
+          orderID: `ORD-${Date.now()}`,
+          customerID,
+          products,
+          totalAmount,
+          paymentMethod,
+          shippingAddress,
+          notes
         });
-
+    
         await newOrder.save();
-        res.status(201).json({ message: "Order created successfully!", order: newOrder });
-    } catch (error) {
-        res.status(500).json({ message: "Server error", error: error.message });
-    }
+        res.json({ success: true, message: "Đơn hàng đã được tạo thành công!", order: newOrder });
+      } catch (error) {
+        console.error("Lỗi khi tạo đơn hàng:", error);
+        res.status(500).json({ success: false, message: "Lỗi server khi tạo đơn hàng" });
+      }
 };
 
 const getAllOrders = async (req, res) => {
     try {
         const orders = await orderService.getAllOrders();
-        res.json(orders);
-    } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
-    }
+        console.log("✅ Lấy danh sách đơn hàng:", orders);
+        res.render('dashboard/orders', { orders });
+      } catch (error) {
+        console.error("🔥 Lỗi server khi lấy danh sách đơn hàng:", error);
+        res.status(500).json({ message: "Lỗi máy chủ nội bộ!", error: error.message });
+      }
 };
 const renderOrdersPage = async (req, res) => {
   try {
@@ -103,5 +82,17 @@ const deleteOrder = async (req, res) => {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 };
+const createOrderScreen = async(req,res)=>{
+    try {
+        const customers = await Customer.find();
+        const products = await Product.find();
+        console.log("📌 Customers:", customers);
+        console.log("📌 Products:", products);
+        res.render('dashboard/createOrder', { customers, products });
+      } catch (error) {
+        console.error("🔥 Lỗi khi tải trang tạo đơn hàng:", error);
+        res.status(500).send("Lỗi server khi tải trang!");
+      }
+}
 
-module.exports = { createOrder, getAllOrders, getOrderById, updateOrderStatus, deleteOrder,renderOrdersPage };
+module.exports = { createOrder, getAllOrders, getOrderById, updateOrderStatus, deleteOrder,renderOrdersPage,createOrderScreen };
