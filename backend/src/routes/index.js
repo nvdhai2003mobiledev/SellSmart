@@ -6,7 +6,7 @@ const customerRouter = require("./customer");
 const routes = (app) => {
   app.use("/", authRouter);
   app.use("/dashboard", dashboardRouter);
-  app.use("/products", productRouter);
+  app.use("/product",productRouter);
   app.use("/employees", employeeRouter);
   app.use("/customers", customerRouter);
 };

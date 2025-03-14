@@ -10,6 +10,12 @@ const Product = new Schema(
     price: {
       type: Number,
       required: true,
+      min: 0,
+    },
+    inventory: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
     thumbnail: {
       type: String,
@@ -17,14 +23,12 @@ const Product = new Schema(
     description: {
       type: String,
     },
+    brand: {
+      type: String,
+    },
     category: {
       type: String,
       required: true,
-    },
-    stockQuantity: {
-      type: Number,
-      required: true,
-      min: 0,
     },
     status: {
       type: String,
@@ -35,10 +39,19 @@ const Product = new Schema(
       {
         name: { type: String, required: true }, // Tên thuộc tính (VD: size, color)
         values: [{ type: String, required: true }], // Danh sách các giá trị (VD: S, M, L)
+        variantId: {
+          type: Schema.Types.ObjectId,
+          ref: 'Variant',
+        },
       },
     ],
+    // Thêm trường để dễ dàng tham chiếu đến các biến thể
+    hasVariants: {
+      type: Boolean,
+      default: false,
+    },
   },
-  { timestamps: true },
+  { timestamps: true }
 );
 
 module.exports = mongoose.model("Product", Product);
