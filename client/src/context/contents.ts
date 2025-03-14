@@ -43,26 +43,27 @@ export const contents = {
     ship: 'Vận đơn',
   },
 
-  home: {
-    today: 'Hôm nay',
-    week: 'Tuần này',
-    month: 'Tháng này',
-    doanhthuhomnay: 'Doanh thu hôm nay ',
-    date: '19/11/2024',
-    price: '0đ',
-    soluong: '0',
-    gtridon: 'Giá trị TB đơn ',
-    sldangban: 'SL đang bán',
-    kquaKD: 'Kết quả kinh doanh ',
-  },
+home:{
+today:'Hôm nay',
+week:'Tuần này',
+month:'Tháng này',
+doanhthuhomnay:'Doanh thu hôm nay ',
+date:'19/11/2024',
+price:'0đ',
+soluong:'0',
+gtridon:'Giá trị TB đơn ',
+sldangban:'SL đang bán',
+kquaKD:'Kết quả kinh doanh ',
+},
 
-  xacminh: {
-    nhapma: 'Nhập mã xác minh chúng tôi đã gửi tới',
-    phone: '+84 309290017',
-    guilai: 'Gửi lại!',
-  },
-  menu: {
-    title: 'Menu',
+xacminh:{
+nhapma:'Nhập mã xác minh chúng tôi đã gửi tới',
+phone:'+84 309290017',
+guilai:'Gửi lại!',
+}
+,
+ menu:{
+  title: 'Menu',
     account: {
       title: 'Tài khoản',
       name: 'Nguyễn Văn A',
@@ -292,15 +293,14 @@ export const contents = {
     promo: [],
     order: [],
   },
-  notifi: {
-    title: 'Thông báo',
-    titlee: 'Chuyển khoản vào ngân hàng',
-    time: '03:52:55 - 12/05',
-    description:
-      'MB Bank, 449287448743 (NGUYEN NGOC HA), 1.200.000đ, Đơn hàng DH_0948371',
-    titleee: 'Đề nghị thanh toán',
-    timee: '03:52:55 - 12/05',
-    descriptionn:
-      'Customer Nguyễn Ngọc Minh has successfully paid for order #95111 with a value of 20.00 USD...',
-  },
+  notifi:{
+title:'Thông báo',
+titlee: "Chuyển khoản vào ngân hàng",
+        time: "03:52:55 - 12/05",
+        description: "MB Bank, 449287448743 (NGUYEN NGOC HA), 1.200.000đ, Đơn hàng DH_0948371",
+        titleee: "Đề nghị thanh toán",
+        timee: "03:52:55 - 12/05",
+        descriptionn: "Customer Nguyễn Ngọc Minh has successfully paid for order #95111 with a value of 20.00 USD...",
+  }
+
 };

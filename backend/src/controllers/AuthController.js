@@ -1,101 +1,63 @@
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
 
-// Tạo và gửi token vào cookie
-const sendTokenResponse = (user, res, redirectUrl) => {
-  // Tạo token
-  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE,
-  });
-
-  // Thiết lập cookie
-  const options = {
-    expires: new Date(
-      Date.now() + process.env.JWT_COOKIE_EXPIRE * 24 * 60 * 60 * 1000,
-    ),
-    httpOnly: true,
-  };
-
-  if (process.env.NODE_ENV === "production") {
-    options.secure = true;
-  }
-
-  res.status(200).cookie("token", token, options).redirect(redirectUrl);
+// Render trang đăng nhập
+exports.getLogin = (req, res) => {
+  res.render("auth/login", { title: "Đăng nhập" });
 };
 
-// @desc    Hiển thị form đăng nhập
-// @route   GET /login
-exports.loginForm = (req, res) => {
-  res.render("auth/login", {
-    title: "Đăng nhập",
-  });
-};
-
-// @desc    Xử lý đăng nhập
-// @route   POST /login
+// Xử lý đăng nhập
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-
-    // Xác thực email, password
     if (!email || !password) {
-      return res.render("auth/login", {
+      return res.status(400).render("auth/login", {
         title: "Đăng nhập",
-        error: "Vui lòng cung cấp email và mật khẩu",
-        email,
+        error: "Vui lòng cung cấp username và password",
       });
     }
 
-    // Kiểm tra xem user có tồn tại không
     const user = await User.findOne({ email });
-
     if (!user) {
-      return res.render("auth/login", {
+      return res.status(401).render("auth/login", {
         title: "Đăng nhập",
-        error: "Thông tin đăng nhập không chính xác",
-        email,
+        error: "Email không tồn tại",
       });
     }
 
-    // Kiểm tra nếu chỉ cho phép admin đăng nhập
-    if (user.role !== "admin") {
-      return res.render("auth/login", {
-        title: "Đăng nhập",
-        error: "Chỉ admin mới có quyền truy cập hệ thống quản trị",
-        email,
-      });
-    }
-
-    // Kiểm tra mật khẩu
     const isMatch = await user.matchPassword(password);
-
     if (!isMatch) {
-      return res.render("auth/login", {
+      return res.status(401).render("auth/login", {
         title: "Đăng nhập",
-        error: "Thông tin đăng nhập không chính xác",
-        email,
+        error: "Mật khẩu không đúng",
       });
     }
 
-    // Đăng nhập thành công - gửi token qua cookie
-    sendTokenResponse(user, res, "/employees");
+    if (user.role !== "admin") {
+      return res.status(403).render("auth/login", {
+        title: "Đăng nhập",
+        error: "Chỉ admin mới được phép đăng nhập",
+      });
+    }
+
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" },
+    );
+    res.cookie("token", token, { httpOnly: true, maxAge: 3600000 }); // 1 giờ
+    res.redirect("/dashboard");
   } catch (error) {
-    console.error(error);
-    res.render("auth/login", {
+    console.error("Lỗi đăng nhập:", error.message);
+    res.status(500).render("auth/login", {
       title: "Đăng nhập",
-      error: "Đã xảy ra lỗi trong quá trình đăng nhập",
-      email: req.body.email,
+      error: "Đã xảy ra lỗi khi đăng nhập",
     });
   }
 };
 
-// @desc    Đăng xuất
-// @route   GET /logout
+// Đăng xuất
 exports.logout = (req, res) => {
-  res.cookie("token", "none", {
-    expires: new Date(Date.now() + 10 * 1000),
-    httpOnly: true,
-  });
-
+  res.cookie("token", "", { expires: new Date(0), httpOnly: true });
   res.redirect("/login");
 };

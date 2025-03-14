@@ -1,0 +1,418 @@
+<%- include('../layouts/main.ejs') %>
+<div class="main-content">
+    <h1 class="text-center mb-4">Danh sách khách hàng</h1>
+
+    <!-- Thêm khách hàng -->
+    <div class="mb-4">
+        <h3>Thêm khách hàng mới</h3>
+        <form id="addCustomerForm" action="/api/customers" method="POST">
+
+            <div class="mb-3">
+                <label class="form-label">Họ tên</label>
+                <input type="text" class="form-control" name="fullName" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Số điện thoại</label>
+                <input type="text" class="form-control" name="phoneNumber" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Email</label>
+                <input type="email" class="form-control" name="email" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Địa chỉ</label>
+                <input type="text" class="form-control" name="address">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Ngày sinh</label>
+                <input type="date" class="form-control" name="birthDate">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Avatar (URL)</label>
+                <input type="text" class="form-control" name="avatar">
+            </div>
+            <button type="submit" class="btn btn-primary">Thêm khách hàng</button>
+        </form>
+    </div>
+
+    <!-- Danh sách khách hàng -->
+    <div>
+        <table class="table table-bordered">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Họ Tên</th>
+                <th>Số Điện Thoại</th>
+                <th>Email</th>
+                <th>Địa Chỉ</th>
+                <th>Ngày Sinh</th>
+                <th>Avatar</th>
+                <th>Hành động</th>
+            </tr>
+            </thead>
+            <tbody>
+            <% customers.forEach(function(customer) { %>
+                <tr>
+                    <td><%= customer._id %></td>
+                    <td><%= customer.fullName %></td>
+                    <td><%= customer.phoneNumber %></td>
+                    <td><%= customer.email %></td>
+                    <td><%= customer.address %></td>
+                    <td><%= new Date(customer.birthDate).toLocaleDateString() %></td>
+                    <td>
+                        <% if (customer.avatar) { %>
+                            <img src="<%= customer.avatar %>" alt="Avatar" width="50">
+                        <% } else { %>
+                            Chưa có
+                        <% } %>
+                    </td>
+
+                    <td>
+                        <button class="btn btn-warning btn-sm"
+                                onclick="editCustomer('<%= customer._id %>', '<%= customer.fullName %>', '<%= customer.phoneNumber %>', '<%= customer.email %>', '<%= customer.address %>', '<%= customer.birthDate ? (typeof customer.birthDate.toISOString === 'function' ? customer.birthDate.toISOString().split('T')[0] : customer.birthDate) : '' %>', '<%= customer.avatar %>')">
+                            Sửa
+                        </button>
+                        <button onclick="deleteCustomer('<%= customer._id %>')" class="btn btn-danger btn-sm">Xóa
+                        </button>
+                    </td>
+                </tr>
+            <% }); %>
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+
+<!-- Form chỉnh sửa khách hàng (ẩn ban đầu) -->
+<div id="editCustomerModal" class="modal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Chỉnh sửa khách hàng</h5>
+                <button type="button" class="btn-close" onclick="closeEditModal()"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editCustomerForm">
+                    <input type="hidden" id="editCustomerId">
+                    <div class="mb-3">
+                        <label class="form-label">Họ tên</label>
+                        <input type="text" class="form-control" id="editFullName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Số điện thoại</label>
+                        <input type="text" class="form-control" id="editPhoneNumber" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" id="editEmail" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Địa chỉ</label>
+                        <input type="text" class="form-control" id="editAddress">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ngày sinh</label>
+                        <input type="date" class="form-control" id="editBirthDate">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Avatar (URL)</label>
+                        <input type="text" class="form-control" id="editAvatar">
+                    </div>
+                    <button type="button" class="btn btn-primary" onclick="updateCustomer()">Lưu</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript Validation -->
+<script>
+    document.getElementById("addCustomerForm").addEventListener("submit", async function (event) {
+        event.preventDefault(); // Ngăn chặn submit mặc định
+
+        let fullName = document.querySelector("input[name='fullName']").value.trim();
+        let phoneNumber = document.querySelector("input[name='phoneNumber']").value.trim();
+        let email = document.querySelector("input[name='email']").value.trim();
+        let birthDate = document.querySelector("input[name='birthDate']").value.trim();
+        let address = document.querySelector("input[name='address']").value.trim();
+        let avatar = document.querySelector("input[name='avatar']").value.trim();
+
+        let phoneRegex = /^[0-9]{10}$/;
+        let emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        let dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        let urlRegex = /^(https?:\/\/.*\.(?:png|jpg|jpeg|gif|webp))$/i;
+
+        if (!fullName || fullName.length < 3) {
+            alert("Họ tên phải có ít nhất 3 ký tự!");
+            return;
+        }
+
+        if (!phoneRegex.test(phoneNumber)) {
+            alert("Số điện thoại không hợp lệ! Phải có đúng 10 chữ số.");
+            return;
+        }
+
+        if (!emailRegex.test(email)) {
+            alert("Email không hợp lệ!");
+            return;
+        }
+
+        // Kiểm tra email trùng
+        let isDuplicate = await checkDuplicateEmail(email);
+        if (isDuplicate) {
+            alert("Email đã tồn tại! Vui lòng nhập email khác.");
+            return;
+        }
+
+        if (birthDate) {
+            let today = new Date();
+            let birthDateObj = new Date(birthDate);
+
+            if (!dateRegex.test(birthDate)) {
+                alert("Ngày sinh không hợp lệ! Định dạng hợp lệ: YYYY-MM-DD.");
+                return;
+            }
+
+            let birthYear = birthDateObj.getFullYear();
+            let birthMonth = birthDateObj.getMonth() + 1;
+            let birthDay = birthDateObj.getDate();
+            let currentYear = today.getFullYear();
+
+            if (birthYear > currentYear) {
+                alert("Năm sinh không được vượt quá năm hiện tại!");
+                return;
+            }
+
+            if (birthMonth < 1 || birthMonth > 12) {
+                alert("Tháng không hợp lệ! Chỉ từ 01 đến 12.");
+                return;
+            }
+
+            let daysInMonth = new Date(birthYear, birthMonth, 0).getDate();
+            if (birthDay < 1 || birthDay > daysInMonth) {
+                alert(`Ngày không hợp lệ! Tháng ${birthMonth} chỉ có ${daysInMonth} ngày.`);
+                return;
+            }
+
+            if (birthDateObj > today) {
+                alert("Ngày sinh không được lớn hơn ngày hiện tại!");
+                return;
+            }
+        }
+
+        if (!address || address.length < 5) {
+            alert("Địa chỉ phải có ít nhất 5 ký tự!");
+            return;
+        }
+
+        if (avatar && !urlRegex.test(avatar)) {
+            alert("Avatar phải là một URL hợp lệ (png, jpg, jpeg, gif, webp)!");
+            return;
+        }
+
+        event.target.submit(); // Nếu hợp lệ, gửi form
+    });
+
+    // Hàm kiểm tra email đã tồn tại hay chưa
+    async function checkDuplicateEmail(email) {
+        try {
+            let response = await fetch(`/api/customers/check-email?email=${encodeURIComponent(email)}`);
+            let data = await response.json();
+            return data.exists; // Trả về true nếu email đã tồn tại
+        } catch (error) {
+            console.error("Lỗi kiểm tra email:", error);
+            return false; // Nếu có lỗi, coi như email chưa tồn tại
+        }
+    }
+
+    function deleteCustomer(id) {
+        if (confirm("Bạn có chắc chắn muốn xóa khách hàng này không?")) {
+            fetch(`/customers/delete/${id}`, {method: "DELETE"})
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert("Xóa thành công!");
+                            location.reload();
+                        } else {
+                            alert("Có lỗi xảy ra!");
+                        }
+                    });
+        }
+    }
+
+
+    function editCustomer(id, fullName, phoneNumber, email, address, birthDate, avatar) {
+        document.getElementById("editCustomerId").value = id;
+        document.getElementById("editFullName").value = fullName;
+        document.getElementById("editPhoneNumber").value = phoneNumber;
+        document.getElementById("editEmail").value = email;
+        document.getElementById("editAddress").value = address;
+        document.getElementById("editBirthDate").value = birthDate;
+        document.getElementById("editAvatar").value = avatar;
+
+        // Hiển thị modal
+        document.getElementById("editCustomerModal").style.display = "block";
+        document.getElementById("editCustomerModal").classList.add("show");
+        document.body.classList.add("modal-open");
+
+        // Tạo backdrop cho modal
+        let backdrop = document.createElement("div");
+        backdrop.className = "modal-backdrop fade show";
+        document.body.appendChild(backdrop);
+    }
+
+    function closeEditModal() {
+        document.getElementById("editCustomerModal").style.display = "none";
+        document.getElementById("editCustomerModal").classList.remove("show");
+        document.body.classList.remove("modal-open");
+
+        // Xóa backdrop
+        let backdrop = document.querySelector(".modal-backdrop");
+        if (backdrop) {
+            backdrop.remove();
+        }
+    }
+
+
+    function updateCustomer() {
+        // Lấy dữ liệu từ form
+        let id = document.getElementById("editCustomerId").value;
+        let fullName = document.getElementById("editFullName").value.trim();
+        let phoneNumber = document.getElementById("editPhoneNumber").value.trim();
+        let email = document.getElementById("editEmail").value.trim();
+        let address = document.getElementById("editAddress").value.trim();
+        let birthDate = document.getElementById("editBirthDate").value.trim();
+        let avatar = document.getElementById("editAvatar").value.trim();
+
+        // Kiểm tra ID có hợp lệ không
+        if (!id) {
+            alert("Lỗi: Không tìm thấy ID khách hàng!");
+            return;
+        }
+
+        // Validate dữ liệu
+        let phoneRegex = /^[0-9]{10}$/;
+        let emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        let dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        let urlRegex = /^(https?:\/\/.*\.(?:png|jpg|jpeg|gif|webp))$/i;
+
+        if (!fullName || fullName.length < 3) {
+            alert("Họ tên phải có ít nhất 3 ký tự!");
+            return;
+        }
+
+        if (!phoneRegex.test(phoneNumber)) {
+            alert("Số điện thoại không hợp lệ! Phải có đúng 10 chữ số.");
+            return;
+        }
+
+        if (!emailRegex.test(email)) {
+            alert("Email không hợp lệ!");
+            return;
+        }
+
+        if (birthDate) {
+            let today = new Date();
+            let birthDateObj = new Date(birthDate);
+
+            if (!dateRegex.test(birthDate)) {
+                alert("Ngày sinh không hợp lệ! Định dạng hợp lệ: YYYY-MM-DD.");
+                return;
+            }
+
+            if (birthDateObj > today) {
+                alert("Ngày sinh không được lớn hơn ngày hiện tại!");
+                return;
+            }
+        }
+
+        if (!address || address.length < 5) {
+            alert("Địa chỉ phải có ít nhất 5 ký tự!");
+            return;
+        }
+
+        if (avatar && !urlRegex.test(avatar)) {
+            alert("Avatar phải là một URL hợp lệ (png, jpg, jpeg, gif, webp)!");
+            return;
+        }
+
+        // Tạo đối tượng chứa dữ liệu cần cập nhật
+        let customerData = {
+            fullName,
+            phoneNumber,
+            email,
+            address,
+            birthDate,
+            avatar
+        };
+
+        // Gửi request cập nhật
+        console.log("Customer ID được gửi:", id);
+
+        fetch(`/api/customers/${id}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(customerData)
+        })
+                .then(response => response.json())
+                .then(data => {
+                    console.log("Cập nhật thành công:", data);
+
+                    // Hiển thị alert thành công
+                    alert("Cập nhật khách hàng thành công!");
+
+                    // Đóng modal
+                    closeEditModal();
+
+                    try {
+                        // Tìm hàng dựa trên ID
+                        const rows = document.querySelectorAll("tbody tr");
+                        for (let row of rows) {
+                            const cells = row.querySelectorAll("td");
+                            if (cells[0] && cells[0].textContent.includes(id)) {
+                                // Cập nhật nội dung
+                                cells[1].textContent = fullName;
+                                cells[2].textContent = phoneNumber;
+                                cells[3].textContent = email;
+                                cells[4].textContent = address;
+
+                                // Cập nhật ngày sinh nếu có giá trị
+                                if (birthDate) {
+                                    const birthdateObj = new Date(birthDate);
+                                    if (birthDate) {
+                                        const birthdateObj = new Date(birthDate);
+                                        cells[5].textContent = birthdateObj.toLocaleDateString("vi-VN");
+                                    }
+
+                                }
+
+                                // Cập nhật avatar nếu có
+                                if (avatar && cells[6].querySelector("img")) {
+                                    cells[6].querySelector("img").src = avatar;
+                                }
+
+                                // Quan trọng: Cập nhật lại thuộc tính onclick của nút Sửa
+                                const editButton = cells[7].querySelector(".btn-warning");
+                                if (editButton) {
+                                    editButton.setAttribute("onclick",
+                                            `editCustomer('${id}', '${fullName}', '${phoneNumber}', '${email}', '${address}', '${birthDate}', '${avatar}')`
+                                    );
+                                }
+
+                                console.log("Đã cập nhật giao diện thành công");
+                                break;
+                            }
+                        }
+                    } catch (err) {
+                        console.error("Lỗi khi cập nhật giao diện:", err);
+                        // Nếu cập nhật giao diện thất bại, reload trang
+                        window.location.reload();
+                    }
+                })
+                .catch(error => {
+                    console.error("Lỗi khi cập nhật:", error);
+                    alert("Cập nhật thất bại!");
+                });
+    }
+</script>

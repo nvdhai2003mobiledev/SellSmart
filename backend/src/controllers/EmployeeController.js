@@ -13,7 +13,7 @@ const storage = multer.diskStorage({
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     cb(
       null,
-      `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`,
+      `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`
     );
   },
 });
@@ -24,7 +24,7 @@ const upload = multer({
   fileFilter: (req, file, cb) => {
     const filetypes = /jpeg|jpg|png/;
     const extname = filetypes.test(
-      path.extname(file.originalname).toLowerCase(),
+      path.extname(file.originalname).toLowerCase()
     );
     const mimetype = filetypes.test(file.mimetype);
     if (extname && mimetype) {
@@ -65,7 +65,7 @@ exports.createEmployee = async (req, res) => {
 
     if (!username || !email || !password || !employeeId) {
       throw new Error(
-        "Các trường username, email, password và employeeId là bắt buộc",
+        "Các trường username, email, password và employeeId là bắt buộc"
       );
     }
 
@@ -133,11 +133,23 @@ exports.upload = upload.single("avatarFile");
 // Lấy tất cả nhân viên
 exports.getAllEmployees = async (req, res) => {
   try {
+    // Lấy tất cả Employee và populate thông tin User
     const employees = await Employee.find().populate({
       path: "userId",
       select: "username fullName email phoneNumber avatar gender role",
     });
-    res.render("employees", { title: "Quản lý nhân viên", employees });
+
+    // Lọc chỉ giữ lại những Employee mà userId có role là "employee"
+    const filteredEmployees = employees.filter(
+      (emp) => emp.userId && emp.userId.role === "employee"
+    );
+
+    // Render danh sách nhân viên đã lọc
+    res.render("dashboard/employees", {
+      title: "Quản lý nhân viên",
+      employees: filteredEmployees,
+      page: "employees",
+    });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
@@ -183,13 +195,13 @@ exports.updateEmployee = async (req, res) => {
     };
     Object.keys(employeeUpdateData).forEach(
       (key) =>
-        employeeUpdateData[key] === undefined && delete employeeUpdateData[key],
+        employeeUpdateData[key] === undefined && delete employeeUpdateData[key]
     );
 
     const employee = await Employee.findOneAndUpdate(
       { employeeId: req.params.id },
       employeeUpdateData,
-      { new: true, runValidators: true, session },
+      { new: true, runValidators: true, session }
     );
 
     if (!employee) {
@@ -203,7 +215,7 @@ exports.updateEmployee = async (req, res) => {
       const updatedUser = await User.findByIdAndUpdate(
         employee.userId,
         safeUserFields,
-        { new: true, runValidators: true, session },
+        { new: true, runValidators: true, session }
       );
 
       if (!updatedUser) throw new Error("Không tìm thấy thông tin người dùng");

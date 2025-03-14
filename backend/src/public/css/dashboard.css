@@ -1,0 +1,33 @@
+.dashboard {
+    background-color: #f8f9fa;
+    min-height: 100vh;
+}
+
+.sidebar {
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar .nav-link {
+    color: #333;
+    padding: 0.75rem 1.5rem;
+    transition: all 0.3s;
+}
+
+.sidebar .nav-link.active {
+    background-color: #e9ecef;
+    color: #0d6efd;
+    border-left: 4px solid #0d6efd;
+}
+
+.sidebar .nav-link:hover:not(.active) {
+    background-color: #f8f9fa;
+}
+
+.main-content {
+    margin-left: 280px; /* Chiều rộng sidebar */
+    padding: 20px;
+}

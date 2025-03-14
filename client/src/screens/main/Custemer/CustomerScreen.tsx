@@ -5,6 +5,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { color, moderateScale, scaledSize, scaleHeight, scaleWidth } from '../../../utils';
 import { contents } from '../../../context';
 import { Images } from '../../../assets';
+import { Screen } from '../../../navigation/navigation.type';
 
 export const CustomerScreen = ({ navigation }) => {
   const renderItem = ({ item }) => (
@@ -41,19 +42,30 @@ export const CustomerScreen = ({ navigation }) => {
       {/* Thanh công cụ */}
       <View style={styles.toolbar}>
         <View style={styles.toolbar3}>
-        <ToolbarButton icon="add" label={contents.staff.toolbar.add}  />
-        <ToolbarButton icon="filter-outline" label={contents.staff.toolbar.filter} />
-        <ToolbarButton icon="swap-vertical-outline" label={contents.staff.toolbar.sort} />
+        <ToolbarButton 
+          icon="add" 
+          label={contents.staff.toolbar.add}  
+          onPress={() => navigation.navigate(Screen.ADDCUSTOMER)}
+        />
+        <ToolbarButton 
+          icon="filter-outline" 
+          label={contents.staff.toolbar.filter} 
+          onPress={() => navigation.navigate(Screen.CUSTOMERDETAIL)} 
+        />
+        <ToolbarButton 
+          icon="swap-vertical-outline" 
+          label={contents.staff.toolbar.filter} 
+          onPress={() => navigation.navigate(Screen.UPDATECUSTOMER)} 
+        />
         </View>
-        
         <ToolbarButton icon="search-outline" label={contents.staff.toolbar.search} />
       </View>
     </BaseLayout>
   );
 };
 
-const ToolbarButton = ({ icon, label }) => (
-  <TouchableOpacity style={styles.iconButton}>
+const ToolbarButton = ({ icon, label, onPress }) => (
+  <TouchableOpacity style={styles.iconButton} onPress={onPress}>
     <Icon name={icon} size={24} color={color.primaryColor} />
     <DynamicText style={styles.iconText}>{label}</DynamicText>
   </TouchableOpacity>

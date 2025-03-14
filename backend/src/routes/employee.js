@@ -1,5 +1,4 @@
 const express = require("express");
-const { protect, authorize } = require("../middleware/auth");
 const {
   getAllEmployees,
   createEmployee,
@@ -8,13 +7,12 @@ const {
   updateEmployee,
 } = require("../controllers/EmployeeController");
 const router = express.Router();
-// router.use(protect);
-// router.use(authorize("admin"));
+const { protect } = require("../middleware/auth");
 
-router.get("/", getAllEmployees);
-router.get("/find-employee/:id", getEmployee);
+router.get("/", protect, getAllEmployees);
+router.get("/find-employee/:id", protect, getEmployee);
 router.post("/create-employee", createEmployee);
-router.put("/update-employee/:id", updateEmployee);
-router.delete("/delete-employee/:id", deleteEmployee);
+router.put("/update-employee/:id", protect, updateEmployee);
+router.delete("/delete-employee/:id", protect, deleteEmployee);
 
 module.exports = router;

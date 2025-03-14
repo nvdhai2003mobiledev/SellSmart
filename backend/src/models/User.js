@@ -52,19 +52,8 @@ const User = new Schema(
       default: "admin",
     },
   },
-  { timestamps: true },
+  { timestamps: true }
 );
-
-// Mã hóa mật khẩu trước khi lưu
-User.pre("save", async function (next) {
-  if (!this.isModified("password")) {
-    return next();
-  }
-
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-  next();
-});
 
 // Phương thức kiểm tra mật khẩu
 User.methods.matchPassword = async function (enteredPassword) {
