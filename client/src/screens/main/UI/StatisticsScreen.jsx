@@ -1,18 +1,19 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
-import Svg, { Rect } from 'react-native-svg'; // Sử dụng react-native-svg để vẽ biểu đồ
+import { View, Text,StyleSheet } from 'react-native';
+import Svg, { Rect } from 'react-native-svg';
+import { BaseLayout, Button } from '../../../components';
 
 const StatisticsScreen = () => {
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f5f5f5" />
-
+    <BaseLayout>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Thông kê</Text>
-        <TouchableOpacity style={styles.filterButton}>
-          <Text style={styles.filterText}>30 ngày qua</Text>
-        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Thống kê</Text>
+        {/* <Button
+          title="30 ngày qua"
+          buttonContainerStyle={styles.filterButton}
+          titleStyle={styles.filterText}
+        /> */}
       </View>
 
       {/* Tổng quan */}
@@ -37,53 +38,17 @@ const StatisticsScreen = () => {
       <View style={styles.chartContainer}>
         <Svg height="200" width="300">
           {/* Cột Jan */}
-          <Rect
-            x="20"
-            y="150"
-            width="30"
-            height="50"
-            fill="#ddd"
-          />
+          <Rect x="20" y="150" width="30" height="50" fill="#ddd" />
           {/* Cột Feb */}
-          <Rect
-            x="70"
-            y="100"
-            width="30"
-            height="100"
-            fill="#ddd"
-          />
+          <Rect x="70" y="100" width="30" height="100" fill="#ddd" />
           {/* Cột Mar (tô màu xanh đậm) */}
-          <Rect
-            x="120"
-            y="50"
-            width="30"
-            height="150"
-            fill="#007AFF"
-          />
+          <Rect x="120" y="50" width="30" height="150" fill="#007AFF" />
           {/* Cột Apr */}
-          <Rect
-            x="170"
-            y="130"
-            width="30"
-            height="70"
-            fill="#ddd"
-          />
+          <Rect x="170" y="130" width="30" height="70" fill="#ddd" />
           {/* Cột May */}
-          <Rect
-            x="220"
-            y="140"
-            width="30"
-            height="60"
-            fill="#ddd"
-          />
+          <Rect x="220" y="140" width="30" height="60" fill="#ddd" />
           {/* Cột Jun */}
-          <Rect
-            x="270"
-            y="120"
-            width="30"
-            height="80"
-            fill="#ddd"
-          />
+          <Rect x="270" y="120" width="30" height="80" fill="#ddd" />
         </Svg>
         <View style={styles.monthLabels}>
           <Text style={styles.monthLabel}>Jan</Text>
@@ -94,17 +59,12 @@ const StatisticsScreen = () => {
           <Text style={styles.monthLabel}>Jun</Text>
         </View>
       </View>
-    </View>
+    </BaseLayout>
   );
 };
 
 // Styles
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-    paddingHorizontal: 16,
-  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',

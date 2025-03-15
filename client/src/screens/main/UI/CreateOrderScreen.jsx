@@ -1,12 +1,12 @@
 import React from 'react';
-import { View, Text, Image, TextInput, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons'; // Dùng icon từ react-native-vector-icons
+import { View, Text, Image, TouchableOpacity ,StyleSheet } from 'react-native';
+
+import Icon from 'react-native-vector-icons/Ionicons';
+import { BaseLayout, Button, Input } from '../../../components';
 
 const CreateOrderScreen = () => {
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f5f5f5" />
-
+    <BaseLayout>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity>
@@ -19,7 +19,7 @@ const CreateOrderScreen = () => {
       {/* Product Info */}
       <View style={styles.productContainer}>
         <Image
-          source={{ uri: 'https://via.placeholder.com/80' }} // Thay thế bằng hình ảnh MacBook nếu có
+          source={{ uri: 'https://via.placeholder.com/80' }}
           style={styles.productImage}
         />
         <View style={styles.productDetails}>
@@ -49,11 +49,11 @@ const CreateOrderScreen = () => {
         {/* Ghi chú */}
         <View style={styles.inputRow}>
           <Text style={styles.label}>Ghi chú</Text>
-          <TextInput
-            style={styles.textArea}
-            placeholder="Nhập ghi chú"
+          <Input
+            placeholderText="Nhập ghi chú"
             multiline
             numberOfLines={3}
+            inputContainerStyle={styles.textArea}
           />
         </View>
       </View>
@@ -66,24 +66,23 @@ const CreateOrderScreen = () => {
 
       {/* Buttons */}
       <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.draftButton}>
-          <Text style={styles.draftButtonText}>Lưu nháp</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.createButton}>
-          <Text style={styles.createButtonText}>Tạo đơn</Text>
-        </TouchableOpacity>
+        <Button
+          title="Lưu nháp"
+          buttonContainerStyle={styles.draftButton}
+          titleStyle={styles.draftButtonText}
+        />
+        <Button
+          title="Tạo đơn"
+          buttonContainerStyle={styles.createButton}
+          titleStyle={styles.createButtonText}
+        />
       </View>
-    </View>
+    </BaseLayout>
   );
 };
 
 // Styles
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-    paddingHorizontal: 16,
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

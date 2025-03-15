@@ -1,12 +1,11 @@
 import React from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons'; // Sử dụng icon từ react-native-vector-icons
+import { View, Text, Image, TouchableOpacity,StyleSheet } from 'react-native';
+import Icon from 'react-native-vector-icons/Ionicons';
+import { BaseLayout, Button } from '../../../components';
 
 const ProductDetailScreen = () => {
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f5f5f5" />
-
+    <BaseLayout>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity>
@@ -30,7 +29,7 @@ const ProductDetailScreen = () => {
       {/* Ảnh sản phẩm */}
       <View style={styles.imageContainer}>
         <Image
-          source={{ uri: 'https://via.placeholder.com/200' }} // Thay thế bằng URL hình ảnh MacBook nếu có
+          source={{ uri: 'https://via.placeholder.com/200' }}
           style={styles.productImage}
         />
         <TouchableOpacity style={styles.addButton}>
@@ -58,7 +57,7 @@ const ProductDetailScreen = () => {
       <View style={styles.configContainer}>
         <View style={styles.configItem}>
           <Image
-            source={{ uri: 'https://via.placeholder.com/50' }} // Thay thế bằng icon RAM
+            source={{ uri: 'https://via.placeholder.com/50' }}
             style={styles.configIcon}
           />
           <Text style={styles.configText}>16GB RAM</Text>
@@ -66,7 +65,7 @@ const ProductDetailScreen = () => {
         </View>
         <View style={styles.configItem}>
           <Image
-            source={{ uri: 'https://via.placeholder.com/50' }} // Thay thế bằng icon RAM
+            source={{ uri: 'https://via.placeholder.com/50' }}
             style={styles.configIcon}
           />
           <Text style={styles.configText}>32GB RAM</Text>
@@ -74,7 +73,7 @@ const ProductDetailScreen = () => {
         </View>
         <View style={styles.configItem}>
           <Image
-            source={{ uri: 'https://via.placeholder.com/50' }} // Thay thế bằng icon Storage
+            source={{ uri: 'https://via.placeholder.com/50' }}
             style={styles.configIcon}
           />
           <Text style={styles.configText}>1TB</Text>
@@ -82,7 +81,7 @@ const ProductDetailScreen = () => {
         </View>
         <View style={styles.configItem}>
           <Image
-            source={{ uri: 'https://via.placeholder.com/50' }} // Thay thế bằng icon Storage
+            source={{ uri: 'https://via.placeholder.com/50' }}
             style={styles.configIcon}
           />
           <Text style={styles.configText}>512GB</Text>
@@ -91,20 +90,17 @@ const ProductDetailScreen = () => {
       </View>
 
       {/* Nút Lưu */}
-      <TouchableOpacity style={styles.saveButton}>
-        <Text style={styles.saveButtonText}>Lưu</Text>
-      </TouchableOpacity>
-    </View>
+      <Button
+        title="Lưu"
+        buttonContainerStyle={styles.saveButton}
+        titleStyle={styles.saveButtonText}
+      />
+    </BaseLayout>
   );
 };
 
 // Styles
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-    paddingHorizontal: 16,
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
