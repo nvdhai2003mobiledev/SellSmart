@@ -9,7 +9,7 @@ const getAllOrders = async () => {
     try {
         const orders = await Order.find()
             .populate({ path: 'customerID', model: 'Customer', select: 'fullName phoneNumber email address' })  // ✅ Thêm model
-            .populate({ path: 'products.productID', model: 'Product', select: 'name price stockQuantity thumbnail attributes' })
+            .populate({ path: 'products.productID', model: 'Product', select: 'name price inventory thumbnail attributes' })
             .populate({ path: 'employeeID', model: 'Employee', select: 'fullName position' })
             .lean();
         
