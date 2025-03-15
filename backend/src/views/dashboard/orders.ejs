@@ -1,4 +1,4 @@
-
+<%- include('../layouts/main.ejs') %>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -7,11 +7,50 @@
     <title>Danh sách đơn hàng</title>
     <link rel="stylesheet" href="/styles.css"> <!-- File CSS nếu cần -->
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; padding: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-        th { background-color: #f4f4f4; }
-        tr:nth-child(even) { background-color: #f9f9f9; }
+       body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding-top: 40px;
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    justify-content: flex-end; /* Đẩy sang phải */
+    align-items: flex-start; /* Cố định lên trên */
+}
+
+.content-container {
+    width: 85%; /* Chiếm 80% chiều ngang */
+    background-color: white;
+    padding: 20px;
+    margin-top: 20px; /* Cách top một chút */
+    margin-right: 20px; /* Cách phải một chút */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Đổ bóng nhẹ */
+    border-radius: 8px; /* Bo góc */
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: left;
+}
+
+th {
+    background-color: #f4f4f4;
+}
+
+tr:nth-child(even) {
+    background-color: #f9f9f9;
+}.button-container {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 20px; 
+}
     </style>
     <script>
         function loadOrders() {
@@ -42,10 +81,10 @@
       
 </head>
 <body>
-
-    <h1>Danh sách đơn hàng</h1>
+    <div class="content-container">
+    <h1 style="text-align: center;">Danh sách đơn hàng</h1>
     <div class="button-container">
-        <a href="/orders/create"><button class="btn">Tạo Đơn Hàng</button></a>
+        <a href="/orders/create"><button class="btn" style="background-color: #f4f4f4;display: flex;justify-content: flex-end;">Tạo Đơn Hàng</button></a>
     </div>
     <table border="1">
         <tr>
@@ -94,6 +133,6 @@
         <% }) %>
         
     </table>
-
+</div>
 </body>
 </html>

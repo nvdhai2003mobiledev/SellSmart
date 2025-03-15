@@ -1,3 +1,4 @@
+<%- include('../layouts/main.ejs') %>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -41,7 +42,7 @@
         products: selectedProducts.map(p => ({
             productID: p.productID,
             name: p.name,
-            quantity: p.quantity,
+            inventory: p.inventory,
             price: p.price,
             attributes: Object.entries(p.attributes).map(([key, value]) => ({
                 name: key,
@@ -167,7 +168,7 @@ function checkAndEnableProductCheckbox(productID) {
     }
 }
 
-function toggleProductSelection(checkbox, productID, name, price, thumbnail, stockQuantity, attributesJSON) {
+function toggleProductSelection(checkbox, productID, name, price, thumbnail, inventory, attributesJSON) {
     let attributes;
     try {
         attributes = JSON.parse(attributesJSON);
@@ -190,8 +191,8 @@ function toggleProductSelection(checkbox, productID, name, price, thumbnail, sto
                 name,
                 price,
                 thumbnail,
-                stockQuantity,
-                quantity: 1,
+                inventory,
+                quantity: 1, 
                 attributes: selectedAttributes[productID] || {}
             });
         }
@@ -226,10 +227,10 @@ function updateSelectedProductsTable() {
                 <td><img src="${product.thumbnail}" width="50"></td>
                 <td>${product.name}</td>
                 <td>${attributesText}</td>
-                <td>${product.stockQuantity}</td>
+                <td>${product.inventory}</td>
                 <td>${product.price.toLocaleString()} VND</td>
                 <td>
-                    <input type="number" value="${product.quantity}" min="1" max="${product.stockQuantity}" 
+                    <input type="number" value="${product.quantity}" min="1" max="${product.inventory}" 
                            onchange="updateQuantity(${index}, this.value)" style="width: 60px;">
                 </td>
                 <td>${totalPrice.toLocaleString()} VND</td>
@@ -339,12 +340,25 @@ function saveAttributeSelection() {
     }
     </script>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            margin: 20px;
-            padding: 20px;
-        }
+              body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding-top: 40px;
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    justify-content: flex-end; /* Đẩy sang phải */
+    align-items: flex-start; /* Cố định lên trên */
+}
+.content-container {
+    width: 85%; /* Chiếm 80% chiều ngang */
+    background-color: white;
+    padding: 20px;
+    margin-top: 20px; /* Cách top một chút */
+    margin-right: 20px; /* Cách phải một chút */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Đổ bóng nhẹ */
+    border-radius: 8px; /* Bo góc */
+}
     
         h1, h3 {
             color: #333;
@@ -539,7 +553,7 @@ function saveAttributeSelection() {
     
 </head>
 <body>
-
+<div class="content-container">
     <h1>Tạo Đơn Hàng</h1>
 
     <div class="container">
@@ -644,11 +658,11 @@ function saveAttributeSelection() {
                  
                 </td>
                 <td><%= product.price.toLocaleString() %> VND</td>
-                <td><%= product.stockQuantity %></td>
+                <td><%= product.inventory %></td>
                 <td>
                     <input type="checkbox" id="productCheckbox-<%= product._id %>" 
                     disabled 
-                    onchange="toggleProductSelection(this, '<%= product._id %>', '<%= product.name %>', '<%= product.price %>', '<%= product.thumbnail %>', '<%= product.stockQuantity %>', decodeURIComponent('<%= encodeURIComponent(JSON.stringify(product.attributes)) %>'))">
+                    onchange="toggleProductSelection(this, '<%= product._id %>', '<%= product.name %>', '<%= product.price %>', '<%= product.thumbnail %>', '<%= product.inventory %>', decodeURIComponent('<%= encodeURIComponent(JSON.stringify(product.attributes)) %>'))">
      </td>
             </tr>
         <% }) %>
@@ -686,6 +700,6 @@ function saveAttributeSelection() {
         </table>
         <button onclick="closeCustomerDialog()">Đóng</button>
     </div>
-
+</div>
 </body>
 </html>
