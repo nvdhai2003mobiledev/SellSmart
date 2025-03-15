@@ -207,79 +207,79 @@
             </div>
         </div>
         <script>
-            $(document).ready(() => {
-                $('#addProductForm').submit(function (event) {
-                    event.preventDefault();
-                    const data = {
-                        name: $('#name').val(),
-                        thumbnail: $('#thumbnail').val(),
-                        price: $('#price').val(),
-                        description: $('#description').val(),
-                        category: $('#category').val(),
-                        stockQuantity: $('#stockQuantity').val()
-                    };
-                    $.post('/products/create', data, () => location.reload());
-                });
+          $(document).ready(() => {
+            $('#addProductForm').submit(function (event) {
+              event.preventDefault();
+              const data = {
+                name: $('#name').val(),
+                thumbnail: $('#thumbnail').val(),
+                price: $('#price').val(),
+                description: $('#description').val(),
+                category: $('#category').val(),
+                stockQuantity: $('#stockQuantity').val()
+              };
+              $.post('/products/create', data, () => location.reload());
             });
+          });
 
-            function editProduct(id) {
-                fetch(`/products/${id}`)
-                        .then(res => res.json())
-                        .then(product => {
-                            $('#editProductId').val(product._id);
-                            $('#editName').val(product.name);
-                            $('#editThumbnail').val(product.thumbnail);
-                            $('#editPrice').val(product.price);
-                            $('#editCategory').val(product.category);
-                            $('#editStockQuantity').val(product.stockQuantity);
-                            new bootstrap.Modal(document.getElementById('editProductModal')).show();
-                        });
-            }
+          function editProduct(id) {
+            fetch(`/products/${id}`)
+              .then(res => res.json())
+              .then(product => {
+                $('#editProductId').val(product._id);
+                $('#editName').val(product.name);
+                $('#editThumbnail').val(product.thumbnail);
+                $('#editPrice').val(product.price);
+                $('#editCategory').val(product.category);
+                $('#editStockQuantity').val(product.stockQuantity);
+                new bootstrap.Modal(document.getElementById('editProductModal')).show();
+              });
+          }
 
-            $('#editProductForm').submit(function (event) {
-                event.preventDefault();
-                const id = $('#editProductId').val();
-                const data = {
-                    name: $('#editName').val(),
-                    thumbnail: $('#editThumbnail').val(),
-                    price: $('#editPrice').val(),
-                    category: $('#editCategory').val(),
-                    stockQuantity: $('#editStockQuantity').val()
-                };
-                $.ajax({
-                    url: `/products/edit/${id}`,
-                    type: 'PUT',
-                    data,
-                    success: () => location.reload()
-                });
+          $('#editProductForm').submit(function (event) {
+            event.preventDefault();
+            const id = $('#editProductId').val();
+            const data = {
+              name: $('#editName').val(),
+              thumbnail: $('#editThumbnail').val(),
+              price: $('#editPrice').val(),
+              category: $('#editCategory').val(),
+              stockQuantity: $('#editStockQuantity').val()
+            };
+            $.ajax({
+              url: `/products/edit/${id}`,
+              type: 'PUT',
+              data,
+              success: () => location.reload()
             });
+          });
 
-            function deleteProduct(id) {
-                if (confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) {
-                    $.ajax({
-                        url: `/products/delete/${id}`,
-                        type: 'DELETE',
-                        success: () => location.reload()
-                    });
-                }
+          function deleteProduct(id) {
+            if (confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) {
+              $.ajax({
+                url: `/products/delete/${id}`,
+                type: 'DELETE',
+                success: () => location.reload()
+              });
             }
+          }
         </script>
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
         <script>
-            function editProduct(id) {
-                fetch(`/products/${id}`)
-                        .then(res => res.json())
-                        .then(product => {
-                            document.getElementById('editProductId').value = product._id;
-                            document.getElementById('editName').value = product.name;
-                            document.getElementById('editThumbnail').value = product.thumbnail;
-                            document.getElementById('editPrice').value = product.price;
-                            document.getElementById('editDescription').value = product.description;
-                            document.getElementById('editCategory').value = product.category;
-                            document.getElementById('editStockQuantity').value = product.stockQuantity;
+          function editProduct(id) {
+            fetch(`/products/${id}`)
+              .then(res => res.json())
+              .then(product => {
+                document.getElementById('editProductId').value = product._id;
+                document.getElementById('editName').value = product.name;
+                document.getElementById('editThumbnail').value = product.thumbnail;
+                document.getElementById('editPrice').value = product.price;
+                document.getElementById('editDescription').value = product.description;
+                document.getElementById('editCategory').value = product.category;
+                document.getElementById('editStockQuantity').value = product.stockQuantity;
 
-                            const modal = new bootstrap.Modal(document.getElementById('editProductModal'));
-                            modal.show();
-                        });
-            }
+                const modal = new bootstrap.Modal(document.getElementById('editProductModal'));
+                modal.show();
+              });
+          }
         </script>

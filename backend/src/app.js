@@ -12,7 +12,7 @@ const session = require("express-session");
 
 const routes = require("./routes");
 
-const orderRoutes = require('./routes/orderRoutes')
+const orderRoutes = require("./routes/order");
 
 // const promotionRouter = require("./routes/PromotionRouter");
 
@@ -39,7 +39,7 @@ app.use(
     secret: process.env.SESSION_SECRET || "secret",
     resave: false,
     saveUninitialized: false,
-  })
+  }),
 );
 
 // Cấu hình connect-flash
@@ -73,13 +73,23 @@ app.get("/customers", async (req, res) => {
 // Route thêm khách hàng
 app.post("/customers", async (req, res) => {
   try {
-    const { fullName, phoneNumber, email, address, birthDate, avatar } = req.body;
+    const { fullName, phoneNumber, email, address, birthDate, avatar } =
+      req.body;
     if (!fullName || !phoneNumber || !email) {
-      return res.status(400).json({ message: "Vui lòng nhập đầy đủ thông tin" });
+      return res
+        .status(400)
+        .json({ message: "Vui lòng nhập đầy đủ thông tin" });
     }
 
     const Customer = mongoose.model("Customer");
-    const newCustomer = new Customer({ fullName, phoneNumber, email, address, birthDate, avatar });
+    const newCustomer = new Customer({
+      fullName,
+      phoneNumber,
+      email,
+      address,
+      birthDate,
+      avatar,
+    });
     await newCustomer.save();
 
     res.redirect("/customers");
@@ -97,13 +107,17 @@ app.delete("/customers/delete/:id", async (req, res) => {
     const deletedCustomer = await Customer.findByIdAndDelete(customerId);
 
     if (!deletedCustomer) {
-return res.status(404).json({ success: false, message: "Khách hàng không tồn tại!" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Khách hàng không tồn tại!" });
     }
 
     res.json({ success: true, message: "Xóa khách hàng thành công!" });
   } catch (error) {
     console.error("🔥 Lỗi xóa khách hàng:", error);
-    res.status(500).json({ success: false, message: "Lỗi máy chủ khi xóa khách hàng!" });
+    res
+      .status(500)
+      .json({ success: false, message: "Lỗi máy chủ khi xóa khách hàng!" });
   }
 });
 
@@ -115,7 +129,9 @@ app.put("/api/customers/:id", async (req, res) => {
     if (!updateData.birthDate) delete updateData.birthDate;
 
     const Customer = mongoose.model("Customer");
-    const updatedCustomer = await Customer.findByIdAndUpdate(id, updateData, { new: true });
+    const updatedCustomer = await Customer.findByIdAndUpdate(id, updateData, {
+      new: true,
+    });
 
     res.json(updatedCustomer);
   } catch (error) {
