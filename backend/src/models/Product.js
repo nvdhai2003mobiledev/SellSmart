@@ -21,7 +21,7 @@ const Product = new Schema(
       type: String,
       required: true,
     },
-    stockQuantity: {
+    inventory: {
       type: Number,
       required: true,
       min: 0,
