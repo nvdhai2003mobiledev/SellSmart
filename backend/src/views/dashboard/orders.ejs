@@ -7,86 +7,11 @@
     <title>Danh sách đơn hàng</title>
     <link rel="stylesheet" href="/styles.css"> <!-- File CSS nếu cần -->
     <style>
-       body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding-top: 40px;
-    height: 100vh;
-    width: 100vw;
-    display: flex;
-    justify-content: flex-end; /* Đẩy sang phải */
-    align-items: flex-start; /* Cố định lên trên */
-}
-
-.content-container {
-    width: 85%; /* Chiếm 80% chiều ngang */
-    background-color: white;
-    padding: 20px;
-    margin-top: 20px; /* Cách top một chút */
-    margin-right: 20px; /* Cách phải một chút */
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Đổ bóng nhẹ */
-    border-radius: 8px; /* Bo góc */
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 20px;
-}
-
-th, td {
-    border: 1px solid #ddd;
-    padding: 10px;
-    text-align: left;
-}
-
-th {
-    background-color: #f4f4f4;
-}
-
-tr:nth-child(even) {
-    background-color: #f9f9f9;
-}
-
-.button-container {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 20px; 
-}
-
-.delete-btn {
-    background-color: #ff4d4d;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    padding: 5px 10px;
-    cursor: pointer;
-}
-
-.delete-btn:hover {
-    background-color: #ff0000;
-}
-
-.search-input {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    box-sizing: border-box;
-    margin-top: 5px;
-}
-
-.btn {
-    border: none;
-    border-radius: 4px;
-    padding: 8px 12px;
-    cursor: pointer;
-    font-weight: bold;
-}
-
-.btn:hover {
-    opacity: 0.9;
-}
+        body { font-family: Arial, sans-serif; margin: 20px; padding: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background-color: #f4f4f4; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
     </style>
     <script>
         // Lưu trữ tất cả đơn hàng
@@ -347,53 +272,7 @@ tr:nth-child(even) {
     <div class="content-container">
     <h1 style="text-align: center;">Danh sách đơn hàng</h1>
     <div class="button-container">
-        <a href="/orders/create"><button class="btn" style="background-color: #f4f4f4;display: flex;justify-content: flex-end;">Tạo Đơn Hàng</button></a>
-    </div>
-    
-    <!-- Mục tìm kiếm đơn hàng -->
-    <div class="search-container" style="margin-top: 20px; margin-bottom: 20px; padding: 15px; background-color: #f9f9f9; border-radius: 8px;">
-        <h3 style="margin-top: 0;">Tìm kiếm đơn hàng</h3>
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
-            <div>
-                <label for="searchOrderID">Mã đơn hàng:</label>
-                <input type="text" id="searchOrderID" class="search-input" placeholder="Nhập mã đơn hàng">
-            </div>
-            <div>
-                <label for="searchCustomerName">Tên khách hàng:</label>
-                <input type="text" id="searchCustomerName" class="search-input" placeholder="Nhập tên khách hàng">
-            </div>
-            <div>
-                <label for="searchPhone">Số điện thoại:</label>
-                <input type="text" id="searchPhone" class="search-input" placeholder="Nhập số điện thoại">
-            </div>
-            <div>
-                <label for="searchAddress">Địa chỉ:</label>
-                <input type="text" id="searchAddress" class="search-input" placeholder="Nhập địa chỉ">
-            </div>
-            <div>
-                <label for="searchStatus">Trạng thái:</label>
-                <select id="searchStatus" class="search-input">
-                    <option value="">Tất cả</option>
-                    <option value="pending">Đang chờ xử lý</option>
-                    <option value="processing">Đang xử lý</option>
-                    <option value="shipping">Đang giao hàng</option>
-                    <option value="delivered">Đã giao hàng</option>
-                    <option value="canceled">Đã hủy</option>
-                </select>
-            </div>
-            <div>
-                <label for="searchFromDate">Từ ngày:</label>
-                <input type="date" id="searchFromDate" class="search-input">
-            </div>
-            <div>
-                <label for="searchToDate">Đến ngày:</label>
-                <input type="date" id="searchToDate" class="search-input">
-            </div>
-        </div>
-        <div style="margin-top: 15px; text-align: center;">
-            <button type="button" onclick="searchOrdersDirectly()" class="btn" style="background-color: #4CAF50; color: white; padding: 8px 15px; margin-right: 10px;">Tìm kiếm</button>
-            <button type="button" onclick="resetSearch()" class="btn" style="background-color: #f44336; color: white; padding: 8px 15px;">Đặt lại</button>
-        </div>
+        <a href="/orders/create"><button class="btn">Tạo Đơn Hàng</button></a>
     </div>
     
     <script>
