@@ -5,12 +5,11 @@ const VariantSchema = new Schema({
     name: {
         type: String,
         required: true,
-        unique: true
     },
-    values: [{
-        type: String,
+    values: {
+        type: [String],  // Lưu dưới dạng mảng các chuỗi
         required: true
-    }]
+    }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Variant', VariantSchema);
