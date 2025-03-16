@@ -13,7 +13,6 @@
     let customerPhone = document.getElementById("customerPhone").value;
     let customerEmail = document.getElementById("customerEmail").value;
     let customerAddress = document.getElementById("customerAddress").value;
-    // let paymentMethod = document.querySelector('input[name="paymentMethod"]:checked');
     let shippingNotes = document.getElementById("shippingNotes").value;
 
     // Kiểm tra nếu chưa chọn khách hàng
@@ -31,11 +30,6 @@
         alert("Bạn cần chọn ít nhất một sản phẩm!");
         return false;
     }
-
-    // if (!paymentMethod) {
-    //     alert("Vui lòng chọn phương thức thanh toán!");
-    //     return false;
-    // }
 
     return {
         customerID,
@@ -297,68 +291,56 @@ function saveAttributeSelection() {
 }
 
 
-        function openCustomerDialog() {
-            document.getElementById("customerDialog").style.display = "block";
-        }
+function openCustomerDialog() {
+    document.getElementById("customerDialog").style.display = "block";
+}
 
-        function closeCustomerDialog() {
-            document.getElementById("customerDialog").style.display = "none";
-        }
+function closeCustomerDialog() {
+    document.getElementById("customerDialog").style.display = "none";
+}
 
-  
+function updateDeliveryInfo() {
+    // Cập nhật thông tin giao hàng từ thông tin khách hàng
+    document.getElementById("shippingCustomerNameText").innerText = document.getElementById("customerName").value || "Chưa có";
+    document.getElementById("shippingCustomerPhoneText").innerText = document.getElementById("customerPhone").value || "Chưa có";
+    document.getElementById("shippingCustomerEmailText").innerText = document.getElementById("customerEmail").value || "Chưa có";
+    document.getElementById("shippingCustomerAddressText").innerText = document.getElementById("customerAddress").value || "Chưa có";
+}
 
+function selectCustomer(id, name, phone, email, address) {
+    // Cập nhật thông tin khách hàng
+    document.getElementById("customerID").value = id; 
+    document.getElementById("customerName").value = name;
+    document.getElementById("customerPhone").value = phone;
+    document.getElementById("customerEmail").value = email;
+    document.getElementById("customerAddress").value = address;
 
-
-
-        function toggleShippingInfo() {
-        let shippingInfo = document.getElementById("shippingInfo");
-        let selfDelivery = document.querySelector('input[name="shippingMethod"]:checked').value === "self";
-
-        if (selfDelivery) {
-            shippingInfo.style.display = "block"; // Hiển thị thông tin giao hàng
-
-            // Cập nhật thông tin từ phần nhập khách hàng
-            document.getElementById("shippingCustomerNameText").innerText = document.getElementById("customerName").value;
-            document.getElementById("shippingCustomerPhoneText").innerText = document.getElementById("customerPhone").value;
-            document.getElementById("shippingCustomerEmailText").innerText = document.getElementById("customerEmail").value;
-            document.getElementById("shippingCustomerAddressText").innerText = document.getElementById("customerAddress").value;
-        } else {
-            shippingInfo.style.display = "none"; // Ẩn khi chọn "Giao hàng qua đơn vị vận chuyển"
-        }
-    }
-
-    function selectCustomer(id,name, phone, email, address) {
-        // Cập nhật thông tin khách hàng
-        document.getElementById("customerID").value = id; 
-        document.getElementById("customerName").value = name;
-        document.getElementById("customerPhone").value = phone;
-        document.getElementById("customerEmail").value = email;
-        document.getElementById("customerAddress").value = address;
-
-        toggleShippingInfo(); // Cập nhật thông tin giao hàng khi chọn khách hàng
-        closeCustomerDialog();
-    }
+    // Cập nhật thông tin giao hàng
+    updateDeliveryInfo();
+    closeCustomerDialog();
+}
     </script>
     <style>
-              body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding-top: 40px;
-    height: 100vh;
-    width: 100vw;
-    display: flex;
-    justify-content: flex-end; /* Đẩy sang phải */
-    align-items: flex-start; /* Cố định lên trên */
-}
-.content-container {
-    width: 85%; /* Chiếm 80% chiều ngang */
-    background-color: white;
-    padding: 20px;
-    margin-top: 20px; /* Cách top một chút */
-    margin-right: 20px; /* Cách phải một chút */
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Đổ bóng nhẹ */
-    border-radius: 8px; /* Bo góc */
-}
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding-top: 40px;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: flex-end;
+            align-items: flex-start;
+        }
+        
+        .content-container {
+            width: 85%;
+            background-color: white;
+            padding: 20px;
+            margin-top: 20px;
+            margin-right: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
     
         h1, h3 {
             color: #333;
@@ -369,7 +351,6 @@ function saveAttributeSelection() {
             display: flex;
             justify-content: space-between;
             gap: 20px;
-          
         }
     
         .box {
@@ -392,7 +373,6 @@ function saveAttributeSelection() {
             margin-top: 5px;
             border: 1px solid #ccc;
             border-radius: 5px;
-           
         }
     
         table {
@@ -454,101 +434,144 @@ function saveAttributeSelection() {
             text-align: right;
             margin-top: 10px;
         }
+        
         .box1 {
             background: white;
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
-            width: 47%;
-            padding-bottom: 30px;
-           
-}
-#attributeDialog {
-    display: none;
-    position: fixed;
-    top: 20%;
-    left: 30%;
-    width: 40%;
-    background: white;
-    align-content: center;
-    padding: 20px;
-    border: 2px solid #333;
-    border-radius: 8px;
-    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.3);
-}
-
-/* Nhóm thuộc tính */
-.attribute-group {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-bottom: 15px;
-}
-
-/* Mỗi item của thuộc tính */
-.attribute-item {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    background: #f9f9f9;
-    padding: 5px 10px;
-    border-radius: 5px;
-    cursor: pointer;
-}
-
-/* Chỉnh sửa button chọn thuộc tính */
-.small-btn {
-    background-color: #007bff;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    padding: 5px;
-    cursor: pointer;
-    font-size: 14px;
-    margin-left: 5px;
-}
-
-.small-btn:hover {
-    background-color: #0056b3;
-}
-/* Tổng tiền & Nút Tạo Đơn Hàng nổi cố định ở bottom */
-.fixed-bottom-bar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    background: #ffffff;
-    padding: 15px 20px;
-    border-top: 2px solid #ddd;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0px -2px 10px rgba(0, 0, 0, 0.1);
-}
-
-/* Tổng tiền */
-.total-text {
-    font-size: 20px;
-    font-weight: bold;
-    color: #333;
-}
-
-/* Nút Tạo Đơn Hàng */
-.submit-btn {
-    background-color: #007bff;
-    color: white;
-    padding: 12px 20px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 16px;
-    margin-right: 60px;
-    font-weight: bold;
-}
-
-.submit-btn:hover {
-    background-color: #0056b3;
-}
+            width: 100%;
+            margin-bottom: 30px;
+        }
+        
+        #attributeDialog {
+            display: none;
+            position: fixed;
+            top: 20%;
+            left: 30%;
+            width: 40%;
+            background: white;
+            align-content: center;
+            padding: 20px;
+            border: 2px solid #333;
+            border-radius: 8px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Nhóm thuộc tính */
+        .attribute-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        /* Mỗi item của thuộc tính */
+        .attribute-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background: #f9f9f9;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        /* Chỉnh sửa button chọn thuộc tính */
+        .small-btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 5px;
+        }
+        
+        .small-btn:hover {
+            background-color: #0056b3;
+        }
+        
+        /* Tổng tiền & Nút Tạo Đơn Hàng nổi cố định ở bottom */
+        .fixed-bottom-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: #ffffff;
+            padding: 15px 20px;
+            border-top: 2px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0px -2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Tổng tiền */
+        .total-text {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        /* Nút Tạo Đơn Hàng */
+        .submit-btn {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 60px;
+            font-weight: bold;
+        }
+        
+        .submit-btn:hover {
+            background-color: #0056b3;
+        }
+        
+        /* Thông tin giao hàng */
+        .delivery-info {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+        
+        .delivery-info-column {
+            width: 48%;
+        }
+        
+        .delivery-info-field {
+            margin-bottom: 15px;
+        }
+        
+        .delivery-info-label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        .delivery-info-value {
+            padding: 5px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            min-height: 20px;
+        }
+        
+        .delete-btn {
+            background-color: #ff4d4d;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        
+        .delete-btn:hover {
+            background-color: #ff0000;
+        }
     </style>
     
 </head>
@@ -562,16 +585,16 @@ function saveAttributeSelection() {
             <h3>Thông tin khách hàng</h3>
             <input type="hidden" id="customerID">
             <label>Tên khách hàng:</label>
-            <input type="text" id="customerName" name="customerName" required>
+            <input type="text" id="customerName" name="customerName" required onchange="updateDeliveryInfo()">
             
             <label>Số điện thoại:</label>
-            <input type="text" id="customerPhone" name="customerPhone" required>
+            <input type="text" id="customerPhone" name="customerPhone" required onchange="updateDeliveryInfo()">
             
             <label>Email:</label>
-            <input type="email" id="customerEmail" name="customerEmail" required>
+            <input type="email" id="customerEmail" name="customerEmail" required onchange="updateDeliveryInfo()">
             
             <label>Địa chỉ:</label>
-            <input type="text" id="customerAddress" name="customerAddress" required>
+            <input type="text" id="customerAddress" name="customerAddress" required onchange="updateDeliveryInfo()">
     
             <button type="button" onclick="openCustomerDialog()">Chọn Khách Hàng</button>
         </div>
@@ -594,89 +617,88 @@ function saveAttributeSelection() {
             </table>
         </div>
     </div>
-<div style="margin-top: 30px;display: flex;justify-content: space-between;margin-bottom: 70px;">
-    <div class="box1">
-        <h3>Hình thức giao hàng</h3>
-        <input type="radio" name="shippingMethod" value="self" checked onchange="toggleShippingInfo()"> Tự giao hàng
-        <input type="radio" name="shippingMethod" value="service" onchange="toggleShippingInfo()"> Giao hàng qua đơn vị vận chuyển
-    </div>
-    
-    <!-- Thông tin giao hàng khi chọn "Tự giao hàng" -->
-    <div class="box1" id="shippingInfo" style="display:block;">
-        <h3>Thông tin giao hàng</h3>
-        <div style="display: flex;justify-content: space-between;">
-        <div style="width: 45%;
-        height: 100%;
-     
-        align-items: center;
-        justify-content: center;">
-        <label>Tên khách hàng:</label> <span id="shippingCustomerNameText">Chưa có</span>
-        <label>Số điện thoại:</label> <span id="shippingCustomerPhoneText">Chưa có</span>
-        </div>
-       <div style="width: 45%;
-       height: 100%;
-       align-items: center;
-       justify-content: center;">
-         <label>Email:</label> <span id="shippingCustomerEmailText">Chưa có</span>
-        <label>Địa chỉ giao hàng:</label> <span id="shippingCustomerAddressText">Chưa có</span>
-    
-       </div>
-        </div>
-        <label>Ghi chú:</label>
-        <textarea id="shippingNotes" name="shippingNotes" rows="3" placeholder="Nhập ghi chú nếu cần..."></textarea>
-    </div>
-</div>
-<div class="fixed-bottom-bar">
-    <h3 class="total-text" style="margin-left: 20px;">Tổng tiền: <span id="totalAmount">0</span> VND</h3>
-    <button type="submit" class="submit-btn" onclick='createOrder()'>Tạo Đơn Hàng</button>
-</div>
 
- <!-- Dialog chọn sản phẩm -->
- <div id="productDialog" style="display:none; position:fixed; top:20%; left:30%; width:40%; background:white; padding:20px; border:1px solid black;">
-    <h3>Chọn Sản Phẩm</h3>
-    <table border="1">
-        <tr>
-            <th>Ảnh</th>
-            <th>Tên</th>
-            <th>Thuộc tính</th>
-            <th>Giá</th>
-            <th>Số lượng</th>
-            <th>Chọn</th>
-        </tr>
-        <% products.forEach(product => { %>
+    <!-- Thông tin giao hàng (đã loại bỏ phần lựa chọn hình thức giao hàng) -->
+    <div style="margin-top: 30px; margin-bottom: 70px;">
+        <div class="box1">
+            <h3>Thông tin giao hàng</h3>
+            <div class="delivery-info">
+                <div class="delivery-info-column">
+                    <div class="delivery-info-field">
+                        <label class="delivery-info-label">Tên khách hàng:</label>
+                        <div id="shippingCustomerNameText" class="delivery-info-value">Chưa có</div>
+                    </div>
+                    <div class="delivery-info-field">
+                        <label class="delivery-info-label">Số điện thoại:</label>
+                        <div id="shippingCustomerPhoneText" class="delivery-info-value">Chưa có</div>
+                    </div>
+                </div>
+                <div class="delivery-info-column">
+                    <div class="delivery-info-field">
+                        <label class="delivery-info-label">Email:</label>
+                        <div id="shippingCustomerEmailText" class="delivery-info-value">Chưa có</div>
+                    </div>
+                    <div class="delivery-info-field">
+                        <label class="delivery-info-label">Địa chỉ giao hàng:</label>
+                        <div id="shippingCustomerAddressText" class="delivery-info-value">Chưa có</div>
+                    </div>
+                </div>
+            </div>
+            <label>Ghi chú:</label>
+            <textarea id="shippingNotes" name="shippingNotes" rows="3" placeholder="Nhập ghi chú nếu cần..."></textarea>
+        </div>
+    </div>
+
+    <div class="fixed-bottom-bar">
+        <h3 class="total-text" style="margin-left: 20px;">Tổng tiền: <span id="totalAmount">0</span> VND</h3>
+        <button type="submit" class="submit-btn" onclick='createOrder()'>Tạo Đơn Hàng</button>
+    </div>
+
+    <!-- Dialog chọn sản phẩm -->
+    <div id="productDialog" style="display:none; position:fixed; top:20%; left:30%; width:40%; background:white; padding:20px; border:1px solid black;">
+        <h3>Chọn Sản Phẩm</h3>
+        <table border="1">
             <tr>
-                <td><img src="<%= product.thumbnail %>" width="50"></td>
-                <td><%= product.name %></td>
-                <td>
-                   
-    <span id="selected-attributes-<%= product._id %>">Chưa chọn</span>
-    <button type="button" class="small-btn" 
-        onclick='openAttributeDialog("<%= product._id %>", "<%= product.name %>", <%- JSON.stringify(product.attributes) %>)'>
-        🛠️
-    </button>
-
-                 
-                </td>
-                <td><%= product.price.toLocaleString() %> VND</td>
-                <td><%= product.inventory %></td>
-                <td>
-                    <input type="checkbox" id="productCheckbox-<%= product._id %>" 
-                    disabled 
-                    onchange="toggleProductSelection(this, '<%= product._id %>', '<%= product.name %>', '<%= product.price %>', '<%= product.thumbnail %>', '<%= product.inventory %>', decodeURIComponent('<%= encodeURIComponent(JSON.stringify(product.attributes)) %>'))">
-     </td>
+                <th>Ảnh</th>
+                <th>Tên</th>
+                <th>Thuộc tính</th>
+                <th>Giá</th>
+                <th>Số lượng</th>
+                <th>Chọn</th>
             </tr>
-        <% }) %>
-    </table>
-    <button onclick="saveSelectedProducts()">Lưu</button>
-    <button onclick="closeProductDialog()">Đóng</button>
-</div>
-<!-- Dialog chọn thuộc tính -->
-<div id="attributeDialog" class="dialog" style="display:none;">
-    <h3>Chọn Thuộc Tính</h3>
-    <div id="attributeOptions"></div>
-    <button onclick="saveAttributeSelection()">Lưu</button>
-    <button onclick="closeAttributeDialog()">Đóng</button>
-</div>
+            <% products.forEach(product => { %>
+                <tr>
+                    <td><img src="<%= product.thumbnail %>" width="50"></td>
+                    <td><%= product.name %></td>
+                    <td>
+                        <span id="selected-attributes-<%= product._id %>">Chưa chọn</span>
+                        <button type="button" class="small-btn" 
+                            onclick='openAttributeDialog("<%= product._id %>", "<%= product.name %>", <%- JSON.stringify(product.attributes) %>)'>
+                            🛠️
+                        </button>
+                    </td>
+                    <td><%= product.price.toLocaleString() %> VND</td>
+                    <td><%= product.inventory %></td>
+                    <td>
+                        <input type="checkbox" id="productCheckbox-<%= product._id %>" 
+                        disabled 
+                        onchange="toggleProductSelection(this, '<%= product._id %>', '<%= product.name %>', '<%= product.price %>', '<%= product.thumbnail %>', '<%= product.inventory %>', decodeURIComponent('<%= encodeURIComponent(JSON.stringify(product.attributes)) %>'))">
+                    </td>
+                </tr>
+            <% }) %>
+        </table>
+        <button onclick="saveSelectedProducts()">Lưu</button>
+        <button onclick="closeProductDialog()">Đóng</button>
+    </div>
+
+    <!-- Dialog chọn thuộc tính -->
+    <div id="attributeDialog" class="dialog" style="display:none;">
+        <h3>Chọn Thuộc Tính</h3>
+        <div id="attributeOptions"></div>
+        <button onclick="saveAttributeSelection()">Lưu</button>
+        <button onclick="closeAttributeDialog()">Đóng</button>
+    </div>
+
     <!-- Dialog chọn khách hàng -->
     <div id="customerDialog" style="display:none; position:fixed; top:20%; left:30%; width:40%; background:white; padding:20px; border:1px solid black;">
         <h3>Chọn Khách Hàng</h3>
@@ -694,7 +716,7 @@ function saveAttributeSelection() {
                     <td><%= customer.phoneNumber %></td>
                     <td><%= customer.email %></td>
                     <td><%= customer.address %></td>
-                    <td><button type="button" onclick="selectCustomer( '<%= customer.id %>', '<%= customer.fullName %>', '<%= customer.phoneNumber %>', '<%= customer.email %>', '<%= customer.address %>')">Chọn</button></td>
+                    <td><button type="button" onclick="selectCustomer('<%= customer.id %>', '<%= customer.fullName %>', '<%= customer.phoneNumber %>', '<%= customer.email %>', '<%= customer.address %>')">Chọn</button></td>
                 </tr>
             <% }) %>
         </table>
