@@ -115,7 +115,7 @@ const createOrderScreen = async (req, res) => {
     const products = await Product.find();
     console.log("📌 Customers:", customers);
     console.log("📌 Products:", products);
-    res.render("dashboard/createOrder", { customers, products });
+    res.render("dashboard/createOrder", { customers, products, page: 'createOrder' });
   } catch (error) {
     console.error("🔥 Lỗi khi tải trang tạo đơn hàng:", error);
     res.status(500).send("Lỗi server khi tải trang!");

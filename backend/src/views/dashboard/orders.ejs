@@ -1,233 +1,136 @@
 <%- include('../layouts/main.ejs') %>
-<<<<<<< HEAD
-<div class="main-content">
-    <h1>Danh sách đơn hàng</h1>
-    <div class="button-container">
-        <a href="/orders/create">
-            <button class="btn bg-primary text-white">Tạo Đơn Hàng</button>
-        </a>
-=======
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Danh sách đơn hàng</title>
-    <link rel="stylesheet" href="/styles.css"> <!-- File CSS nếu cần -->
-    <style>
-       body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding-top: 40px;
-    height: 100vh;
-    width: 100vw;
-    display: flex;
-    justify-content: flex-end; /* Đẩy sang phải */
-    align-items: flex-start; /* Cố định lên trên */
-}
+        <script>
+            // Lưu trữ tất cả đơn hàng
+            let allOrders = [];
 
-.content-container {
-    width: 85%; /* Chiếm 80% chiều ngang */
-    background-color: white;
-    padding: 20px;
-    margin-top: 20px; /* Cách top một chút */
-    margin-right: 20px; /* Cách phải một chút */
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Đổ bóng nhẹ */
-    border-radius: 8px; /* Bo góc */
-}
+            // Tìm kiếm đơn hàng
+            function searchOrders() {
+                const orderID = document.getElementById('searchOrderID').value.trim().toLowerCase();
+                const customerName = document.getElementById('searchCustomerName').value.trim().toLowerCase();
+                const phone = document.getElementById('searchPhone').value.trim().toLowerCase();
+                const address = document.getElementById('searchAddress').value.trim().toLowerCase();
+                const status = document.getElementById('searchStatus').value;
+                const fromDate = document.getElementById('searchFromDate').value;
+                const toDate = document.getElementById('searchToDate').value;
 
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 20px;
-}
+                // Chuyển đổi chuỗi ngày thành đối tượng Date để so sánh
+                const fromDateObj = fromDate ? new Date(fromDate) : null;
+                const toDateObj = toDate ? new Date(toDate) : null;
 
-th, td {
-    border: 1px solid #ddd;
-    padding: 10px;
-    text-align: left;
-}
-
-th {
-    background-color: #f4f4f4;
-}
-
-tr:nth-child(even) {
-    background-color: #f9f9f9;
-}
-
-.button-container {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 20px; 
-}
-
-.delete-btn {
-    background-color: #ff4d4d;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    padding: 5px 10px;
-    cursor: pointer;
-}
-
-.delete-btn:hover {
-    background-color: #ff0000;
-}
-
-.search-input {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    box-sizing: border-box;
-    margin-top: 5px;
-}
-
-.btn {
-    border: none;
-    border-radius: 4px;
-    padding: 8px 12px;
-    cursor: pointer;
-    font-weight: bold;
-}
-
-.btn:hover {
-    opacity: 0.9;
-}
-    </style>
-    <script>
-        // Lưu trữ tất cả đơn hàng
-        let allOrders = [];
-        
-        // Tìm kiếm đơn hàng
-        function searchOrders() {
-            const orderID = document.getElementById('searchOrderID').value.trim().toLowerCase();
-            const customerName = document.getElementById('searchCustomerName').value.trim().toLowerCase();
-            const phone = document.getElementById('searchPhone').value.trim().toLowerCase();
-            const address = document.getElementById('searchAddress').value.trim().toLowerCase();
-            const status = document.getElementById('searchStatus').value;
-            const fromDate = document.getElementById('searchFromDate').value;
-            const toDate = document.getElementById('searchToDate').value;
-            
-            // Chuyển đổi chuỗi ngày thành đối tượng Date để so sánh
-            const fromDateObj = fromDate ? new Date(fromDate) : null;
-            const toDateObj = toDate ? new Date(toDate) : null;
-            
-            // Nếu có toDate, cộng thêm 1 ngày để bao gồm cả ngày kết thúc
-            if (toDateObj) {
-                toDateObj.setDate(toDateObj.getDate() + 1);
-            }
-            
-            const filteredOrders = allOrders.filter(order => {
-                // Kiểm tra xem đơn hàng có khớp với các tiêu chí tìm kiếm không
-                let matchOrderID = true;
-                let matchCustomerName = true;
-                let matchPhone = true;
-                let matchAddress = true;
-                let matchStatus = true;
-                let matchDateRange = true;
-                
-                if (orderID) {
-                    matchOrderID = order.orderID.toLowerCase().includes(orderID);
+                // Nếu có toDate, cộng thêm 1 ngày để bao gồm cả ngày kết thúc
+                if (toDateObj) {
+                    toDateObj.setDate(toDateObj.getDate() + 1);
                 }
-                
-                if (customerName && order.customerID) {
-                    matchCustomerName = order.customerID.fullName.toLowerCase().includes(customerName);
-                }
-                
-                // Vì chúng ta không có thông tin phoneNumber và address trong đối tượng order
-                // từ DOM, nên chúng ta đặt thành true nếu không có dữ liệu tìm kiếm
-                // Trong thực tế, bạn cần thêm thông tin này vào đối tượng order khi trích xuất dữ liệu
-                if (phone) {
-                    // Sử dụng toàn bộ nội dung của hàng để tìm kiếm SĐT
-                    matchPhone = order._originalRow.textContent.toLowerCase().includes(phone);
-                }
-                
-                if (address) {
-                    // Sử dụng toàn bộ nội dung của hàng để tìm kiếm địa chỉ
-                    matchAddress = order._originalRow.textContent.toLowerCase().includes(address);
-                }
-                
-                if (status) {
-                    matchStatus = order.status.toLowerCase() === status.toLowerCase();
-                }
-                
-                if (fromDateObj || toDateObj) {
-                    // Format in table is "HH:MM DD/MM/YYYY"
-                    try {
-                        // Phân tích chuỗi ngày "HH:MM DD/MM/YYYY"
-                        const dateTimeParts = order.createdAt.split(' ');
-                        if (dateTimeParts.length === 2) {
-                            const timeParts = dateTimeParts[0].split(':');
-                            const dateParts = dateTimeParts[1].split('/');
-                            
-                            if (timeParts.length === 2 && dateParts.length === 3) {
-                                const hour = parseInt(timeParts[0], 10);
-                                const minute = parseInt(timeParts[1], 10);
-                                const day = parseInt(dateParts[0], 10);
-                                const month = parseInt(dateParts[1], 10) - 1; // JavaScript tháng từ 0-11
-                                const year = parseInt(dateParts[2], 10);
-                                
-                                const orderDate = new Date(year, month, day, hour, minute);
-                                
-                                // Set hours to beginning of day for fromDate (00:00:00)
-                                if (fromDateObj) {
-                                    const fromDateStart = new Date(fromDateObj);
-                                    fromDateStart.setHours(0, 0, 0, 0);
-                                    
-                                    if (toDateObj) {
+
+                const filteredOrders = allOrders.filter(order => {
+                    // Kiểm tra xem đơn hàng có khớp với các tiêu chí tìm kiếm không
+                    let matchOrderID = true;
+                    let matchCustomerName = true;
+                    let matchPhone = true;
+                    let matchAddress = true;
+                    let matchStatus = true;
+                    let matchDateRange = true;
+
+                    if (orderID) {
+                        matchOrderID = order.orderID.toLowerCase().includes(orderID);
+                    }
+
+                    if (customerName && order.customerID) {
+                        matchCustomerName = order.customerID.fullName.toLowerCase().includes(customerName);
+                    }
+
+                    // Vì chúng ta không có thông tin phoneNumber và address trong đối tượng order
+                    // từ DOM, nên chúng ta đặt thành true nếu không có dữ liệu tìm kiếm
+                    // Trong thực tế, bạn cần thêm thông tin này vào đối tượng order khi trích xuất dữ liệu
+                    if (phone) {
+                        // Sử dụng toàn bộ nội dung của hàng để tìm kiếm SĐT
+                        matchPhone = order._originalRow.textContent.toLowerCase().includes(phone);
+                    }
+
+                    if (address) {
+                        // Sử dụng toàn bộ nội dung của hàng để tìm kiếm địa chỉ
+                        matchAddress = order._originalRow.textContent.toLowerCase().includes(address);
+                    }
+
+                    if (status) {
+                        matchStatus = order.status.toLowerCase() === status.toLowerCase();
+                    }
+
+                    if (fromDateObj || toDateObj) {
+                        // Format in table is "HH:MM DD/MM/YYYY"
+                        try {
+                            // Phân tích chuỗi ngày "HH:MM DD/MM/YYYY"
+                            const dateTimeParts = order.createdAt.split(' ');
+                            if (dateTimeParts.length === 2) {
+                                const timeParts = dateTimeParts[0].split(':');
+                                const dateParts = dateTimeParts[1].split('/');
+
+                                if (timeParts.length === 2 && dateParts.length === 3) {
+                                    const hour = parseInt(timeParts[0], 10);
+                                    const minute = parseInt(timeParts[1], 10);
+                                    const day = parseInt(dateParts[0], 10);
+                                    const month = parseInt(dateParts[1], 10) - 1; // JavaScript tháng từ 0-11
+                                    const year = parseInt(dateParts[2], 10);
+
+                                    const orderDate = new Date(year, month, day, hour, minute);
+
+                                    // Set hours to beginning of day for fromDate (00:00:00)
+                                    if (fromDateObj) {
+                                        const fromDateStart = new Date(fromDateObj);
+                                        fromDateStart.setHours(0, 0, 0, 0);
+
+                                        if (toDateObj) {
+                                            // Set hours to end of day for toDate (23:59:59)
+                                            const toDateEnd = new Date(toDateObj);
+                                            toDateEnd.setHours(23, 59, 59, 999);
+
+                                            matchDateRange = orderDate >= fromDateStart && orderDate <= toDateEnd;
+                                        } else {
+                                            matchDateRange = orderDate >= fromDateStart;
+                                        }
+                                    } else if (toDateObj) {
                                         // Set hours to end of day for toDate (23:59:59)
                                         const toDateEnd = new Date(toDateObj);
                                         toDateEnd.setHours(23, 59, 59, 999);
-                                        
-                                        matchDateRange = orderDate >= fromDateStart && orderDate <= toDateEnd;
-                                    } else {
-                                        matchDateRange = orderDate >= fromDateStart;
+
+                                        matchDateRange = orderDate <= toDateEnd;
                                     }
-                                } else if (toDateObj) {
-                                    // Set hours to end of day for toDate (23:59:59)
-                                    const toDateEnd = new Date(toDateObj);
-                                    toDateEnd.setHours(23, 59, 59, 999);
-                                    
-                                    matchDateRange = orderDate <= toDateEnd;
+                                } else {
+                                    matchDateRange = false; // Định dạng ngày không hợp lệ
                                 }
                             } else {
                                 matchDateRange = false; // Định dạng ngày không hợp lệ
                             }
-                        } else {
-                            matchDateRange = false; // Định dạng ngày không hợp lệ
+                        } catch (error) {
+                            console.error("Lỗi khi phân tích ngày:", error);
+                            matchDateRange = false;
                         }
-                    } catch (error) {
-                        console.error("Lỗi khi phân tích ngày:", error);
-                        matchDateRange = false;
                     }
-                }
-                
-                // Đơn hàng phải khớp với tất cả các tiêu chí tìm kiếm đã nhập
-                return matchOrderID && matchCustomerName && matchPhone && matchAddress && matchStatus && matchDateRange;
-            });
-            
-            displayOrders(filteredOrders);
-        }
-        
-        // Hiển thị danh sách đơn hàng
-        function displayOrders(orders) {
-            const tableBody = document.querySelector('table tbody');
-            tableBody.innerHTML = ''; // Xóa nội dung cũ
-            
-            if (orders.length === 0) {
-                tableBody.innerHTML = `
+
+                    // Đơn hàng phải khớp với tất cả các tiêu chí tìm kiếm đã nhập
+                    return matchOrderID && matchCustomerName && matchPhone && matchAddress && matchStatus && matchDateRange;
+                });
+
+                displayOrders(filteredOrders);
+            }
+
+            // Hiển thị danh sách đơn hàng
+            function displayOrders(orders) {
+                const tableBody = document.querySelector('table tbody');
+                tableBody.innerHTML = ''; // Xóa nội dung cũ
+
+                if (orders.length === 0) {
+                    tableBody.innerHTML = `
                     <tr>
                         <td colspan="7" style="text-align: center;">Không tìm thấy đơn hàng nào</td>
                     </tr>
                 `;
-                return;
-            }
-            
-            orders.forEach(order => {
-                // Sử dụng HTML đã lưu trữ cho phần sản phẩm
-                const row = `
+                    return;
+                }
+
+                orders.forEach(order => {
+                    // Sử dụng HTML đã lưu trữ cho phần sản phẩm
+                    const row = `
                     <tr>
                         <td>${order.orderID}</td>
                         <td>${order.customerID.fullName}</td>
@@ -240,330 +143,347 @@ tr:nth-child(even) {
                         </td>
                     </tr>
                 `;
-                
-                tableBody.innerHTML += row;
-            });
-        }
-        
-        // Reset tìm kiếm
-        function resetSearch() {
-            document.getElementById('searchOrderID').value = '';
-            document.getElementById('searchCustomerName').value = '';
-            document.getElementById('searchPhone').value = '';
-            document.getElementById('searchAddress').value = '';
-            document.getElementById('searchStatus').value = '';
-            document.getElementById('searchFromDate').value = '';
-            document.getElementById('searchToDate').value = '';
-            
-            displayOrders(allOrders);
-        }
-        
-        function deleteOrder(orderId) {
-            if (confirm('Bạn có chắc chắn muốn xóa đơn hàng này không?')) {
-                fetch(`/orders/${orderId}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.message) {
-                        alert(data.message);
-                        window.location.reload(); // Tải lại trang sau khi xóa thành công
-                    }
-                })
-                .catch(error => {
-                    console.error('Lỗi khi xóa đơn hàng:', error);
-                    alert('Có lỗi xảy ra khi xóa đơn hàng');
-                });
-            }
-        }
-        
-        // Khởi tạo trang
-        window.onload = function() {
-            // Thêm console.log để debug
-            console.log("Page loaded");
-            
-            // Lưu trữ tất cả đơn hàng từ dữ liệu được render bởi server
-            allOrders = Array.from(document.querySelectorAll('table tbody tr')).map(row => {
-                const order = {
-                    _id: row.querySelector('.delete-btn').onclick.toString().match(/'([^']+)'/)[1],
-                    orderID: row.cells[0].textContent,
-                    customerID: { 
-                        fullName: row.cells[1].textContent
-                    },
-                    // Lưu trữ HTML của sản phẩm thay vì mảng rỗng
-                    productsHTML: row.cells[2].innerHTML,
-                    totalAmount: row.cells[3].textContent,
-                    status: row.cells[4].textContent,
-                    // Lưu trữ text nguyên gốc thay vì chuyển thành đối tượng Date
-                    createdAt: row.cells[5].textContent,
-                    // Lưu trữ tham chiếu đến row gốc để truy cập dễ dàng hơn sau này
-                    _originalRow: row
-                };
-                
-                // Debug: Console log mỗi đơn hàng
-                console.log("Đơn hàng được phát hiện:", {
-                    id: order._id,
-                    orderID: order.orderID,
-                    customer: order.customerID.fullName,
-                    date: order.createdAt
-                });
-                
-                return order;
-            });
-            
-            console.log("Tổng số đơn hàng:", allOrders.length);
-            
-            // Kiểm tra các phần tử DOM
-            const searchBtn = document.getElementById('searchBtn');
-            const resetBtn = document.getElementById('resetBtn');
-            const fromDateInput = document.getElementById('searchFromDate');
-            const toDateInput = document.getElementById('searchToDate');
-            
-            console.log("Các phần tử DOM:", {
-                searchBtn: !!searchBtn,
-                resetBtn: !!resetBtn,
-                fromDateInput: !!fromDateInput,
-                toDateInput: !!toDateInput
-            });
-            
-            // Thêm sự kiện cho nút tìm kiếm và reset với console.log để debug
-            if (searchBtn) {
-                searchBtn.addEventListener('click', function() {
-                    console.log("Nút tìm kiếm được nhấn");
-                    searchOrders();
-                });
-            } else {
-                console.error("Không tìm thấy nút tìm kiếm!");
-            }
-            
-            if (resetBtn) {
-                resetBtn.addEventListener('click', function() {
-                    console.log("Nút đặt lại được nhấn");
-                    resetSearch();
-                });
-            } else {
-                console.error("Không tìm thấy nút đặt lại!");
-            }
-        };
-      </script>
-      
-</head>
-<body>
-    <div class="content-container">
-    <h1 style="text-align: center;">Danh sách đơn hàng</h1>
-    <div class="button-container">
-        <a href="/orders/create"><button class="btn" style="background-color: #f4f4f4;display: flex;justify-content: flex-end;">Tạo Đơn Hàng</button></a>
->>>>>>> 8347d70a9ae74fd06d2a5a20acf614f3cda610d2
-    </div>
-    
-    <!-- Mục tìm kiếm đơn hàng -->
-    <div class="search-container" style="margin-top: 20px; margin-bottom: 20px; padding: 15px; background-color: #f9f9f9; border-radius: 8px;">
-        <h3 style="margin-top: 0;">Tìm kiếm đơn hàng</h3>
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
-            <div>
-                <label for="searchOrderID">Mã đơn hàng:</label>
-                <input type="text" id="searchOrderID" class="search-input" placeholder="Nhập mã đơn hàng">
-            </div>
-            <div>
-                <label for="searchCustomerName">Tên khách hàng:</label>
-                <input type="text" id="searchCustomerName" class="search-input" placeholder="Nhập tên khách hàng">
-            </div>
-            <div>
-                <label for="searchPhone">Số điện thoại:</label>
-                <input type="text" id="searchPhone" class="search-input" placeholder="Nhập số điện thoại">
-            </div>
-            <div>
-                <label for="searchAddress">Địa chỉ:</label>
-                <input type="text" id="searchAddress" class="search-input" placeholder="Nhập địa chỉ">
-            </div>
-            <div>
-                <label for="searchStatus">Trạng thái:</label>
-                <select id="searchStatus" class="search-input">
-                    <option value="">Tất cả</option>
-                    <option value="pending">Đang chờ xử lý</option>
-                    <option value="processing">Đang xử lý</option>
-                    <option value="shipping">Đang giao hàng</option>
-                    <option value="delivered">Đã giao hàng</option>
-                    <option value="canceled">Đã hủy</option>
-                </select>
-            </div>
-            <div>
-                <label for="searchFromDate">Từ ngày:</label>
-                <input type="date" id="searchFromDate" class="search-input">
-            </div>
-            <div>
-                <label for="searchToDate">Đến ngày:</label>
-                <input type="date" id="searchToDate" class="search-input">
-            </div>
-        </div>
-        <div style="margin-top: 15px; text-align: center;">
-            <button type="button" onclick="searchOrdersDirectly()" class="btn" style="background-color: #4CAF50; color: white; padding: 8px 15px; margin-right: 10px;">Tìm kiếm</button>
-            <button type="button" onclick="resetSearch()" class="btn" style="background-color: #f44336; color: white; padding: 8px 15px;">Đặt lại</button>
-        </div>
-    </div>
-    
-    <script>
-    // Hàm gọi trực tiếp cho nút tìm kiếm
-    function searchOrdersDirectly() {
-        console.log("Hàm tìm kiếm trực tiếp được gọi");
-        
-        try {
-            const orderID = document.getElementById('searchOrderID').value.trim().toLowerCase();
-            const customerName = document.getElementById('searchCustomerName').value.trim().toLowerCase();
-            const phone = document.getElementById('searchPhone').value.trim().toLowerCase();
-            const address = document.getElementById('searchAddress').value.trim().toLowerCase();
-            const status = document.getElementById('searchStatus').value;
-            const fromDate = document.getElementById('searchFromDate').value;
-            const toDate = document.getElementById('searchToDate').value;
-            
-            console.log("Giá trị tìm kiếm:", {
-                orderID,
-                customerName,
-                phone,
-                address,
-                status,
-                fromDate,
-                toDate
-            });
-            
-            if (fromDate || toDate) {
-                console.log("Tìm kiếm với khoảng ngày");
-                
-                // Lấy đơn hàng từ DOM
-                const tableRows = document.querySelectorAll('table tbody tr');
-                console.log("Số dòng trong bảng:", tableRows.length);
-                
-                // Lọc dòng dựa trên ngày
-                const matchedRows = Array.from(tableRows).filter(row => {
-                    // Lấy ngày của đơn hàng (cột thứ 6)
-                    const dateCell = row.cells[5].textContent;
-                    console.log("Ngày của đơn hàng:", dateCell);
-                    
-                    // Phân tích ngày
-                    try {
-                        const dateParts = dateCell.split(' ');
-                        if (dateParts.length !== 2) return false;
-                        
-                        const timeParts = dateParts[0].split(':');
-                        const datePieces = dateParts[1].split('/');
-                        
-                        if (timeParts.length !== 2 || datePieces.length !== 3) return false;
-                        
-                        const day = parseInt(datePieces[0], 10);
-                        const month = parseInt(datePieces[1], 10) - 1;
-                        const year = parseInt(datePieces[2], 10);
-                        
-                        const orderDate = new Date(year, month, day);
-                        console.log("Đơn hàng ngày:", orderDate);
-                        
-                        let isMatch = true;
-                        
-                        // Kiểm tra với fromDate
-                        if (fromDate) {
-                            const fromDateParts = fromDate.split('-');
-                            const fromYear = parseInt(fromDateParts[0], 10);
-                            const fromMonth = parseInt(fromDateParts[1], 10) - 1;
-                            const fromDay = parseInt(fromDateParts[2], 10);
-                            
-                            const fromDateObj = new Date(fromYear, fromMonth, fromDay);
-                            console.log("Từ ngày:", fromDateObj);
-                            
-                            if (orderDate < fromDateObj) {
-                                isMatch = false;
-                            }
-                        }
-                        
-                        // Kiểm tra với toDate
-                        if (toDate && isMatch) {
-                            const toDateParts = toDate.split('-');
-                            const toYear = parseInt(toDateParts[0], 10);
-                            const toMonth = parseInt(toDateParts[1], 10) - 1;
-                            const toDay = parseInt(toDateParts[2], 10);
-                            
-                            const toDateObj = new Date(toYear, toMonth, toDay);
-                            // Thêm 1 ngày để bao gồm cả ngày kết thúc
-                            toDateObj.setDate(toDateObj.getDate() + 1);
-                            console.log("Đến ngày (cộng 1):", toDateObj);
-                            
-                            if (orderDate >= toDateObj) {
-                                isMatch = false;
-                            }
-                        }
-                        
-                        console.log("Đơn hàng phù hợp:", isMatch);
-                        return isMatch;
-                    } catch (error) {
-                        console.error("Lỗi khi phân tích ngày:", error);
-                        return false;
-                    }
-                });
-                
-                console.log("Số dòng phù hợp:", matchedRows.length);
-                
-                // Hiển thị hoặc ẩn các dòng
-                tableRows.forEach(row => {
-                    row.style.display = 'none'; // Ẩn tất cả
-                });
-                
-                matchedRows.forEach(row => {
-                    row.style.display = ''; // Hiển thị các dòng phù hợp
-                });
-                
-                if (matchedRows.length === 0) {
-                    // Hiển thị thông báo không tìm thấy
-                    const tbody = document.querySelector('table tbody');
-                    const emptyRow = document.createElement('tr');
-                    emptyRow.id = 'empty-result-row';
-                    emptyRow.innerHTML = `<td colspan="7" style="text-align: center;">Không tìm thấy đơn hàng nào phù hợp</td>`;
-                    tbody.appendChild(emptyRow);
-                }
-            } else {
-                // Xử lý tìm kiếm thông thường với các trường khác
-                if (typeof searchOrders === 'function') {
-                    searchOrders();
-                } else {
-                    console.error("Hàm searchOrders không được định nghĩa!");
-                }
-            }
-        } catch (error) {
-            console.error("Lỗi khi tìm kiếm:", error);
-        }
-    }
-    </script>
-    <table border="1">
-        <thead>
-            <tr>
-                <th>Mã đơn hàng</th>
-                <th>Khách hàng</th>
-                <th>Tên sản phẩm</th>
-                <th>Tổng tiền</th>
-                <th>Trạng thái</th>
-                <th>Ngày tạo</th>
-                <th>Thao tác</th>
-            </tr>
-        </thead>
-        <tbody>
-        <% orders.forEach(order => { %>
-            <tr>
-                <td><%= order.orderID %></td>
-                <td><%= order.customerID ? order.customerID.fullName : "Unknown Customer" %></td>
-                <td>
-                    <% if (order.products && order.products.length > 0) { %>
-                        <ul>
-                            <% order.products.forEach(product => { %>
-                                <li>
-                                    <b><%= product.productID ? product.productID.name : "Không có sản phẩm" %></b> -
-                                    <%= product.quantity %> x
-                                    <%= product.price.toLocaleString("vi-VN") %> VND
 
-                                    <% if (product.productID && product.productID.attributes && product.productID.attributes.length > 0) { %>
-                                        <ul>
-                                            <% product.productID.attributes.forEach(attr => { %>
-                                                <% if (attr.values.length > 0) { %>
-                                                    <li><b><%= attr.name %></b>: <%= attr.values.join(", ") %></li>
+                    tableBody.innerHTML += row;
+                });
+            }
+
+            // Reset tìm kiếm
+            function resetSearch() {
+                document.getElementById('searchOrderID').value = '';
+                document.getElementById('searchCustomerName').value = '';
+                document.getElementById('searchPhone').value = '';
+                document.getElementById('searchAddress').value = '';
+                document.getElementById('searchStatus').value = '';
+                document.getElementById('searchFromDate').value = '';
+                document.getElementById('searchToDate').value = '';
+
+                displayOrders(allOrders);
+            }
+
+            function deleteOrder(orderId) {
+                if (confirm('Bạn có chắc chắn muốn xóa đơn hàng này không?')) {
+                    fetch(`/orders/${orderId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.message) {
+                                alert(data.message);
+                                window.location.reload(); // Tải lại trang sau khi xóa thành công
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Lỗi khi xóa đơn hàng:', error);
+                            alert('Có lỗi xảy ra khi xóa đơn hàng');
+                        });
+                }
+            }
+
+            // Khởi tạo trang
+            window.onload = function () {
+                // Thêm console.log để debug
+                console.log("Page loaded");
+
+                // Lưu trữ tất cả đơn hàng từ dữ liệu được render bởi server
+                allOrders = Array.from(document.querySelectorAll('table tbody tr')).map(row => {
+                    const order = {
+                        _id: row.querySelector('.delete-btn').onclick.toString().match(/'([^']+)'/)[1],
+                        orderID: row.cells[0].textContent,
+                        customerID: {
+                            fullName: row.cells[1].textContent
+                        },
+                        // Lưu trữ HTML của sản phẩm thay vì mảng rỗng
+                        productsHTML: row.cells[2].innerHTML,
+                        totalAmount: row.cells[3].textContent,
+                        status: row.cells[4].textContent,
+                        // Lưu trữ text nguyên gốc thay vì chuyển thành đối tượng Date
+                        createdAt: row.cells[5].textContent,
+                        // Lưu trữ tham chiếu đến row gốc để truy cập dễ dàng hơn sau này
+                        _originalRow: row
+                    };
+
+                    // Debug: Console log mỗi đơn hàng
+                    console.log("Đơn hàng được phát hiện:", {
+                        id: order._id,
+                        orderID: order.orderID,
+                        customer: order.customerID.fullName,
+                        date: order.createdAt
+                    });
+
+                    return order;
+                });
+
+                console.log("Tổng số đơn hàng:", allOrders.length);
+
+                // Kiểm tra các phần tử DOM
+                const searchBtn = document.getElementById('searchBtn');
+                const resetBtn = document.getElementById('resetBtn');
+                const fromDateInput = document.getElementById('searchFromDate');
+                const toDateInput = document.getElementById('searchToDate');
+
+                console.log("Các phần tử DOM:", {
+                    searchBtn: !!searchBtn,
+                    resetBtn: !!resetBtn,
+                    fromDateInput: !!fromDateInput,
+                    toDateInput: !!toDateInput
+                });
+
+                // Thêm sự kiện cho nút tìm kiếm và reset với console.log để debug
+                if (searchBtn) {
+                    searchBtn.addEventListener('click', function () {
+                        console.log("Nút tìm kiếm được nhấn");
+                        searchOrders();
+                    });
+                } else {
+                    console.error("Không tìm thấy nút tìm kiếm!");
+                }
+
+                if (resetBtn) {
+                    resetBtn.addEventListener('click', function () {
+                        console.log("Nút đặt lại được nhấn");
+                        resetSearch();
+                    });
+                } else {
+                    console.error("Không tìm thấy nút đặt lại!");
+                }
+            };
+        </script>
+
+    </head>
+
+    <body>
+        <div class="content-container">
+            <h1 style="text-align: center;">Danh sách đơn hàng</h1>
+            <div class="button-container">
+                <a href="/orders/create"><button class="btn"
+                        style="background-color: #f4f4f4;display: flex;justify-content: flex-end;">Tạo Đơn
+                        Hàng</button></a>
+            </div>
+
+            <!-- Mục tìm kiếm đơn hàng -->
+            <div class="search-container"
+                style="margin-top: 20px; margin-bottom: 20px; padding: 15px; background-color: #f9f9f9; border-radius: 8px;">
+                <h3 style="margin-top: 0;">Tìm kiếm đơn hàng</h3>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+                    <div>
+                        <label for="searchOrderID">Mã đơn hàng:</label>
+                        <input type="text" id="searchOrderID" class="search-input" placeholder="Nhập mã đơn hàng">
+                    </div>
+                    <div>
+                        <label for="searchCustomerName">Tên khách hàng:</label>
+                        <input type="text" id="searchCustomerName" class="search-input"
+                            placeholder="Nhập tên khách hàng">
+                    </div>
+                    <div>
+                        <label for="searchPhone">Số điện thoại:</label>
+                        <input type="text" id="searchPhone" class="search-input" placeholder="Nhập số điện thoại">
+                    </div>
+                    <div>
+                        <label for="searchAddress">Địa chỉ:</label>
+                        <input type="text" id="searchAddress" class="search-input" placeholder="Nhập địa chỉ">
+                    </div>
+                    <div>
+                        <label for="searchStatus">Trạng thái:</label>
+                        <select id="searchStatus" class="search-input">
+                            <option value="">Tất cả</option>
+                            <option value="pending">Đang chờ xử lý</option>
+                            <option value="processing">Đang xử lý</option>
+                            <option value="shipping">Đang giao hàng</option>
+                            <option value="delivered">Đã giao hàng</option>
+                            <option value="canceled">Đã hủy</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="searchFromDate">Từ ngày:</label>
+                        <input type="date" id="searchFromDate" class="search-input">
+                    </div>
+                    <div>
+                        <label for="searchToDate">Đến ngày:</label>
+                        <input type="date" id="searchToDate" class="search-input">
+                    </div>
+                </div>
+                <div style="margin-top: 15px; text-align: center;">
+                    <button type="button" onclick="searchOrdersDirectly()" class="btn"
+                        style="background-color: #4CAF50; color: white; padding: 8px 15px; margin-right: 10px;">Tìm
+                        kiếm</button>
+                    <button type="button" onclick="resetSearch()" class="btn"
+                        style="background-color: #f44336; color: white; padding: 8px 15px;">Đặt lại</button>
+                </div>
+            </div>
+
+            <script>
+                // Hàm gọi trực tiếp cho nút tìm kiếm
+                function searchOrdersDirectly() {
+                    console.log("Hàm tìm kiếm trực tiếp được gọi");
+
+                    try {
+                        const orderID = document.getElementById('searchOrderID').value.trim().toLowerCase();
+                        const customerName = document.getElementById('searchCustomerName').value.trim().toLowerCase();
+                        const phone = document.getElementById('searchPhone').value.trim().toLowerCase();
+                        const address = document.getElementById('searchAddress').value.trim().toLowerCase();
+                        const status = document.getElementById('searchStatus').value;
+                        const fromDate = document.getElementById('searchFromDate').value;
+                        const toDate = document.getElementById('searchToDate').value;
+
+                        console.log("Giá trị tìm kiếm:", {
+                            orderID,
+                            customerName,
+                            phone,
+                            address,
+                            status,
+                            fromDate,
+                            toDate
+                        });
+
+                        if (fromDate || toDate) {
+                            console.log("Tìm kiếm với khoảng ngày");
+
+                            // Lấy đơn hàng từ DOM
+                            const tableRows = document.querySelectorAll('table tbody tr');
+                            console.log("Số dòng trong bảng:", tableRows.length);
+
+                            // Lọc dòng dựa trên ngày
+                            const matchedRows = Array.from(tableRows).filter(row => {
+                                // Lấy ngày của đơn hàng (cột thứ 6)
+                                const dateCell = row.cells[5].textContent;
+                                console.log("Ngày của đơn hàng:", dateCell);
+
+                                // Phân tích ngày
+                                try {
+                                    const dateParts = dateCell.split(' ');
+                                    if (dateParts.length !== 2) return false;
+
+                                    const timeParts = dateParts[0].split(':');
+                                    const datePieces = dateParts[1].split('/');
+
+                                    if (timeParts.length !== 2 || datePieces.length !== 3) return false;
+
+                                    const day = parseInt(datePieces[0], 10);
+                                    const month = parseInt(datePieces[1], 10) - 1;
+                                    const year = parseInt(datePieces[2], 10);
+
+                                    const orderDate = new Date(year, month, day);
+                                    console.log("Đơn hàng ngày:", orderDate);
+
+                                    let isMatch = true;
+
+                                    // Kiểm tra với fromDate
+                                    if (fromDate) {
+                                        const fromDateParts = fromDate.split('-');
+                                        const fromYear = parseInt(fromDateParts[0], 10);
+                                        const fromMonth = parseInt(fromDateParts[1], 10) - 1;
+                                        const fromDay = parseInt(fromDateParts[2], 10);
+
+                                        const fromDateObj = new Date(fromYear, fromMonth, fromDay);
+                                        console.log("Từ ngày:", fromDateObj);
+
+                                        if (orderDate < fromDateObj) {
+                                            isMatch = false;
+                                        }
+                                    }
+
+                                    // Kiểm tra với toDate
+                                    if (toDate && isMatch) {
+                                        const toDateParts = toDate.split('-');
+                                        const toYear = parseInt(toDateParts[0], 10);
+                                        const toMonth = parseInt(toDateParts[1], 10) - 1;
+                                        const toDay = parseInt(toDateParts[2], 10);
+
+                                        const toDateObj = new Date(toYear, toMonth, toDay);
+                                        // Thêm 1 ngày để bao gồm cả ngày kết thúc
+                                        toDateObj.setDate(toDateObj.getDate() + 1);
+                                        console.log("Đến ngày (cộng 1):", toDateObj);
+
+                                        if (orderDate >= toDateObj) {
+                                            isMatch = false;
+                                        }
+                                    }
+
+                                    console.log("Đơn hàng phù hợp:", isMatch);
+                                    return isMatch;
+                                } catch (error) {
+                                    console.error("Lỗi khi phân tích ngày:", error);
+                                    return false;
+                                }
+                            });
+
+                            console.log("Số dòng phù hợp:", matchedRows.length);
+
+                            // Hiển thị hoặc ẩn các dòng
+                            tableRows.forEach(row => {
+                                row.style.display = 'none'; // Ẩn tất cả
+                            });
+
+                            matchedRows.forEach(row => {
+                                row.style.display = ''; // Hiển thị các dòng phù hợp
+                            });
+
+                            if (matchedRows.length === 0) {
+                                // Hiển thị thông báo không tìm thấy
+                                const tbody = document.querySelector('table tbody');
+                                const emptyRow = document.createElement('tr');
+                                emptyRow.id = 'empty-result-row';
+                                emptyRow.innerHTML = `<td colspan="7" style="text-align: center;">Không tìm thấy đơn hàng nào phù hợp</td>`;
+                                tbody.appendChild(emptyRow);
+                            }
+                        } else {
+                            // Xử lý tìm kiếm thông thường với các trường khác
+                            if (typeof searchOrders === 'function') {
+                                searchOrders();
+                            } else {
+                                console.error("Hàm searchOrders không được định nghĩa!");
+                            }
+                        }
+                    } catch (error) {
+                        console.error("Lỗi khi tìm kiếm:", error);
+                    }
+                }
+            </script>
+            <table border="1">
+                <thead>
+                    <tr>
+                        <th>Mã đơn hàng</th>
+                        <th>Khách hàng</th>
+                        <th>Tên sản phẩm</th>
+                        <th>Tổng tiền</th>
+                        <th>Trạng thái</th>
+                        <th>Ngày tạo</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% orders.forEach(order=> { %>
+                        <tr>
+                            <td>
+                                <%= order.orderID %>
+                            </td>
+                            <td>
+                                <%= order.customerID ? order.customerID.fullName : "Unknown Customer" %>
+                            </td>
+                            <td>
+                                <% if (order.products && order.products.length> 0) { %>
+                                    <ul>
+                                        <% order.products.forEach(product=> { %>
+                                            <li>
+                                                <b>
+                                                    <%= product.productID ? product.productID.name : "Không có sản phẩm"
+                                                        %>
+                                                </b> -
+                                                <%= product.quantity %> x
+                                                    <%= product.price.toLocaleString("vi-VN") %> VND
+
+                                                        <% if (product.productID && product.productID.attributes &&
+                                                            product.productID.attributes.length> 0) { %>
+                                                            <ul>
+                                                                <% product.productID.attributes.forEach(attr=> { %>
+                                                                    <% if (attr.values.length> 0) { %>
+                                                                        <li><b>
+                                                                                <%= attr.name %>
+                                                                            </b>: <%= attr.values.join(", ") %></li>
                                                 <% } %>
                                             <% }) %>
                                         </ul>
@@ -577,56 +497,15 @@ tr:nth-child(even) {
                         Không có sản phẩm
                     <% } %>
                 </td>
-<<<<<<< HEAD
-
-
-=======
                 
->>>>>>> 8347d70a9ae74fd06d2a5a20acf614f3cda610d2
                 <td><%= order.totalAmount %></td>
                 <td><%= order.status %></td>
                 <td><%= new Date(order.createdAt).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) %></td>
                 <td>
-                    <button class="delete-btn" onclick="deleteOrder('<%= order._id %>')">Xóa</button>
-                </td>
-            </tr>
-        <% }) %>
-<<<<<<< HEAD
-    </table>
-</div>
-
-<script>
-  function loadOrders() {
-    let orderTable = document.getElementById("orderTableBody");
-    orderTable.innerHTML = "";
-
-    let orders = JSON.parse(localStorage.getItem("orders")) || [];
-
-    orders.forEach(order => {
-      let productDetails = order.products.map(p => `
-                    <li>${p.name} - ${p.quantity} x ${p.price.toLocaleString("vi-VN")} VND</li>
-                `).join("");
-
-      orderTable.innerHTML += `
-         <tr>
-            <td>${order.orderID}</td>
-            <td>${order.customer.name}</td>
-            <td><ul>${productDetails}</ul></td>
-            <td>${order.totalAmount}</td>
-            <td>${order.status}</td>
-         </tr>
-      `;
-    });
-  }
-
-  window.onload = loadOrders;
-</script>
-
-
-=======
-        </tbody>
-    </table>
-</div>
-</body>
-</html>
->>>>>>> 8347d70a9ae74fd06d2a5a20acf614f3cda610d2
+                    <button class=" delete-btn" onclick="deleteOrder('<%= order._id %>')">Xóa</button>
+                            </td>
+                        </tr>
+                        <% }) %>
+                </tbody>
+            </table>
+        </div>

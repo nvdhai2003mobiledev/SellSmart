@@ -69,11 +69,94 @@
             padding: 1rem;
             margin-top: 4rem;
         }
-        body { font-family: Arial, sans-serif; margin: 20px; padding: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-        th { background-color: #f4f4f4; }
-        tr:nth-child(even) { background-color: #f9f9f9; }
+        body {
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding-top: 40px;
+                height: 100vh;
+                width: 100vw;
+                display: flex;
+                justify-content: flex-end;
+                /* Đẩy sang phải */
+                align-items: flex-start;
+                /* Cố định lên trên */
+            }
+
+            .content-container {
+                width: 85%;
+                /* Chiếm 80% chiều ngang */
+                background-color: white;
+                padding: 20px;
+                margin-top: 20px;
+                /* Cách top một chút */
+                margin-right: 20px;
+                /* Cách phải một chút */
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                /* Đổ bóng nhẹ */
+                border-radius: 8px;
+                /* Bo góc */
+            }
+
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 20px;
+            }
+
+            th,
+            td {
+                border: 1px solid #ddd;
+                padding: 10px;
+                text-align: left;
+            }
+
+            th {
+                background-color: #f4f4f4;
+            }
+
+            tr:nth-child(even) {
+                background-color: #f9f9f9;
+            }
+
+            .button-container {
+                display: flex;
+                justify-content: flex-end;
+                margin-bottom: 20px;
+            }
+
+            .delete-btn {
+                background-color: #ff4d4d;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                padding: 5px 10px;
+                cursor: pointer;
+            }
+
+            .delete-btn:hover {
+                background-color: #ff0000;
+            }
+
+            .search-input {
+                width: 100%;
+                padding: 8px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                box-sizing: border-box;
+                margin-top: 5px;
+            }
+
+            .btn {
+                border: none;
+                border-radius: 4px;
+                padding: 8px 12px;
+                cursor: pointer;
+                font-weight: bold;
+            }
+
+            .btn:hover {
+                opacity: 0.9;
+            }
 
     </style>
 </head>
