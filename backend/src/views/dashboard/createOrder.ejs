@@ -323,9 +323,23 @@ function selectCustomer(id, name, phone, email, address) {
     <style>
         body {
             font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            margin: 20px;
+            margin: 0;
+            padding-top: 40px;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: flex-end;
+            align-items: flex-start;
+        }
+        
+        .content-container {
+            width: 85%;
+            background-color: white;
             padding: 20px;
+            margin-top: 20px;
+            margin-right: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
         }
     
         h1, h3 {
@@ -640,52 +654,51 @@ function selectCustomer(id, name, phone, email, address) {
         <button type="submit" class="submit-btn" onclick='createOrder()'>Tạo Đơn Hàng</button>
     </div>
 
- <!-- Dialog chọn sản phẩm -->
- <div id="productDialog" style="display:none; position:fixed; top:20%; left:30%; width:40%; background:white; padding:20px; border:1px solid black;">
-    <h3>Chọn Sản Phẩm</h3>
-    <table border="1">
-        <tr>
-            <th>Ảnh</th>
-            <th>Tên</th>
-            <th>Thuộc tính</th>
-            <th>Giá</th>
-            <th>Số lượng</th>
-            <th>Chọn</th>
-        </tr>
-        <% products.forEach(product => { %>
+    <!-- Dialog chọn sản phẩm -->
+    <div id="productDialog" style="display:none; position:fixed; top:20%; left:30%; width:40%; background:white; padding:20px; border:1px solid black;">
+        <h3>Chọn Sản Phẩm</h3>
+        <table border="1">
             <tr>
-                <td><img src="<%= product.thumbnail %>" width="50"></td>
-                <td><%= product.name %></td>
-                <td>
-                   
-    <span id="selected-attributes-<%= product._id %>">Chưa chọn</span>
-    <button type="button" class="small-btn" 
-        onclick='openAttributeDialog("<%= product._id %>", "<%= product.name %>", <%- JSON.stringify(product.attributes) %>)'>
-        🛠️
-    </button>
-
-                 
-                </td>
-                <td><%= product.price.toLocaleString() %> VND</td>
-                <td><%= product.stockQuantity %></td>
-                <td>
-                    <input type="checkbox" id="productCheckbox-<%= product._id %>" 
-                    disabled 
-                    onchange="toggleProductSelection(this, '<%= product._id %>', '<%= product.name %>', '<%= product.price %>', '<%= product.thumbnail %>', '<%= product.stockQuantity %>', decodeURIComponent('<%= encodeURIComponent(JSON.stringify(product.attributes)) %>'))">
-     </td>
+                <th>Ảnh</th>
+                <th>Tên</th>
+                <th>Thuộc tính</th>
+                <th>Giá</th>
+                <th>Số lượng</th>
+                <th>Chọn</th>
             </tr>
-        <% }) %>
-    </table>
-    <button onclick="saveSelectedProducts()">Lưu</button>
-    <button onclick="closeProductDialog()">Đóng</button>
-</div>
-<!-- Dialog chọn thuộc tính -->
-<div id="attributeDialog" class="dialog" style="display:none;">
-    <h3>Chọn Thuộc Tính</h3>
-    <div id="attributeOptions"></div>
-    <button onclick="saveAttributeSelection()">Lưu</button>
-    <button onclick="closeAttributeDialog()">Đóng</button>
-</div>
+            <% products.forEach(product => { %>
+                <tr>
+                    <td><img src="<%= product.thumbnail %>" width="50"></td>
+                    <td><%= product.name %></td>
+                    <td>
+                        <span id="selected-attributes-<%= product._id %>">Chưa chọn</span>
+                        <button type="button" class="small-btn" 
+                            onclick='openAttributeDialog("<%= product._id %>", "<%= product.name %>", <%- JSON.stringify(product.attributes) %>)'>
+                            🛠️
+                        </button>
+                    </td>
+                    <td><%= product.price.toLocaleString() %> VND</td>
+                    <td><%= product.inventory %></td>
+                    <td>
+                        <input type="checkbox" id="productCheckbox-<%= product._id %>" 
+                        disabled 
+                        onchange="toggleProductSelection(this, '<%= product._id %>', '<%= product.name %>', '<%= product.price %>', '<%= product.thumbnail %>', '<%= product.inventory %>', decodeURIComponent('<%= encodeURIComponent(JSON.stringify(product.attributes)) %>'))">
+                    </td>
+                </tr>
+            <% }) %>
+        </table>
+        <button onclick="saveSelectedProducts()">Lưu</button>
+        <button onclick="closeProductDialog()">Đóng</button>
+    </div>
+
+    <!-- Dialog chọn thuộc tính -->
+    <div id="attributeDialog" class="dialog" style="display:none;">
+        <h3>Chọn Thuộc Tính</h3>
+        <div id="attributeOptions"></div>
+        <button onclick="saveAttributeSelection()">Lưu</button>
+        <button onclick="closeAttributeDialog()">Đóng</button>
+    </div>
+
     <!-- Dialog chọn khách hàng -->
     <div id="customerDialog" style="display:none; position:fixed; top:20%; left:30%; width:40%; background:white; padding:20px; border:1px solid black;">
         <h3>Chọn Khách Hàng</h3>
