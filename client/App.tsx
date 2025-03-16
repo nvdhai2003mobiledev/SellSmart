@@ -1,11 +1,13 @@
 import React from 'react'
 import { NavigationContainer } from '@react-navigation/native'
-import { AppNavigation } from './src/navigation/AppNavigation'
+import CustomerInfoScreen from './src/screens/main/x/CustomerInfoScreen'
+import ProductDetailScreen from './src/screens/main/Product/ProductDetailScreen'
+
 
 const App = () => {
   return (
     <NavigationContainer>
-      <AppNavigation />
+      <ProductDetailScreen/>
     </NavigationContainer>
   )
 }
