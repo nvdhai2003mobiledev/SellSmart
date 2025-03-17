@@ -13,7 +13,7 @@ const session = require("express-session");
 const routes = require("./routes");
 
 const orderRoutes = require("./routes/order");
-
+const promotionRouter = require("./routes/PromotionRouter");
 
 
 dotenv.config();
@@ -54,9 +54,9 @@ app.use((req, res, next) => {
 
 
 app.use("/orders", orderRoutes);
-routes(app);
 app.use('/customers', customerRoutes);
-
+app.use("/promotions", promotionRouter);
+routes(app);
 
 
 // Middleware xử lý lỗi
