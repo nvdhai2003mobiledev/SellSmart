@@ -32,7 +32,8 @@ router.delete(
 );
 
 // 📌 Tìm kiếm khách hàng theo số điện thoại
-router.get("/customers/search", protect, customerController.searchCustomerByPhone);
+// router.get("/customers/search", protect, customerController.searchCustomerByPhone);
+router.get("/search", customerController.searchCustomerByPhone);
 
 
 module.exports = router;

@@ -294,30 +294,17 @@ const deleteCustomer = async (req, res) => {
 
 
 const searchCustomerByPhone = async (req, res) => {
+  const { phoneNumber } = req.query;
+
   try {
-    const { phoneNumber } = req.query;
-
-    const customers = await Customer.find({ phoneNumber: phoneNumber });
-
-    if (customers.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "Không tìm thấy khách hàng!",
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      customers,
-    });
+      const customers = await Customer.find({ phoneNumber: { $regex: phoneNumber, $options: 'i' } });
+      res.status(200).json({ customers });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({
-      success: false,
-      message: "Lỗi server!",
-    });
+      console.error('Lỗi khi tìm kiếm khách hàng:', error);
+      res.status(500).json({ message: 'Lỗi server' });
   }
 };
+
 
 
 // ✅ Xuất tất cả hàm

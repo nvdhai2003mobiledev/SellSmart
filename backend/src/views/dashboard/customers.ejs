@@ -2,7 +2,34 @@
 <div class="main-content">
     <h1 class="text-center mb-4">Danh sách khách hàng</h1>
 
- 
+    <style>
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .card-title {
+            font-weight: bold;
+            color: #333;
+        }
+        .card-text {
+            color: #555;
+        }
+        .alert {
+            font-size: 14px;
+        }
+    </style>
+    
+
+<!-- Tìm kiếm khách hàng -->
+<div class="container mt-4">
+    <input type="text" id="phoneSearch" class="form-control mb-4" placeholder="Tìm kiếm theo số điện thoại">
+
+    <div id="searchResults"></div>
+</div>
+
+
     <!-- Thêm khách hàng -->
     <div class="mb-4">
         <h3>Thêm khách hàng mới</h3>
@@ -331,5 +358,78 @@ if (!birthDate || birthDate.trim() === '') {
         alert(error.message || "Cập nhật thất bại");
     });
 }
+
+
+//tìm phone
+document.getElementById('phoneSearch').addEventListener('input', function() {
+    const phoneNumber = this.value.trim();
+    const searchResults = document.getElementById('searchResults');
+    const customerTableBody = document.getElementById('customerTableBody');
+
+    // If input is empty, show all customers
+    if (phoneNumber.length === 0) {
+        const customerRows = document.querySelectorAll('#customerTableBody tr');
+        customerRows.forEach(row => {
+            row.style.display = ''; // Show all rows
+        });
+        searchResults.innerHTML = ''; // Clear search results
+        return;
+    }
+
+    if (phoneNumber.length >= 3) {
+        fetch(`/customers/search?phoneNumber=${encodeURIComponent(phoneNumber)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.customers && data.customers.length > 0) {
+                    const resultsHtml = data.customers.map(customer => `
+                        <div class="card mb-2 search-result-card" data-phone="${customer.phoneNumber}">
+                            <div class="card-body">
+                                <h5 class="card-title">${customer.fullName}</h5>
+                                <p class="card-text">
+                                    Số điện thoại: ${customer.phoneNumber}<br>
+                                    Email: ${customer.email}<br>
+                                    Địa chỉ: ${customer.address || 'Chưa cập nhật'}
+                                </p>
+                            </div>
+                        </div>
+                    `).join('');
+
+                    searchResults.innerHTML = resultsHtml;
+
+                    // Add click event listener to search result cards
+                    document.querySelectorAll('.search-result-card').forEach(card => {
+                        card.addEventListener('click', function() {
+                            const phoneToFilter = this.dataset.phone;
+                            filterCustomerTable(phoneToFilter);
+                        });
+                    });
+                } else {
+                    searchResults.innerHTML = '<div class="alert alert-info">Không tìm thấy khách hàng nào phù hợp.</div>';
+                }
+            })
+            .catch(error => {
+                console.error('Lỗi tìm kiếm:', error);
+                searchResults.innerHTML = '<div class="alert alert-danger">Có lỗi xảy ra khi tìm kiếm.</div>';
+            });
+    } else {
+        searchResults.innerHTML = '';
+    }
+});
+
+function filterCustomerTable(phoneNumber) {
+    const customerRows = document.querySelectorAll('#customerTableBody tr');
+    
+    customerRows.forEach(row => {
+        const phoneCellText = row.querySelector('td:nth-child(3)').textContent.trim();
+        
+        if (phoneCellText === phoneNumber) {
+            row.style.display = ''; // Show this row
+        } else {
+            row.style.display = 'none'; // Hide other rows
+        }
+    });
+}
+
+
 
 </script>
