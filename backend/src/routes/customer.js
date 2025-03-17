@@ -15,7 +15,7 @@ router.get(
 );
 
 // 📌 Thêm khách hàng (POST)
-router.post("/customers", protect, customerController.addCustomer);
+router.post("/", protect, customerController.addCustomer);
 
 // 📌 Cập nhật khách hàng (PUT)
 router.put(
@@ -30,5 +30,9 @@ router.delete(
   protect,
   customerController.deleteCustomer,
 );
+
+// 📌 Tìm kiếm khách hàng theo số điện thoại
+router.get("/customers/search", protect, customerController.searchCustomerByPhone);
+
 
 module.exports = router;

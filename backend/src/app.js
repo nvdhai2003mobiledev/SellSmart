@@ -14,7 +14,7 @@ const routes = require("./routes");
 
 const orderRoutes = require("./routes/order");
 
-// const promotionRouter = require("./routes/PromotionRouter");
+
 
 dotenv.config();
 connectDB();
@@ -52,101 +52,12 @@ app.use((req, res, next) => {
   next();
 });
 
-// Import routes
-app.use("/api", customerRoutes);
-// app.use("/api", promotionRouter);
+
 app.use("/orders", orderRoutes);
 routes(app);
+app.use('/customers', customerRoutes);
 
-//======================================================== KHÁCH HÀNG =======================================
-// Route hiển thị danh sách khách hàng
-app.get("/customers", async (req, res) => {
-  try {
-    const Customer = mongoose.model("Customer");
-    const customers = await Customer.find();
-    res.render("customers", { customers });
-  } catch (error) {
-    res.status(500).json({ message: "Lỗi lấy danh sách khách hàng" });
-  }
-});
 
-// Route thêm khách hàng
-app.post("/customers", async (req, res) => {
-  try {
-    const { fullName, phoneNumber, email, address, birthDate, avatar } =
-      req.body;
-    if (!fullName || !phoneNumber || !email) {
-      return res
-        .status(400)
-        .json({ message: "Vui lòng nhập đầy đủ thông tin" });
-    }
-
-    const Customer = mongoose.model("Customer");
-    const newCustomer = new Customer({
-      fullName,
-      phoneNumber,
-      email,
-      address,
-      birthDate,
-      avatar,
-    });
-    await newCustomer.save();
-
-    res.redirect("/customers");
-  } catch (error) {
-    console.error("🔥 Lỗi thêm khách hàng:", error);
-    res.status(500).json({ message: "Lỗi máy chủ khi thêm khách hàng!" });
-  }
-});
-
-// Route xóa khách hàng
-app.delete("/customers/delete/:id", async (req, res) => {
-  try {
-    const customerId = req.params.id;
-    const Customer = mongoose.model("Customer");
-    const deletedCustomer = await Customer.findByIdAndDelete(customerId);
-
-    if (!deletedCustomer) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Khách hàng không tồn tại!" });
-    }
-
-    res.json({ success: true, message: "Xóa khách hàng thành công!" });
-  } catch (error) {
-    console.error("🔥 Lỗi xóa khách hàng:", error);
-    res
-      .status(500)
-      .json({ success: false, message: "Lỗi máy chủ khi xóa khách hàng!" });
-  }
-});
-
-// Route cập nhật khách hàng
-app.put("/api/customers/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updateData = req.body;
-    if (!updateData.birthDate) delete updateData.birthDate;
-
-    const Customer = mongoose.model("Customer");
-    const updatedCustomer = await Customer.findByIdAndUpdate(id, updateData, {
-      new: true,
-    });
-
-    res.json(updatedCustomer);
-  } catch (error) {
-    console.error("Lỗi cập nhật khách hàng:", error);
-    res.status(500).json({ message: "Lỗi server" });
-  }
-});
-
-//======================================================== PROMOTION =======================================
-// Thêm khuyến mãi
-// app.post("/api/promotions", (req, res) => {
-//   const newPromotion = req.body;
-//   console.log("Dữ liệu nhận được:", newPromotion);
-//   res.json({ message: "Khuyến mãi đã được thêm!", promotion: newPromotion });
-// });
 
 // Middleware xử lý lỗi
 app.use((err, req, res, next) => {
