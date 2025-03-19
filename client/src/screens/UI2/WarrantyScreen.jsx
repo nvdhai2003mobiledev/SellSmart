@@ -1,41 +1,41 @@
 import React, { useState } from 'react';
 import { View, FlatList, Image, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { BaseLayout, Input, Header, DynamicText } from '../../components';
 import { useNavigation } from '@react-navigation/native';
-import { BaseLayout, Input, Header, DynamicText } from '../../../components';
 
-const ProductListScreen = () => {
+const WarrantyScreen = () => {
   const navigation = useNavigation();
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Dữ liệu fix cứng cho danh sách sản phẩm
-  const products = [
-    { id: '1', code: '#SH5832', name: 'MacBook Pro 2023 14 inch', status: 'Hết hàng' },
-    { id: '2', code: '#SH5832', name: 'MacBook Pro 2023 14 inch', status: 'Hết hàng' },
-    { id: '3', code: '#SH5832', name: 'MacBook Pro 2023 14 inch', status: 'Hết hàng' },
-    { id: '4', code: '#SH5832', name: 'MacBook Pro 2023 14 inch', status: 'Hết hàng' },
+  // Dữ liệu mẫu từ bảng Warranty
+  const warranties = [
+    { id: '1', product_id: 'PROD001', invoice_id: 'INV001', status: 'Active', start_date: '2023-01-15', end_date: '2024-01-15', name: 'MacBook Pro 2023 14 inch' },
+    { id: '2', product_id: 'PROD002', invoice_id: 'INV002', status: 'Expired', start_date: '2022-06-10', end_date: '2023-06-10', name: 'MacBook Pro 2023 14 inch' },
+    { id: '3', product_id: 'PROD003', invoice_id: 'INV003', status: 'Active', start_date: '2023-03-20', end_date: '2024-03-20', name: 'MacBook Pro 2023 14 inch' },
+    { id: '4', product_id: 'PROD004', invoice_id: 'INV004', status: 'Active', start_date: '2023-05-01', end_date: '2024-05-01', name: 'MacBook Pro 2023 14 inch' },
   ];
 
-  // Lọc danh sách sản phẩm dựa trên searchQuery
-  const filteredProducts = products.filter(
-    (product) =>
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.code.toLowerCase().includes(searchQuery.toLowerCase())
+  // Lọc danh sách bảo hành dựa trên searchQuery
+  const filteredWarranties = warranties.filter(
+    (warranty) =>
+      warranty.product_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      warranty.invoice_id.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
     <BaseLayout>
-      {/* Header */}
+      {/* Header sử dụng component Header */}
       <Header
-        title="Tất cả sản phẩm"
+        title="Bảo hành"
         showBackIcon={true}
         onPressBack={() => navigation.goBack()}
       />
 
-      {/* Tìm kiếm */}
+      {/* Thanh tìm kiếm */}
       <View style={styles.searchContainer}>
         <Input
-          placeholderText="Nhập tên/mã sản phẩm"
+          placeholderText="Nhập ID sản phẩm hoặc hóa đơn"
           onChangeText={setSearchQuery}
           value={searchQuery}
           iconType="clear" // Hiển thị nút xóa khi có nội dung
@@ -43,9 +43,9 @@ const ProductListScreen = () => {
         />
       </View>
 
-      {/* Danh sách sản phẩm */}
+      {/* Danh sách bảo hành */}
       <FlatList
-        data={filteredProducts}
+        data={filteredWarranties}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <View style={styles.productItem}>
@@ -54,9 +54,10 @@ const ProductListScreen = () => {
               style={styles.productImage}
             />
             <View style={styles.productDetails}>
-              <DynamicText style={styles.productCode}>{item.code}</DynamicText>
+              <DynamicText style={styles.productCode}>Product ID: {item.product_id}</DynamicText>
               <DynamicText style={styles.productName}>{item.name}</DynamicText>
-              <DynamicText style={styles.productStatus}>BO</DynamicText>
+              <DynamicText style={styles.productDate}>Từ: {item.start_date} - Đến: {item.end_date}</DynamicText>
+              <DynamicText style={styles.productStatus}>Trạng thái: {item.status}</DynamicText>
             </View>
           </View>
         )}
@@ -107,10 +108,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#000',
   },
+  productDate: {
+    fontSize: 14,
+    color: '#666',
+  },
   productStatus: {
     fontSize: 14,
     color: '#ff4444',
   },
 });
 
-export default ProductListScreen;
+export default WarrantyScreen;

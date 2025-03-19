@@ -1,20 +1,40 @@
 import React from 'react';
-import { View, Text, Image, TouchableOpacity ,StyleSheet } from 'react-native';
-
+import { View, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { BaseLayout, Button, Input } from '../../../components';
+import { Controller, useForm } from 'react-hook-form';
+import { useNavigation } from '@react-navigation/native';
+import { BaseLayout, Button, Input, Header, DynamicText } from '../../../components';
+import { color, scaleHeight, scaledSize } from '../../../utils';
 
 const CreateOrderScreen = () => {
+  const navigation = useNavigation();
+
+  const { control, handleSubmit, formState: { errors } } = useForm({
+    defaultValues: {
+      quantity: '1',
+      condition: '38.000.000đ',
+      note: '',
+    },
+  });
+
+  const onSaveDraft = (data: any) => {
+    console.log('Lưu nháp:', data);
+    // Thêm logic lưu nháp vào đây (ví dụ: gửi API)
+  };
+
+  const onCreateOrder = (data: any) => {
+    console.log('Tạo đơn:', data);
+    // Thêm logic tạo đơn hàng vào đây (ví dụ: gửi API)
+  };
+
   return (
     <BaseLayout>
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity>
-          <Icon name="chevron-back-outline" size={24} color="#000" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Tạo đơn hàng</Text>
-        <View style={{ width: 24 }} /> {/* Placeholder để cân đối */}
-      </View>
+      <Header
+        title="Tạo đơn hàng"
+        showBackIcon={true}
+        onPressBack={() => navigation.goBack()}
+      />
 
       {/* Product Info */}
       <View style={styles.productContainer}>
@@ -23,9 +43,9 @@ const CreateOrderScreen = () => {
           style={styles.productImage}
         />
         <View style={styles.productDetails}>
-          <Text style={styles.productName}>MacBook Pro 2023 14 inch</Text>
-          <Text style={styles.productConfig}>38.000.000đ</Text>
-          <Text style={styles.productQuantity}>Số lượng: 1</Text>
+          <DynamicText style={styles.productName}>MacBook Pro 2023 14 inch</DynamicText>
+          <DynamicText style={styles.productConfig}>38.000.000đ</DynamicText>
+          <DynamicText style={styles.productQuantity}>Số lượng: 1</DynamicText>
         </View>
         <TouchableOpacity>
           <Icon name="close-outline" size={24} color="#000" />
@@ -36,43 +56,84 @@ const CreateOrderScreen = () => {
       <View style={styles.orderDetails}>
         {/* Số lượng */}
         <View style={styles.inputRow}>
-          <Text style={styles.label}>Số lượng</Text>
-          <Text style={styles.value}>1</Text>
+          <DynamicText style={styles.label}>Số lượng</DynamicText>
+          <Controller
+            control={control}
+            name="quantity"
+            rules={{ required: 'Số lượng là bắt buộc' }}
+            render={({ field: { onChange, value } }) => (
+              <Input
+                placeholderText="Nhập số lượng"
+                keyboardType="numeric"
+                onChangeText={onChange}
+                value={value}
+                inputContainerStyle={styles.inputField}
+              />
+            )}
+          />
+          {errors.quantity && (
+            <DynamicText style={styles.errorText}>{errors.quantity.message}</DynamicText>
+          )}
         </View>
 
         {/* Tình trạng */}
         <View style={styles.inputRow}>
-          <Text style={styles.label}>Tình trạng</Text>
-          <Text style={styles.value}>38.000.000đ</Text>
+          <DynamicText style={styles.label}>Tình trạng</DynamicText>
+          <Controller
+            control={control}
+            name="condition"
+            rules={{ required: 'Tình trạng là bắt buộc' }}
+            render={({ field: { onChange, value } }) => (
+              <Input
+                placeholderText="Nhập tình trạng"
+                onChangeText={onChange}
+                value={value}
+                inputContainerStyle={styles.inputField}
+              />
+            )}
+          />
+          {errors.condition && (
+            <DynamicText style={styles.errorText}>{errors.condition.message}</DynamicText>
+          )}
         </View>
 
         {/* Ghi chú */}
         <View style={styles.inputRow}>
-          <Text style={styles.label}>Ghi chú</Text>
-          <Input
-            placeholderText="Nhập ghi chú"
-            multiline
-            numberOfLines={3}
-            inputContainerStyle={styles.textArea}
+          <DynamicText style={styles.label}>Ghi chú</DynamicText>
+          <Controller
+            control={control}
+            name="note"
+            render={({ field: { onChange, value } }) => (
+              <Input
+                placeholderText="Nhập ghi chú"
+                multiline
+                numberOfLines={3}
+                onChangeText={onChange}
+                value={value}
+                inputContainerStyle={styles.textArea}
+              />
+            )}
           />
         </View>
       </View>
 
       {/* Total */}
       <View style={styles.totalContainer}>
-        <Text style={styles.totalLabel}>Tổng số dư nợ</Text>
-        <Text style={styles.totalValue}>38.000.000đ</Text>
+        <DynamicText style={styles.totalLabel}>Tổng số dư nợ</DynamicText>
+        <DynamicText style={styles.totalValue}>38.000.000đ</DynamicText>
       </View>
 
       {/* Buttons */}
       <View style={styles.buttonContainer}>
         <Button
           title="Lưu nháp"
+          onPress={handleSubmit(onSaveDraft)}
           buttonContainerStyle={styles.draftButton}
           titleStyle={styles.draftButtonText}
         />
         <Button
           title="Tạo đơn"
+          onPress={handleSubmit(onCreateOrder)}
           buttonContainerStyle={styles.createButton}
           titleStyle={styles.createButtonText}
         />
@@ -83,73 +144,65 @@ const CreateOrderScreen = () => {
 
 // Styles
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#000',
-  },
   productContainer: {
     flexDirection: 'row',
     backgroundColor: '#fff',
     borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
+    padding: scaledSize(12),
+    marginBottom: scaleHeight(16),
     alignItems: 'center',
   },
   productImage: {
-    width: 80,
-    height: 80,
+    width: scaledSize(80),
+    height: scaledSize(80),
     borderRadius: 8,
-    marginRight: 12,
+    marginRight: scaledSize(12),
   },
   productDetails: {
     flex: 1,
   },
   productName: {
-    fontSize: 16,
+    fontSize: scaledSize(16),
     fontWeight: 'bold',
     color: '#000',
   },
   productConfig: {
-    fontSize: 14,
+    fontSize: scaledSize(14),
     color: '#000',
-    marginVertical: 4,
+    marginVertical: scaleHeight(4),
   },
   productQuantity: {
-    fontSize: 14,
+    fontSize: scaledSize(14),
     color: '#666',
   },
   orderDetails: {
     backgroundColor: '#fff',
     borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
+    padding: scaledSize(16),
+    marginBottom: scaleHeight(16),
   },
   inputRow: {
-    marginBottom: 16,
+    marginBottom: scaleHeight(16),
   },
   label: {
-    fontSize: 16,
+    fontSize: scaledSize(16),
     fontWeight: 'bold',
     color: '#000',
-    marginBottom: 8,
+    marginBottom: scaleHeight(8),
   },
-  value: {
-    fontSize: 16,
-    color: '#000',
+  inputField: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: scaledSize(8),
+    fontSize: scaledSize(16),
   },
   textArea: {
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 8,
-    padding: 8,
-    fontSize: 16,
+    padding: scaledSize(8),
+    fontSize: scaledSize(16),
     textAlignVertical: 'top',
   },
   totalContainer: {
@@ -157,16 +210,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: '#fff',
     borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
+    padding: scaledSize(16),
+    marginBottom: scaleHeight(16),
   },
   totalLabel: {
-    fontSize: 16,
+    fontSize: scaledSize(16),
     fontWeight: 'bold',
     color: '#000',
   },
   totalValue: {
-    fontSize: 16,
+    fontSize: scaledSize(16),
     fontWeight: 'bold',
     color: '#000',
   },
@@ -177,26 +230,30 @@ const styles = StyleSheet.create({
   draftButton: {
     flex: 1,
     backgroundColor: '#ddd',
-    paddingVertical: 12,
+    paddingVertical: scaledSize(12),
     borderRadius: 8,
     alignItems: 'center',
-    marginRight: 8,
+    marginRight: scaledSize(8),
   },
   draftButtonText: {
-    fontSize: 16,
+    fontSize: scaledSize(16),
     color: '#000',
   },
   createButton: {
     flex: 1,
     backgroundColor: '#007AFF',
-    paddingVertical: 12,
+    paddingVertical: scaledSize(12),
     borderRadius: 8,
     alignItems: 'center',
-    marginLeft: 8,
+    marginLeft: scaledSize(8),
   },
   createButtonText: {
-    fontSize: 16,
+    fontSize: scaledSize(16),
     color: '#fff',
+  },
+  errorText: {
+    color: color.accentColor.errorColor,
+    marginTop: scaleHeight(5),
   },
 });
 
