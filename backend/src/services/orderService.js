@@ -16,7 +16,10 @@ const getAllOrders = async () => {
       .populate({
         path: "products.productID",
         model: "Product",
+
         select: "name price inventory thumbnail attributes",
+
+
       })
       .populate({
         path: "employeeID",

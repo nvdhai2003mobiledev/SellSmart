@@ -69,11 +69,11 @@ const renderOrdersPage = async (req, res) => {
   try {
     const orders = await getAllOrders(); // Lấy danh sách đơn hàng
 
+
     if (!orders || orders.length === 0) {
       return res.render("orders", { orders: [] }); // Nếu không có dữ liệu, gửi mảng rỗng để tránh lỗi
     }
 
-    res.render("orders", { orders });
   } catch (error) {
     res.status(500).send("Lỗi server: " + error.message);
   }
@@ -106,7 +106,9 @@ const deleteOrder = async (req, res) => {
     await orderService.deleteOrder(req.params.id);
     res.json({ message: "Order deleted successfully" });
   } catch (error) {
+
     res.status(500).json({ message: "Server error", error: error.message });
+
   }
 };
 const createOrderScreen = async (req, res) => {
@@ -120,6 +122,7 @@ const createOrderScreen = async (req, res) => {
     console.error("🔥 Lỗi khi tải trang tạo đơn hàng:", error);
     res.status(500).send("Lỗi server khi tải trang!");
   }
+
 };
 // Lấy chi tiết đơn hàng
 const getOrderDetail = async (req, res) => {
@@ -155,6 +158,8 @@ const getOrderDetail = async (req, res) => {
       error: error.message
     });
   }
+=======
+
 };
 
 module.exports = {
@@ -165,5 +170,9 @@ module.exports = {
   deleteOrder,
   renderOrdersPage,
   createOrderScreen,
+
   getOrderDetail,
 };
+
+};
+

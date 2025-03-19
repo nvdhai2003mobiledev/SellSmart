@@ -5,67 +5,171 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Danh sách biến thể</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        .container { max-width: 1200px; margin-top: 30px; }
+        h1 { color: #2c3e50; font-weight: 700; font-size: 28px; }
+        .table-container { max-height: 600px; overflow-y: auto; background: #fff; border-radius: 10px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); }
+        .table { margin-bottom: 0; }
+        .table th { background-color: #e9ecef; color: #495057; font-weight: 600; text-transform: uppercase; font-size: 13px; padding: 12px; }
+        .table td { vertical-align: middle; padding: 10px; font-size: 14px; color: #343a40; }
+        .table-hover tbody tr:hover { background-color: #f8f9fa; }
+        .nested-table { padding: 10px 20px; background-color: #f9f9f9; }
+        .nested-table .table { border: 1px solid #e9ecef; }
+        .nested-table th { background-color: #dee2e6; font-size: 12px; }
+        .btn-custom { padding: 6px 12px; font-size: 13px; border-radius: 6px; transition: all 0.2s; }
+        .btn-custom:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); }
+        .modal-content { border-radius: 12px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15); }
+        .action-buttons { display: flex; gap: 6px; justify-content: center; }
+        .detail-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
+        .detail-row input { font-size: 14px; }
+        .btn-select { padding: 4px 8px; font-size: 12px; }
+        .confirm-btn { margin-top: 20px; }
+    </style>
 </head>
 <body>
-    <div class="container mt-5">
+    <div class="container">
         <h1 class="text-center mb-4">Danh sách biến thể</h1>
 
-        <!-- Form thêm biến thể -->
-        <div class="mb-4">
-            <h3>Thêm biến thể mới</h3>
-            <form id="addVariantForm">
-                <div class="mb-3">
-                    <label for="variantName" class="form-label">Tên biến thể</label>
-                    <input type="text" id="variantName" class="form-control" placeholder="Nhập tên biến thể" required>
-                </div>
-                <div class="mb-3">
-                    <label for="variantValues" class="form-label">Giá trị biến thể</label>
-                    <input type="text" id="variantValues" class="form-control" placeholder="Nhập các giá trị, cách nhau bằng dấu phẩy" required>
-                </div>
-                <button type="submit" class="btn btn-primary">Thêm biến thể</button>
-            </form>
+        <!-- Nút thêm biến thể -->
+        <div class="mb-4 text-end">
+            <button class="btn btn-primary btn-custom" data-bs-toggle="modal" data-bs-target="#addVariantModal">
+                <i class="fas fa-plus me-1"></i> Thêm biến thể
+            </button>
         </div>
 
         <!-- Danh sách biến thể -->
-        <div style="max-height: 400px; overflow-y: auto;">
-            <table class="table table-bordered">
+        <div class="table-container">
+            <table class="table table-bordered table-hover">
                 <thead>
                     <tr>
-                        <th>ID</th>
                         <th>Tên biến thể</th>
                         <th>Giá trị</th>
-                        <th>Hành động</th>
+                        <th class="text-center">Hành động</th>
                     </tr>
                 </thead>
                 <tbody id="variantTableBody">
                     <% variants.forEach(variant => { %>
                         <tr id="row-<%= variant._id %>">
-                            <td><%= variant._id %></td>
-                            <td><%= variant.name %></td>
-                            <td><%= variant.values.join(", ") %></td>
-                            <td>
-                                <button class="btn btn-warning btn-sm"
-                                onclick="editVariant('<%= variant._id %>', '<%= escape(variant.name) %>', '<%= escape(variant.values.join(', ')) %>')">
-                                Sửa
-                            </button>
-                            
-                            <button class="btn btn-danger btn-sm"
-                                onclick="deleteVariant('<%= variant._id %>')">
-                                Xóa
-                            </button>
+                            <td><%= variant.name || 'Không có tên' %></td>
+                            <td><%= variant.values && variant.values.length ? variant.values.join(", ") : 'Không có giá trị' %></td>
+                            <td class="text-center">
+                                <div class="action-buttons">
+                                    <button class="btn btn-warning btn-custom" onclick="editVariant('<%= variant._id %>')" title="Sửa">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-danger btn-custom" onclick="deleteVariant('<%= variant._id %>')" title="Xóa">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                    <button class="btn btn-info btn-custom" onclick="addDetailsVariant('<%= variant._id %>')" title="Thêm chi tiết">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <!-- Bảng chi tiết biến thể -->
+                        <tr>
+                            <td colspan="3" class="p-0">
+                                <div class="nested-table">
+                                    <table class="table table-sm table-bordered mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th><input type="checkbox" class="select-all" data-variant-id="<%= variant._id %>"></th>
+                                                <th>Giá trị</th>
+                                                <th>Giá</th>
+                                                <th>Tồn kho</th>
+                                                <th class="text-center">Hành động</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="details-<%= variant._id %>">
+                                            <% 
+                                                const details = variant.detailsVariants || [];
+                                                if (details.length > 0) {
+                                                    details.forEach(detail => { 
+                                            %>
+                                                <tr id="detail-row-<%= detail._id %>">
+                                                    <td>
+                                                        <input type="checkbox" class="variant-checkbox" 
+                                                               data-variant-id="<%= variant._id %>" 
+                                                               data-details-id="<%= detail._id %>"
+                                                               data-name="<%= variant.name %>"
+                                                               data-value="<%= detail.value %>"
+                                                               data-price="<%= detail.price %>"
+                                                               data-inventory="<%= detail.inventory %>">
+                                                    </td>
+                                                    <td><%= detail.value || 'Không có giá trị' %></td>
+                                                    <td><%= detail.price ? detail.price.toLocaleString('vi-VN') + ' đ' : '0 đ' %></td>
+                                                    <td><%= detail.inventory || detail.inventory === 0 ? detail.inventory : '0' %></td>
+                                                    <td class="text-center">
+                                                        <div class="action-buttons">
+                                                            <button class="btn btn-danger btn-select" 
+                                                                    onclick="deleteDetailsVariant('<%= detail._id %>')" 
+                                                                    title="Xóa">
+                                                                <i class="fas fa-trash-alt"></i>
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            <% 
+                                                    });
+                                                } else { 
+                                            %>
+                                                <tr><td colspan="5" class="text-center text-muted">Không có chi tiết biến thể</td></tr>
+                                            <% } %>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </td>
                         </tr>
                     <% }); %>
                 </tbody>
             </table>
+            <div class="text-center confirm-btn">
+                <button class="btn btn-success btn-custom" onclick="confirmSelection()">Xác nhận chọn</button>
+            </div>
+        </div>
+
+        <!-- Modal thêm biến thể -->
+        <div class="modal fade" id="addVariantModal" tabindex="-1" aria-labelledby="addVariantModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title" id="addVariantModalLabel">Thêm biến thể mới</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="addVariantForm">
+                            <div class="mb-3">
+                                <label for="variantName" class="form-label fw-bold">Tên biến thể</label>
+                                <input type="text" id="variantName" class="form-control" placeholder="Nhập tên biến thể" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="variantValues" class="form-label fw-bold">Giá trị biến thể</label>
+                                <input type="text" id="variantValues" class="form-control" placeholder="Nhập các giá trị, cách nhau bằng dấu phẩy" required>
+                            </div>
+                            <h6 class="fw-bold">Chi tiết biến thể</h6>
+                            <div id="detailsContainer">
+                                <div class="detail-row">
+                                    <input type="text" class="form-control" name="detailValue[]" placeholder="Giá trị" required>
+                                    <input type="number" class="form-control" name="detailPrice[]" placeholder="Giá" min="0" required>
+                                    <input type="number" class="form-control" name="detailInventory[]" placeholder="Tồn kho" min="0" required>
+                                    <button type="button" class="btn btn-danger btn-sm remove-detail">Xóa</button>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-success btn-sm mt-2" id="addDetailRow">Thêm chi tiết</button>
+                            <button type="submit" class="btn btn-primary w-100 mt-3">Thêm biến thể</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Modal chỉnh sửa biến thể -->
         <div class="modal fade" id="editVariantModal" tabindex="-1" aria-labelledby="editVariantModalLabel" aria-hidden="true">
-            <div class="modal-dialog">
+            <div class="modal-dialog modal-lg">
                 <div class="modal-content">
-                    <div class="modal-header">
+                    <div class="modal-header bg-warning text-dark">
                         <h5 class="modal-title" id="editVariantModalLabel">Chỉnh sửa biến thể</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
@@ -73,98 +177,302 @@
                         <form id="editVariantForm">
                             <input type="hidden" id="editVariantId">
                             <div class="mb-3">
-                                <label for="editVariantName" class="form-label">Tên biến thể</label>
+                                <label for="editVariantName" class="form-label fw-bold">Tên biến thể</label>
                                 <input type="text" id="editVariantName" class="form-control" required>
                             </div>
                             <div class="mb-3">
-                                <label for="editVariantValues" class="form-label">Giá trị biến thể</label>
+                                <label for="editVariantValues" class="form-label fw-bold">Giá trị biến thể</label>
                                 <input type="text" id="editVariantValues" class="form-control" required>
                             </div>
-                            <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
+                            <h6 class="fw-bold">Chi tiết biến thể</h6>
+                            <div id="editDetailsContainer"></div>
+                            <button type="button" class="btn btn-success btn-sm mt-2" id="editAddDetailRow">Thêm chi tiết</button>
+                            <button type="submit" class="btn btn-warning w-100 mt-3">Lưu thay đổi</button>
                         </form>
                     </div>
                 </div>
             </div>
         </div>
 
-        <script>
-            $(document).ready(() => {
-                // Thêm biến thể mới
-                $('#addVariantForm').submit(async function(event) {
-                    event.preventDefault();
-                    const data = {
-                        name: $('#variantName').val().trim(),
-                        values: $('#variantValues').val().split(',').map(v => v.trim())
-                    };
+        <!-- Modal thêm chi tiết biến thể -->
+        <div class="modal fade" id="editDetailsVariantModal" tabindex="-1" aria-labelledby="editDetailsVariantModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header bg-info text-white">
+                        <h5 class="modal-title" id="editDetailsVariantModalLabel">Thêm chi tiết biến thể</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="editDetailsVariantForm">
+                            <input type="hidden" id="editDetailsVariantVariantId">
+                            <div class="mb-3">
+                                <label for="editDetailsVariantValue" class="form-label fw-bold">Giá trị</label>
+                                <input type="text" id="editDetailsVariantValue" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="editDetailsVariantPrice" class="form-label fw-bold">Giá</label>
+                                <input type="number" id="editDetailsVariantPrice" class="form-control" required min="0">
+                            </div>
+                            <div class="mb-3">
+                                <label for="editDetailsVariantInventory" class="form-label fw-bold">Tồn kho</label>
+                                <input type="number" id="editDetailsVariantInventory" class="form-control" required min="0">
+                            </div>
+                            <button type="submit" class="btn btn-info w-100">Lưu</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-                    try {
-                        const res = await $.post('/product/getbienthe/create', data);
-                        if (res.success) {
-                            alert("Thêm biến thể thành công!");
-                            location.reload();
-                        }
-                    } catch (error) {
-                        alert("Lỗi khi thêm biến thể. Vui lòng thử lại!");
-                    }
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(() => {
+            // Thêm dòng chi tiết trong modal thêm
+            $('#addDetailRow').click(function() {
+                const newRow = `
+                    <div class="detail-row">
+                        <input type="text" class="form-control" name="detailValue[]" placeholder="Giá trị" required>
+                        <input type="number" class="form-control" name="detailPrice[]" placeholder="Giá" min="0" required>
+                        <input type="number" class="form-control" name="detailInventory[]" placeholder="Tồn kho" min="0" required>
+                        <button type="button" class="btn btn-danger btn-sm remove-detail">Xóa</button>
+                    </div>`;
+                $('#detailsContainer').append(newRow);
+            });
+
+            // Thêm dòng chi tiết trong modal sửa
+            $('#editAddDetailRow').click(function() {
+                const newRow = `
+                    <div class="detail-row">
+                        <input type="hidden" name="detailId[]">
+                        <input type="text" class="form-control" name="detailValue[]" placeholder="Giá trị" required>
+                        <input type="number" class="form-control" name="detailPrice[]" placeholder="Giá" min="0" required>
+                        <input type="number" class="form-control" name="detailInventory[]" placeholder="Tồn kho" min="0" required>
+                        <button type="button" class="btn btn-danger btn-sm remove-detail">Xóa</button>
+                    </div>`;
+                $('#editDetailsContainer').append(newRow);
+            });
+
+            // Xóa dòng chi tiết
+            $(document).on('click', '.remove-detail', function() {
+                if ($('.detail-row').length > 1) $(this).closest('.detail-row').remove();
+            });
+
+            // Checkbox chọn tất cả trong bảng chi tiết
+            $('.select-all').change(function() {
+                const variantId = $(this).data('variant-id');
+                $(`#details-${variantId} .variant-checkbox`).prop('checked', $(this).prop('checked'));
+            });
+
+            // Thêm biến thể
+            $('#addVariantForm').submit(async function(event) {
+                event.preventDefault();
+                const name = $('#variantName').val().trim();
+                const values = $('#variantValues').val().split(',').map(v => v.trim()).filter(v => v);
+                if (!name || !values.length) {
+                    alert("Tên biến thể và ít nhất một giá trị là bắt buộc!");
+                    return;
+                }
+                const details = [];
+                $('.detail-row').each(function() {
+                    const detailValue = $(this).find('input[name="detailValue[]"]').val().trim();
+                    const detailPrice = Number($(this).find('input[name="detailPrice[]"]').val()) || 0;
+                    const detailInventory = Number($(this).find('input[name="detailInventory[]"]').val()) || 0;
+                    if (detailValue) details.push({ value: detailValue, price: detailPrice, inventory: detailInventory });
                 });
 
-                // Xóa biến thể
-                window.deleteVariant = async function(id) {
-                    if (confirm('Bạn có chắc chắn muốn xóa biến thể này?')) {
-                        try {
-                            const res = await $.ajax({
-                                url: `/getbienthe/delete/${id}`,
-                                type: 'DELETE'
-                            });
-
-                            if (res.success) {
-                                alert("Xóa biến thể thành công!");
-                                location.reload();
-                            }
-                        } catch (error) {
-                            alert("Lỗi khi xóa biến thể. Vui lòng thử lại!");
-                        }
+                const data = { name, values, details };
+                try {
+                    const res = await $.ajax({
+                        url: '/products/getbienthe/create',
+                        type: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify(data)
+                    });
+                    if (res.status === 'Ok') {
+                        alert("Thêm biến thể thành công!");
+                        $('#addVariantModal').modal('hide');
+                        location.reload();
                     }
-                };
+                } catch (error) {
+                    alert("Lỗi khi thêm biến thể: " + (error.responseJSON?.message || "Vui lòng thử lại!"));
+                }
+            });
 
-                // Chỉnh sửa biến thể
-                window.editVariant = function(id, name, values) {
-                    $('#editVariantId').val(id);
-                    $('#editVariantName').val(name);
-                    $('#editVariantValues').val(values);
-
-                    const modal = new bootstrap.Modal(document.getElementById('editVariantModal'));
-                    modal.show();
-                };
-
-                // Gửi dữ liệu chỉnh sửa biến thể
-                $('#editVariantForm').submit(async function(event) {
-                    event.preventDefault();
-                    const id = $('#editVariantId').val();
-                    const updatedData = {
-                        name: $('#editVariantName').val().trim(),
-                        values: $('#editVariantValues').val().split(',').map(v => v.trim())
-                    };
-
+            // Xóa biến thể
+            window.deleteVariant = async function(id) {
+                if (confirm('Bạn có chắc chắn muốn xóa biến thể này?')) {
                     try {
                         const res = await $.ajax({
-                            url: `/getbienthe/update/${id}`,
-                            type: 'PUT',
-                            contentType: 'application/json',
-                            data: JSON.stringify(updatedData)
+                            url: `/products/getbienthe/delete/${id}`,
+                            type: 'DELETE'
                         });
-
-                        if (res.success) {
-                            alert("Cập nhật biến thể thành công!");
-                            $('#editVariantModal').modal('hide'); // Đóng modal sau khi cập nhật
+                        if (res.status === 'Ok') {
+                            alert("Xóa biến thể thành công!");
                             location.reload();
                         }
                     } catch (error) {
-                        alert("Lỗi khi cập nhật biến thể. Vui lòng thử lại!");
+                        alert("Lỗi khi xóa biến thể: " + (error.responseJSON?.message || "Vui lòng thử lại!"));
+                    }
+                }
+            };
+
+            // Chỉnh sửa biến thể
+            window.editVariant = async function(id) {
+                $('#editVariantId').val(id);
+                try {
+                    const variantRes = await $.ajax({ url: `/products/getbienthejson`, type: 'GET' });
+                    const currentVariant = variantRes.data.find(v => v._id === id);
+                    if (!currentVariant) throw new Error("Không tìm thấy biến thể!");
+
+                    $('#editVariantName').val(currentVariant.name || '');
+                    $('#editVariantValues').val(currentVariant.values?.join(', ') || '');
+
+                    const detailsRes = await $.ajax({ url: `/products/getdetailsvariant/${id}`, type: 'GET' });
+                    const details = detailsRes.data || [];
+                    $('#editDetailsContainer').empty();
+                    details.forEach(detail => {
+                        const detailRow = `
+                            <div class="detail-row">
+                                <input type="hidden" name="detailId[]" value="${detail._id || ''}">
+                                <input type="text" class="form-control" name="detailValue[]" value="${detail.value || ''}" required>
+                                <input type="number" class="form-control" name="detailPrice[]" value="${detail.price || 0}" min="0" required>
+                                <input type="number" class="form-control" name="detailInventory[]" value="${detail.inventory || 0}" min="0" required>
+                                <button type="button" class="btn btn-danger btn-sm remove-detail">Xóa</button>
+                            </div>`;
+                        $('#editDetailsContainer').append(detailRow);
+                    });
+                    const modal = new bootstrap.Modal(document.getElementById('editVariantModal'));
+                    modal.show();
+                } catch (error) {
+                    alert("Lỗi khi tải dữ liệu: " + (error.message || "Vui lòng thử lại!"));
+                }
+            };
+
+            // Cập nhật biến thể
+            $('#editVariantForm').submit(async function(event) {
+                event.preventDefault();
+                const id = $('#editVariantId').val();
+                const name = $('#editVariantName').val().trim();
+                const values = $('#editVariantValues').val().split(',').map(v => v.trim()).filter(v => v);
+                if (!name || !values.length) {
+                    alert("Tên biến thể và ít nhất một giá trị là bắt buộc!");
+                    return;
+                }
+                const details = [];
+                $('#editDetailsContainer .detail-row').each(function() {
+                    const detailId = $(this).find('input[name="detailId[]"]').val();
+                    const detailValue = $(this).find('input[name="detailValue[]"]').val().trim();
+                    const detailPrice = Number($(this).find('input[name="detailPrice[]"]').val()) || 0;
+                    const detailInventory = Number($(this).find('input[name="detailInventory[]"]').val()) || 0;
+                    if (detailValue && values.includes(detailValue)) {
+                        details.push({ id: detailId || undefined, value: detailValue, price: detailPrice, inventory: detailInventory });
                     }
                 });
+
+                const data = { name, values, details };
+                try {
+                    const res = await $.ajax({
+                        url: `/products/getbienthe/update/${id}`,
+                        type: 'PUT',
+                        contentType: 'application/json',
+                        data: JSON.stringify(data)
+                    });
+                    if (res.status === 'Ok') {
+                        alert("Cập nhật biến thể thành công!");
+                        $('#editVariantModal').modal('hide');
+                        location.reload();
+                    }
+                } catch (error) {
+                    alert("Lỗi khi cập nhật: " + (error.responseJSON?.message || "Vui lòng thử lại!"));
+                }
             });
-        </script>
-    </div>
+
+            // Thêm chi tiết biến thể
+            window.addDetailsVariant = function(variantId) {
+                $('#editDetailsVariantVariantId').val(variantId);
+                $('#editDetailsVariantValue').val('');
+                $('#editDetailsVariantPrice').val('');
+                $('#editDetailsVariantInventory').val('');
+                const modal = new bootstrap.Modal(document.getElementById('editDetailsVariantModal'));
+                modal.show();
+            };
+
+            // Lưu chi tiết biến thể
+            $('#editDetailsVariantForm').submit(async function(event) {
+                event.preventDefault();
+                const variantId = $('#editDetailsVariantVariantId').val();
+                const value = $('#editDetailsVariantValue').val().trim();
+                if (!value) {
+                    alert("Giá trị chi tiết biến thể là bắt buộc!");
+                    return;
+                }
+                const data = {
+                    variantId,
+                    value,
+                    price: Number($('#editDetailsVariantPrice').val()) || 0,
+                    inventory: Number($('#editDetailsVariantInventory').val()) || 0
+                };
+                try {
+                    const res = await $.ajax({
+                        url: '/products/getdetailsvariant/create',
+                        type: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify(data)
+                    });
+                    if (res.status === 'Ok') {
+                        alert("Thêm chi tiết biến thể thành công!");
+                        $('#editDetailsVariantModal').modal('hide');
+                        location.reload();
+                    }
+                } catch (error) {
+                    alert("Lỗi: " + (error.responseJSON?.message || "Vui lòng thử lại!"));
+                }
+            });
+
+            // Xóa chi tiết biến thể
+            window.deleteDetailsVariant = async function(id) {
+                if (confirm('Bạn có chắc chắn muốn xóa chi tiết biến thể này?')) {
+                    try {
+                        const res = await $.ajax({
+                            url: `/products/getdetailsvariant/delete/${id}`,
+                            type: 'DELETE'
+                        });
+                        if (res.status === 'Ok') {
+                            alert("Xóa chi tiết biến thể thành công!");
+                            location.reload();
+                        }
+                    } catch (error) {
+                        alert("Lỗi khi xóa: " + (error.responseJSON?.message || "Vui lòng thử lại!"));
+                    }
+                }
+            };
+
+            // Xác nhận chọn nhiều biến thể
+            window.confirmSelection = function() {
+                const selectedVariants = [];
+                $('.variant-checkbox:checked').each(function() {
+                    selectedVariants.push({
+                        variantId: $(this).data('variant-id'),
+                        detailsVariantId: $(this).data('details-id'),
+                        variantName: $(this).data('name'),
+                        detailValue: $(this).data('value'),
+                        price: $(this).data('price'),
+                        inventory: $(this).data('inventory')
+                    });
+                });
+
+                if (selectedVariants.length > 0 && window.opener) {
+                    window.opener.postMessage({ selectedVariants }, '*');
+                    window.close();
+                } else if (selectedVariants.length === 0) {
+                    alert("Vui lòng chọn ít nhất một biến thể!");
+                } else {
+                    alert("Không thể gửi dữ liệu về trang gốc!");
+                }
+            };
+        });
+    </script>
 </body>
 </html>

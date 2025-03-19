@@ -1,4 +1,7 @@
-const productService = require("../services/ProductService");
+const mongoose = require("mongoose");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs"); // Thêm import fs
 const Product = require("../models/Product");
 const Variant = require("../models/Variant");
 const DetailsVariant = require("../models/DetailsVariant");
@@ -9,22 +12,15 @@ const getProduct = async (req, res) => {
     const products = await Product.find();
     const variants = await Variant.find();
 
-    // Lấy thông tin chi tiết biến thể cho mỗi sản phẩm
     const productsWithVariants = await Promise.all(
       products.map(async (product) => {
         const productObj = product.toObject();
 
-        // Chỉ xử lý nếu sản phẩm có biến thể
-        if (
-          product.hasVariants &&
-          product.attributes &&
-          product.attributes.length > 0
-        ) {
+        if (product.hasVariants && product.attributes && product.attributes.length > 0) {
           const variantDetails = [];
 
           for (const attr of product.attributes) {
             if (attr.variantId) {
-              // Lấy chi tiết biến thể
               const detailsVariants = await DetailsVariant.find({
                 variantId: attr.variantId,
                 value: { $in: attr.values },
@@ -43,30 +39,19 @@ const getProduct = async (req, res) => {
         }
 
         return productObj;
-      }),
+      })
     );
 
-    try {
-      console.log("Fetched Variants:", variants);
-    } catch (e) {
-      console.error("Error logging variants:", e);
-    }
-
-    // Nếu request là API
-    if (
-      req.path.includes("/json") ||
-      req.headers.accept === "application/json"
-    ) {
+    if (req.path.includes("/json") || req.headers.accept === "application/json") {
       return res.json({
         products: productsWithVariants,
-        variants: variants,
+        variants,
       });
     }
 
-    // Render view cho giao diện web
     res.render("dashboard/products", {
       products: productsWithVariants,
-      variants: variants,
+      variants,
       page: "products",
     });
   } catch (error) {
@@ -82,12 +67,10 @@ const getProductAsJson = async (req, res) => {
   try {
     const products = await Product.find();
 
-    // Lấy thông tin chi tiết biến thể cho mỗi sản phẩm
     const productsWithVariants = await Promise.all(
       products.map(async (product) => {
         const productObj = product.toObject();
 
-        // Chỉ xử lý nếu sản phẩm có biến thể
         if (
           product.hasVariants &&
           product.attributes &&
@@ -97,7 +80,6 @@ const getProductAsJson = async (req, res) => {
 
           for (const attr of product.attributes) {
             if (attr.variantId) {
-              // Lấy chi tiết biến thể
               const detailsVariants = await DetailsVariant.find({
                 variantId: attr.variantId,
                 value: { $in: attr.values },
@@ -116,10 +98,9 @@ const getProductAsJson = async (req, res) => {
         }
 
         return productObj;
-      }),
+      })
     );
 
-    console.log("Fetched Products:", productsWithVariants);
     res.json(productsWithVariants);
   } catch (error) {
     console.error("Error fetching products:", error);
@@ -134,28 +115,52 @@ const getProductById = async (req, res) => {
   try {
     const { productId } = req.params;
 
-    if (!productId) {
-      return res.status(400).json({
-        status: "Error",
-        message: "ID sản phẩm là bắt buộc",
-      });
-    }
-
-    // Thêm kiểm tra này
-    if (!mongoose.Types.ObjectId.isValid(productId)) {
+    if (!productId || !mongoose.Types.ObjectId.isValid(productId)) {
       return res.status(400).json({
         status: "Error",
         message: "ID sản phẩm không hợp lệ",
       });
     }
 
-    const result = await productService.getProductWithVariants(productId);
-
-    if (result.status === "Error") {
-      return res.status(404).json(result);
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({
+        status: "Error",
+        message: "Không tìm thấy sản phẩm",
+      });
     }
 
-    res.json(result);
+    const productObj = product.toObject();
+    if (
+      product.hasVariants &&
+      product.attributes &&
+      product.attributes.length > 0
+    ) {
+      const variantDetails = [];
+
+      for (const attr of product.attributes) {
+        if (attr.variantId) {
+          const detailsVariants = await DetailsVariant.find({
+            variantId: attr.variantId,
+            value: { $in: attr.values },
+          });
+
+          variantDetails.push({
+            name: attr.name,
+            values: attr.values,
+            variantId: attr.variantId,
+            details: detailsVariants,
+          });
+        }
+      }
+
+      productObj.variantDetails = variantDetails;
+    }
+
+    res.json({
+      status: "Ok",
+      data: productObj,
+    });
   } catch (error) {
     console.error("Error:", error);
     res.status(500).json({
@@ -166,33 +171,88 @@ const getProductById = async (req, res) => {
   }
 };
 
+// Đường dẫn thư mục uploads
+const uploadDir = path.join(__dirname, "../public/images");
+
+// Tạo thư mục uploads nếu chưa tồn tại
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// Cấu hình multer để lưu file ảnh
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir); // Sử dụng đường dẫn tuyệt đối
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + path.extname(file.originalname)); // Đặt tên file duy nhất
+  },
+});
+const upload = multer({ storage: storage });
+
 // Thêm sản phẩm
 const addProduct = async (req, res) => {
   try {
-    console.log("req.body", req.body);
     const {
       name,
-      price,
-      thumbnail,
-      description,
       category,
-      inventory,
       status,
-      attributes,
+      selectedVariants,
     } = req.body;
 
-    if (!name || !price || !category) {
+    if (!name || !category) {
       return res.status(400).json({
         status: "Error",
-        message: "Tên, giá và danh mục sản phẩm là bắt buộc",
+        message: "Tên và danh mục sản phẩm là bắt buộc",
       });
     }
 
-    const result = await productService.addProduct(req.body);
-    return res.status(result.status === "Error" ? 400 : 200).json(result);
+    // Lấy đường dẫn file ảnh từ multer
+    const thumbnail = req.file ? `/images/${req.file.filename}` : ""; // Đổi /uploads thành /images để khớp với uploadDir
+
+    const variantData = selectedVariants ? JSON.parse(selectedVariants) : [];
+    let price = 0;
+    let inventory = 0;
+    const attributes = [];
+
+    if (variantData.length > 0) {
+      for (const variant of variantData) {
+        const detailVariant = await DetailsVariant.findById(variant.detailsVariantId);
+        if (detailVariant) {
+          if (attributes.length === 0) {
+            price = detailVariant.price || 0;
+            inventory = detailVariant.inventory || 0;
+          }
+          attributes.push({
+            variantId: variant.variantId,
+            name: variant.variantName,
+            values: [variant.detailValue],
+          });
+        }
+      }
+    }
+
+    const newProduct = new Product({
+      name,
+      price,
+      thumbnail,
+      category,
+      inventory,
+      status: status || "available",
+      attributes,
+      hasVariants: attributes.length > 0,
+    });
+
+    await newProduct.save();
+
+    res.status(201).json({
+      status: "Ok",
+      message: "Sản phẩm đã được thêm thành công",
+      data: newProduct,
+    });
   } catch (error) {
     console.error("Error:", error);
-    return res.status(500).json({
+    res.status(500).json({
       status: "Error",
       message: error.message || "Đã xảy ra lỗi",
     });
@@ -205,18 +265,38 @@ const updateProduct = async (req, res) => {
     const { productId } = req.params;
     const updatedData = req.body;
 
-    if (!productId) {
+    if (!productId || !mongoose.Types.ObjectId.isValid(productId)) {
       return res.status(400).json({
         status: "Error",
-        message: "ID sản phẩm là bắt buộc",
+        message: "ID sản phẩm không hợp lệ",
       });
     }
 
-    const result = await productService.updateProduct(productId, updatedData);
-    return res.status(result.status === "Error" ? 400 : 200).json(result);
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({
+        status: "Error",
+        message: "Không tìm thấy sản phẩm",
+      });
+    }
+
+    const updatedProduct = await Product.findByIdAndUpdate(
+      productId,
+      {
+        ...updatedData,
+        hasVariants: updatedData.attributes && updatedData.attributes.length > 0,
+      },
+      { new: true }
+    );
+
+    res.status(200).json({
+      status: "Ok",
+      message: "Sản phẩm đã được cập nhật thành công",
+      data: updatedProduct,
+    });
   } catch (error) {
     console.error("Error:", error);
-    return res.status(500).json({
+    res.status(500).json({
       status: "Error",
       message: error.message || "Đã xảy ra lỗi",
     });
@@ -228,18 +308,28 @@ const deleteProduct = async (req, res) => {
   try {
     const { productId } = req.params;
 
-    if (!productId) {
+    if (!productId || !mongoose.Types.ObjectId.isValid(productId)) {
       return res.status(400).json({
         status: "Error",
-        message: "ID sản phẩm là bắt buộc",
+        message: "ID sản phẩm không hợp lệ",
       });
     }
 
-    const result = await productService.deleteProduct(productId);
-    return res.status(result.status === "Error" ? 400 : 200).json(result);
+    const product = await Product.findByIdAndDelete(productId);
+    if (!product) {
+      return res.status(404).json({
+        status: "Error",
+        message: "Không tìm thấy sản phẩm",
+      });
+    }
+
+    res.status(200).json({
+      status: "Ok",
+      message: "Sản phẩm đã được xóa thành công",
+    });
   } catch (error) {
     console.error("Error:", error);
-    return res.status(500).json({
+    res.status(500).json({
       status: "Error",
       message: error.message || "Đã xảy ra lỗi",
     });
@@ -250,23 +340,43 @@ const deleteProduct = async (req, res) => {
 const addProductVariant = async (req, res) => {
   try {
     const { productId } = req.params;
-    const variantData = req.body;
+    const { variantId, name, values } = req.body;
 
-    if (!productId) {
+    if (!productId || !mongoose.Types.ObjectId.isValid(productId)) {
       return res.status(400).json({
         status: "Error",
-        message: "ID sản phẩm là bắt buộc",
+        message: "ID sản phẩm không hợp lệ",
       });
     }
 
-    const result = await productService.addProductVariant(
-      productId,
-      variantData,
-    );
-    return res.status(result.status === "Error" ? 400 : 200).json(result);
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({
+        status: "Error",
+        message: "Không tìm thấy sản phẩm",
+      });
+    }
+
+    const variant = await Variant.findById(variantId);
+    if (!variant) {
+      return res.status(404).json({
+        status: "Error",
+        message: "Không tìm thấy biến thể",
+      });
+    }
+
+    product.attributes.push({ name, values, variantId });
+    product.hasVariants = true;
+    await product.save();
+
+    res.status(200).json({
+      status: "Ok",
+      message: "Biến thể đã được thêm vào sản phẩm",
+      data: product,
+    });
   } catch (error) {
     console.error("Error:", error);
-    return res.status(500).json({
+    res.status(500).json({
       status: "Error",
       message: error.message || "Đã xảy ra lỗi",
     });
@@ -279,21 +389,33 @@ const updateVariantDetail = async (req, res) => {
     const { detailId } = req.params;
     const updatedData = req.body;
 
-    if (!detailId) {
+    if (!detailId || !mongoose.Types.ObjectId.isValid(detailId)) {
       return res.status(400).json({
         status: "Error",
-        message: "ID chi tiết biến thể là bắt buộc",
+        message: "ID chi tiết biến thể không hợp lệ",
       });
     }
 
-    const result = await productService.updateVariantDetail(
+    const detailVariant = await DetailsVariant.findByIdAndUpdate(
       detailId,
       updatedData,
+      { new: true }
     );
-    return res.status(result.status === "Error" ? 400 : 200).json(result);
+    if (!detailVariant) {
+      return res.status(404).json({
+        status: "Error",
+        message: "Không tìm thấy chi tiết biến thể",
+      });
+    }
+
+    res.status(200).json({
+      status: "Ok",
+      message: "Chi tiết biến thể đã được cập nhật",
+      data: detailVariant,
+    });
   } catch (error) {
     console.error("Error:", error);
-    return res.status(500).json({
+    res.status(500).json({
       status: "Error",
       message: error.message || "Đã xảy ra lỗi",
     });
@@ -304,7 +426,7 @@ module.exports = {
   getProduct,
   getProductAsJson,
   getProductById,
-  addProduct,
+  addProduct: [upload.single("thumbnail"), addProduct],
   updateProduct,
   deleteProduct,
   addProductVariant,

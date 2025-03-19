@@ -1,7 +1,6 @@
 const DetailsVariant = require('../models/DetailsVariant');
 const Variant = require('../models/Variant');
 
-// Lấy danh sách tất cả DetailsVariant
 const getAllDetailsVariants = async (req, res) => {
     try {
         const detailsVariants = await DetailsVariant.find().populate('variantId');
@@ -17,7 +16,6 @@ const getAllDetailsVariants = async (req, res) => {
     }
 };
 
-// Lấy danh sách DetailsVariant theo variantId
 const getDetailsByVariant = async (req, res) => {
     try {
         const { variantId } = req.params;
@@ -34,14 +32,11 @@ const getDetailsByVariant = async (req, res) => {
     }
 };
 
-// Thêm một DetailsVariant mới
 const addDetailsVariant = async (req, res) => {
     try {
         console.log("Dữ liệu nhận được:", req.body);
-        
         const { variantId, value, price, compareAtPrice, inventory } = req.body;
         
-        // Kiểm tra xem variant có tồn tại không
         const variant = await Variant.findById(variantId);
         if (!variant) {
             return res.status(400).json({
@@ -50,7 +45,6 @@ const addDetailsVariant = async (req, res) => {
             });
         }
         
-        // Kiểm tra giá trị value có nằm trong danh sách của Variant không
         if (!variant.values.includes(value)) {
             return res.status(400).json({
                 status: 'Error',
@@ -58,7 +52,6 @@ const addDetailsVariant = async (req, res) => {
             });
         }
         
-        // Tạo mới DetailsVariant
         const newDetailsVariant = new DetailsVariant({
             variantId,
             value,
@@ -82,7 +75,6 @@ const addDetailsVariant = async (req, res) => {
     }
 };
 
-// Xóa một DetailsVariant
 const deleteDetailsVariant = async (req, res) => {
     try {
         const { detailsVariantId } = req.params;
