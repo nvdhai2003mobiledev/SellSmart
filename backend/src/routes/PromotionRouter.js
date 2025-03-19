@@ -1,9 +1,10 @@
 const express = require("express");
 const router = express.Router();
 const promotionController = require("../controllers/PromotionController");
+const { protect } = require("../middleware/auth");
 
 // 📌 Lấy toàn bộ danh sách khuyến mãi và render ra giao diện EJS
-router.get("/", promotionController.getPromotions);
+router.get("/", protect, promotionController.getPromotions);
 
 // 📌 Lấy danh sách khuyến mãi dưới dạng JSON
 router.get("/json", promotionController.getPromotionAsJson);
