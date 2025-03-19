@@ -106,7 +106,7 @@ const deleteOrder = async (req, res) => {
     await orderService.deleteOrder(req.params.id);
     res.json({ message: "Order deleted successfully" });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 const createOrderScreen = async (req, res) => {
