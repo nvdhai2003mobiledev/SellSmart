@@ -32,22 +32,23 @@
     }
 
     return {
-        customerID,
-        products: selectedProducts.map(p => ({
-            productID: p.productID,
-            name: p.name,
-            inventory: p.inventory,
-            price: p.price,
-            attributes: Object.entries(p.attributes).map(([key, value]) => ({
-                name: key,
-                value: [value]  // Mảng giá trị theo schema
-            }))
-        })),
-        totalAmount: selectedProducts.reduce((sum, p) => sum + (p.price * p.quantity), 0),
-        paymentMethod: 'cash',
-        shippingAddress: customerAddress,
-        notes: shippingNotes || ""
-    };
+    customerID,
+    products: selectedProducts.map(p => ({
+        productID: p.productID,
+        name: p.name,
+        inventory: p.inventory,
+        price: p.price,
+        quantity: p.quantity, // Thêm trường quantity vào đây
+        attributes: Object.entries(p.attributes).map(([key, value]) => ({
+            name: key,
+            value: [value]  // Mảng giá trị theo schema
+        }))
+    })),
+    totalAmount: selectedProducts.reduce((sum, p) => sum + (p.price * p.quantity), 0),
+    paymentMethod: 'cash',
+    shippingAddress: "Nhận tại cửa hàng",
+    notes: shippingNotes || ""
+};
 }
 
 
@@ -76,6 +77,25 @@ let selectedProducts = [];
 let selectedAttributes = {}; // Lưu các thuộc tính đã chọn của sản phẩm
 
 function openProductDialog() {
+    // Reset trường tìm kiếm
+    const searchInput = document.getElementById('productSearchInput');
+    if (searchInput) {
+        searchInput.value = '';
+    }
+    
+    // Hiển thị lại tất cả các sản phẩm
+    const productRows = document.querySelectorAll('.product-row');
+    productRows.forEach(row => {
+        row.style.display = '';
+    });
+    
+    // Ẩn thông báo không tìm thấy sản phẩm
+    const noProductsMessage = document.getElementById('noProductsMessage');
+    if (noProductsMessage) {
+        noProductsMessage.style.display = 'none';
+    }
+    
+    // Hiển thị dialog
     document.getElementById("productDialog").style.display = "block";
 }
 
@@ -290,14 +310,159 @@ function saveAttributeSelection() {
     closeAttributeDialog();
 }
 
-
+function filterProducts() {
+    // Lấy giá trị tìm kiếm (và chuyển thành chữ thường để so sánh không phân biệt chữ hoa/thường)
+    const searchTerm = document.getElementById('productSearchInput').value.trim().toLowerCase();
+    
+    // Lấy tất cả các dòng sản phẩm
+    const productRows = document.querySelectorAll('.product-row');
+    
+    // Khởi tạo biến đếm sản phẩm hiển thị
+    let visibleProductCount = 0;
+    
+    // Lặp qua từng dòng để kiểm tra
+    productRows.forEach(row => {
+        // Lấy tên sản phẩm từ cột tên (phần tử có class 'product-name')
+        const productNameElement = row.querySelector('.product-name');
+        const productName = productNameElement ? productNameElement.textContent.toLowerCase() : '';
+        
+        // Kiểm tra xem tên sản phẩm có chứa chuỗi tìm kiếm không
+        if (productName.includes(searchTerm)) {
+            // Nếu có, hiển thị dòng
+            row.style.display = '';
+            visibleProductCount++;
+        } else {
+            // Nếu không, ẩn dòng
+            row.style.display = 'none';
+        }
+    });
+    
+    // Hiển thị thông báo nếu không có sản phẩm nào phù hợp
+    const noProductsMessage = document.getElementById('noProductsMessage');
+    if (visibleProductCount === 0) {
+        noProductsMessage.style.display = 'block';
+    } else {
+        noProductsMessage.style.display = 'none';
+    }
+}
 function openCustomerDialog() {
+    // Reset trường tìm kiếm
+    const searchInput = document.getElementById('customerSearchInput');
+    if (searchInput) {
+        searchInput.value = '';
+    }
+    
+    // Hiển thị lại tất cả các khách hàng
+    const customerRows = document.querySelectorAll('.customer-row');
+    customerRows.forEach(row => {
+        row.style.display = '';
+    });
+    
+    // Ẩn thông báo không tìm thấy khách hàng
+    const noCustomersMessage = document.getElementById('noCustomersMessage');
+    if (noCustomersMessage) {
+        noCustomersMessage.style.display = 'none';
+    }
+    
+    // Hiển thị dialog
     document.getElementById("customerDialog").style.display = "block";
 }
 
 function closeCustomerDialog() {
     document.getElementById("customerDialog").style.display = "none";
 }
+// Kiểm tra trạng thái dữ liệu khách hàng để bật/tắt nút thêm khách hàng
+function checkCustomerDataStatus() {
+    const customerID = document.getElementById('customerID').value;
+    const addCustomerBtn = document.getElementById('addCustomerBtn');
+    
+    // Nếu đã chọn khách hàng từ danh sách, vô hiệu hóa nút thêm khách hàng
+    if (customerID) {
+        addCustomerBtn.disabled = true;
+        addCustomerBtn.style.opacity = "0.5";
+        addCustomerBtn.style.cursor = "not-allowed";
+    } else {
+        addCustomerBtn.disabled = false;
+        addCustomerBtn.style.opacity = "1";
+        addCustomerBtn.style.cursor = "pointer";
+    }
+}
+
+// Thêm khách hàng mới
+function addNewCustomer() {
+    // Lấy thông tin từ form
+    const fullName = document.getElementById('customerName').value.trim();
+    const phoneNumber = document.getElementById('customerPhone').value.trim();
+    const email = document.getElementById('customerEmail').value.trim();
+    const address = document.getElementById('customerAddress').value.trim();
+    
+    // Kiểm tra dữ liệu đầu vào
+    if (!fullName || !phoneNumber || !email || !address) {
+        alert("Vui lòng nhập đầy đủ thông tin khách hàng!");
+        return;
+    }
+    
+    // Kiểm tra định dạng email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        alert("Email không hợp lệ!");
+        return;
+    }
+    
+    // Kiểm tra định dạng số điện thoại (đơn giản)
+    const phoneRegex = /^\d{10,11}$/;
+    if (!phoneRegex.test(phoneNumber)) {
+        alert("Số điện thoại không hợp lệ! Vui lòng nhập 10-11 chữ số.");
+        return;
+    }
+    
+    // Thực hiện gọi API để thêm khách hàng mới
+    fetch("http://localhost:3000/customers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            fullName,
+            phoneNumber,
+            email,
+            address
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Nếu thêm thành công, cập nhật ID của khách hàng vừa thêm
+            document.getElementById('customerID').value = data.customer._id;
+            
+            // Hiển thị thông báo thành công
+            alert("Thêm khách hàng thành công!");
+            
+            // Cập nhật trạng thái nút thêm khách hàng
+            checkCustomerDataStatus();
+            
+            // Cập nhật thông tin giao hàng
+            updateDeliveryInfo();
+        } else {
+            alert("Thêm khách hàng không thành công: " + data.message);
+        }
+    })
+    .catch(error => {
+        console.error("Lỗi khi thêm khách hàng:", error);
+        
+        // Kiểm tra các lỗi phổ biến
+        if (error.message.includes("E11000")) {
+            // Lỗi duplicate key (trùng email hoặc số điện thoại)
+            alert("Email hoặc số điện thoại đã tồn tại trong hệ thống!");
+        } else {
+            alert("Có lỗi xảy ra khi thêm khách hàng. Vui lòng thử lại!");
+        }
+    });
+}
+
 
 function updateDeliveryInfo() {
     // Cập nhật thông tin giao hàng từ thông tin khách hàng
@@ -307,6 +472,7 @@ function updateDeliveryInfo() {
     document.getElementById("shippingCustomerAddressText").innerText = document.getElementById("customerAddress").value || "Chưa có";
 }
 
+// Cập nhật hàm selectCustomer để kiểm tra trạng thái nút thêm khách hàng
 function selectCustomer(id, name, phone, email, address) {
     // Cập nhật thông tin khách hàng
     document.getElementById("customerID").value = id; 
@@ -317,7 +483,57 @@ function selectCustomer(id, name, phone, email, address) {
 
     // Cập nhật thông tin giao hàng
     updateDeliveryInfo();
+    
+    // Kiểm tra trạng thái nút thêm khách hàng
+    checkCustomerDataStatus();
+    
     closeCustomerDialog();
+}
+
+// Hàm khởi tạo trạng thái ban đầu
+window.onload = function() {
+    // Gọi hàm kiểm tra trạng thái nút thêm khách hàng
+    checkCustomerDataStatus();
+    
+    // Các mã khởi tạo khác nếu có...
+}
+function filterCustomers() {
+    // Lấy giá trị tìm kiếm (và chuyển thành chữ thường để so sánh không phân biệt chữ hoa/thường)
+    const searchTerm = document.getElementById('customerSearchInput').value.trim().toLowerCase();
+    
+    // Lấy tất cả các dòng khách hàng
+    const customerRows = document.querySelectorAll('.customer-row');
+    
+    // Khởi tạo biến đếm khách hàng hiển thị
+    let visibleCustomerCount = 0;
+    
+    // Lặp qua từng dòng để kiểm tra
+    customerRows.forEach(row => {
+        // Lấy tên và số điện thoại khách hàng
+        const customerNameElement = row.querySelector('.customer-name');
+        const customerPhoneElement = row.querySelector('.customer-phone');
+        
+        const customerName = customerNameElement ? customerNameElement.textContent.toLowerCase() : '';
+        const customerPhone = customerPhoneElement ? customerPhoneElement.textContent.toLowerCase() : '';
+        
+        // Kiểm tra xem tên hoặc số điện thoại có chứa chuỗi tìm kiếm không
+        if (customerName.includes(searchTerm) || customerPhone.includes(searchTerm)) {
+            // Nếu có, hiển thị dòng
+            row.style.display = '';
+            visibleCustomerCount++;
+        } else {
+            // Nếu không, ẩn dòng
+            row.style.display = 'none';
+        }
+    });
+    
+    // Hiển thị thông báo nếu không có khách hàng nào phù hợp
+    const noCustomersMessage = document.getElementById('noCustomersMessage');
+    if (visibleCustomerCount === 0) {
+        noCustomersMessage.style.display = 'block';
+    } else {
+        noCustomersMessage.style.display = 'none';
+    }
 }
     </script>
     <style>
@@ -581,23 +797,26 @@ function selectCustomer(id, name, phone, email, address) {
 
     <div class="container">
         <!-- Thông tin khách hàng -->
-        <div class="box">
-            <h3>Thông tin khách hàng</h3>
-            <input type="hidden" id="customerID">
-            <label>Tên khách hàng:</label>
-            <input type="text" id="customerName" name="customerName" required onchange="updateDeliveryInfo()">
-            
-            <label>Số điện thoại:</label>
-            <input type="text" id="customerPhone" name="customerPhone" required onchange="updateDeliveryInfo()">
-            
-            <label>Email:</label>
-            <input type="email" id="customerEmail" name="customerEmail" required onchange="updateDeliveryInfo()">
-            
-            <label>Địa chỉ:</label>
-            <input type="text" id="customerAddress" name="customerAddress" required onchange="updateDeliveryInfo()">
+<div class="box">
+    <h3>Thông tin khách hàng</h3>
+    <input type="hidden" id="customerID">
+    <label>Tên khách hàng:</label>
+    <input type="text" id="customerName" name="customerName" required onchange="updateDeliveryInfo(); checkCustomerDataStatus()">
     
-            <button type="button" onclick="openCustomerDialog()">Chọn Khách Hàng</button>
-        </div>
+    <label>Số điện thoại:</label>
+    <input type="text" id="customerPhone" name="customerPhone" required onchange="updateDeliveryInfo(); checkCustomerDataStatus()">
+    
+    <label>Email:</label>
+    <input type="email" id="customerEmail" name="customerEmail" required onchange="updateDeliveryInfo(); checkCustomerDataStatus()">
+    
+    <label>Địa chỉ:</label>
+    <input type="text" id="customerAddress" name="customerAddress" required onchange="updateDeliveryInfo(); checkCustomerDataStatus()">
+
+    <div style="display: flex; gap: 10px; margin-top: 10px;">
+        <button type="button" onclick="openCustomerDialog()">Chọn Khách Hàng</button>
+        <button type="button" id="addCustomerBtn" onclick="addNewCustomer()">Thêm Khách Hàng</button>
+    </div>
+</div>
     
         <!-- Thông tin sản phẩm -->
         <div class="box">
@@ -621,7 +840,7 @@ function selectCustomer(id, name, phone, email, address) {
     <!-- Thông tin giao hàng (đã loại bỏ phần lựa chọn hình thức giao hàng) -->
     <div style="margin-top: 30px; margin-bottom: 70px;">
         <div class="box1">
-            <h3>Thông tin giao hàng</h3>
+            <h3>Thông tin chi tiết</h3>
             <div class="delivery-info">
                 <div class="delivery-info-column">
                     <div class="delivery-info-field">
@@ -639,7 +858,7 @@ function selectCustomer(id, name, phone, email, address) {
                         <div id="shippingCustomerEmailText" class="delivery-info-value">Chưa có</div>
                     </div>
                     <div class="delivery-info-field">
-                        <label class="delivery-info-label">Địa chỉ giao hàng:</label>
+                        <label class="delivery-info-label">Địa chỉ :</label>
                         <div id="shippingCustomerAddressText" class="delivery-info-value">Chưa có</div>
                     </div>
                 </div>
@@ -655,21 +874,30 @@ function selectCustomer(id, name, phone, email, address) {
     </div>
 
     <!-- Dialog chọn sản phẩm -->
-    <div id="productDialog" style="display:none; position:fixed; top:20%; left:30%; width:40%; background:white; padding:20px; border:1px solid black;">
-        <h3>Chọn Sản Phẩm</h3>
-        <table border="1">
-            <tr>
-                <th>Ảnh</th>
-                <th>Tên</th>
-                <th>Thuộc tính</th>
-                <th>Giá</th>
-                <th>Số lượng</th>
-                <th>Chọn</th>
-            </tr>
+<div id="productDialog" style="display:none; position:fixed; top:20%; left:30%; width:40%; background:white; padding:20px; border:1px solid black;">
+    <h3>Chọn Sản Phẩm</h3>
+    
+    <!-- Thêm trường tìm kiếm sản phẩm -->
+    <div style="margin-bottom: 15px;">
+        <label for="productSearchInput">Tìm kiếm sản phẩm:</label>
+        <input type="text" id="productSearchInput" placeholder="Nhập tên sản phẩm..." style="width: 100%; padding: 8px; margin-top: 5px;" 
+               onkeyup="filterProducts()">
+    </div>
+    
+    <table border="1">
+        <tr>
+            <th>Ảnh</th>
+            <th>Tên</th>
+            <th>Thuộc tính</th>
+            <th>Giá</th>
+            <th>Số lượng</th>
+            <th>Chọn</th>
+        </tr>
+        <tbody id="productTableBody">
             <% products.forEach(product => { %>
-                <tr>
+                <tr class="product-row">
                     <td><img src="<%= product.thumbnail %>" width="50"></td>
-                    <td><%= product.name %></td>
+                    <td class="product-name"><%= product.name %></td>
                     <td>
                         <span id="selected-attributes-<%= product._id %>">Chưa chọn</span>
                         <button type="button" class="small-btn" 
@@ -686,10 +914,14 @@ function selectCustomer(id, name, phone, email, address) {
                     </td>
                 </tr>
             <% }) %>
-        </table>
-        <button onclick="saveSelectedProducts()">Lưu</button>
-        <button onclick="closeProductDialog()">Đóng</button>
+        </tbody>
+    </table>
+    <div id="noProductsMessage" style="display: none; text-align: center; padding: 15px; color: #555;">
+        Không tìm thấy sản phẩm nào phù hợp
     </div>
+    <button onclick="saveSelectedProducts()">Lưu</button>
+    <button onclick="closeProductDialog()">Đóng</button>
+</div>
 
     <!-- Dialog chọn thuộc tính -->
     <div id="attributeDialog" class="dialog" style="display:none;">
@@ -700,28 +932,41 @@ function selectCustomer(id, name, phone, email, address) {
     </div>
 
     <!-- Dialog chọn khách hàng -->
-    <div id="customerDialog" style="display:none; position:fixed; top:20%; left:30%; width:40%; background:white; padding:20px; border:1px solid black;">
-        <h3>Chọn Khách Hàng</h3>
-        <table border="1">
-            <tr>
-                <th>Tên</th>
-                <th>Điện thoại</th>
-                <th>Email</th>
-                <th>Địa chỉ</th>
-                <th>Chọn</th>
-            </tr>
+<div id="customerDialog" style="display:none; position:fixed; top:20%; left:30%; width:40%; background:white; padding:20px; border:1px solid black;">
+    <h3>Chọn Khách Hàng</h3>
+    
+    <!-- Thêm trường tìm kiếm khách hàng -->
+    <div style="margin-bottom: 15px;">
+        <label for="customerSearchInput">Tìm kiếm khách hàng:</label>
+        <input type="text" id="customerSearchInput" placeholder="Nhập tên hoặc số điện thoại..." style="width: 100%; padding: 8px; margin-top: 5px;" 
+               onkeyup="filterCustomers()">
+    </div>
+    
+    <table border="1">
+        <tr>
+            <th>Tên</th>
+            <th>Điện thoại</th>
+            <th>Email</th>
+            <th>Địa chỉ</th>
+            <th>Chọn</th>
+        </tr>
+        <tbody id="customerTableBody">
             <% customers.forEach(customer => { %>
-                <tr>
-                    <td><%= customer.fullName %></td>
-                    <td><%= customer.phoneNumber %></td>
+                <tr class="customer-row">
+                    <td class="customer-name"><%= customer.fullName %></td>
+                    <td class="customer-phone"><%= customer.phoneNumber %></td>
                     <td><%= customer.email %></td>
                     <td><%= customer.address %></td>
                     <td><button type="button" onclick="selectCustomer('<%= customer.id %>', '<%= customer.fullName %>', '<%= customer.phoneNumber %>', '<%= customer.email %>', '<%= customer.address %>')">Chọn</button></td>
                 </tr>
             <% }) %>
-        </table>
-        <button onclick="closeCustomerDialog()">Đóng</button>
+        </tbody>
+    </table>
+    <div id="noCustomersMessage" style="display: none; text-align: center; padding: 15px; color: #555;">
+        Không tìm thấy khách hàng nào phù hợp
     </div>
+    <button onclick="closeCustomerDialog()">Đóng</button>
+</div>
 </div>
 </body>
 </html>
