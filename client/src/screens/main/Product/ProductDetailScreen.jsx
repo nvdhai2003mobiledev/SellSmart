@@ -1,25 +1,32 @@
 import React from 'react';
-import { View, Text, Image, TouchableOpacity,StyleSheet } from 'react-native';
+import { View, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { BaseLayout, Button } from '../../../components';
+import { useNavigation } from '@react-navigation/native';
+import { BaseLayout, Button, DynamicText, Header } from '../../../components';
+import { scaleHeight } from '../../../utils';
 
 const ProductDetailScreen = () => {
+  const navigation = useNavigation();
+
+  const onSubmit = () => {
+    console.log('Lưu chi tiết sản phẩm');
+    // Thêm logic lưu dữ liệu vào đây (ví dụ: gửi API)
+  };
+
   return (
     <BaseLayout>
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity>
-          <Icon name="chevron-back-outline" size={24} color="#000" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Chi tiết sản phẩm</Text>
-        <View style={{ width: 24 }} /> {/* Placeholder để cân đối */}
-      </View>
+      <Header
+        title="Chi tiết sản phẩm"
+        showBackIcon={true}
+        onPressBack={() => navigation.goBack()}
+      />
 
       {/* Thông tin cơ bản */}
       <View style={styles.basicInfoContainer}>
-        <Text style={styles.productName}>MacBook Pro 14 2023</Text>
+        <DynamicText style={styles.productName}>MacBook Pro 14 2023</DynamicText>
         <View style={styles.codeContainer}>
-          <Text style={styles.productCode}>ST245</Text>
+          <DynamicText style={styles.productCode}>ST245</DynamicText>
           <TouchableOpacity>
             <Icon name="pencil-outline" size={20} color="#007AFF" />
           </TouchableOpacity>
@@ -40,16 +47,16 @@ const ProductDetailScreen = () => {
       {/* Giá tiền */}
       <View style={styles.priceContainer}>
         <View style={styles.priceItem}>
-          <Text style={styles.priceLabel}>Giá bán</Text>
-          <Text style={styles.priceValue}>30.900.000đ</Text>
+          <DynamicText style={styles.priceLabel}>Giá bán</DynamicText>
+          <DynamicText style={styles.priceValue}>30.900.000đ</DynamicText>
         </View>
         <View style={styles.priceItem}>
-          <Text style={styles.priceLabel}>Lợi nhuận</Text>
-          <Text style={styles.priceValue}>2.000.000đ</Text>
+          <DynamicText style={styles.priceLabel}>Lợi nhuận</DynamicText>
+          <DynamicText style={styles.priceValue}>2.000.000đ</DynamicText>
         </View>
         <View style={styles.priceItem}>
-          <Text style={styles.priceLabel}>Giá nhập</Text>
-          <Text style={styles.priceValue}>28.900.000đ</Text>
+          <DynamicText style={styles.priceLabel}>Giá nhập</DynamicText>
+          <DynamicText style={styles.priceValue}>28.900.000đ</DynamicText>
         </View>
       </View>
 
@@ -60,38 +67,39 @@ const ProductDetailScreen = () => {
             source={{ uri: 'https://via.placeholder.com/50' }}
             style={styles.configIcon}
           />
-          <Text style={styles.configText}>16GB RAM</Text>
-          <Text style={styles.configPrice}>30.900.000đ</Text>
+          <DynamicText style={styles.configText}>16GB RAM</DynamicText>
+          <DynamicText style={styles.configPrice}>30.900.000đ</DynamicText>
         </View>
         <View style={styles.configItem}>
           <Image
             source={{ uri: 'https://via.placeholder.com/50' }}
             style={styles.configIcon}
           />
-          <Text style={styles.configText}>32GB RAM</Text>
-          <Text style={styles.configPrice}>38.900.000đ</Text>
+          <DynamicText style={styles.configText}>32GB RAM</DynamicText>
+          <DynamicText style={styles.configPrice}>38.900.000đ</DynamicText>
         </View>
         <View style={styles.configItem}>
           <Image
             source={{ uri: 'https://via.placeholder.com/50' }}
             style={styles.configIcon}
           />
-          <Text style={styles.configText}>1TB</Text>
-          <Text style={styles.configPrice}>Còn hàng: 10</Text>
+          <DynamicText style={styles.configText}>1TB</DynamicText>
+          <DynamicText style={styles.configPrice}>Còn hàng: 10</DynamicText>
         </View>
         <View style={styles.configItem}>
           <Image
             source={{ uri: 'https://via.placeholder.com/50' }}
             style={styles.configIcon}
           />
-          <Text style={styles.configText}>512GB</Text>
-          <Text style={styles.configPrice}>Còn hàng: 8</Text>
+          <DynamicText style={styles.configText}>512GB</DynamicText>
+          <DynamicText style={styles.configPrice}>Còn hàng: 8</DynamicText>
         </View>
       </View>
 
       {/* Nút Lưu */}
       <Button
         title="Lưu"
+        onPress={onSubmit}
         buttonContainerStyle={styles.saveButton}
         titleStyle={styles.saveButtonText}
       />
@@ -101,17 +109,6 @@ const ProductDetailScreen = () => {
 
 // Styles
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#000',
-  },
   basicInfoContainer: {
     backgroundColor: '#fff',
     borderRadius: 8,
@@ -209,6 +206,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
+    marginBottom: scaleHeight(20),
   },
   saveButtonText: {
     fontSize: 16,
