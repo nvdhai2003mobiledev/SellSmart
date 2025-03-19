@@ -1,287 +1,347 @@
 <%- include('../layouts/main.ejs') %>
-<div class="main-content">
-    <h1 class="text-center mb-4">Danh sách sản phẩm</h1>
+<div class="main-content p-4">
+    <div class="container">
+        <h1 class="text-center mb-4 fw-bold" style="color: #343a40;">Danh sách sản phẩm</h1>
 
-    <!-- Form thêm sản phẩm -->
-    <div class="mb-4">
-        <h3>Thêm sản phẩm mới</h3>
-        <form id="addProductForm">
-            <input type="text" id="name" placeholder="Tên sản phẩm" required class="form-control mb-2">
-            <input type="text" id="thumbnail" placeholder="URL hình ảnh" class="form-control mb-2">
-            <input type="number" id="price" placeholder="Giá" required class="form-control mb-2">
-            <textarea id="description" placeholder="Mô tả" class="form-control mb-2"></textarea>
-            <input type="text" id="category" placeholder="Danh mục" required class="form-control mb-2">
-            <input type="number" id="stockQuantity" placeholder="Số lượng trong kho" required min="0"
-                   class="form-control mb-2">
-            <button type="submit" class="btn btn-primary">Thêm sản phẩm</button>
-        </form>
-    </div>
-</div>
+        <!-- Nút thêm sản phẩm -->
+        <div class="mb-4 text-end">
+            <button class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#addProductModal">
+                <i class="fas fa-plus me-2"></i>Thêm sản phẩm mới
+            </button>
+        </div>
 
-<div class="main-content">
-    <table class="table table-bordered">
-        <thead>
-        <tr>
-            <th>ID</th>
-            <th>Tên sản phẩm</th>
-            <th>Giá</th>
-            <th>Hình ảnh</th>
-            <th>Danh mục</th>
-            <th>Số lượng</th>
-            <th>Hành động</th>
-        </tr>
-        </thead>
-        <tbody id="productTableBody">
-        <% products.forEach(product => { %>
-            <tr id="row-<%= product._id %>">
-                <td><%= product._id %></td>
-                <td><%= product.name %></td>
-                <td><%= product.price %></td>
-                <td><img src="<%= product.thumbnail %>" width="100"></td>
-                <td><%= product.category %></td>
-                <td><%= product.stockQuantity %></td>
-                <td>
-                    <button class="btn btn-warning btn-sm" onclick="editProduct('<%= product._id %>')">Sửa</button>
-                    <button class="btn btn-danger btn-sm" onclick="deleteProduct('<%= product._id %>')">Xóa</button>
-                </td>
-            </tr>
-        <% }); %>
-        </tbody>
-    </table>
-</div>
-
-<!-- Danh sách sản phẩm -->
-
-
-<!-- Modal chỉnh sửa sản phẩm -->
-<div class="modal fade" id="editProductModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Sửa sản phẩm</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="editProductForm">
-                    <input type="hidden" id="editProductId">
-                    <input type="text" id="editName" class="form-control mb-2">
-                    <input type="text" id="editThumbnail" class="form-control mb-2">
-                    <input type="number" id="editPrice" class="form-control mb-2">
-                    <input type="text" id="editCategory" class="form-control mb-2">
-                    <input type="number" id="editStockQuantity" class="form-control mb-2">
-                    <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
-                    <!-- Thêm sản phẩm -->
-                    <div class="mb-4">
-                        <h3>Thêm sản phẩm mới</h3>
-                        <form id="addProductForm" action="/products/add" method="POST">
-                            <div class="mb-3">
-                                <label for="name" class="form-label">Tên sản phẩm</label>
-                                <input type="text" class="form-control" id="name" name="name"
-                                       placeholder="Nhập tên sản phẩm" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="thumbnail" class="form-label">URL hình ảnh</label>
-                                <input type="text" class="form-control" id="thumbnail" name="thumbnail"
-                                       placeholder="Nhập URL hình ảnh">
-                            </div>
-                            <div class="mb-3">
-                                <label for="price" class="form-label">Giá</label>
-                                <input type="number" class="form-control" id="price" name="price"
-                                       placeholder="Nhập giá sản phẩm"
-                                       required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="description" class="form-label">Mô tả</label>
-                                <textarea class="form-control" id="description" name="description"
-                                          placeholder="Nhập mô tả sản phẩm"></textarea>
-                            </div>
-                            <div class="mb-3">
-                                <label for="category" class="form-label">Danh mục</label>
-                                <input type="text" class="form-control" id="category" name="category"
-                                       placeholder="Nhập danh mục"
-                                       required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="stockQuantity" class="form-label">Số lượng trong kho</label>
-                                <input type="number" class="form-control" id="stockQuantity" name="stockQuantity"
-                                       placeholder="Nhập số lượng" required min="0">
-                            </div>
-                            <button type="submit" class="btn btn-primary">Thêm sản phẩm</button>
-                        </form>
-                    </div>
-
-                    <!-- Hiển thị danh sách sản phẩm -->
-                    <div style="max-height: 400px; overflow-y: auto;">
-                        <table class="table table-bordered">
-                            <thead>
+        <!-- Danh sách sản phẩm -->
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="bg-light">
                             <tr>
-                                <th>ID</th>
-                                <th>Tên sản phẩm</th>
-                                <th>Giá</th>
-                                <th>Hình ảnh</th>
-                                <th>Mô tả</th>
-                                <th>Danh mục</th>
-                                <th>Số lượng</th>
-                                <th>Trạng thái</th>
-                                <th>Hành động</th>
+                                <th class="fw-bold text-dark">Tên sản phẩm</th>
+                                <th class="fw-bold text-dark">Giá</th>
+                                <th class="fw-bold text-dark">Hình ảnh</th>
+                                <th class="fw-bold text-dark">Danh mục</th>
+                                <th class="fw-bold text-dark">Số lượng</th>
+                                <th class="fw-bold text-dark text-center">Trạng thái</th>
+                                <th class="fw-bold text-dark">Biến thể</th>
+                                <th class="fw-bold text-dark">Hành động</th>
                             </tr>
-                            </thead>
-                            <tbody>
-                            <% products.forEach(function(product) { %>
-                                <tr>
-                                    <td><%= product._id %></td>
+                        </thead>
+                        <tbody>
+                            <% products.forEach(product => { %>
+                                <tr id="product-row-<%= product._id %>">
                                     <td><%= product.name %></td>
-                                    <td><%= product.price %></td>
-                                    <td><img src="<%= product.thumbnail %>" alt="Product Image" width="100"></td>
-                                    <td><%= product.description %></td>
-                                    <td><%= product.category %></td>
-                                    <td><%= product.stockQuantity %></td>
-                                    <td><%= product.status %></td>
+                                    <td><%= product.price.toLocaleString() %> VNĐ</td>
                                     <td>
-                                        <button class="btn btn-warning btn-sm"
-                                                onclick="editProduct('<%= product._id %>')">Sửa
+                                        <img src="<%= product.thumbnail || 'https://via.placeholder.com/100' %>" 
+                                             alt="<%= product.name %>" 
+                                             class="rounded" 
+                                             style="width: 80px; height: 80px; object-fit: cover;">
+                                    </td>
+                                    <td><%= product.category %></td>
+                                    <td><%= product.inventory %></td>
+                                    <td class="text-center">
+                                        <% if (product.status === 'available') { %>
+                                            <i class="fas fa-check-circle text-success me-1"></i>Có sẵn
+                                        <% } else { %>
+                                            <i class="fas fa-times-circle text-danger me-1"></i>Hết hàng
+                                        <% } %>
+                                    </td>
+                                    <td>
+                                        <% if (product.hasVariants && product.attributes.length > 0) { %>
+                                            <% product.attributes.forEach(attr => { %>
+                                                <span class="badge bg-secondary"><%= attr.name %>: <%= attr.values.join(', ') %></span><br>
+                                            <% }); %>
+                                        <% } else { %>
+                                            <span class="text-muted">Không có biến thể</span>
+                                        <% } %>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-warning btn-sm me-2 shadow-sm" 
+                                                onclick="editProduct('<%= product._id %>')">
+                                            <i class="fas fa-edit"></i> Sửa
                                         </button>
-                                        <form action="/products/delete/<%= product._id %>" method="POST"
-                                              style="display:inline;">
-                                            <button type="submit" class="btn btn-danger btn-sm">Xóa</button>
-                                        </form>
+                                        <button class="btn btn-danger btn-sm shadow-sm" 
+                                                onclick="deleteProduct('<%= product._id %>')">
+                                            <i class="fas fa-trash-alt"></i> Xóa
+                                        </button>
                                     </td>
                                 </tr>
                             <% }); %>
-                            </tbody>
-                        </table>
-                    </div>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
 
-                    <!-- Modal chỉnh sửa sản phẩm -->
-                    <div class="modal fade" id="editProductModal" tabindex="-1"
-                         aria-labelledby="editProductModalLabel"
-                         aria-hidden="true">
-                        <div class="modal-dialog">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title" id="editProductModalLabel">Sửa sản phẩm</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                            aria-label="Close"></button>
+        <!-- Modal thêm sản phẩm -->
+        <div class="modal fade" id="addProductModal" tabindex="-1" aria-labelledby="addProductModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title" id="addProductModalLabel">Thêm sản phẩm mới</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="addProductForm" enctype="multipart/form-data">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="name" class="form-label fw-bold">Tên sản phẩm</label>
+                                    <input type="text" class="form-control" id="name" name="name" placeholder="Nhập tên sản phẩm" required>
                                 </div>
-                                <div class="modal-body">
-                                    <form id="editProductForm" action="/products/edit" method="POST">
-                                        <input type="hidden" id="editProductId" name="id">
-                                        <div class="mb-3">
-                                            <label for="editName" class="form-label">Tên sản phẩm</label>
-                                            <input type="text" class="form-control" id="editName" name="name"
-                                                   required>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="editThumbnail" class="form-label">URL hình ảnh</label>
-                                            <input type="text" class="form-control" id="editThumbnail"
-                                                   name="thumbnail">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="editPrice" class="form-label">Giá</label>
-                                            <input type="number" class="form-control" id="editPrice" name="price"
-                                                   required>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="editDescription" class="form-label">Mô tả</label>
-                                            <textarea class="form-control" id="editDescription"
-                                                      name="description"></textarea>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="editCategory" class="form-label">Danh mục</label>
-                                            <input type="text" class="form-control" id="editCategory"
-                                                   name="category" required>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="editStockQuantity" class="form-label">Số lượng</label>
-                                            <input type="number" class="form-control" id="editStockQuantity"
-                                                   name="stockQuantity"
-                                                   required min="0">
-                                        </div>
-                                        <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
-                                    </form>
+                                <div class="col-md-6 mb-3">
+                                    <label for="thumbnail" class="form-label fw-bold">Chọn ảnh</label>
+                                    <input type="file" class="form-control" id="thumbnail" name="thumbnail" accept="image/*" required>
+                                    <img id="thumbnailPreview" src="#" alt="Xem trước ảnh" style="display: none; width: 100px; height: 100px; object-fit: cover; margin-top: 10px;">
                                 </div>
                             </div>
-                        </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="category" class="form-label fw-bold">Danh mục</label>
+                                    <input type="text" class="form-control" id="category" name="category" placeholder="Nhập danh mục" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="status" class="form-label fw-bold">Trạng thái</label>
+                                    <select class="form-control" id="status" name="status" required>
+                                        <option value="available">Có sẵn</option>
+                                        <option value="unavailable">Hết hàng</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-12 mb-3">
+                                    <label class="form-label fw-bold">Biến thể</label>
+                                    <input type="hidden" id="selectedVariants" name="selectedVariants">
+                                    <button type="button" class="btn btn-outline-secondary w-100" onclick="openVariantsPage()">
+                                        <i class="fas fa-list me-2"></i>Chọn biến thể
+                                    </button>
+                                    <div id="selectedVariantDisplay" class="mt-2 text-muted" style="display: none;"></div>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100 mt-3 shadow-sm">Thêm sản phẩm</button>
+                        </form>
                     </div>
-                </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal chỉnh sửa sản phẩm -->
+        <div class="modal fade" id="editProductModal" tabindex="-1" aria-labelledby="editProductModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-warning text-dark">
+                        <h5 class="modal-title" id="editProductModalLabel">Sửa sản phẩm</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="editProductForm" action="/products/edit" method="POST">
+                            <input type="hidden" id="editProductId" name="id">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="editName" class="form-label fw-bold">Tên sản phẩm</label>
+                                    <input type="text" class="form-control" id="editName" name="name" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="editThumbnail" class="form-label fw-bold">URL hình ảnh</label>
+                                    <input type="text" class="form-control" id="editThumbnail" name="thumbnail">
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="editCategory" class="form-label fw-bold">Danh mục</label>
+                                    <input type="text" class="form-control" id="editCategory" name="category" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="editStatus" class="form-label fw-bold">Trạng thái</label>
+                                    <select class="form-control" id="editStatus" name="status" required>
+                                        <option value="available">Có sẵn</option>
+                                        <option value="unavailable">Hết hàng</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="editVariantSelect" class="form-label fw-bold">Chọn biến thể</label>
+                                    <select class="form-control" id="editVariantSelect" name="variantId" onchange="loadEditVariantDetails()">
+                                        <option value="">Không chọn biến thể</option>
+                                        <% variants.forEach(variant => { %>
+                                            <option value="<%= variant._id %>"><%= variant.name %> (<%= variant.values.join(', ') %>)</option>
+                                        <% }); %>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3" id="editVariantDetailsSection" style="display: none;">
+                                    <label for="editDetailsVariantSelect" class="form-label fw-bold">Chọn chi tiết biến thể</label>
+                                    <select class="form-control" id="editDetailsVariantSelect" name="detailsVariantId">
+                                        <option value="">Chọn chi tiết biến thể</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-warning w-100 mt-3 shadow-sm">Lưu thay đổi</button>
+                        </form>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
-        <script>
-          $(document).ready(() => {
-            $('#addProductForm').submit(function (event) {
-              event.preventDefault();
-              const data = {
-                name: $('#name').val(),
-                thumbnail: $('#thumbnail').val(),
-                price: $('#price').val(),
-                description: $('#description').val(),
-                category: $('#category').val(),
-                stockQuantity: $('#stockQuantity').val()
-              };
-              $.post('/products/create', data, () => location.reload());
-            });
-          });
 
-          function editProduct(id) {
-            fetch(`/products/${id}`)
-              .then(res => res.json())
-              .then(product => {
+<!-- Thêm Font Awesome để dùng icon -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    let selectedVariantsData = [];
+
+    // Mở trang variants.ejs trong cửa sổ mới
+    function openVariantsPage() {
+        window.open('/products/getbienthe', 'VariantsWindow', 'width=800,height=600');
+    }
+
+    // Load chi tiết biến thể khi chọn biến thể (Sửa sản phẩm)
+    function loadEditVariantDetails() {
+        const variantId = $('#editVariantSelect').val();
+        const detailsSection = $('#editVariantDetailsSection');
+        const detailsSelect = $('#editDetailsVariantSelect');
+
+        if (variantId) {
+            $.get(`/details-variants/${variantId}`, function(data) {
+                detailsSelect.empty();
+                detailsSelect.append('<option value="">Chọn chi tiết biến thể</option>');
+                data.data.forEach(detail => {
+                    detailsSelect.append(`<option value="${detail._id}" data-price="${detail.price}" data-inventory="${detail.inventory}">${detail.value} - Giá: ${detail.price}, SL: ${detail.inventory}</option>`);
+                });
+                detailsSection.show();
+            });
+        } else {
+            detailsSection.hide();
+            detailsSelect.empty();
+        }
+    }
+
+    // Xem trước ảnh khi chọn file
+    $('#thumbnail').change(function(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                $('#thumbnailPreview').attr('src', e.target.result).show();
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // Xử lý form thêm sản phẩm
+    $('#addProductForm').submit(function(event) {
+        event.preventDefault();
+
+        const formData = new FormData();
+        formData.append('name', $('#name').val());
+        formData.append('thumbnail', $('#thumbnail')[0].files[0]); // Gửi file ảnh
+        formData.append('category', $('#category').val());
+        formData.append('status', $('#status').val());
+        formData.append('selectedVariants', JSON.stringify(selectedVariantsData));
+
+        $.ajax({
+            url: '/products/create',
+            type: 'POST',
+            data: formData,
+            processData: false, // Không xử lý dữ liệu trước khi gửi
+            contentType: false, // Không đặt contentType tự động
+            success: function(response) {
+                if (response.status === 'Ok') {
+                    $('#addProductModal').modal('hide');
+                    location.reload();
+                }
+            },
+            error: function(xhr) {
+                alert("Lỗi khi thêm sản phẩm: " + (xhr.responseJSON?.message || "Vui lòng thử lại!"));
+            }
+        });
+    });
+
+    // Hiển thị và điền dữ liệu vào form sửa sản phẩm
+    function editProduct(id) {
+        fetch(`/products/${id}`)
+            .then(res => res.json())
+            .then(product => {
                 $('#editProductId').val(product._id);
                 $('#editName').val(product.name);
                 $('#editThumbnail').val(product.thumbnail);
-                $('#editPrice').val(product.price);
                 $('#editCategory').val(product.category);
-                $('#editStockQuantity').val(product.stockQuantity);
-                new bootstrap.Modal(document.getElementById('editProductModal')).show();
-              });
-          }
+                $('#editStatus').val(product.status);
 
-          $('#editProductForm').submit(function (event) {
-            event.preventDefault();
-            const id = $('#editProductId').val();
-            const data = {
-              name: $('#editName').val(),
-              thumbnail: $('#editThumbnail').val(),
-              price: $('#editPrice').val(),
-              category: $('#editCategory').val(),
-              stockQuantity: $('#editStockQuantity').val()
-            };
-            $.ajax({
-              url: `/products/edit/${id}`,
-              type: 'PUT',
-              data,
-              success: () => location.reload()
-            });
-          });
+                if (product.hasVariants && product.attributes.length > 0) {
+                    const variantId = product.attributes[0].variantId;
+                    $('#editVariantSelect').val(variantId);
+                    loadEditVariantDetails();
 
-          function deleteProduct(id) {
-            if (confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) {
-              $.ajax({
-                url: `/products/delete/${id}`,
-                type: 'DELETE',
-                success: () => location.reload()
-              });
-            }
-          }
-        </script>
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
-        <script>
-          function editProduct(id) {
-            fetch(`/products/${id}`)
-              .then(res => res.json())
-              .then(product => {
-                document.getElementById('editProductId').value = product._id;
-                document.getElementById('editName').value = product.name;
-                document.getElementById('editThumbnail').value = product.thumbnail;
-                document.getElementById('editPrice').value = product.price;
-                document.getElementById('editDescription').value = product.description;
-                document.getElementById('editCategory').value = product.category;
-                document.getElementById('editStockQuantity').value = product.stockQuantity;
+                    setTimeout(() => {
+                        $('#editDetailsVariantSelect option').each(function() {
+                            if ($(this).data('price') == product.price && $(this).data('inventory') == product.inventory) {
+                                $(this).prop('selected', true);
+                            }
+                        });
+                    }, 500);
+                }
 
                 const modal = new bootstrap.Modal(document.getElementById('editProductModal'));
                 modal.show();
-              });
-          }
-        </script>
+            });
+    }
+
+    // Xử lý form sửa sản phẩm
+    $('#editProductForm').submit(function(event) {
+        event.preventDefault();
+        const selectedDetail = $('#editDetailsVariantSelect option:selected');
+        const id = $('#editProductId').val();
+        const data = {
+            name: $('#editName').val(),
+            thumbnail: $('#editThumbnail').val(),
+            category: $('#editCategory').val(),
+            status: $('#editStatus').val(),
+            price: selectedDetail.data('price') || 0,
+            inventory: selectedDetail.data('inventory') || 0,
+            attributes: $('#editVariantSelect').val() ? [{ 
+                variantId: $('#editVariantSelect').val(),
+                name: $('#editVariantSelect option:selected').text().split(' (')[0],
+                values: [selectedDetail.text().split(' - ')[0]]
+            }] : [],
+            hasVariants: !!$('#editVariantSelect').val()
+        };
+        $.ajax({
+            url: `/products/edit/${id}`,
+            type: 'PUT',
+            data,
+            success: () => location.reload()
+        });
+    });
+
+    // Nhận dữ liệu từ variants.ejs
+    window.addEventListener('message', function(event) {
+        if (event.data.selectedVariants && Array.isArray(event.data.selectedVariants)) {
+            selectedVariantsData = event.data.selectedVariants;
+            const displayText = selectedVariantsData.map(v => `${v.variantName} - ${v.detailValue}`).join(', ');
+            $('#selectedVariantDisplay').text(`Đã chọn: ${displayText}`).show();
+            $('#selectedVariants').val(JSON.stringify(selectedVariantsData));
+        }
+    });
+
+    // Xóa sản phẩm
+    function deleteProduct(productId) {
+        if (confirm('Bạn có chắc chắn muốn xóa sản phẩm này không?')) {
+            $.ajax({
+                url: `/products/delete/${productId}`,
+                type: 'DELETE',
+                success: function(response) {
+                    if (response.status === 'Ok') {
+                        $(`#product-row-${productId}`).remove();
+                        alert('Sản phẩm đã được xóa thành công!');
+                    }
+                },
+                error: function(xhr) {
+                    alert("Lỗi khi xóa sản phẩm: " + (xhr.responseJSON?.message || "Vui lòng thử lại!"));
+                }
+            });
+        }
+    }
+</script>
