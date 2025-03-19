@@ -1,5 +1,4 @@
 <%- include('./layouts/main.ejs') %>
-
 <div class="container mt-5">
     <h1 class="text-center mb-4">Danh sách Khuyến mãi</h1>
 
@@ -91,17 +90,7 @@
                         <td><%= promo.startDate ? new Date(promo.startDate).toLocaleDateString('en-GB') : 'N/A' %></td>
                         <td><%= promo.endDate ? new Date(promo.endDate).toLocaleDateString('en-GB') : 'N/A' %></td>                        
                         <td>
-                            <a class="btn btn-warning btn-sm" 
-                            onclick="editPromotion('<%= promo._id %>', 
-                                                   '<%= promo.name %>', 
-                                                   '<%= promo.discount %>', 
-                                                   '<%= promo.minOrderValue %>', 
-                                                   '<%= promo.maxDiscount %>', 
-                                                   '<%= new Date(promo.startDate).toISOString().split('T')[0] %>', 
-                                                   '<%= new Date(promo.endDate).toISOString().split('T')[0] %>')">
-                             Sửa
-                         </a>
-                         
+                            <a  class="btn btn-warning btn-sm">Sửa</a>
                             <button class="btn btn-danger btn-sm" onclick="deletePromotion('<%= promo._id %>')">Xóa</button>
                         </td>
                     </tr>
@@ -197,7 +186,17 @@
         location.reload();
     }
 
-
+    async function updatePromotion(id, data) {
+        const response = await fetch(`/promotions/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+        });
+        if (!response.ok) throw new Error("Cập nhật thất bại");
+        const result = await response.json();
+        alert(result.message);
+        location.reload();
+    }
 
     async function deletePromotion(id) {
         if (confirm("Bạn có chắc chắn muốn xóa?")) {
@@ -211,45 +210,6 @@
             location.reload();
         }
     }
-
-
-
-    //cập nhật
-    function editPromotion(id, name, discount, minOrderValue, maxDiscount, startDate, endDate) {
-    document.getElementById("promotionId").value = id;
-    document.getElementById("name").value = name;
-    document.getElementById("discount").value = discount;
-    document.getElementById("minOrderValue").value = minOrderValue;
-    document.getElementById("maxDiscount").value = maxDiscount;
-    document.getElementById("startDate").value = startDate;
-    document.getElementById("endDate").value = endDate;
-
-    document.getElementById("submitBtn").textContent = "Cập nhật";
-    document.getElementById("cancelBtn").style.display = "inline-block";
-
-    updateStatus(); // Cập nhật trạng thái dựa trên ngày mới
-}
-
-document.getElementById("cancelBtn").addEventListener("click", () => {
-    document.getElementById("promotionForm").reset();
-    document.getElementById("promotionId").value = "";
-    document.getElementById("submitBtn").textContent = "Thêm";
-    document.getElementById("cancelBtn").style.display = "none";
-});
-
-
-     async function updatePromotion(id, data) {
-        const response = await fetch(`/promotions/${id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(data),
-        });
-        if (!response.ok) throw new Error("Cập nhật thất bại");
-        const result = await response.json();
-        alert(result.message);
-        location.reload();
-    }   
-
 
     cancelBtn.addEventListener("click", () => {
         formTitle.textContent = "Thêm Khuyến mãi";
