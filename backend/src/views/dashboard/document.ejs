@@ -1,0 +1,399 @@
+<%- include('../layouts/main.ejs') %>
+
+<!-- CSS tùy chỉnh để điều chỉnh giao diện -->
+<style>
+    /* Giảm kích thước chữ trong bảng */
+    #documentTable th,
+    #documentTable td {
+        font-size: 14px; /* Giảm kích thước chữ xuống 14px */
+        padding: 8px; /* Giảm padding để tiết kiệm không gian */
+        white-space: nowrap; /* Ngăn nội dung xuống dòng */
+        text-overflow: ellipsis; /* Thêm dấu ... nếu nội dung quá dài */
+        overflow: hidden; /* Ẩn nội dung tràn */
+        max-width: 150px; /* Giới hạn chiều rộng tối đa của cột */
+    }
+
+    /* Đảm bảo bảng không tràn ngang */
+    #documentTable {
+        width: 100%;
+        table-layout: auto; /* Tự động điều chỉnh kích thước cột */
+    }
+
+    /* Giảm kích thước chữ trong form tìm kiếm */
+    .search-container label,
+    .search-container input,
+    .search-container select {
+        font-size: 14px; /* Giảm kích thước chữ */
+    }
+
+    /* Giảm kích thước tiêu đề */
+    h1 {
+        font-size: 24px; /* Giảm kích thước tiêu đề */
+    }
+
+    h3 {
+        font-size: 18px; /* Giảm kích thước tiêu đề trong form tìm kiếm */
+    }
+
+    /* Điều chỉnh kích thước chữ trong modal */
+    .modal-body label,
+    .modal-body input,
+    .modal-body select,
+    .modal-body textarea {
+        font-size: 14px;
+    }
+
+    /* Đảm bảo các nút không quá lớn */
+    .btn {
+        font-size: 14px;
+        padding: 6px 12px;
+    }
+</style>
+
+<!-- Nội dung chính -->
+<div class="main-content" id="main-content">
+    <h1 style="text-align: center;">Danh sách tài liệu</h1>
+
+    <!-- Thông báo -->
+    <% if (success_msg && success_msg.length > 0) { %>
+        <p style="color: green"><%= success_msg %></p>
+    <% } %>
+    <% if (error_msg && error_msg.length > 0) { %>
+        <p style="color: red"><%= error_msg %></p>
+    <% } %>
+
+    <!-- Nút mở dialog Thêm tài liệu -->
+    <div class="button-container">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addDocumentModal">
+            <i class="fas fa-plus"></i> Thêm tài liệu mới
+        </button>
+    </div>
+
+    <!-- Dialog Thêm tài liệu -->
+    <div class="modal fade" id="addDocumentModal" tabindex="-1" aria-labelledby="addDocumentModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addDocumentModalLabel">Thêm tài liệu mới</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addDocumentForm" action="/document/add" method="POST">
+                        <div class="form-group">
+                            <label for="add_product_id">Sản phẩm:</label>
+                            <select name="product_id" id="add_product_id" required>
+                                <option value="">Chọn sản phẩm</option>
+                                <% products.forEach(product => { %>
+                                    <option value="<%= product._id %>"><%= product.name %></option>
+                                <% }) %>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="add_user_id">Người dùng:</label>
+                            <select name="user_id" id="add_user_id" required>
+                                <option value="">Chọn người dùng</option>
+                                <% users.forEach(user => { %>
+                                    <option value="<%= user._id %>"><%= user.fullName %></option>
+                                <% }) %>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="add_title">Tiêu đề:</label>
+                            <input type="text" name="title" id="add_title" placeholder="Tiêu đề" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="add_description">Mô tả:</label>
+                            <textarea name="description" id="add_description" placeholder="Mô tả" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="add_media">Link media (tùy chọn):</label>
+                            <input type="url" name="media" id="add_media" placeholder="Link media (tùy chọn)">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Thêm</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dialog Sửa tài liệu -->
+    <div class="modal fade" id="editDocumentModal" tabindex="-1" aria-labelledby="editDocumentModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editDocumentModalLabel">Sửa tài liệu</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editDocumentForm" method="PUT">
+                        <div class="form-group">
+                            <label for="edit_product_id">Sản phẩm:</label>
+                            <select name="product_id" id="edit_product_id" required>
+                                <option value="">Chọn sản phẩm</option>
+                                <% products.forEach(product => { %>
+                                    <option value="<%= product._id %>"><%= product.name %></option>
+                                <% }) %>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit_user_id">Người dùng:</label>
+                            <select name="user_id" id="edit_user_id" required>
+                                <option value="">Chọn người dùng</option>
+                                <% users.forEach(user => { %>
+                                    <option value="<%= user._id %>"><%= user.fullName %></option>
+                                <% }) %>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit_title">Tiêu đề:</label>
+                            <input type="text" name="title" id="edit_title" placeholder="Tiêu đề" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit_description">Mô tả:</label>
+                            <textarea name="description" id="edit_description" placeholder="Mô tả" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit_media">Link media (tùy chọn):</label>
+                            <input type="url" name="media" id="edit_media" placeholder="Link media (tùy chọn)">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Cập nhật</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Phần tìm kiếm tài liệu -->
+    <div class="search-container" style="margin-top: 20px; margin-bottom: 20px; padding: 15px; background-color: #f9f9f9; border-radius: 8px;">
+        <h3 style="margin-top: 0;">Tìm kiếm tài liệu</h3>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+            <div>
+                <label for="searchTitle">Tiêu đề:</label>
+                <input type="text" id="searchTitle" class="search-input" placeholder="Nhập tiêu đề">
+            </div>
+            <div>
+                <label for="searchDescription">Mô tả:</label>
+                <input type="text" id="searchDescription" class="search-input" placeholder="Nhập mô tả">
+            </div>
+            <div>
+                <label for="searchProduct">Sản phẩm:</label>
+                <select id="searchProduct" class="search-input">
+                    <option value="">Tất cả</option>
+                    <% products.forEach(product => { %>
+                        <option value="<%= product._id %>"><%= product.name %></option>
+                    <% }) %>
+                </select>
+            </div>
+            <div>
+                <label for="searchUser">Người dùng:</label>
+                <select id="searchUser" class="search-input">
+                    <option value="">Tất cả</option>
+                    <% users.forEach(user => { %>
+                        <option value="<%= user._id %>"><%= user.fullName %></option>
+                    <% }) %>
+                </select>
+            </div>
+            <div>
+                <label for="searchFromDate">Từ ngày:</label>
+                <input type="date" id="searchFromDate" class="search-input">
+            </div>
+            <div>
+                <label for="searchToDate">Đến ngày:</label>
+                <input type="date" id="searchToDate" class="search-input">
+            </div>
+        </div>
+        <div style="margin-top: 15px; text-align: center;">
+            <button type="button" onclick="searchDocuments()" class="btn" style="background-color: #4CAF50; color: white; padding: 8px 15px; margin-right: 10px;">Tìm kiếm</button>
+            <button type="button" onclick="resetSearch()" class="btn" style="background-color: #f44336; color: white; padding: 8px 15px;">Đặt lại</button>
+        </div>
+    </div>
+
+    <!-- Bảng danh sách tài liệu -->
+    <div class="card">
+        <div class="card-header">
+            <i class="fas fa-list"></i> Danh sách tài liệu
+        </div>
+        <div class="card-body">
+            <table id="documentTable" style="width: 100%;">
+                <thead>
+                    <tr>
+                        <th>Tiêu đề</th>
+                        <th>Mô tả</th>
+                        <th>Media</th>
+                        <th>Sản phẩm</th>
+                        <th>Thương hiệu</th>
+                        <th>Nguồn gốc</th>
+                        <th>Ngày</th>
+                        <th>Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% documents.forEach(doc => { %>
+                        <tr data-id="<%= doc._id %>">
+                            <td><%= doc.title %></td>
+                            <td><%= doc.description %></td>
+                            <td><a href="<%= doc.media %>" target="_blank"><%= doc.media || 'Không có' %></a></td>
+                            <td data-product-id="<%= doc.product_id ? doc.product_id._id : '' %>">
+                                <%= doc.product_id ? doc.product_id.name : 'Không xác định' %>
+                            </td>
+                            <td><%= doc.product_id ? doc.product_id.brand : 'Không xác định' %></td>
+                            <td data-user-id="<%= doc.user_id ? doc.user_id._id : '' %>">
+                                <%= doc.user_id ? doc.user_id.fullName : 'Không xác định' %>
+                            </td>
+                            <td><%= doc.date.toISOString().split('T')[0] %></td>
+                            <td>
+                                <button class="btn btn-primary" onclick="openEditModal('<%= doc._id %>')">Sửa</button>
+                                <form action="/document/delete/<%= doc._id %>?_method=DELETE" method="POST" style="display: inline-block;">
+                                    <button type="submit" class="btn btn-danger" onclick="return confirm('Xác nhận xóa?')">Xóa</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    let allDocuments = [];
+
+    // Trích xuất dữ liệu tài liệu khi trang tải
+    window.onload = function () {
+        const tableRows = document.querySelectorAll('#documentTable tbody tr');
+        allDocuments = Array.from(tableRows).map(row => {
+            return {
+                id: row.getAttribute('data-id'),
+                title: row.cells[0].textContent,
+                description: row.cells[1].textContent,
+                product_id: row.cells[3].getAttribute('data-product-id'),
+                user_id: row.cells[5].getAttribute('data-user-id'),
+                date: new Date(row.cells[6].textContent),
+                _originalRow: row
+            };
+        });
+        displayDocuments(allDocuments); // Hiển thị tất cả tài liệu ban đầu
+
+        // Xử lý form sửa tài liệu qua AJAX
+        document.getElementById('editDocumentForm').addEventListener('submit', async function (e) {
+            e.preventDefault(); // Ngăn submit mặc định
+
+            const docId = this.action.split('/').pop(); // Lấy ID từ action
+
+            // Thu thập dữ liệu từ form
+            const formData = {
+                product_id: document.getElementById('edit_product_id').value,
+                user_id: document.getElementById('edit_user_id').value,
+                title: document.getElementById('edit_title').value,
+                description: document.getElementById('edit_description').value,
+                media: document.getElementById('edit_media').value || ''
+            };
+
+            try {
+                const response = await fetch(`/document/edit/${docId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    // Đóng modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('editDocumentModal'));
+                    modal.hide();
+                    // Tải lại trang
+                    window.location.reload();
+                } else {
+                    alert(result.message || 'Lỗi khi cập nhật tài liệu');
+                }
+            } catch (error) {
+                console.error('Lỗi khi gửi form:', error);
+                alert('Lỗi khi cập nhật tài liệu: ' + error.message);
+            }
+        });
+    };
+
+    // Hàm tìm kiếm tài liệu
+    function searchDocuments() {
+        const title = document.getElementById('searchTitle').value.trim().toLowerCase();
+        const description = document.getElementById('searchDescription').value.trim().toLowerCase();
+        const productId = document.getElementById('searchProduct').value;
+        const userId = document.getElementById('searchUser').value;
+        const fromDate = document.getElementById('searchFromDate').value;
+        const toDate = document.getElementById('searchToDate').value;
+
+        const fromDateObj = fromDate ? new Date(fromDate) : null;
+        const toDateObj = toDate ? new Date(toDate) : null;
+        if (toDateObj) {
+            toDateObj.setDate(toDateObj.getDate() + 1); // Bao gồm cả ngày cuối
+        }
+
+        const filteredDocuments = allDocuments.filter(doc => {
+            let matchTitle = !title || doc.title.toLowerCase().includes(title);
+            let matchDescription = !description || doc.description.toLowerCase().includes(description);
+            let matchProduct = !productId || doc.product_id === productId;
+            let matchUser = !userId || doc.user_id === userId;
+            let matchDateRange = true;
+
+            if (fromDateObj || toDateObj) {
+                if (fromDateObj && doc.date < fromDateObj) matchDateRange = false;
+                if (toDateObj && doc.date >= toDateObj) matchDateRange = false;
+            }
+
+            return matchTitle && matchDescription && matchProduct && matchUser && matchDateRange;
+        });
+
+        displayDocuments(filteredDocuments);
+    }
+
+    // Hàm hiển thị tài liệu
+    function displayDocuments(documents) {
+        const tableBody = document.querySelector('#documentTable tbody');
+        Array.from(tableBody.rows).forEach(row => row.style.display = 'none');
+
+        documents.forEach(doc => {
+            doc._originalRow.style.display = '';
+        });
+
+        const existingEmptyRow = tableBody.querySelector('#empty-result-row');
+        if (existingEmptyRow) existingEmptyRow.remove();
+
+        if (documents.length === 0) {
+            const emptyRow = document.createElement('tr');
+            emptyRow.id = 'empty-result-row';
+            emptyRow.innerHTML = `<td colspan="8" style="text-align: center;">Không tìm thấy tài liệu nào</td>`;
+            tableBody.appendChild(emptyRow);
+        }
+    }
+
+    // Hàm đặt lại tìm kiếm
+    function resetSearch() {
+        document.getElementById('searchTitle').value = '';
+        document.getElementById('searchDescription').value = '';
+        document.getElementById('searchProduct').value = '';
+        document.getElementById('searchUser').value = '';
+        document.getElementById('searchFromDate').value = '';
+        document.getElementById('searchToDate').value = '';
+        displayDocuments(allDocuments);
+    }
+
+    // Hàm mở dialog sửa tài liệu
+    function openEditModal(docId) {
+        const doc = allDocuments.find(d => d.id === docId);
+        if (doc) {
+            document.getElementById('edit_product_id').value = doc.product_id || '';
+            document.getElementById('edit_user_id').value = doc.user_id || '';
+            document.getElementById('edit_title').value = doc.title;
+            document.getElementById('edit_description').value = doc.description;
+            document.getElementById('edit_media').value = doc._originalRow.cells[2].textContent.trim() === 'Không có' ? '' : doc._originalRow.cells[2].querySelector('a').href;
+
+            const form = document.getElementById('editDocumentForm');
+            form.action = `/document/edit/${docId}`;
+
+            const modal = new bootstrap.Modal(document.getElementById('editDocumentModal'));
+            modal.show();
+        }
+    }
+</script>
