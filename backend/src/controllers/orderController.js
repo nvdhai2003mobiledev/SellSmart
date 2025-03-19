@@ -69,11 +69,11 @@ const renderOrdersPage = async (req, res) => {
   try {
     const orders = await getAllOrders(); // Lấy danh sách đơn hàng
 
+
     if (!orders || orders.length === 0) {
       return res.render("orders", { orders: [] }); // Nếu không có dữ liệu, gửi mảng rỗng để tránh lỗi
     }
 
-    res.render("orders", { orders });
   } catch (error) {
     res.status(500).send("Lỗi server: " + error.message);
   }
@@ -106,7 +106,9 @@ const deleteOrder = async (req, res) => {
     await orderService.deleteOrder(req.params.id);
     res.json({ message: "Order deleted successfully" });
   } catch (error) {
-res.status(500).json({ message: "Server error", error: error.message });
+
+    res.status(500).json({ message: "Server error", error: error.message });
+
   }
 };
 const createOrderScreen = async (req, res) => {
@@ -120,6 +122,44 @@ const createOrderScreen = async (req, res) => {
     console.error("🔥 Lỗi khi tải trang tạo đơn hàng:", error);
     res.status(500).send("Lỗi server khi tải trang!");
   }
+
+};
+// Lấy chi tiết đơn hàng
+const getOrderDetail = async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "ID đơn hàng không hợp lệ" 
+      });
+    }
+    
+    // Lấy chi tiết đơn hàng từ service
+    const order = await orderService.getOrderById(orderId);
+    
+    if (!order) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Không tìm thấy đơn hàng" 
+      });
+    }
+    
+    res.json({
+      success: true,
+      order: order
+    });
+  } catch (error) {
+    console.error("Lỗi khi lấy chi tiết đơn hàng:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Lỗi server khi lấy chi tiết đơn hàng",
+      error: error.message
+    });
+  }
+=======
+
 };
 
 module.exports = {
@@ -130,4 +170,9 @@ module.exports = {
   deleteOrder,
   renderOrdersPage,
   createOrderScreen,
+
+  getOrderDetail,
 };
+
+};
+

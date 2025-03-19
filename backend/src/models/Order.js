@@ -9,6 +9,7 @@ const OrderSchema = new mongoose.Schema({
       name: { type: String, required: true },
       inventory: { type: Number, required: true, min: 1 },
       price: { type: Number, required: true, min: 0 },
+      quantity: { type: Number, required: true, default: 1, min: 1 },
       attributes: [
         {
           name: { type: String, required: true },
@@ -21,7 +22,7 @@ const OrderSchema = new mongoose.Schema({
   status: { type: String, enum: ['pending', 'processing', 'shipping', 'delivered', 'canceled'], default: 'pending' },
   paymentMethod: { type: String, enum: ['cash', 'credit card', 'debit card', 'e-wallet'], required: true },
   paymentStatus: { type: String, enum: ['paid', 'unpaid', 'refunded'], default: 'paid' },
-  shippingAddress: { type: String, required: true },
+  shippingAddress: { type: String, default:'Nhận hàng tại cửa hàng' },
   employeeID: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee' },
   notes: { type: String }
 }, { timestamps: true });

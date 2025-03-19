@@ -46,7 +46,60 @@ const getCustomerById = async (req, res) => {
     res.status(500).json({ message: "Lỗi server!" });
   }
 };
+// Endpoint để thêm khách hàng mới từ trang tạo đơn hàng
+const createCustomerFromOrder = async (req, res) => {
+  try {
+    const { fullName, phoneNumber, email, address } = req.body;
 
+    // Kiểm tra dữ liệu đầu vào
+    if (!fullName || !phoneNumber || !email) {
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng cung cấp đầy đủ thông tin khách hàng"
+      });
+    }
+
+    // Kiểm tra khách hàng đã tồn tại chưa (theo email hoặc số điện thoại)
+    const existingCustomer = await Customer.findOne({
+      $or: [
+        { email: email },
+        { phoneNumber: phoneNumber }
+      ]
+    });
+
+    if (existingCustomer) {
+      return res.status(400).json({
+        success: false,
+        message: "Email hoặc số điện thoại đã tồn tại trong hệ thống"
+      });
+    }
+
+    // Tạo khách hàng mới
+    const newCustomer = new Customer({
+      fullName,
+      phoneNumber,
+      email,
+      address
+    });
+
+    // Lưu khách hàng vào cơ sở dữ liệu
+    await newCustomer.save();
+
+    // Trả về thông tin khách hàng mới
+    res.status(201).json({
+      success: true,
+      message: "Thêm khách hàng thành công",
+      customer: newCustomer
+    });
+  } catch (error) {
+    console.error("Lỗi khi thêm khách hàng:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi thêm khách hàng",
+      error: error.message
+    });
+  }
+};
 
 
 //API THÊM 
@@ -315,5 +368,6 @@ module.exports = {
   addCustomer,
   updateCustomer,
   deleteCustomer,
-  searchCustomerByPhone
+  searchCustomerByPhone,
+  createCustomerFromOrder
 };

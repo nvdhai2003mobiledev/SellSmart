@@ -10,5 +10,6 @@ router.get("/", protect, orderController.getAllOrders);
 router.put("/:id/status", orderController.updateOrderStatus);
 router.delete("/:id", orderController.deleteOrder);
 router.get("/create", protect, orderController.createOrderScreen);
+router.get("/:id/detail", protect, orderController.getOrderDetail);
 
 module.exports = router;
