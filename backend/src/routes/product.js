@@ -11,11 +11,11 @@ router.get("/json/", productController.getProductAsJson);
 router.post("/create", productController.addProduct);
 router.put("/update/:productId", productController.updateProduct);
 router.delete("/delete/:productId", productController.deleteProduct);
-router.post("/:productId/variants", productController.addProductVariant);
-router.put(
-  "/variants/details/:detailId",
-  productController.updateVariantDetail,
-);
+// router.post("/:productId/variants", productController.addProductVariant);
+// router.put(
+//   "/variants/details/:detailId",
+//   productController.updateVariantDetail,
+// );
 
 // 🚀 Routes cho Variant (Biến thể)
 router.get("/getbienthejson", variantController.getVariantsAsJson);
@@ -28,10 +28,10 @@ router.get(
   "/getdetailsvariant",
   detailsVariantController.getAllDetailsVariants,
 ); // Lấy tất cả DetailsVariant
-router.get(
-  "/getdetailsvariant/:variantId",
-  detailsVariantController.getDetailsByVariant,
-); // Lấy theo variantId
+// router.get(
+//   "/getdetailsvariant/:variantId",
+//   detailsVariantController.getDetailsByVariant,
+// ); // Lấy theo variantId
 router.post(
   "/getdetailsvariant/create",
   detailsVariantController.addDetailsVariant,
