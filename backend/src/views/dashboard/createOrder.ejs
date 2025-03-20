@@ -7,15 +7,15 @@
     <title>Tạo Đơn Hàng</title>
   
     <script>
-      function validateOrderData() {
-    let customerID = document.getElementById("customerID").value;  // Lấy từ input ẩn
+     function validateOrderData() {
+    let customerID = document.getElementById("customerID").value;
     let customerName = document.getElementById("customerName").value;
     let customerPhone = document.getElementById("customerPhone").value;
     let customerEmail = document.getElementById("customerEmail").value;
     let customerAddress = document.getElementById("customerAddress").value;
     let shippingNotes = document.getElementById("shippingNotes").value;
 
-    // Kiểm tra nếu chưa chọn khách hàng
+    // Validation checks...
     if (!customerID) {
         alert("Vui lòng chọn khách hàng từ danh sách!");
         return false;
@@ -31,24 +31,28 @@
         return false;
     }
 
+    // Calculate final total amount (with or without promotion)
+    let totalAmount = parseFloat(document.getElementById("totalAmount").innerText.replace(/[^\d]/g, '')) || 0;
+
     return {
-    customerID,
-    products: selectedProducts.map(p => ({
-        productID: p.productID,
-        name: p.name,
-        inventory: p.inventory,
-        price: p.price,
-        quantity: p.quantity, // Thêm trường quantity vào đây
-        attributes: Object.entries(p.attributes).map(([key, value]) => ({
-            name: key,
-            value: [value]  // Mảng giá trị theo schema
-        }))
-    })),
-    totalAmount: selectedProducts.reduce((sum, p) => sum + (p.price * p.quantity), 0),
-    paymentMethod: 'cash',
-    shippingAddress: "Nhận tại cửa hàng",
-    notes: shippingNotes || ""
-};
+        customerID,
+        products: selectedProducts.map(p => ({
+            productID: p.productID,
+            name: p.name,
+            inventory: p.inventory,
+            price: p.price,
+            quantity: p.quantity,
+            attributes: Object.entries(p.attributes).map(([key, value]) => ({
+                name: key,
+                value: [value]
+            }))
+        })),
+        totalAmount: totalAmount,
+        paymentMethod: 'cash',
+        shippingAddress: "Nhận tại cửa hàng",
+        notes: shippingNotes || "",
+        promotionID: selectedPromotion ? selectedPromotion.id : null
+    };
 }
 
 
@@ -253,6 +257,32 @@ function updateSelectedProductsTable() {
         `;
     });
 
+    // Store original total before discount
+    originalTotalAmount = totalAmount;
+    
+    // If a promotion is selected, reapply it
+    if (selectedPromotion) {
+        // Check if order still meets minimum value
+        if (totalAmount < selectedPromotion.minOrderValue) {
+            alert(`Đơn hàng không còn đủ điều kiện để áp dụng khuyến mãi "${selectedPromotion.name}". Khuyến mãi đã bị gỡ bỏ.`);
+            removePromotion();
+        } else {
+            // Recalculate discount
+            let discountAmount = (totalAmount * selectedPromotion.discount) / 100;
+            
+            // Cap at maximum discount
+            if (discountAmount > selectedPromotion.maxDiscount) {
+                discountAmount = selectedPromotion.maxDiscount;
+            }
+            
+            // Update UI with discounted total
+            document.getElementById("discountAmount").innerText = discountAmount.toLocaleString() + " VND";
+            document.getElementById("totalAmount").innerText = (totalAmount - discountAmount).toLocaleString() + " VND";
+            return;
+        }
+    }
+    
+    // If no promotion or promotion was removed, show original total
     document.getElementById("totalAmount").innerText = totalAmount.toLocaleString() + " VND";
 }
 
@@ -535,6 +565,150 @@ function filterCustomers() {
         noCustomersMessage.style.display = 'none';
     }
 }
+let selectedPromotion = null;
+let originalTotalAmount = 0;
+
+// Function to open promotion dialog
+function openPromotionDialog() {
+    // Fetch current promotions from the server
+    fetch("/promotions/json")
+        .then(response => response.json())
+        .then(promotions => {
+            displayPromotions(promotions);
+            document.getElementById("promotionDialog").style.display = "block";
+        })
+        .catch(error => {
+            console.error("Lỗi khi lấy danh sách khuyến mãi:", error);
+            alert("Không thể tải danh sách khuyến mãi. Vui lòng thử lại sau.");
+        });
+}
+
+// Function to close promotion dialog
+function closePromotionDialog() {
+    document.getElementById("promotionDialog").style.display = "none";
+}
+
+// Function to display promotions in dialog
+function displayPromotions(promotions) {
+    const promotionTableBody = document.getElementById("promotionTableBody");
+    promotionTableBody.innerHTML = "";
+    
+    // Get current date for comparison
+    const currentDate = new Date();
+    currentDate.setHours(0, 0, 0, 0); // Reset time part for date comparison
+    
+    // Filter active promotions
+    const activePromotions = promotions.filter(promo => {
+        const startDate = new Date(promo.startDate);
+        const endDate = new Date(promo.endDate);
+        endDate.setHours(23, 59, 59, 999); // Include end date fully
+        
+        return (currentDate >= startDate && currentDate <= endDate) || 
+               promo.status === 'active';
+    });
+    
+    if (activePromotions.length === 0) {
+        promotionTableBody.innerHTML = `
+            <tr>
+                <td colspan="5" class="text-center">Không có khuyến mãi nào đang hoạt động</td>
+            </tr>
+        `;
+        return;
+    }
+    
+    activePromotions.forEach(promo => {
+        const row = document.createElement("tr");
+        
+        // Format dates for display
+        const startDateFormatted = new Date(promo.startDate).toLocaleDateString('vi-VN');
+        const endDateFormatted = new Date(promo.endDate).toLocaleDateString('vi-VN');
+        
+        // Calculate if promo is applicable to current order
+        const currentTotal = parseFloat(document.getElementById("totalAmount").innerText.replace(/[^\d]/g, '')) || 0;
+        const isApplicable = currentTotal >= promo.minOrderValue;
+        
+        row.innerHTML = `
+            <td>${promo.name}</td>
+            <td>${promo.discount}%</td>
+            <td>${promo.minOrderValue.toLocaleString()} VND</td>
+            <td>${promo.maxDiscount.toLocaleString()} VND</td>
+            <td>${startDateFormatted} - ${endDateFormatted}</td>
+            <td>
+                <button 
+                    class="btn ${isApplicable ? 'btn-primary' : 'btn-secondary'}" 
+                    onclick="selectPromotion('${promo._id}', '${promo.name}', ${promo.discount}, ${promo.minOrderValue}, ${promo.maxDiscount})"
+                    ${!isApplicable ? 'disabled' : ''}
+                >
+                    ${isApplicable ? 'Chọn' : 'Không đủ điều kiện'}
+                </button>
+            </td>
+        `;
+        
+        promotionTableBody.appendChild(row);
+    });
+}
+
+// Function to select a promotion
+function selectPromotion(id, name, discount, minOrderValue, maxDiscount) {
+    // Store current total without any discount
+    if (!originalTotalAmount) {
+        originalTotalAmount = parseFloat(document.getElementById("totalAmount").innerText.replace(/[^\d]/g, '')) || 0;
+    }
+    
+    // Check if order meets minimum value
+    if (originalTotalAmount < minOrderValue) {
+        alert(`Đơn hàng chưa đạt giá trị tối thiểu ${minOrderValue.toLocaleString()} VND để áp dụng khuyến mãi này.`);
+        return;
+    }
+    
+    // Store selected promotion
+    selectedPromotion = {
+        id: id,
+        name: name,
+        discount: discount,
+        minOrderValue: minOrderValue,
+        maxDiscount: maxDiscount
+    };
+    
+    // Calculate discount amount
+    let discountAmount = (originalTotalAmount * discount) / 100;
+    
+    // Cap at maximum discount if applicable
+    if (discountAmount > maxDiscount) {
+        discountAmount = maxDiscount;
+    }
+    
+    // Calculate new total
+    const newTotal = originalTotalAmount - discountAmount;
+    
+    // Update UI
+    document.getElementById("selectedPromotionName").innerText = name;
+    document.getElementById("discountAmount").innerText = discountAmount.toLocaleString() + " VND";
+    document.getElementById("totalAmount").innerText = newTotal.toLocaleString() + " VND";
+    document.getElementById("promotionApplied").style.display = "block";
+    document.getElementById("removePromotionBtn").style.display = "inline-block";
+    
+    // Close dialog
+    closePromotionDialog();
+}
+
+// Function to remove promotion
+function removePromotion() {
+    if (originalTotalAmount) {
+        // Restore original total
+        document.getElementById("totalAmount").innerText = originalTotalAmount.toLocaleString() + " VND";
+    }
+    
+    // Reset UI
+    document.getElementById("selectedPromotionName").innerText = "";
+    document.getElementById("discountAmount").innerText = "0 VND";
+    document.getElementById("promotionApplied").style.display = "none";
+    document.getElementById("removePromotionBtn").style.display = "none";
+    
+    // Reset selected promotion
+    selectedPromotion = null;
+}
+
     </script>
     <style>
         body {
@@ -836,6 +1010,49 @@ function filterCustomers() {
             </table>
         </div>
     </div>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin: 20px 0;">
+        <button type="button" class="btn btn-info" onclick="openPromotionDialog()">Chọn Khuyến Mãi</button>
+        <div id="promotionApplied" style="display: none; background-color: #e0f7fa; padding: 10px; border-radius: 5px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div>
+                    <strong>Khuyến mãi áp dụng:</strong> <span id="selectedPromotionName"></span>
+                </div>
+                <div>
+                    <strong>Số tiền giảm:</strong> <span id="discountAmount">0 VND</span>
+                </div>
+                <button id="removePromotionBtn" type="button" class="btn btn-sm btn-danger" 
+                        onclick="removePromotion()" style="display: none;">Hủy khuyến mãi</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Dialog chọn khuyến mãi -->
+    <div id="promotionDialog" style="display:none; position:fixed; top:20%; left:20%; width:60%; background:white; padding:20px; border:1px solid black; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); z-index: 1000; max-height: 60%; overflow-y: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="margin: 0;">Chọn Khuyến Mãi</h3>
+            <button onclick="closePromotionDialog()" style="background: red; color: white; border: none; border-radius: 4px; padding: 5px 10px;">Đóng</button>
+        </div>
+        
+        <div style="margin-bottom: 15px;">
+            <p>Chỉ hiển thị các khuyến mãi đang hoạt động và có thể áp dụng cho đơn hàng của bạn.</p>
+        </div>
+        
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background-color: #f2f2f2;">
+                    <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Tên khuyến mãi</th>
+                    <th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Giảm giá</th>
+                    <th style="padding: 10px; text-align: right; border: 1px solid #ddd;">Giá trị tối thiểu</th>
+                    <th style="padding: 10px; text-align: right; border: 1px solid #ddd;">Giảm tối đa</th>
+                    <th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Thời gian</th>
+                    <th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody id="promotionTableBody">
+                <!-- Promotions will be populated here by JavaScript -->
+            </tbody>
+        </table>
+    </div>
 
     <!-- Thông tin giao hàng (đã loại bỏ phần lựa chọn hình thức giao hàng) -->
     <div style="margin-top: 30px; margin-bottom: 70px;">
@@ -905,7 +1122,7 @@ function filterCustomers() {
                             🛠️
                         </button>
                     </td>
-                    <td><%= product.price.toLocaleString() %> VND</td>
+                    <td><%= (product.price || 0).toLocaleString() %> VND</td>
                     <td><%= product.inventory %></td>
                     <td>
                         <input type="checkbox" id="productCheckbox-<%= product._id %>" 

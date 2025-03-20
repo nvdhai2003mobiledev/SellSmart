@@ -640,7 +640,53 @@ function displayOrderDetail(order) {
   // Hiển thị thông tin nhân viên
   document.getElementById('orderDetailEmployee').textContent = 
     order.employeeID ? `${order.employeeID.fullName} (${order.employeeID.position})` : 'Không có';
-  
+    if (order.promotionID || order.promotionDetails) {
+    const promotionInfo = document.createElement('div');
+    promotionInfo.style.marginTop = '20px';
+    promotionInfo.style.marginBottom = '20px';
+    promotionInfo.style.padding = '10px';
+    promotionInfo.style.backgroundColor = '#e0f7fa';
+    promotionInfo.style.borderRadius = '5px';
+    
+    let promotionHTML = '<h4 style="margin-top: 0;">Thông tin khuyến mãi</h4>';
+    
+    if (order.promotionDetails && order.promotionDetails.name) {
+      promotionHTML += `
+        <div style="display: flex; gap: 20px; margin-bottom: 10px;">
+          <div><strong>Tên khuyến mãi:</strong> ${order.promotionDetails.name}</div>
+          <div><strong>Giảm giá:</strong> ${order.promotionDetails.discount}%</div>
+        </div>
+      `;
+    } else if (order.promotionID && order.promotionID.name) {
+      promotionHTML += `
+        <div style="display: flex; gap: 20px; margin-bottom: 10px;">
+          <strong>Tên khuyến mãi:</strong> ${order.promotionID.name}</div>
+          <div><strong>Giảm giá:</strong> ${order.promotionID.discount}%</div>
+        </div>
+      `;
+    }
+    
+    // Show discount amount and original amount if available
+    if (order.originalAmount) {
+      const discountAmount = order.originalAmount - order.totalAmount;
+      promotionHTML += `
+        <div style="display: flex; gap: 20px;">
+          <div><strong>Giá gốc:</strong> ${order.originalAmount.toLocaleString()} VND</div>
+          <div><strong>Số tiền giảm:</strong> ${discountAmount.toLocaleString()} VND</div>
+        </div>
+      `;
+    } else if (order.promotionDetails && order.promotionDetails.discountAmount) {
+      promotionHTML += `
+        <div><strong>Số tiền giảm:</strong> ${order.promotionDetails.discountAmount.toLocaleString()} VND</div>
+      `;
+    }
+    
+    promotionInfo.innerHTML = promotionHTML;
+    
+    // Insert before the total amount
+    const totalElement = document.querySelector('#orderDetailTotal').parentNode.parentNode;
+    totalElement.parentNode.insertBefore(promotionInfo, totalElement);
+  }
   // Hiển thị thông tin khách hàng
   if (order.customerID) {
     document.getElementById('orderDetailCustomerName').textContent = order.customerID.fullName || 'Không có';

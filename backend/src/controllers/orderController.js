@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const Order = require("../models/Order");
 const Customer = require("../models/Customer");
 const Product = require("../models/Product");
+const Promotion = require("../models/Promotion")
 const Employee = require("../models/Employee");
 
 const createOrder = async (req, res) => {
@@ -14,6 +15,7 @@ const createOrder = async (req, res) => {
       paymentMethod,
       shippingAddress,
       notes,
+      promotionID  // Add this line to get promotionID from the request
     } = req.body;
 
     if (
@@ -29,6 +31,7 @@ const createOrder = async (req, res) => {
         .json({ success: false, message: "Dữ liệu đơn hàng không hợp lệ" });
     }
 
+    // Create order object
     const newOrder = new Order({
       orderID: `ORD-${Date.now()}`,
       customerID,
@@ -38,6 +41,11 @@ const createOrder = async (req, res) => {
       shippingAddress,
       notes,
     });
+
+    // If there's a promotion ID, add it to the order
+    if (promotionID) {
+      newOrder.promotionID = promotionID;
+    }
 
     await newOrder.save();
     res.json({
@@ -69,11 +77,11 @@ const renderOrdersPage = async (req, res) => {
   try {
     const orders = await getAllOrders(); // Lấy danh sách đơn hàng
 
-
     if (!orders || orders.length === 0) {
       return res.render("orders", { orders: [] }); // Nếu không có dữ liệu, gửi mảng rỗng để tránh lỗi
     }
 
+    res.render("orders", { orders });
   } catch (error) {
     res.status(500).send("Lỗi server: " + error.message);
   }
@@ -106,23 +114,29 @@ const deleteOrder = async (req, res) => {
     await orderService.deleteOrder(req.params.id);
     res.json({ message: "Order deleted successfully" });
   } catch (error) {
-
     res.status(500).json({ message: "Server error", error: error.message });
-
   }
 };
 const createOrderScreen = async (req, res) => {
   try {
     const customers = await Customer.find();
     const products = await Product.find();
+    const promotions = await Promotion.find(); // Add this line to fetch promotions
+    
     console.log("📌 Customers:", customers);
     console.log("📌 Products:", products);
-    res.render("dashboard/createOrder", { customers, products, page: 'createOrder' });
+    console.log("📌 Promotions:", promotions); // Add this line
+    
+    res.render("dashboard/createOrder", { 
+      customers, 
+      products, 
+      promotions, // Add this line
+      page: 'createOrder' 
+    });
   } catch (error) {
     console.error("🔥 Lỗi khi tải trang tạo đơn hàng:", error);
     res.status(500).send("Lỗi server khi tải trang!");
   }
-
 };
 // Lấy chi tiết đơn hàng
 const getOrderDetail = async (req, res) => {
@@ -158,7 +172,7 @@ const getOrderDetail = async (req, res) => {
       error: error.message
     });
   }
-=======
+
 
 };
 
@@ -173,6 +187,3 @@ module.exports = {
 
   getOrderDetail,
 };
-
-};
-
