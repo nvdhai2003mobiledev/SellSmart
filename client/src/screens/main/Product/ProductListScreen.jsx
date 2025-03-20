@@ -1,9 +1,13 @@
-import React from 'react';
-import { View, Text, FlatList, Image,StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, FlatList, Image, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { BaseLayout, Input } from '../../../components';
+import { useNavigation } from '@react-navigation/native';
+import { BaseLayout, Input, Header, DynamicText } from '../../../components';
 
 const ProductListScreen = () => {
+  const navigation = useNavigation();
+  const [searchQuery, setSearchQuery] = useState('');
+
   // Dữ liệu fix cứng cho danh sách sản phẩm
   const products = [
     { id: '1', code: '#SH5832', name: 'MacBook Pro 2023 14 inch', status: 'Hết hàng' },
@@ -12,28 +16,36 @@ const ProductListScreen = () => {
     { id: '4', code: '#SH5832', name: 'MacBook Pro 2023 14 inch', status: 'Hết hàng' },
   ];
 
+  // Lọc danh sách sản phẩm dựa trên searchQuery
+  const filteredProducts = products.filter(
+    (product) =>
+      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.code.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <BaseLayout>
       {/* Header */}
-      <View style={styles.header}>
-        <Icon name="chevron-back-outline" size={24} color="#000" />
-        <Text style={styles.headerTitle}>Tất cả sản phẩm</Text>
-        <View style={{ width: 24 }} /> {/* Placeholder để cân đối */}
-      </View>
+      <Header
+        title="Tất cả sản phẩm"
+        showBackIcon={true}
+        onPressBack={() => navigation.goBack()}
+      />
 
       {/* Tìm kiếm */}
       <View style={styles.searchContainer}>
         <Input
           placeholderText="Nhập tên/mã sản phẩm"
-          iconType="custom"
-          EndIcon={<Icon name="search-outline" size={20} color="#666" style={styles.searchIcon} />}
+          onChangeText={setSearchQuery}
+          value={searchQuery}
+          iconType="clear" // Hiển thị nút xóa khi có nội dung
           inputContainerStyle={styles.searchInput}
         />
       </View>
 
       {/* Danh sách sản phẩm */}
       <FlatList
-        data={products}
+        data={filteredProducts}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <View style={styles.productItem}>
@@ -42,9 +54,9 @@ const ProductListScreen = () => {
               style={styles.productImage}
             />
             <View style={styles.productDetails}>
-              <Text style={styles.productCode}>{item.code}</Text>
-              <Text style={styles.productName}>{item.name}</Text>
-              <Text style={styles.productStatus}>BO</Text>
+              <DynamicText style={styles.productCode}>{item.code}</DynamicText>
+              <DynamicText style={styles.productName}>{item.name}</DynamicText>
+              <DynamicText style={styles.productStatus}>BO</DynamicText>
             </View>
           </View>
         )}
@@ -56,17 +68,6 @@ const ProductListScreen = () => {
 
 // Styles
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#000',
-  },
   searchContainer: {
     marginBottom: 16,
   },
@@ -76,9 +77,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 8,
     paddingHorizontal: 12,
-  },
-  searchIcon: {
-    marginRight: 8,
   },
   listContainer: {
     paddingBottom: 16,

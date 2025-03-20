@@ -1,62 +1,88 @@
-import React from 'react';
-import { View, Text,StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet } from 'react-native';
 import Svg, { Rect } from 'react-native-svg';
-import { BaseLayout, Button } from '../../../components';
+import { useNavigation } from '@react-navigation/native';
+import { BaseLayout, Button, Header, DynamicText } from '../../../components';
+import { scaledSize, scaleHeight } from '../../../utils';
 
 const StatisticsScreen = () => {
+  const navigation = useNavigation();
+  const [filter, setFilter] = useState('30 ngày qua'); // Trạng thái bộ lọc thời gian
+
+  // Dữ liệu mẫu cho biểu đồ (có thể thay bằng dữ liệu động từ API)
+  const chartData = [
+    { month: 'Jan', value: 50 },
+    { month: 'Feb', value: 100 },
+    { month: 'Mar', value: 150 },
+    { month: 'Apr', value: 70 },
+    { month: 'May', value: 60 },
+    { month: 'Jun', value: 80 },
+  ];
+
+  // Hàm xử lý khi nhấn nút lọc
+  const handleFilterChange = () => {
+    // Logic thay đổi bộ lọc (có thể mở rộng với modal hoặc picker)
+    setFilter(filter === '30 ngày qua' ? '7 ngày qua' : '30 ngày qua');
+    // Có thể thêm logic tải lại dữ liệu thống kê dựa trên filter
+  };
+
   return (
     <BaseLayout>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Thống kê</Text>
-        {/* <Button
-          title="30 ngày qua"
+      <Header
+        title="Thống kê"
+        showBackIcon={true}
+        onPressBack={() => navigation.goBack()}
+      />
+
+      {/* Bộ lọc */}
+      <View style={styles.headerFilter}>
+        <Button
+          title={filter}
+          onPress={handleFilterChange}
           buttonContainerStyle={styles.filterButton}
           titleStyle={styles.filterText}
-        /> */}
+        />
       </View>
 
       {/* Tổng quan */}
       <View style={styles.overviewContainer}>
-        <Text style={styles.overviewLabel}>Tổng quan</Text>
-        <Text style={styles.overviewValue}>100.000.000đ</Text>
+        <DynamicText style={styles.overviewLabel}>Tổng quan</DynamicText>
+        <DynamicText style={styles.overviewValue}>100.000.000đ</DynamicText>
       </View>
 
       {/* Tiền đã nộp */}
       <View style={styles.paidContainer}>
-        <Text style={styles.paidLabel}>Tiền đã nộp</Text>
-        <Text style={styles.paidValue}>100.000.000đ</Text>
+        <DynamicText style={styles.paidLabel}>Tiền đã nộp</DynamicText>
+        <DynamicText style={styles.paidValue}>100.000.000đ</DynamicText>
       </View>
 
       {/* Tiền còn nợ */}
       <View style={styles.debtContainer}>
-        <Text style={styles.debtLabel}>Tiền còn nợ</Text>
-        <Text style={styles.debtValue}>200.000.000đ</Text>
+        <DynamicText style={styles.debtLabel}>Tiền còn nợ</DynamicText>
+        <DynamicText style={styles.debtValue}>200.000.000đ</DynamicText>
       </View>
 
       {/* Biểu đồ */}
       <View style={styles.chartContainer}>
         <Svg height="200" width="300">
-          {/* Cột Jan */}
-          <Rect x="20" y="150" width="30" height="50" fill="#ddd" />
-          {/* Cột Feb */}
-          <Rect x="70" y="100" width="30" height="100" fill="#ddd" />
-          {/* Cột Mar (tô màu xanh đậm) */}
-          <Rect x="120" y="50" width="30" height="150" fill="#007AFF" />
-          {/* Cột Apr */}
-          <Rect x="170" y="130" width="30" height="70" fill="#ddd" />
-          {/* Cột May */}
-          <Rect x="220" y="140" width="30" height="60" fill="#ddd" />
-          {/* Cột Jun */}
-          <Rect x="270" y="120" width="30" height="80" fill="#ddd" />
+          {chartData.map((item, index) => (
+            <Rect
+              key={item.month}
+              x={20 + index * 50}
+              y={200 - item.value}
+              width="30"
+              height={item.value}
+              fill={item.month === 'Mar' ? '#007AFF' : '#ddd'} // Tô màu nổi bật cho tháng Mar
+            />
+          ))}
         </Svg>
         <View style={styles.monthLabels}>
-          <Text style={styles.monthLabel}>Jan</Text>
-          <Text style={styles.monthLabel}>Feb</Text>
-          <Text style={styles.monthLabel}>Mar</Text>
-          <Text style={styles.monthLabel}>Apr</Text>
-          <Text style={styles.monthLabel}>May</Text>
-          <Text style={styles.monthLabel}>Jun</Text>
+          {chartData.map((item) => (
+            <DynamicText key={item.month} style={styles.monthLabel}>
+              {item.month}
+            </DynamicText>
+          ))}
         </View>
       </View>
     </BaseLayout>
@@ -65,89 +91,83 @@ const StatisticsScreen = () => {
 
 // Styles
 const styles = StyleSheet.create({
-  header: {
+  headerFilter: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 16,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#000',
+    justifyContent: 'flex-end',
+    paddingVertical: scaleHeight(10),
   },
   filterButton: {
     backgroundColor: '#e0e0e0',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    paddingVertical: scaledSize(6),
+    paddingHorizontal: scaledSize(12),
     borderRadius: 12,
   },
   filterText: {
-    fontSize: 14,
+    fontSize: scaledSize(14),
     color: '#000',
   },
   overviewContainer: {
     backgroundColor: '#fff',
     borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
+    padding: scaledSize(16),
+    marginBottom: scaleHeight(16),
   },
   overviewLabel: {
-    fontSize: 16,
+    fontSize: scaledSize(16),
     color: '#666',
   },
   overviewValue: {
-    fontSize: 20,
+    fontSize: scaledSize(20),
     fontWeight: 'bold',
     color: '#000',
-    marginTop: 8,
+    marginTop: scaleHeight(8),
   },
   paidContainer: {
     backgroundColor: '#e6f3ff',
     borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
+    padding: scaledSize(16),
+    marginBottom: scaleHeight(16),
   },
   paidLabel: {
-    fontSize: 16,
+    fontSize: scaledSize(16),
     color: '#666',
   },
   paidValue: {
-    fontSize: 20,
+    fontSize: scaledSize(20),
     fontWeight: 'bold',
     color: '#000',
-    marginTop: 8,
+    marginTop: scaleHeight(8),
   },
   debtContainer: {
     backgroundColor: '#cce5ff',
     borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
+    padding: scaledSize(16),
+    marginBottom: scaleHeight(16),
   },
   debtLabel: {
-    fontSize: 16,
+    fontSize: scaledSize(16),
     color: '#666',
   },
   debtValue: {
-    fontSize: 20,
+    fontSize: scaledSize(20),
     fontWeight: 'bold',
     color: '#000',
-    marginTop: 8,
+    marginTop: scaleHeight(8),
   },
   chartContainer: {
     backgroundColor: '#fff',
     borderRadius: 8,
-    padding: 16,
+    padding: scaledSize(16),
     alignItems: 'center',
   },
   monthLabels: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '80%',
-    marginTop: 10,
+    marginTop: scaleHeight(10),
   },
   monthLabel: {
-    fontSize: 14,
+    fontSize: scaledSize(14),
     color: '#666',
   },
 });

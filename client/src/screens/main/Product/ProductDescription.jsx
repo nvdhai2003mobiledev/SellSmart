@@ -1,15 +1,33 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { BaseLayout, Input, Button } from '../../../components';
+import { Controller, useForm } from 'react-hook-form';
+import { useNavigation } from '@react-navigation/native';
+import { BaseLayout, Input, Button, Header, DynamicText } from '../../../components';
+import { color, scaleHeight } from '../../../utils';
 
 const ProductDescription = () => {
+  const navigation = useNavigation();
+
+  const { control, handleSubmit, formState: { errors } } = useForm({
+    defaultValues: {
+      description: '',
+    },
+  });
+
+  const onSubmit = (data: any) => {
+    console.log('Mô tả sản phẩm:', data);
+    // Thêm logic lưu dữ liệu vào đây (ví dụ: gửi API)
+  };
+
   return (
     <BaseLayout>
       {/* Tiêu đề */}
-      <View style={styles.header}>
-        <Text style={styles.headerText}>MÔ TẢ SẢN PHẨM</Text>
-      </View>
+      <Header
+        title="MÔ TẢ SẢN PHẨM"
+        showBackIcon={true}
+        onPressBack={() => navigation.goBack()}
+      />
 
       {/* Thanh công cụ định dạng */}
       <View style={styles.toolbar}>
@@ -31,15 +49,30 @@ const ProductDescription = () => {
       </View>
 
       {/* Ô nhập liệu */}
-      <Input
-        placeholderText="Nhập nội dung"
-        inputContainerStyle={styles.textInput}
-        multiline
-      />
+      <View style={styles.inputContainer}>
+        <Controller
+          control={control}
+          name="description"
+          rules={{ required: 'Mô tả sản phẩm là bắt buộc' }}
+          render={({ field: { onChange, value } }) => (
+            <Input
+              placeholderText="Nhập nội dung"
+              inputContainerStyle={styles.textInput}
+              multiline
+              onChangeText={onChange}
+              value={value}
+            />
+          )}
+        />
+        {errors.description && (
+          <DynamicText style={styles.errorText}>{errors.description.message}</DynamicText>
+        )}
+      </View>
 
       {/* Nút Lưu */}
       <Button
         title="LƯU"
+        onPress={handleSubmit(onSubmit)}
         buttonContainerStyle={styles.saveButton}
         titleStyle={styles.saveButtonText}
       />
@@ -48,16 +81,6 @@ const ProductDescription = () => {
 };
 
 const styles = StyleSheet.create({
-  header: {
-    backgroundColor: '#333',
-    padding: 15,
-    alignItems: 'center',
-  },
-  headerText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
   toolbar: {
     flexDirection: 'row',
     backgroundColor: '#f5f5f5',
@@ -69,10 +92,13 @@ const styles = StyleSheet.create({
   iconButton: {
     padding: 5,
   },
+  inputContainer: {
+    flex: 1,
+    margin: 10,
+  },
   textInput: {
     flex: 1,
     backgroundColor: '#fff',
-    margin: 10,
     padding: 15,
     borderRadius: 10,
     fontSize: 16,
@@ -89,6 +115,10 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  errorText: {
+    color: color.accentColor.errorColor,
+    marginTop: 5,
   },
 });
 
