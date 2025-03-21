@@ -9,10 +9,17 @@ import {
   ViewStyle,
 } from 'react-native';
 import React from 'react';
-import { useTextColor } from '../../hooks';
-import { color, moderateScale, scaled, scaledSize, scaleHeight, scaleWidth } from '../../utils';
-import { Fonts } from '../../assets';
-import { CloseCircle } from 'iconsax-react-native';
+import {useTextColor} from '../../hooks';
+import {
+  color,
+  moderateScale,
+  scaledSize,
+  scaleHeight,
+  scaleWidth,
+} from '../../utils';
+import {Fonts} from '../../assets';
+import {CloseCircle, Eye, EyeSlash} from 'iconsax-react-native';
+import {DynamicText} from '../DynamicText/DynamicText.tsx';
 
 interface InputProps {
   inputContainerStyle?: StyleProp<ViewStyle>;
@@ -24,7 +31,10 @@ interface InputProps {
   keyboardType?: KeyboardType;
   EndIcon?: React.ReactNode;
   onIconPress?: () => void;
-  iconType?: 'clear' | 'password' | 'custom';
+  showClearIcon?: boolean;
+  showPasswordIcon?: boolean;
+  onTogglePassword?: () => void;
+  error?: string;
 }
 
 export const Input = React.memo((props: InputProps) => {
@@ -38,40 +48,72 @@ export const Input = React.memo((props: InputProps) => {
     keyboardType,
     EndIcon,
     onIconPress,
-    iconType,
+    showClearIcon = false,
+    showPasswordIcon = false,
+    onTogglePassword,
+    error,
   } = props;
+
   const textColor = useTextColor();
-  const clearIcon = () => {
+
+  const clearInput = () => {
     onChangeText?.('');
   };
+
   return (
-    <View style={[styles.inputContainer, inputContainerStyle]}>
-      <TextInput
-        style={[styles.input, { color: textColor }]}
-        placeholder={placeholderText}
-        placeholderTextColor={color.accentColor.grayColor}
-        value={value}
-        onChangeText={onChangeText}
-        secureTextEntry={secureTextEntry}
-        autoFocus={autoFocus || false}
-        keyboardType={keyboardType}
-        onSubmitEditing={Keyboard.dismiss}
-      />
-      {iconType === 'clear' && value.length > 0 && (
-        <TouchableOpacity onPress={clearIcon}>
-          <CloseCircle color={color.accentColor.closeColor} size={scaledSize(18)} variant='Bulk' />
-        </TouchableOpacity>
-      )}
-      {iconType === 'password' && EndIcon && (
-        <TouchableOpacity onPress={onIconPress}>
-          <View>{EndIcon}</View>
-        </TouchableOpacity>
-      )}
-      {iconType === 'custom' && EndIcon && (
-        <TouchableOpacity onPress={onIconPress}>
-          <View>{EndIcon}</View>
-        </TouchableOpacity>
-      )}
+    <View>
+      <View
+        style={[
+          styles.inputContainer,
+          error ? styles.inputContainerError : {},
+          inputContainerStyle,
+        ]}>
+        <TextInput
+          style={[styles.input, {color: textColor}]}
+          placeholder={placeholderText}
+          placeholderTextColor={color.accentColor.grayColor}
+          value={value}
+          onChangeText={onChangeText}
+          secureTextEntry={secureTextEntry}
+          autoFocus={autoFocus || false}
+          keyboardType={keyboardType}
+          onSubmitEditing={Keyboard.dismiss}
+        />
+        <View style={styles.rightContainer}>
+          {showClearIcon && value.length > 0 && (
+            <TouchableOpacity onPress={clearInput}>
+              <CloseCircle
+                color={color.accentColor.closeColor}
+                size={scaledSize(18)}
+                variant="Bulk"
+              />
+            </TouchableOpacity>
+          )}
+
+          {showPasswordIcon && (
+            <TouchableOpacity onPress={onTogglePassword}>
+              {secureTextEntry ? (
+                <Eye
+                  color={color.accentColor.grayColor}
+                  size={scaledSize(18)}
+                  variant="Linear"
+                />
+              ) : (
+                <EyeSlash
+                  color={color.accentColor.grayColor}
+                  size={scaledSize(18)}
+                  variant="Linear"
+                />
+              )}
+            </TouchableOpacity>
+          )}
+
+          {EndIcon && (
+            <TouchableOpacity onPress={onIconPress}>{EndIcon}</TouchableOpacity>
+          )}
+        </View>
+      </View>
+      {error && <DynamicText style={styles.errorText}>{error}</DynamicText>}
     </View>
   );
 });
@@ -80,17 +122,33 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     width: '100%',
-    height: scaleHeight(45),
+    height: scaleHeight(50),
     borderRadius: moderateScale(14),
     borderWidth: 0.5,
     backgroundColor: color.inputColor,
     borderColor: 'rgba(0, 0, 0, 0.2)',
-    paddingHorizontal: scaleWidth(20),
+    paddingHorizontal: scaleWidth(16),
     alignItems: 'center',
+  },
+  // Add error style with red border
+  inputContainerError: {
+    borderColor: color.accentColor.errorColor,
+    borderWidth: 0.5,
   },
   input: {
     flex: 1,
     fontSize: scaledSize(14),
     fontFamily: Fonts.Inter_Regular,
+  },
+  rightContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  errorText: {
+    color: color.accentColor.errorColor,
+    fontSize: scaledSize(12),
+    marginHorizontal: scaleWidth(6),
+    marginTop: scaleHeight(4),
   },
 });

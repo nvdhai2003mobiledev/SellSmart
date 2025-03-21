@@ -1,5 +1,8 @@
 export const contents = {
   onboarding: {
+    skip: 'Bỏ qua',
+    next: 'Tiếp tục',
+    start: 'Bắt đầu ngay',
     onboarding1: {
       title: 'Quản lý tồn kho',
       description: 'Kiểm soát hàng hóa dễ dàng, cập nhật tức thời.',
@@ -11,9 +14,6 @@ export const contents = {
     onboarding3: {
       title: 'Quản lý tồn kho chính xác',
       description: 'Kiểm soát hàng hóa dễ dàng, cập nhật tức thời.',
-      tieptheo: 'Tiếp theo ',
-      boqua: 'Bỏ qua',
-      start: 'Bắt đầu ngay ',
     },
   },
   login: {
@@ -36,34 +36,33 @@ export const contents = {
   },
 
   order: {
-    createOrder: 'Tạo đơn hàng ',
+    create_order: 'Tạo đơn hàng ',
     order: 'Đơn hàng ',
-    donnhap: 'Đơn nháp',
-    return: 'Trả hàng ',
+    order_draft: 'Đơn nháp',
+    return_product: 'Trả hàng ',
     ship: 'Vận đơn',
   },
 
-home:{
-today:'Hôm nay',
-week:'Tuần này',
-month:'Tháng này',
-doanhthuhomnay:'Doanh thu hôm nay ',
-date:'19/11/2024',
-price:'0đ',
-soluong:'0',
-gtridon:'Giá trị TB đơn ',
-sldangban:'SL đang bán',
-kquaKD:'Kết quả kinh doanh ',
-},
+  home: {
+    today: 'Hôm nay',
+    week: 'Tuần này',
+    month: 'Tháng này',
+    today_revenue: 'Doanh thu hôm nay ',
+    date: '19/11/2024',
+    price: '0đ',
+    quantity: '0',
+    average_value: 'Giá trị TB đơn ',
+    quantity_sale: 'SL đang bán',
+    result: 'Kết quả kinh doanh ',
+  },
 
-xacminh:{
-nhapma:'Nhập mã xác minh chúng tôi đã gửi tới',
-phone:'+84 309290017',
-guilai:'Gửi lại!',
-}
-,
- menu:{
-  title: 'Menu',
+  verify: {
+    text: 'Nhập mã xác minh chúng tôi đã gửi tới',
+    phone: '+84 309290017',
+    resend: 'Gửi lại!',
+  },
+  menu: {
+    title: 'Menu',
     account: {
       title: 'Tài khoản',
       name: 'Nguyễn Văn A',
@@ -82,7 +81,7 @@ guilai:'Gửi lại!',
     },
     logout: 'Đăng xuất',
   },
-  staff: {
+  employee: {
     title: 'Nhân viên',
     staff_id_label: '',
     phone_label: '',
@@ -120,7 +119,7 @@ guilai:'Gửi lại!',
       search: '',
     },
   },
-  addstaff: {
+  add_employee: {
     text: '',
     title: 'Thêm nhân viên',
     show: 'Thông tin nhân viên',
@@ -143,7 +142,7 @@ guilai:'Gửi lại!',
     email_length: 'Email không hợp lệ',
     button_title: 'Lưu',
   },
-  detailstaff: {
+  detail_employee: {
     title: 'Thông tin chi tiết',
     id: '#CM9801',
     username: 'Họ tên',
@@ -155,7 +154,7 @@ guilai:'Gửi lại!',
     position: 'Chức vụ',
     button_title: 'Xóa nhân viên',
   },
-  updatestaff: {
+  update_employee: {
     text: '',
     title: 'Cập nhật nhân viên',
     show: 'Thông tin nhân viên',
@@ -206,7 +205,7 @@ guilai:'Gửi lại!',
       search: '',
     },
   },
-  addcustom: {
+  add_customer: {
     text: '',
     title: 'Thêm khách hàng',
     show: 'Thông tin khách hàng',
@@ -227,7 +226,7 @@ guilai:'Gửi lại!',
     email_length: 'Email không hợp lệ',
     button_title: 'Lưu',
   },
-  detailcustomer: {
+  detail_customer: {
     title: 'Thông tin chi tiết',
     id: '#CM9801',
     username: 'Họ tên',
@@ -238,7 +237,7 @@ guilai:'Gửi lại!',
     address: 'Địa chỉ',
     button_title: 'Xóa khách hàng',
   },
-  updatecustomer: {
+  update_customer: {
     text: '',
     title: 'Cập nhật khách hàng',
     show: 'Thông tin khách hàng',
@@ -293,14 +292,15 @@ guilai:'Gửi lại!',
     promo: [],
     order: [],
   },
-  notifi:{
-title:'Thông báo',
-titlee: "Chuyển khoản vào ngân hàng",
-        time: "03:52:55 - 12/05",
-        description: "MB Bank, 449287448743 (NGUYEN NGOC HA), 1.200.000đ, Đơn hàng DH_0948371",
-        titleee: "Đề nghị thanh toán",
-        timee: "03:52:55 - 12/05",
-        descriptionn: "Customer Nguyễn Ngọc Minh has successfully paid for order #95111 with a value of 20.00 USD...",
-  }
-
+  notifi: {
+    title: 'Thông báo',
+    titlee: 'Chuyển khoản vào ngân hàng',
+    time: '03:52:55 - 12/05',
+    description:
+      'MB Bank, 449287448743 (NGUYEN NGOC HA), 1.200.000đ, Đơn hàng DH_0948371',
+    titleee: 'Đề nghị thanh toán',
+    timee: '03:52:55 - 12/05',
+    descriptionn:
+      'Customer Nguyễn Ngọc Minh has successfully paid for order #95111 with a value of 20.00 USD...',
+  },
 };

@@ -1,15 +1,13 @@
-import React from 'react'
-import { NavigationContainer } from '@react-navigation/native'
-import CustomerInfoScreen from './src/screens/main/x/CustomerInfoScreen'
-import ProductDetailScreen from './src/screens/main/Product/ProductDetailScreen'
-
+import React from 'react';
+import {NavigationContainer} from '@react-navigation/native';
+import {AppNavigation} from './src/navigation/AppNavigation';
 
 const App = () => {
   return (
     <NavigationContainer>
-      <ProductDetailScreen/>
+      <AppNavigation />
     </NavigationContainer>
-  )
-}
+  );
+};
 
-export default App
+export default App;

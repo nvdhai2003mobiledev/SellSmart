@@ -8,28 +8,29 @@ import {
 } from 'react-native';
 import {BaseLayout, DynamicText, Header} from '../../../components';
 import Icon from 'react-native-vector-icons/Ionicons';
-import {
-  color,
-  moderateScale,
-  scaledSize,
-  scaleHeight,
-  scaleWidth,
-} from '../../../utils';
+import {color, moderateScale, scaleHeight, scaleWidth} from '../../../utils';
 import {contents} from '../../../context';
 import {Images} from '../../../assets';
-import {useNavigation} from '@react-navigation/native';
 
-const CustomerScreen = () => {
-  const navigation = useNavigation<any>();
-  const renderItem = ({item}: any) => (
+const EmployeeScreen = ({navigation}) => {
+  const renderItem = ({item}) => (
     <View style={styles.card}>
+      <DynamicText style={styles.staffId}>
+        {contents.staff.staff_id_label} {item.id}
+      </DynamicText>
       <View style={styles.row}>
         <Image source={Images.SHOP} style={styles.avatar} />
         <View>
           <DynamicText style={styles.name}>{item.name}</DynamicText>
           <DynamicText style={styles.phone}>
-            {contents.employee.phone_label}
+            {contents.staff.phone_label}
             {item.phone}
+          </DynamicText>
+          <DynamicText style={styles.position}>
+            {contents.staff.position_label}:{' '}
+            <DynamicText style={styles.positionText}>
+              {item.position}
+            </DynamicText>
           </DynamicText>
         </View>
       </View>
@@ -40,7 +41,7 @@ const CustomerScreen = () => {
     <BaseLayout>
       {/* Header mới */}
       <Header
-        title={contents.customer.title}
+        title={contents.staff.title}
         showBackIcon={true}
         onPressBack={() => navigation.goBack()}
         showRightIcon={true}
@@ -49,7 +50,7 @@ const CustomerScreen = () => {
 
       {/* Danh sách nhân viên */}
       <FlatList
-        data={contents.employee.employees}
+        data={contents.staff.employees}
         keyExtractor={item => item.id}
         renderItem={renderItem}
         contentContainerStyle={styles.listContainer}
@@ -58,29 +59,29 @@ const CustomerScreen = () => {
       {/* Thanh công cụ */}
       <View style={styles.toolbar}>
         <View style={styles.toolbar3}>
-          <ToolbarButton icon="add" label={contents.employee.toolbar.add} />
+          <ToolbarButton icon="add" label={contents.staff.toolbar.add} />
           <ToolbarButton
             icon="filter-outline"
-            label={contents.employee.toolbar.filter}
+            label={contents.staff.toolbar.filter}
           />
           <ToolbarButton
             icon="swap-vertical-outline"
-            label={contents.employee.toolbar.sort}
+            label={contents.staff.toolbar.sort}
           />
         </View>
 
         <ToolbarButton
           icon="search-outline"
-          label={contents.employee.toolbar.search}
+          label={contents.staff.toolbar.search}
         />
       </View>
     </BaseLayout>
   );
 };
 
-export default CustomerScreen;
+export default EmployeeScreen;
 
-const ToolbarButton = ({icon, label}: any) => (
+const ToolbarButton = ({icon, label}) => (
   <TouchableOpacity style={styles.iconButton}>
     <Icon name={icon} size={24} color={color.primaryColor} />
     <DynamicText style={styles.iconText}>{label}</DynamicText>
@@ -93,16 +94,22 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '100%', // Chiếm toàn bộ chiều ngang
-    backgroundColor: color.accentColor.whiteColor,
+    backgroundColor: 'white',
     padding: scaleWidth(16),
     borderRadius: moderateScale(12),
     marginBottom: scaleHeight(12),
-    shadowColor: color.accentColor.darkColor,
+    shadowColor: '#000',
     shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 4,
     alignSelf: 'stretch', // Đảm bảo phần tử mở rộng tối đa
+  },
+
+  staffId: {
+    fontSize: moderateScale(12),
+    color: color.accentColor.grayColor,
+    marginBottom: scaleHeight(4),
   },
   row: {
     flexDirection: 'row',
@@ -111,7 +118,7 @@ const styles = StyleSheet.create({
   avatar: {
     width: scaleWidth(50),
     height: scaleHeight(50),
-    borderRadius: scaledSize(25),
+    borderRadius: 25,
     marginRight: scaleWidth(12),
   },
   name: {
@@ -134,7 +141,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: scaleWidth(16),
     paddingVertical: scaleHeight(1),
-    backgroundColor: color.accentColor.whiteColor,
+    backgroundColor: 'white',
   },
 
   toolbar3: {

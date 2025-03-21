@@ -6,7 +6,7 @@ import { color, moderateScale, scaleHeight, scaleWidth } from '../../../utils';
 import { contents } from '../../../context';
 import { Images } from '../../../assets';
 
-export const MenuScreen = () => {
+const MenuScreen = () => {
   return (
     <BaseLayout>
       <Header title={contents.menu.title} />
@@ -15,7 +15,7 @@ export const MenuScreen = () => {
       <DynamicText style={styles.sectionTitle}>{contents.menu.account.title}</DynamicText>
       <View style={styles.cardAccountStore}>
         <View style={styles.row}>
-          <Image source={Images.AVATA} style={styles.avatar} />
+          <Image source={Images.AVATAR_BYEWIND} style={styles.avatar} />
           
           <View>
             <DynamicText style={styles.title}>{contents.menu.account.name}</DynamicText>
@@ -56,7 +56,9 @@ export const MenuScreen = () => {
   );
 };
 
-const MenuItem = ({ icon, title }) => {
+export default MenuScreen;
+
+const MenuItem = ({ icon, title }: any) => {
   return (
     <TouchableOpacity style={styles.menuItem}>
       <View style={styles.row}>
