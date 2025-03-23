@@ -6,7 +6,7 @@ const customerRouter = require("./customer");
 const orderRouter = require("./order");
 const typeProductRouter = require("./typeproduct");
 const providerRouter= require("./provider")
-const documentRouter = require("./documentRoutes"); // Giữ từ HEAD
+const documentRouter = require("./document"); // Giữ từ HEAD
 
 const routes = (app) => {
   app.use("/", authRouter);

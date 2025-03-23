@@ -1,188 +1,251 @@
 const mongoose = require('mongoose');
 const Variant = require('../models/Variant');
-const DetailsVariant = require('../models/DetailsVariant');
+const Product = require('../models/Product');
 
-// Lấy danh sách biến thể kèm chi tiết biến thể
-const getVariants = async (req, res) => {
-    try {
-        const variants = await Variant.find();
-        const selectedVariantId = req.query.selectedVariantId; // Lấy từ query
-        const variantsWithDetails = await Promise.all(variants.map(async (variant) => {
-            const detailsVariants = await DetailsVariant.find({ variantId: variant._id });
-            return { ...variant._doc, detailsVariants };
-        }));
-        res.render('dashboard/variants', { 
-            variants: variantsWithDetails, 
-            selectedVariantId // Truyền vào view
-        });
-    } catch (error) {
-        console.error('Lỗi khi lấy danh sách biến thể:', error);
-        res.status(500).json({ message: 'Lỗi khi lấy danh sách biến thể' });
-    }
-};
-
-// Các hàm khác giữ nguyên
+// Lấy danh sách biến thể dạng JSON
 const getVariantsAsJson = async (req, res) => {
     try {
-        const variants = await Variant.find();
+        console.log('Bắt đầu lấy danh sách biến thể dạng JSON');
+        const { page = 1, limit = 10, name } = req.query;
+        const query = name ? { name: { $regex: name, $options: 'i' } } : {};
+
+        const variants = await Variant.find(query)
+            .skip((page - 1) * limit)
+            .limit(parseInt(limit))
+            .lean();
+        const total = await Variant.countDocuments(query);
+
+        console.log(`Tìm thấy ${variants.length} biến thể, tổng: ${total}`);
         res.status(200).json({
             status: 'Ok',
-            data: variants
+            data: variants,
+            pagination: {
+                total,
+                page: parseInt(page),
+                limit: parseInt(limit),
+                totalPages: Math.ceil(total / limit)
+            }
         });
     } catch (error) {
+        console.error('Lỗi khi lấy danh sách biến thể:', {
+            errorMessage: error.message,
+            stack: error.stack
+        });
         res.status(500).json({
             status: 'Error',
-            message: error.message
+            message: 'Lỗi khi lấy danh sách biến thể: ' + error.message
         });
     }
 };
 
+// Thêm biến thể
 const addVariant = async (req, res) => {
     try {
-        console.log("Dữ liệu nhận được:", req.body);
-        let { name, values, details } = req.body;
+        console.log('Bắt đầu thêm biến thể mới', { body: req.body });
 
+        const { name, values } = req.body;
+
+        // Kiểm tra dữ liệu đầu vào
         if (!name || !values || !Array.isArray(values) || values.length === 0) {
+            console.warn('Dữ liệu đầu vào không hợp lệ', { name, values });
             return res.status(400).json({
                 status: 'Error',
                 message: 'Tên và giá trị biến thể (danh sách) là bắt buộc'
             });
         }
 
-        values = [...new Set(values.map(value => value.trim()))];
-        const existingVariant = await Variant.findOne({ values: { $in: values } });
-        if (existingVariant) {
+        // Loại bỏ các giá trị trùng lặp, trim và kiểm tra giá trị hợp lệ
+        const uniqueValues = [...new Set(values.map(value => {
+            if (typeof value !== 'string') {
+                throw new Error('Giá trị biến thể phải là chuỗi');
+            }
+            return value.trim();
+        }))].filter(value => value.length > 0);
+
+        if (uniqueValues.length === 0) {
+            console.warn('Không có giá trị hợp lệ sau khi xử lý', { values });
             return res.status(400).json({
                 status: 'Error',
-                message: `Biến thể với một hoặc nhiều giá trị "${values.join(', ')}" đã tồn tại`
+                message: 'Danh sách giá trị biến thể không được rỗng sau khi xử lý'
             });
         }
 
-        const newVariant = await Variant.create({ name, values });
-        const variantId = newVariant._id;
+        console.log('Dữ liệu sau khi xử lý', { name, uniqueValues });
 
-        const createdDetails = [];
-        if (details && Array.isArray(details) && details.length > 0) {
-            for (const detail of details) {
-                const { value, price, compareAtPrice, inventory } = detail;
-                if (!values.includes(value)) {
-                    return res.status(400).json({
-                        status: 'Error',
-                        message: `Giá trị '${value}' không hợp lệ cho biến thể này`
-                    });
-                }
-                const newDetail = new DetailsVariant({ variantId, value, price, compareAtPrice, inventory });
-                await newDetail.save();
-                createdDetails.push(newDetail);
-            }
-        }
+        // Tạo biến thể mới
+        const newVariant = await Variant.create({ name, values: uniqueValues });
+        console.log('Biến thể đã được tạo thành công', { variantId: newVariant._id, name: newVariant.name });
 
         res.status(201).json({
             status: 'Ok',
-            message: 'Biến thể và chi tiết được tạo thành công',
-            data: { variant: newVariant, details: createdDetails }
+            message: 'Biến thể được tạo thành công',
+            data: newVariant
         });
     } catch (error) {
-        console.error("Lỗi:", error);
+        console.error('Lỗi khi thêm biến thể:', {
+            body: req.body,
+            errorMessage: error.message,
+            stack: error.stack
+        });
+        if (error.code === 11000) {
+            return res.status(400).json({
+                status: 'Error',
+                message: 'Tên biến thể đã tồn tại'
+            });
+        }
         res.status(500).json({
             status: 'Error',
-            message: error.message
+            message: 'Lỗi khi thêm biến thể: ' + error.message
         });
     }
 };
 
+// Xóa biến thể
 const deleteVariant = async (req, res) => {
     try {
-        const { variantId } = req.params;
-        await Variant.findByIdAndDelete(variantId);
-        await DetailsVariant.deleteMany({ variantId });
-        res.status(200).json({
-            status: 'Ok',
-            message: 'Biến thể đã được xóa'
-        });
-    } catch (error) {
-        res.status(500).json({
-            status: 'Error',
-            message: error.message
-        });
-    }
-};
+        console.log('Bắt đầu xóa biến thể', { variantId: req.params.variantId });
 
-const updateVariant = async (req, res) => {
-    try {
         const { variantId } = req.params;
-        const { name, values, details } = req.body;
-        console.log('Dữ liệu nhận được:', { variantId, name, values, details });
 
+        // Kiểm tra tính hợp lệ của variantId
         if (!mongoose.Types.ObjectId.isValid(variantId)) {
+            console.warn('ID biến thể không hợp lệ', { variantId });
             return res.status(400).json({
                 status: 'Error',
                 message: 'ID biến thể không hợp lệ'
             });
         }
 
+        // Kiểm tra xem biến thể có đang được sử dụng bởi sản phẩm nào không
+        const productsUsingVariant = await Product.find({
+            'variants.variantDetails.variantId': variantId
+        }).lean();
+
+        if (productsUsingVariant.length > 0) {
+            console.warn('Biến thể đang được sử dụng bởi sản phẩm', { variantId, products: productsUsingVariant.length });
+            return res.status(400).json({
+                status: 'Error',
+                message: 'Không thể xóa biến thể vì đang được sử dụng bởi một số sản phẩm'
+            });
+        }
+
+        // Xóa biến thể
+        const variant = await Variant.findByIdAndDelete(variantId);
+        if (!variant) {
+            console.warn('Biến thể không tồn tại', { variantId });
+            return res.status(404).json({
+                status: 'Error',
+                message: 'Biến thể không tồn tại'
+            });
+        }
+
+        console.log('Biến thể đã được xóa thành công', { variantId });
+        res.status(200).json({
+            status: 'Ok',
+            message: 'Biến thể đã được xóa thành công'
+        });
+    } catch (error) {
+        console.error('Lỗi khi xóa biến thể:', {
+            variantId: req.params.variantId,
+            errorMessage: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({
+            status: 'Error',
+            message: 'Lỗi khi xóa biến thể: ' + error.message
+        });
+    }
+};
+
+// Cập nhật biến thể
+const updateVariant = async (req, res) => {
+    try {
+        console.log('Bắt đầu cập nhật biến thể', {
+            variantId: req.params.variantId,
+            body: req.body
+        });
+
+        const { variantId } = req.params;
+        const { name, values } = req.body;
+
+        // Kiểm tra tính hợp lệ của variantId
+        if (!mongoose.Types.ObjectId.isValid(variantId)) {
+            console.warn('ID biến thể không hợp lệ', { variantId });
+            return res.status(400).json({
+                status: 'Error',
+                message: 'ID biến thể không hợp lệ'
+            });
+        }
+
+        // Kiểm tra dữ liệu đầu vào
         if (!name || !values || !Array.isArray(values) || values.length === 0) {
+            console.warn('Dữ liệu đầu vào không hợp lệ', { name, values });
             return res.status(400).json({
                 status: 'Error',
                 message: 'Tên và giá trị biến thể (danh sách) là bắt buộc'
             });
         }
 
-        const updatedVariant = await Variant.findByIdAndUpdate(variantId, { name, values }, { new: true });
-        if (!updatedVariant) {
-            return res.status(404).json({ status: 'Error', message: 'Biến thể không tồn tại' });
-        }
+        // Loại bỏ các giá trị trùng lặp, trim và kiểm tra giá trị hợp lệ
+        const uniqueValues = [...new Set(values.map(value => {
+            if (typeof value !== 'string') {
+                throw new Error('Giá trị biến thể phải là chuỗi');
+            }
+            return value.trim();
+        }))].filter(value => value.length > 0);
 
-        if (details && Array.isArray(details)) {
-            const existingDetails = await DetailsVariant.find({ variantId });
-            const detailIdsToKeep = details.filter(d => d.id).map(d => d.id);
-
-            await DetailsVariant.deleteMany({
-                variantId,
-                _id: { $nin: detailIdsToKeep }
+        if (uniqueValues.length === 0) {
+            console.warn('Không có giá trị hợp lệ sau khi xử lý', { values });
+            return res.status(400).json({
+                status: 'Error',
+                message: 'Danh sách giá trị biến thể không được rỗng sau khi xử lý'
             });
-
-            const detailValues = details.map(d => d.value);
-            if (new Set(detailValues).size !== detailValues.length) {
-                return res.status(400).json({
-                    status: 'Error',
-                    message: 'Các giá trị trong chi tiết biến thể không được trùng lặp'
-                });
-            }
-
-            for (const detail of details) {
-                const { id, value, price, compareAtPrice, inventory } = detail;
-                if (!values.includes(value)) {
-                    return res.status(400).json({
-                        status: 'Error',
-                        message: `Giá trị '${value}' không hợp lệ cho biến thể này`
-                    });
-                }
-                if (id) {
-                    await DetailsVariant.findByIdAndUpdate(id, { value, price, compareAtPrice, inventory });
-                } else {
-                    const newDetail = new DetailsVariant({ variantId, value, price, compareAtPrice, inventory });
-                    await newDetail.save();
-                }
-            }
         }
 
+        console.log('Dữ liệu sau khi xử lý', { name, uniqueValues });
+
+        // Cập nhật biến thể
+        const updatedVariant = await Variant.findByIdAndUpdate(
+            variantId,
+            { name, values: uniqueValues },
+            { new: true, runValidators: true }
+        );
+
+        if (!updatedVariant) {
+            console.warn('Biến thể không tồn tại', { variantId });
+            return res.status(404).json({
+                status: 'Error',
+                message: 'Biến thể không tồn tại'
+            });
+        }
+
+        console.log('Biến thể đã được cập nhật thành công', { variantId, name: updatedVariant.name });
         res.status(200).json({
             status: 'Ok',
-            message: 'Cập nhật biến thể và chi tiết thành công',
+            message: 'Cập nhật biến thể thành công',
             data: updatedVariant
         });
     } catch (error) {
-        console.error("Lỗi khi cập nhật biến thể:", error);
+        console.error('Lỗi khi cập nhật biến thể:', {
+            variantId: req.params.variantId,
+            body: req.body,
+            errorMessage: error.message,
+            stack: error.stack
+        });
+        if (error.code === 11000) {
+            return res.status(400).json({
+                status: 'Error',
+                message: 'Tên biến thể đã tồn tại'
+            });
+        }
         res.status(500).json({
             status: 'Error',
-            message: error.message || 'Lỗi server không xác định'
+            message: 'Lỗi khi cập nhật biến thể: ' + error.message
         });
     }
 };
 
 module.exports = {
-    getVariants,
     getVariantsAsJson,
     addVariant,
     deleteVariant,
