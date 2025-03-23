@@ -2,19 +2,20 @@ import React from 'react';
 import { View, Text, Image, TouchableOpacity ,StyleSheet } from 'react-native';
 
 import Icon from 'react-native-vector-icons/Ionicons';
-import { BaseLayout, Button, Input } from '../../../components';
+import { BaseLayout, Button, Input,Header } from '../../../components';
+import {useNavigation} from '@react-navigation/native';
 
 const CreateOrderScreen = () => {
+  const navigation = useNavigation();
+  
   return (
     <BaseLayout>
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity>
-          <Icon name="chevron-back-outline" size={24} color="#000" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Tạo đơn hàng</Text>
-        <View style={{ width: 24 }} /> {/* Placeholder để cân đối */}
-      </View>
+      <Header
+              title="Tạo đơn hàng"
+              showBackIcon
+              onPressBack={() => navigation.goBack()}
+            />
 
       {/* Product Info */}
       <View style={styles.productContainer}>
