@@ -52,10 +52,28 @@ const createCustomerFromOrder = async (req, res) => {
     const { fullName, phoneNumber, email, address } = req.body;
 
     // Kiểm tra dữ liệu đầu vào
-    if (!fullName || !phoneNumber || !email) {
+    if (!fullName || !phoneNumber || !email || !address) {
       return res.status(400).json({
         success: false,
         message: "Vui lòng cung cấp đầy đủ thông tin khách hàng"
+      });
+    }
+
+    // Kiểm tra email hợp lệ
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: "Email không hợp lệ"
+      });
+    }
+
+    // Kiểm tra số điện thoại hợp lệ
+    const phoneRegex = /^(0[3|5|7|8|9])+([0-9]{8})$/;
+    if (!phoneRegex.test(phoneNumber)) {
+      return res.status(400).json({
+        success: false,
+        message: "Số điện thoại không hợp lệ"
       });
     }
 
@@ -93,6 +111,15 @@ const createCustomerFromOrder = async (req, res) => {
     });
   } catch (error) {
     console.error("Lỗi khi thêm khách hàng:", error);
+    
+    // Xử lý lỗi duplicate key
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: "Email hoặc số điện thoại đã tồn tại"
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: "Lỗi server khi thêm khách hàng",
@@ -100,7 +127,6 @@ const createCustomerFromOrder = async (req, res) => {
     });
   }
 };
-
 
 //API THÊM 
 // 🟢 API thêm khách hàng
