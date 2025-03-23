@@ -16,23 +16,23 @@ const DetailsVariantSchema = new Schema({
       },
       value: {
         type: String,
-        required: true, // Ví dụ: "đỏ", "14in", "thường"
+        required: true, // Ví dụ: "đỏ", "14inch", "thường"
       },
     },
   ],
   price: {
     type: Number,
     required: true,
-    min: 0,
+    min: 0, // Giá riêng cho từng phiên bản
   },
   compareAtPrice: {
     type: Number,
-    min: 0,
+    min: 0, // Giá so sánh (giá gốc)
   },
   inventory: {
     type: Number,
     default: 0,
-    min: 0,
+    min: 0, // Số lượng tồn kho riêng cho từng phiên bản
   },
 }, { timestamps: true });
 
