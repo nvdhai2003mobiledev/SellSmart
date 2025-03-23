@@ -13,7 +13,6 @@ router.get(
   protect,
   customerController.getCustomerById,
 );
-router.post("/", customerController.createCustomerFromOrder);
 
 // 📌 Thêm khách hàng (POST)
 router.post("/", protect, customerController.addCustomer);
@@ -33,8 +32,7 @@ router.delete(
 );
 
 // 📌 Tìm kiếm khách hàng theo số điện thoại
-// router.get("/customers/search", protect, customerController.searchCustomerByPhone);
-router.get("/search", customerController.searchCustomerByPhone);
+router.get("/customers/search", protect, customerController.searchCustomerByPhone);
 
 
 module.exports = router;

@@ -1,15 +1,18 @@
-
-const mongoose = require("mongoose");
 const Promotion = require("../models/Promotion");
 
 const getPromotions = async (req, res) => {
   try {
     console.log("🚀 [getPromotions] Bắt đầu lấy danh sách khuyến mãi...");
     const promotions = await Promotion.find().lean();
-    console.log("✅ [getPromotions] Dữ liệu từ MongoDB:", JSON.stringify(promotions, null, 2));
+    console.log(
+      "✅ [getPromotions] Dữ liệu từ MongoDB:",
+      JSON.stringify(promotions, null, 2),
+    );
 
     if (!Array.isArray(promotions)) {
-      console.log("❌ [getPromotions] Dữ liệu không phải mảng, trả về mảng rỗng");
+      console.log(
+        "❌ [getPromotions] Dữ liệu không phải mảng, trả về mảng rỗng",
+      );
       return res.render("promotions", { promotions: [], promo: emptyPromo });
     }
 
@@ -34,13 +37,13 @@ const getPromotions = async (req, res) => {
       promo: emptyPromo,
     });
     console.log("🎨 [getPromotions] Render giao diện EJS...");
-    res.render("promotions", {
+    res.render("dashboard/promotions", {
       promotions,
       promo: emptyPromo,
       admin: req.session.admin || null, // Để tránh lỗi avatar
       page: "promotions", // Thêm biến page để xử lý active sidebar
+      title: "Quản lý khuyến mãi",
     });
-    
   } catch (error) {
     console.error("🔥 [getPromotions] Lỗi lấy danh sách khuyến mãi:", {
       message: error.message,
@@ -49,9 +52,6 @@ const getPromotions = async (req, res) => {
     throw error;
   }
 };
-
-
-
 
 // 🟢 Lấy danh sách khuyến mãi dạng JSON
 const getPromotionAsJson = async (req, res) => {
@@ -63,7 +63,6 @@ const getPromotionAsJson = async (req, res) => {
     res.status(500).json({ message: "Lỗi server khi lấy dữ liệu!" });
   }
 };
-
 
 // 🟢 Lấy khuyến mãi theo ID
 const getPromotionById = async (req, res) => {
@@ -85,20 +84,29 @@ const getPromotionById = async (req, res) => {
   }
 };
 
-
 // 🟢 Thêm khuyến mãi mới
 const addPromotion = async (req, res) => {
   try {
-    const { name, discount,  minOrderValue, maxDiscount, startDate, endDate } = req.body;
+    const { name, discount, minOrderValue, maxDiscount, startDate, endDate } =
+      req.body;
 
-    if (!name || !discount  || !minOrderValue || !maxDiscount || !startDate || !endDate) {
-      return res.status(400).json({ message: "Vui lòng nhập đầy đủ thông tin!" });
+    if (
+      !name ||
+      !discount ||
+      !minOrderValue ||
+      !maxDiscount ||
+      !startDate ||
+      !endDate
+    ) {
+      return res
+        .status(400)
+        .json({ message: "Vui lòng nhập đầy đủ thông tin!" });
     }
 
     const newPromotion = new Promotion({
       name: name.trim(),
       discount,
-      
+
       minOrderValue,
       maxDiscount,
       status: "active",
@@ -107,13 +115,15 @@ const addPromotion = async (req, res) => {
     });
 
     await newPromotion.save();
-    res.status(201).json({ message: "✅ Thêm khuyến mãi thành công!", promotion: newPromotion });
+    res.status(201).json({
+      message: "✅ Thêm khuyến mãi thành công!",
+      promotion: newPromotion,
+    });
   } catch (error) {
     console.error("🔥 Lỗi khi thêm khuyến mãi:", error);
     res.status(500).json({ message: "Lỗi server khi thêm khuyến mãi!" });
   }
 };
-
 
 // 🟢 Cập nhật khuyến mãi
 const updatePromotion = async (req, res) => {
@@ -121,26 +131,30 @@ const updatePromotion = async (req, res) => {
     const { promotionId } = req.params;
 
     if (Object.keys(req.body).length === 0) {
-      return res.status(400).json({ message: "❌ Không có dữ liệu để cập nhật!" });
+      return res
+        .status(400)
+        .json({ message: "❌ Không có dữ liệu để cập nhật!" });
     }
 
     const updatedPromotion = await Promotion.findByIdAndUpdate(
       promotionId,
       { ...req.body },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     if (!updatedPromotion) {
       return res.status(404).json({ message: "❌ Không tìm thấy khuyến mãi!" });
     }
 
-    res.json({ message: "✅ Cập nhật thành công!", promotion: updatedPromotion });
+    res.json({
+      message: "✅ Cập nhật thành công!",
+      promotion: updatedPromotion,
+    });
   } catch (error) {
     console.error("🔥 Lỗi khi cập nhật khuyến mãi:", error);
     res.status(500).json({ message: "Lỗi server khi cập nhật khuyến mãi!" });
   }
 };
-
 
 // 🟢 Xóa khuyến mãi
 const deletePromotion = async (req, res) => {
@@ -163,8 +177,6 @@ const deletePromotion = async (req, res) => {
     res.status(500).json({ message: "Lỗi server khi xóa!" });
   }
 };
-
-
 
 // 🟢 Export các hàm
 module.exports = {

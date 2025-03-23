@@ -5,8 +5,9 @@ const dashboardRouter = require("./dashboard");
 const customerRouter = require("./customer");
 const orderRouter = require("./order");
 const typeProductRouter = require("./typeproduct");
-const providerRouter= require("./provider")
-const documentRouter = require("./documentRoutes"); // Giữ từ HEAD
+const providerRouter = require("./provider");
+const documentRouter = require("./document"); // Giữ từ HEAD
+const promotionRouter = require("./promotion");
 
 const routes = (app) => {
   app.use("/", authRouter);
@@ -15,9 +16,9 @@ const routes = (app) => {
   app.use("/employees", employeeRouter);
   app.use("/customers", customerRouter);
   app.use("/orders", orderRouter);
-  app.use("/typeproduct",typeProductRouter);
-  app.use("/provider",providerRouter);
-  app.use("/document", documentRouter);  // Giữ từ HEAD
-
+  app.use("/typeproduct", typeProductRouter);
+  app.use("/providers", providerRouter);
+  app.use("/documents", documentRouter);
+  app.use("/promotions", promotionRouter);
 };
 module.exports = routes;
