@@ -40,7 +40,6 @@ const getPromotions = async (req, res) => {
     res.render("dashboard/promotions", {
       promotions,
       promo: emptyPromo,
-      admin: req.session.admin || null, // Để tránh lỗi avatar
       page: "promotions", // Thêm biến page để xử lý active sidebar
       title: "Quản lý khuyến mãi",
     });
