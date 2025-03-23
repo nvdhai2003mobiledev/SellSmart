@@ -18,11 +18,14 @@ import {
   LoginScreen,
   NotificationScreen,
   OnboardingScreen,
+  OrderScreen,
   SplashScreen,
   UpdateCustomerScreen,
   UpdateEmployeeScreen,
   VerifyScreen,
+  CreateOrderScreen
 } from '../screens';
+
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const screenOptions: NativeStackNavigationOptions = {
@@ -32,7 +35,7 @@ const screenOptions: NativeStackNavigationOptions = {
 export const AppNavigation = () => {
   return (
     <RootStack.Navigator
-      initialRouteName={Screen.SPLASH}
+      initialRouteName={Screen.ORDERSCREEN}
       screenOptions={screenOptions}>
       <RootStack.Screen name={Screen.SPLASH} component={SplashScreen} />
       <RootStack.Screen name={Screen.BOTTOM_TAB} component={BottomNavigation} />
@@ -49,6 +52,8 @@ export const AppNavigation = () => {
       <RootStack.Screen name={Screen.LOGIN} component={LoginScreen} />
       <RootStack.Screen name={Screen.NOTIFI} component={NotificationScreen} />
       <RootStack.Screen name={Screen.CONFIG} component={ConfigScreen} />
+      <RootStack.Screen name={Screen.ORDERSCREEN} component={OrderScreen} />
+      <RootStack.Screen name={Screen.CREATEORDER} component={CreateOrderScreen} />
       <RootStack.Screen
         name={Screen.DETAIL_CUSTOMER}
         component={DetailCustomerScreen}

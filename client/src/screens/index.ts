@@ -19,3 +19,4 @@ export {default as AddEmployeeScreen} from './main/Employee/AddEmployeeScreen';
 export {default as UpdateEmployeeScreen} from './main/Employee/UpdateEmployeeScreen';
 export {default as DetailEmployeeScreen} from './main/Employee/DetailEmployeeScreen';
 export {default as NotificationScreen} from './main/Notification/NotificationScreen';
+export {default as CreateOrderScreen} from './main/Order/CreateOrderScreen';

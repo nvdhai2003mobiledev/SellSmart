@@ -21,6 +21,8 @@ export enum Screen {
   DETAIL_CUSTOMER = 'DETAIL_CUSTOMER',
   CONFIG = 'CONFIG',
   NOTIFI = 'NOTIFINOTIFI',
+  CREATEORDER ='CREATEORDER',
+  ORDERSCREEN ='ORDERSCREEN'
 }
 
 export type RootStackParamList = {
@@ -41,6 +43,8 @@ export type RootStackParamList = {
   [Screen.DETAIL_CUSTOMER]: undefined;
   [Screen.CONFIG]: undefined;
   [Screen.NOTIFI]: undefined;
+  [Screen.CREATEORDER]: undefined;
+  [Screen.ORDERSCREEN]: undefined;
 };
 
 export type BottomRootStackParamList = {

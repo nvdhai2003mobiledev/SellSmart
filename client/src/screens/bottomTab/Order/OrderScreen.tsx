@@ -1,22 +1,28 @@
 import React from "react";
 import { View, TouchableOpacity, StyleSheet } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
-import { BaseLayout, Button, DynamicText, Input } from '../../../components';
+import { BaseLayout, Button, DynamicText, Input ,Header} from '../../../components';
 import { scaledSize, scaleHeight } from '../../../utils'; // Import responsive utils
 import { contents } from '../../../context';
+import { NavigationProp, useNavigation } from "@react-navigation/native";
+import { RootStackParamList, Screen } from "../../../navigation/navigation.type";
+
+
 
 
 
 const OrderScreen = () => {
+ const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   return (
    <BaseLayout style={styles.container}>
      
-        <DynamicText style={styles.header}>Đơn hàng</DynamicText>
+   
+      <Header title={"Đơn Hàng"}/>
 
-        <TouchableOpacity style={styles.createOrderButton}>
+
+        <TouchableOpacity style={styles.createOrderButton} onPress={()=>navigation.navigate(Screen.CREATEORDER)}>
           <Icon name="add-circle-outline" size={scaledSize(24)} color="#007bff" />
-          <DynamicText style={styles.createOrderText}>{contents.order.createOrder}</DynamicText>
-
+          <DynamicText style={styles.createOrderText}>{contents.order.create_order}</DynamicText>
         </TouchableOpacity>
 
         <View style={styles.grid}>
@@ -26,11 +32,11 @@ const OrderScreen = () => {
           </TouchableOpacity>
           <TouchableOpacity style={styles.gridItem}>
             <Icon name="document-text-outline" size={scaledSize(24)} color="#007bff" />
-            <DynamicText style={styles.gridText}>{contents.order.donnhap}</DynamicText>
+            <DynamicText style={styles.gridText}>{contents.order.order_draft}</DynamicText>
           </TouchableOpacity>
           <TouchableOpacity style={styles.gridItem}>
             <Icon name="cube-outline" size={scaledSize(24)} color="#007bff" />
-            <DynamicText style={styles.gridText}>{contents.order.return}</DynamicText>
+            <DynamicText style={styles.gridText}>{contents.order.return_product}</DynamicText>
           </TouchableOpacity>
           <TouchableOpacity style={styles.gridItem}>
             <Icon name="car-outline" size={scaledSize(24)} color="#007bff" />
@@ -64,22 +70,24 @@ const styles = StyleSheet.create({
     borderRadius: scaledSize(10),
     borderWidth: 1,
     borderColor: "#007bff",
-    width: "90%",
+    width:scaledSize(400),
     justifyContent: "center",
     marginBottom: scaleHeight(20),
     borderStyle: "dashed",
+   
   },
   createOrderText: {
     color: "#007bff",
     fontSize: scaledSize(16),
     marginTop: scaleHeight(8), // Thay vì marginLeft, dùng marginTop để tạo khoảng cách giữa icon và chữ
     textAlign: "center",
+   
   },
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    width: "90%",
+   width:scaledSize(400)
   },
   gridItem: {
     width: "48%",
