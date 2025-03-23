@@ -87,20 +87,82 @@ function openProductDialog() {
         searchInput.value = '';
     }
     
-    // Hiển thị lại tất cả các sản phẩm
-    const productRows = document.querySelectorAll('.product-row');
-    productRows.forEach(row => {
-        row.style.display = '';
-    });
-    
-    // Ẩn thông báo không tìm thấy sản phẩm
-    const noProductsMessage = document.getElementById('noProductsMessage');
-    if (noProductsMessage) {
-        noProductsMessage.style.display = 'none';
-    }
-    
-    // Hiển thị dialog
-    document.getElementById("productDialog").style.display = "block";
+    // Fetch detailed product information
+    fetch("/products/json")
+        .then(response => response.json())
+        .then(result => {
+            if (result.status === 'Ok') {
+                const productTableBody = document.getElementById('productTableBody');
+                productTableBody.innerHTML = ''; // Clear existing rows
+
+                result.data.forEach(product => {
+                    // Prepare variant display
+                    let variantDisplayText = 'Không có biến thể';
+                    let variantAttributesJSON = '[]';
+
+                    if (product.hasVariants && product.detailsVariants && product.detailsVariants.length > 0) {
+                        // Collect all variant details
+                        const variantDetails = product.detailsVariants.map(detailVariant => 
+                            detailVariant.variantDetails.map(detail => ({
+                                variantId: detail.variantId,
+                                value: detail.value
+                            }))
+                        );
+
+                        variantDisplayText = variantDetails.map(variant => 
+                            variant.map(v => v.value).join(', ')
+                        ).join('; ');
+
+                        variantAttributesJSON = JSON.stringify(variantDetails);
+                    }
+
+                    // Determine price and inventory
+                    const price = product.hasVariants && product.detailsVariants && product.detailsVariants.length > 0 
+                        ? product.detailsVariants[0].price 
+                        : product.price;
+
+                    const inventory = product.hasVariants && product.detailsVariants && product.detailsVariants.length > 0 
+                        ? product.detailsVariants[0].inventory 
+                        : product.inventory;
+
+                    const row = `
+                        <tr class="product-row">
+                            <td><img src="${product.thumbnail || 'https://via.placeholder.com/50'}" width="50"></td>
+                            <td class="product-name">${product.name}</td>
+                            <td>
+                                <span id="selected-attributes-${product._id}">
+                                    ${variantDisplayText}
+                                </span>
+                                ${product.hasVariants ? `
+                                    <button type="button" class="small-btn" 
+                                        onclick='openAttributeDialog("${product._id}", "${product.name}", ${variantAttributesJSON})'>
+                                        🛠️
+                                    </button>
+                                ` : ''}
+                            </td>
+                            <td>${(price || 0).toLocaleString()} VND</td>
+                            <td>${inventory || 0}</td>
+                            <td>
+                                <input type="checkbox" id="productCheckbox-${product._id}" 
+                                ${product.hasVariants ? 'disabled' : ''} 
+                                onchange="toggleProductSelection(this, '${product._id}', '${product.name}', '${price}', '${product.thumbnail}', '${inventory}', decodeURIComponent('${encodeURIComponent(variantAttributesJSON)}'))">
+                            </td>
+                        </tr>
+                    `;
+                    productTableBody.innerHTML += row;
+                });
+
+                // Reset checkbox states and selections
+                selectedAttributes = {};
+                document.getElementById("productDialog").style.display = "block";
+            } else {
+                alert("Không thể tải danh sách sản phẩm!");
+            }
+        })
+        .catch(error => {
+            console.error("Lỗi khi tải sản phẩm:", error);
+            alert("Có lỗi xảy ra khi tải sản phẩm!");
+        });
 }
 
 function closeProductDialog() {
@@ -121,32 +183,96 @@ function closeProductDialog() {
 }
 
 function openAttributeDialog(productID, productName, attributes) {
+    // Validate attributes
+    if (!Array.isArray(attributes) || attributes.length === 0) {
+        alert("Không có thuộc tính để chọn!");
+        return;
+    }
+
     let attributeDiv = document.getElementById("attributeOptions");
-    attributeDiv.innerHTML = `<h4>Thuộc tính cho <b>${productName}</b></h4>`;
+    attributeDiv.innerHTML = `<h4>Chọn thuộc tính cho <b>${productName}</b></h4>`;
 
     document.getElementById("attributeDialog").dataset.productId = productID;
     document.getElementById("attributeDialog").dataset.attributes = JSON.stringify(attributes);
 
-    attributes.forEach(attribute => {
-        let optionsHTML = `<p><b>${attribute.name}</b></p>`;
-        optionsHTML += `<div class="attribute-group">`;
+    // Create a container to track selected values for each attribute
+    let currentSelections = {};
 
-        attribute.values.forEach(value => {
-            let isChecked = selectedAttributes[productID] && selectedAttributes[productID][attribute.name] === value;
-            optionsHTML += `
-                <label class="attribute-item">
-                    <input type="checkbox" name="attr-${productID}-${attribute.name}" value="${value}" 
-                           ${isChecked ? 'checked' : ''} 
-                           onchange="updateAttributeSelection('${productID}', '${attribute.name}', '${value}', this)">
-                    ${value}
-                </label>
-            `;
+    attributes.forEach(attributeGroup => {
+        // Each attributeGroup is an array of variant details
+        if (attributeGroup.length === 0) return;
+
+        // Get the name from the first item (assuming all have the same variant name)
+        const variantName = attributeGroup[0].variantId;
+        const attributeName = attributeGroup[0].name || 'Thuộc tính';
+
+        // Create a section for this attribute
+        let attributeSection = document.createElement('div');
+        attributeSection.classList.add('attribute-group');
+        
+        // Add attribute name
+        let nameElement = document.createElement('h5');
+        nameElement.textContent = attributeName;
+        attributeSection.appendChild(nameElement);
+
+        // Create a container for checkboxes
+        let checkboxContainer = document.createElement('div');
+        checkboxContainer.classList.add('checkbox-container');
+
+        // Create checkboxes for each value
+        attributeGroup.forEach(detail => {
+            let label = document.createElement('label');
+            label.classList.add('checkbox-label');
+
+            let checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.name = `attr-${productID}-${attributeName}`;
+            checkbox.value = detail.value;
+
+            // Add event listener to handle single selection per attribute
+            checkbox.addEventListener('change', function() {
+                // Uncheck other checkboxes in the same group
+                document.querySelectorAll(`input[name="${checkbox.name}"]`).forEach(cb => {
+                    if (cb !== checkbox) cb.checked = false;
+                });
+
+                // Update current selections
+                if (this.checked) {
+                    currentSelections[attributeName] = this.value;
+                } else {
+                    delete currentSelections[attributeName];
+                }
+
+                // Check if all attributes have a selection
+                const allAttributesSelected = attributes.every(attr => 
+                    attr.some(detail => currentSelections[detail.name || 'Thuộc tính'] === detail.value)
+                );
+
+                // Enable/disable save button based on selections
+                document.getElementById('saveAttributesBtn').disabled = !allAttributesSelected;
+            });
+
+            label.appendChild(checkbox);
+            label.appendChild(document.createTextNode(detail.value));
+            
+            checkboxContainer.appendChild(label);
         });
 
-        optionsHTML += `</div>`;
-        attributeDiv.innerHTML += optionsHTML;
+        attributeSection.appendChild(checkboxContainer);
+        attributeDiv.appendChild(attributeSection);
     });
 
+    // Create save button with initial disabled state
+    let saveButton = document.createElement('button');
+    saveButton.id = 'saveAttributesBtn';
+    saveButton.textContent = 'Lưu thuộc tính';
+    saveButton.classList.add('btn', 'btn-primary');
+    saveButton.disabled = true;
+    saveButton.onclick = () => saveAttributeSelection();
+
+    attributeDiv.appendChild(saveButton);
+
+    // Show the dialog
     document.getElementById("attributeDialog").style.display = "block";
 }
 
@@ -189,16 +315,21 @@ function checkAndEnableProductCheckbox(productID) {
 function toggleProductSelection(checkbox, productID, name, price, thumbnail, inventory, attributesJSON) {
     let attributes;
     try {
-        attributes = JSON.parse(attributesJSON);
+        attributes = JSON.parse(decodeURIComponent(attributesJSON));
     } catch (e) {
         console.error("Lỗi parse JSON:", e);
         attributes = [];
     }
 
-    if (!checkAttributesSelected(productID, attributes)) {
-        alert("Bạn cần chọn đầy đủ tất cả các thuộc tính trước khi chọn sản phẩm!");
-        checkbox.checked = false;
-        return;
+    // For products with variants, check if all attributes are selected
+    if (attributes.length > 0) {
+        const selectedProductAttributes = selectedAttributes[productID];
+        if (!selectedProductAttributes || 
+            Object.keys(selectedProductAttributes).length !== attributes.length) {
+            alert("Bạn cần chọn đầy đủ các thuộc tính trước khi chọn sản phẩm!");
+            checkbox.checked = false;
+            return;
+        }
     }
 
     let productIndex = selectedProducts.findIndex(p => p.productID === productID);
@@ -207,9 +338,9 @@ function toggleProductSelection(checkbox, productID, name, price, thumbnail, inv
             selectedProducts.push({
                 productID,
                 name,
-                price,
+                price: Number(price),
                 thumbnail,
-                inventory,
+                inventory: Number(inventory),
                 quantity: 1, 
                 attributes: selectedAttributes[productID] || {}
             });
@@ -311,33 +442,52 @@ function removeProduct(index, productID) {
 }
 
 function saveAttributeSelection() {
-    let productID = document.getElementById("attributeDialog").dataset.productId;
-    let productAttributes = JSON.parse(document.getElementById("attributeDialog").dataset.attributes);
+    const productID = document.getElementById("attributeDialog").dataset.productId;
+    const attributes = JSON.parse(document.getElementById("attributeDialog").dataset.attributes);
 
-    let allSelected = true;
+    // Collect selected values
     let selectedValues = {};
+    let allAttributesSelected = true;
 
-    productAttributes.forEach(attribute => {
-        let selected = document.querySelector(`input[name="attr-${productID}-${attribute.name}"]:checked`);
-        if (selected) {
-            selectedValues[attribute.name] = selected.value;
+    attributes.forEach(attributeGroup => {
+        if (attributeGroup.length === 0) return;
+
+        const attributeName = attributeGroup[0].name || 'Thuộc tính';
+        const selectedValue = document.querySelector(`input[name="attr-${productID}-${attributeName}"]:checked`);
+
+        if (selectedValue) {
+            selectedValues[attributeName] = selectedValue.value;
         } else {
-            allSelected = false;
+            allAttributesSelected = false;
         }
     });
 
-    if (!allSelected) {
-        alert("Bạn cần chọn đầy đủ tất cả các thuộc tính trước khi lưu!");
+    // Validate all attributes are selected
+    if (!allAttributesSelected) {
+        alert("Vui lòng chọn đủ tất cả các thuộc tính!");
         return;
     }
 
+    // Update selected attributes display
+    const displaySpan = document.getElementById(`selected-attributes-${productID}`);
+    const displayText = Object.entries(selectedValues)
+        .map(([name, value]) => `${name}: ${value}`)
+        .join(', ');
+    
+    displaySpan.textContent = displayText;
+
+    // Enable product checkbox
+    const productCheckbox = document.getElementById(`productCheckbox-${productID}`);
+    productCheckbox.disabled = false;
+
+    // Store selected attributes
+    if (!selectedAttributes[productID]) {
+        selectedAttributes[productID] = {};
+    }
     selectedAttributes[productID] = selectedValues;
 
-    document.getElementById(`selected-attributes-${productID}`).innerText = Object.entries(selectedValues)
-        .map(([key, value]) => `${key}: ${value}`)
-        .join(', ');
-
-    closeAttributeDialog();
+    // Close the dialog
+    document.getElementById("attributeDialog").style.display = "none";
 }
 
 function filterProducts() {
