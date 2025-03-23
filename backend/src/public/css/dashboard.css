@@ -1,33 +1,59 @@
-.dashboard {
-    background-color: #f8f9fa;
-    min-height: 100vh;
-}
-
 .sidebar {
-    height: 100vh;
     position: fixed;
-    top: 0;
+    top: 0px;
+    bottom: 0;
     left: 0;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    width: 220px;
+    background-color: #fff;
+    margin-top: 5rem;
 }
 
-.sidebar .nav-link {
-    color: #333;
-    padding: 0.75rem 1.5rem;
-    transition: all 0.3s;
+.sidebar a {
+    color: #000000;
+    text-decoration: none;
+    display: block;
+    margin: 0.5rem 0;
 }
 
-.sidebar .nav-link.active {
-    background-color: #e9ecef;
-    color: #0d6efd;
-    border-left: 4px solid #0d6efd;
+.sidebar a.active {
+    background-color: rgba(0, 0, 0, 0.06); /* Màu nền khi chọn */
+    color: #000000; /* Màu chữ */
+    font-weight: bold;
+    padding: 10px 0;
 }
 
-.sidebar .nav-link:hover:not(.active) {
-    background-color: #f8f9fa;
+.sidebar a i {
+    margin: 0 0.5rem;
+}
+
+.sidebar a.active i {
+    color: #000000; /* Màu icon khi chọn */
+}
+
+.navbar {
+    padding: 10px 20px;
+}
+
+.navbar-brand img {
+    height: 40px;
+}
+
+.dropdown-toggle {
+    background: none;
+    border: none;
+    padding: 0;
+}
+
+.dropdown-menu {
+    min-width: 150px;
+}
+
+.dropdown-item i {
+    margin-right: 10px;
 }
 
 .main-content {
-    margin-left: 280px; /* Chiều rộng sidebar */
-    padding: 20px;
+    margin-left: 220px;
+    padding: 1rem;
+    margin-top: 4rem;
 }

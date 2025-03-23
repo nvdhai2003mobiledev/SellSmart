@@ -1,9 +1,10 @@
 const express = require("express");
 const router = express.Router();
 const providerController = require("../controllers/ProviderController");
+const { protect } = require("../middleware/auth");
 
-// Lấy danh sách tất cả nhà cung cấp (EJS)
-router.get("/", providerController.getAllProviders);
+// Lấy danh sách tất cả nhà cung cấp
+router.get("/", protect, providerController.getAllProviders);
 
 // Lấy danh sách tất cả nhà cung cấp (JSON)
 router.get("/json", providerController.getAllProviders);

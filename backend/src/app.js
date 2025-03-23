@@ -12,9 +12,6 @@ const session = require("express-session");
 
 const routes = require("./routes");
 
-const orderRoutes = require("./routes/order");
-const promotionRouter = require("./routes/promotion");
-
 dotenv.config();
 connectDB();
 
@@ -38,7 +35,7 @@ app.use(
     secret: process.env.SESSION_SECRET || "secret",
     resave: false,
     saveUninitialized: false,
-  }),
+  })
 );
 
 // Cấu hình connect-flash
@@ -51,12 +48,7 @@ app.use((req, res, next) => {
   next();
 });
 
-
-app.use("/orders", orderRoutes);
-app.use('/customers', customerRoutes);
-app.use("/promotions", promotionRouter);
 routes(app);
-
 
 // Middleware xử lý lỗi
 app.use((err, req, res, next) => {

@@ -38,7 +38,6 @@ const User = new Schema(
     },
     phoneNumber: {
       type: String,
-      required: true,
       unique: true,
       sparse: true,
     },
@@ -49,8 +48,12 @@ const User = new Schema(
     role: {
       type: String,
       enum: ["admin", "employee"],
-      default: "admin",
+      default: "employee",
     },
+    refreshToken: {
+      type: String,
+      default: null
+    }
   },
   { timestamps: true }
 );
