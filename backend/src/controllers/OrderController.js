@@ -57,7 +57,11 @@ const getAllOrders = async (req, res) => {
   try {
     const orders = await orderService.getAllOrders();
     console.log("✅ Lấy danh sách đơn hàng:", orders);
-    res.render("dashboard/orders", { orders, page: "orders" });
+    res.render("dashboard/orders", {
+      orders,
+      page: "orders",
+      title: "Quản lý đơn hàng",
+    });
   } catch (error) {
     console.error("🔥 Lỗi server khi lấy danh sách đơn hàng:", error);
     res
@@ -115,7 +119,11 @@ const createOrderScreen = async (req, res) => {
     const products = await Product.find();
     console.log("📌 Customers:", customers);
     console.log("📌 Products:", products);
-    res.render("dashboard/createOrder", { customers, products, page: 'createOrder' });
+    res.render("dashboard/createOrder", {
+      customers,
+      products,
+      page: "createOrder",
+    });
   } catch (error) {
     console.error("🔥 Lỗi khi tải trang tạo đơn hàng:", error);
     res.status(500).send("Lỗi server khi tải trang!");
