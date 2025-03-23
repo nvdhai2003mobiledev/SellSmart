@@ -15,18 +15,14 @@
         .table th { background-color: #e9ecef; color: #495057; font-weight: 600; text-transform: uppercase; font-size: 13px; padding: 12px; }
         .table td { vertical-align: middle; padding: 10px; font-size: 14px; color: #343a40; }
         .table-hover tbody tr:hover { background-color: #f8f9fa; }
-        .nested-table { padding: 10px 20px; background-color: #f9f9f9; }
-        .nested-table .table { border: 1px solid #e9ecef; }
-        .nested-table th { background-color: #dee2e6; font-size: 12px; }
         .btn-custom { padding: 6px 12px; font-size: 13px; border-radius: 6px; transition: all 0.2s; }
         .btn-custom:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); }
         .modal-content { border-radius: 12px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15); }
         .action-buttons { display: flex; gap: 6px; justify-content: center; }
-        .detail-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
-        .detail-row input { font-size: 14px; }
-        .btn-select { padding: 4px 8px; font-size: 12px; }
+        .variant-group { margin-bottom: 15px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; background-color: #f9f9f9; }
         .confirm-btn { margin-top: 20px; }
-        .variant-group { margin-bottom: 15px; }
+        .variant-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .variant-row select { flex: 1; }
     </style>
 </head>
 <body>
@@ -43,52 +39,45 @@
         <!-- Danh sách biến thể -->
         <div class="table-container">
             <div id="variantGroups">
-                <% 
-                    const groupedVariants = {};
-                    variants.forEach(variant => {
-                        if (!groupedVariants[variant.productId]) groupedVariants[variant.productId] = [];
-                        groupedVariants[variant.productId].push(variant);
-                    });
-                    Object.keys(groupedVariants).forEach(productId => { 
-                %>
-                    <div class="variant-group" data-product-id="<%= productId %>">
-                        <h5>Sản phẩm ID: <%= productId %></h5>
-                        <table class="table table-bordered table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Tên biến thể</th>
-                                    <th>Giá trị</th>
-                                    <th class="text-center">Hành động</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <% groupedVariants[productId].forEach(variant => { %>
-                                    <tr id="row-<%= variant._id %>">
-                                        <td><%= variant.name || 'Không có tên' %></td>
-                                        <td>
-                                            <select class="form-control variant-value" data-variant-id="<%= variant._id %>">
-                                                <option value="">Chọn giá trị</option>
-                                                <% variant.values.forEach(value => { %>
-                                                    <option value="<%= value %>"><%= value %></option>
-                                                <% }); %>
-                                            </select>
-                                        </td>
-                                        <td class="text-center">
-                                            <div class="action-buttons">
-                                                <button class="btn btn-warning btn-custom" onclick="editVariant('<%= variant._id %>')" title="Sửa">
-                                                    <i class="fas fa-edit"></i>
-                                                </button>
-                                                <button class="btn btn-danger btn-custom" onclick="deleteVariant('<%= variant._id %>')" title="Xóa">
-                                                    <i class="fas fa-trash-alt"></i>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                <% }); %>
-                            </tbody>
-                        </table>
-                    </div>
-                <% }); %>
+                <div id="variantSelectionRows">
+                    <!-- Các hàng chọn biến thể sẽ được thêm động -->
+                </div>
+                <div class="text-center">
+                    <button class="btn btn-info btn-custom mb-3" onclick="addVariantRow()">
+                        <i class="fas fa-plus me-1"></i> Thêm tổ hợp biến thể
+                    </button>
+                </div>
+                <table class="table table-bordered table-hover">
+                    <thead>
+                        <tr>
+                            <th>Tên biến thể</th>
+                            <th>Giá trị</th>
+                            <th class="text-center">Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% variants.forEach(variant => { %>
+                            <tr id="row-<%= variant._id %>">
+                                <td><%= variant.name || 'Không có tên' %></td>
+                                <td>
+                                    <% variant.values.forEach(value => { %>
+                                        <span class="badge bg-secondary me-1"><%= value %></span>
+                                    <% }); %>
+                                </td>
+                                <td class="text-center">
+                                    <div class="action-buttons">
+                                        <button class="btn btn-warning btn-custom" onclick="editVariant('<%= variant._id %>')" title="Sửa">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-danger btn-custom" onclick="deleteVariant('<%= variant._id %>')" title="Xóa">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
             </div>
             <div class="text-center confirm-btn">
                 <button class="btn btn-success btn-custom" onclick="confirmSelection()">Xác nhận chọn</button>
@@ -105,10 +94,6 @@
                     </div>
                     <div class="modal-body">
                         <form id="addVariantForm">
-                            <div class="mb-3">
-                                <label for="variantProductId" class="form-label fw-bold">Product ID</label>
-                                <input type="text" id="variantProductId" class="form-control" placeholder="Nhập Product ID" required>
-                            </div>
                             <div class="mb-3">
                                 <label for="variantName" class="form-label fw-bold">Tên biến thể</label>
                                 <input type="text" id="variantName" class="form-control" placeholder="Nhập tên biến thể" required>
@@ -149,133 +134,38 @@
                 </div>
             </div>
         </div>
+
+        <!-- Toast thông báo -->
+        <div class="toast-container position-fixed bottom-0 end-0 p-3">
+            <div id="successToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="toast-header bg-success text-white">
+                    <strong class="me-auto">Thành công</strong>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+                <div class="toast-body">
+                    Thao tác thành công!
+                </div>
+            </div>
+            <div id="errorToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="toast-header bg-danger text-white">
+                    <strong class="me-auto">Lỗi</strong>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+                <div class="toast-body">
+                    Có lỗi xảy ra, vui lòng thử lại!
+                </div>
+            </div>
+        </div>
     </div>
 
+    <!-- Nhúng các thư viện và script -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Truyền dữ liệu variantsData từ server sang client -->
     <script>
-        $(document).ready(() => {
-            // Thêm biến thể
-            $('#addVariantForm').submit(async function(event) {
-                event.preventDefault();
-                const productId = $('#variantProductId').val().trim();
-                const name = $('#variantName').val().trim();
-                const values = $('#variantValues').val().split(',').map(v => v.trim()).filter(v => v);
-                if (!productId || !name || !values.length) {
-                    alert("Product ID, tên biến thể và ít nhất một giá trị là bắt buộc!");
-                    return;
-                }
-
-                const data = { productId, name, values };
-                try {
-                    const res = await $.ajax({
-                        url: '/products/getbienthe/create',
-                        type: 'POST',
-                        contentType: 'application/json',
-                        data: JSON.stringify(data)
-                    });
-                    if (res.status === 'Ok') {
-                        alert("Thêm biến thể thành công!");
-                        $('#addVariantModal').modal('hide');
-                        location.reload();
-                    }
-                } catch (error) {
-                    alert("Lỗi khi thêm biến thể: " + (error.responseJSON?.message || "Vui lòng thử lại!"));
-                }
-            });
-
-            // Xóa biến thể
-            window.deleteVariant = async function(id) {
-                if (confirm('Bạn có chắc chắn muốn xóa biến thể này?')) {
-                    try {
-                        const res = await $.ajax({
-                            url: `/products/getbienthe/delete/${id}`,
-                            type: 'DELETE'
-                        });
-                        if (res.status === 'Ok') {
-                            alert("Xóa biến thể thành công!");
-                            location.reload();
-                        }
-                    } catch (error) {
-                        alert("Lỗi khi xóa biến thể: " + (error.responseJSON?.message || "Vui lòng thử lại!"));
-                    }
-                }
-            };
-
-            // Chỉnh sửa biến thể
-            window.editVariant = async function(id) {
-                $('#editVariantId').val(id);
-                try {
-                    const variantRes = await $.ajax({ url: '/products/getbienthejson', type: 'GET' });
-                    const currentVariant = variantRes.data.find(v => v._id === id);
-                    if (!currentVariant) throw new Error("Không tìm thấy biến thể!");
-
-                    $('#editVariantName').val(currentVariant.name || '');
-                    $('#editVariantValues').val(currentVariant.values?.join(', ') || '');
-
-                    const modal = new bootstrap.Modal(document.getElementById('editVariantModal'));
-                    modal.show();
-                } catch (error) {
-                    alert("Lỗi khi tải dữ liệu: " + (error.message || "Vui lòng thử lại!"));
-                }
-            };
-
-            // Cập nhật biến thể
-            $('#editVariantForm').submit(async function(event) {
-                event.preventDefault();
-                const id = $('#editVariantId').val();
-                const name = $('#editVariantName').val().trim();
-                const values = $('#editVariantValues').val().split(',').map(v => v.trim()).filter(v => v);
-                if (!name || !values.length) {
-                    alert("Tên biến thể và ít nhất một giá trị là bắt buộc!");
-                    return;
-                }
-
-                const data = { name, values };
-                try {
-                    const res = await $.ajax({
-                        url: `/products/getbienthe/update/${id}`,
-                        type: 'PUT',
-                        contentType: 'application/json',
-                        data: JSON.stringify(data)
-                    });
-                    if (res.status === 'Ok') {
-                        alert("Cập nhật biến thể thành công!");
-                        $('#editVariantModal').modal('hide');
-                        location.reload();
-                    }
-                } catch (error) {
-                    alert("Lỗi khi cập nhật: " + (error.responseJSON?.message || "Vui lòng thử lại!"));
-                }
-            });
-
-            // Xác nhận chọn nhiều biến thể
-            window.confirmSelection = function() {
-                const selectedVariants = [];
-                const groupedSelections = {};
-
-                $('.variant-value').each(function() {
-                    const variantId = $(this).data('variant-id');
-                    const value = $(this).val();
-                    if (value) {
-                        const productId = $(this).closest('.variant-group').data('product-id');
-                        if (!groupedSelections[productId]) groupedSelections[productId] = [];
-                        groupedSelections[productId].push({ variantId, value });
-                    }
-                });
-
-                Object.values(groupedSelections).forEach(group => {
-                    if (group.length > 0) selectedVariants.push(group);
-                });
-
-                if (selectedVariants.length > 0 && window.opener) {
-                    window.opener.postMessage({ selectedVariants }, '*');
-                    window.close();
-                } else {
-                    alert("Vui lòng chọn ít nhất một giá trị biến thể!");
-                }
-            };
-        });
+        window.variantsData = <%- JSON.stringify(variants) %>;
     </script>
+    <!-- Nhúng file variants.js -->
+    <script src="/js/variants.js"></script>
 </body>
 </html>

@@ -6,12 +6,12 @@ const getPromotions = async (req, res) => {
     const promotions = await Promotion.find().lean();
     console.log(
       "✅ [getPromotions] Dữ liệu từ MongoDB:",
-      JSON.stringify(promotions, null, 2),
+      JSON.stringify(promotions, null, 2)
     );
 
     if (!Array.isArray(promotions)) {
       console.log(
-        "❌ [getPromotions] Dữ liệu không phải mảng, trả về mảng rỗng",
+        "❌ [getPromotions] Dữ liệu không phải mảng, trả về mảng rỗng"
       );
       return res.render("promotions", { promotions: [], promo: emptyPromo });
     }
@@ -139,7 +139,7 @@ const updatePromotion = async (req, res) => {
     const updatedPromotion = await Promotion.findByIdAndUpdate(
       promotionId,
       { ...req.body },
-      { new: true, runValidators: true },
+      { new: true, runValidators: true }
     );
 
     if (!updatedPromotion) {

@@ -6,6 +6,9 @@ const { protect } = require("../middleware/auth");
 // Lấy danh sách tất cả nhà cung cấp
 router.get("/", protect, providerController.getAllProviders);
 
+// Lấy danh sách tất cả nhà cung cấp (JSON)
+router.get("/json", providerController.getAllProviders);
+
 // Lấy thông tin một nhà cung cấp theo ID
 router.get("/:id", providerController.getProviderById);
 

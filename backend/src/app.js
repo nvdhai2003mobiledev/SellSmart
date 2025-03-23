@@ -35,7 +35,7 @@ app.use(
     secret: process.env.SESSION_SECRET || "secret",
     resave: false,
     saveUninitialized: false,
-  }),
+  })
 );
 
 // Cấu hình connect-flash
