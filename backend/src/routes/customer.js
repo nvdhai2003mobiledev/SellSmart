@@ -13,6 +13,7 @@ router.get(
   protect,
   customerController.getCustomerById,
 );
+router.post("/", customerController.createCustomerFromOrder);
 
 // 📌 Thêm khách hàng (POST)
 router.post("/", protect, customerController.addCustomer);

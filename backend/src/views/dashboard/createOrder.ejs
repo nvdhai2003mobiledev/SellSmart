@@ -96,33 +96,40 @@ function openProductDialog() {
                 productTableBody.innerHTML = ''; // Clear existing rows
 
                 result.data.forEach(product => {
-                    // Prepare variant display
-                    let variantDisplayText = 'Không có biến thể';
-                    let variantAttributesJSON = '[]';
+                    // Prepare variant display and attribute processing
+                    let processedAttributes = [];
+                    
+                    // Process variants if the product has variants
+                    if (product.hasVariants && product.variants && product.variants.length > 0) {
+                        // Create a map to store unique attributes
+                        const attributeGroups = {};
+                        
+                        // Iterate through variant details of the first variant
+                        product.variants[0].variantDetails.forEach(detail => {
+                            // Use the variant name directly from the variant ID
+                            const variantName = detail.variantId;
+                            
+                            // Collect unique values for each variant
+                            if (!attributeGroups[variantName]) {
+                                attributeGroups[variantName] = new Set();
+                            }
+                            attributeGroups[variantName].add(detail.value);
+                        });
 
-                    if (product.hasVariants && product.detailsVariants && product.detailsVariants.length > 0) {
-                        // Collect all variant details
-                        const variantDetails = product.detailsVariants.map(detailVariant => 
-                            detailVariant.variantDetails.map(detail => ({
-                                variantId: detail.variantId,
-                                value: detail.value
-                            }))
-                        );
-
-                        variantDisplayText = variantDetails.map(variant => 
-                            variant.map(v => v.value).join(', ')
-                        ).join('; ');
-
-                        variantAttributesJSON = JSON.stringify(variantDetails);
+                        // Convert to the required format
+                        processedAttributes = Object.entries(attributeGroups).map(([name, values]) => ({
+                            name,
+                            values: Array.from(values)
+                        }));
                     }
 
-                    // Determine price and inventory
-                    const price = product.hasVariants && product.detailsVariants && product.detailsVariants.length > 0 
-                        ? product.detailsVariants[0].price 
+                    // Determine price and inventory (using first variant if multiple exist)
+                    const price = product.variants && product.variants.length > 0 
+                        ? product.variants[0].price 
                         : product.price;
 
-                    const inventory = product.hasVariants && product.detailsVariants && product.detailsVariants.length > 0 
-                        ? product.detailsVariants[0].inventory 
+                    const inventory = product.variants && product.variants.length > 0 
+                        ? product.variants[0].inventory 
                         : product.inventory;
 
                     const row = `
@@ -131,11 +138,11 @@ function openProductDialog() {
                             <td class="product-name">${product.name}</td>
                             <td>
                                 <span id="selected-attributes-${product._id}">
-                                    ${variantDisplayText}
+                                    ${product.hasVariants ? 'Chưa chọn' : 'Không có biến thể'}
                                 </span>
                                 ${product.hasVariants ? `
                                     <button type="button" class="small-btn" 
-                                        onclick='openAttributeDialog("${product._id}", "${product.name}", ${variantAttributesJSON})'>
+                                        onclick='openAttributeDialog("${product._id}", "${product.name}", ${JSON.stringify(processedAttributes)})'>
                                         🛠️
                                     </button>
                                 ` : ''}
@@ -145,7 +152,7 @@ function openProductDialog() {
                             <td>
                                 <input type="checkbox" id="productCheckbox-${product._id}" 
                                 ${product.hasVariants ? 'disabled' : ''} 
-                                onchange="toggleProductSelection(this, '${product._id}', '${product.name}', '${price}', '${product.thumbnail}', '${inventory}', decodeURIComponent('${encodeURIComponent(variantAttributesJSON)}'))">
+                                onchange="toggleProductSelection(this, '${product._id}', '${product.name}', '${price}', '${product.thumbnail}', '${inventory}', decodeURIComponent('${encodeURIComponent(JSON.stringify(processedAttributes))}'))">
                             </td>
                         </tr>
                     `;
@@ -198,13 +205,9 @@ function openAttributeDialog(productID, productName, attributes) {
     // Create a container to track selected values for each attribute
     let currentSelections = {};
 
-    attributes.forEach(attributeGroup => {
-        // Each attributeGroup is an array of variant details
-        if (attributeGroup.length === 0) return;
-
-        // Get the name from the first item (assuming all have the same variant name)
-        const variantName = attributeGroup[0].variantId;
-        const attributeName = attributeGroup[0].name || 'Thuộc tính';
+    attributes.forEach(attribute => {
+        // Get the variant name (attribute name)
+        const variantName = attribute.name;
 
         // Create a section for this attribute
         let attributeSection = document.createElement('div');
@@ -212,22 +215,22 @@ function openAttributeDialog(productID, productName, attributes) {
         
         // Add attribute name
         let nameElement = document.createElement('h5');
-        nameElement.textContent = attributeName;
+        nameElement.textContent = variantName;
         attributeSection.appendChild(nameElement);
 
         // Create a container for checkboxes
         let checkboxContainer = document.createElement('div');
         checkboxContainer.classList.add('checkbox-container');
 
-        // Create checkboxes for each value
-        attributeGroup.forEach(detail => {
+        // Create checkboxes for each variant value
+        attribute.values.forEach(value => {
             let label = document.createElement('label');
             label.classList.add('checkbox-label');
 
             let checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
-            checkbox.name = `attr-${productID}-${attributeName}`;
-            checkbox.value = detail.value;
+            checkbox.name = `attr-${productID}-${variantName}`;
+            checkbox.value = value;
 
             // Add event listener to handle single selection per attribute
             checkbox.addEventListener('change', function() {
@@ -238,14 +241,14 @@ function openAttributeDialog(productID, productName, attributes) {
 
                 // Update current selections
                 if (this.checked) {
-                    currentSelections[attributeName] = this.value;
+                    currentSelections[variantName] = this.value;
                 } else {
-                    delete currentSelections[attributeName];
+                    delete currentSelections[variantName];
                 }
 
                 // Check if all attributes have a selection
                 const allAttributesSelected = attributes.every(attr => 
-                    attr.some(detail => currentSelections[detail.name || 'Thuộc tính'] === detail.value)
+                    currentSelections[attr.name]
                 );
 
                 // Enable/disable save button based on selections
@@ -253,7 +256,7 @@ function openAttributeDialog(productID, productName, attributes) {
             });
 
             label.appendChild(checkbox);
-            label.appendChild(document.createTextNode(detail.value));
+            label.appendChild(document.createTextNode(value));
             
             checkboxContainer.appendChild(label);
         });
@@ -312,18 +315,63 @@ function checkAndEnableProductCheckbox(productID) {
     }
 }
 
+function findMatchingVariant(attributes, selectedAttributes) {
+    // Validate input parameters
+    if (!Array.isArray(attributes) || !selectedAttributes || typeof selectedAttributes !== 'object') {
+        console.error('Invalid input to findMatchingVariant', { attributes, selectedAttributes });
+        return null;
+    }
+
+    // Kiểm tra xem product có variants không
+    if (attributes.length === 0) {
+        return null;
+    }
+
+    // Find the first variant that matches all selected attributes
+    const matchingVariant = attributes[0]; // Lấy variant đầu tiên
+
+    // Kiểm tra nếu variant không có variantDetails
+    if (!matchingVariant.variantDetails || !Array.isArray(matchingVariant.variantDetails)) {
+        console.error('Invalid variant structure', matchingVariant);
+        return null;
+    }
+
+    // Kiểm tra xem tất cả các thuộc tính đã chọn có khớp với variant không
+    const isMatchingVariant = matchingVariant.variantDetails.every(detail => {
+        // Lấy tên thuộc tính từ variantDetails
+        const attributeName = detail.variantId ? detail.name || 'Thuộc tính' : 'Thuộc tính';
+        
+        // Kiểm tra xem thuộc tính đã được chọn chưa
+        const selectedValue = selectedAttributes[attributeName];
+        
+        // So sánh giá trị
+        return selectedValue === detail.value;
+    });
+
+    return isMatchingVariant ? matchingVariant : null;
+}
 function toggleProductSelection(checkbox, productID, name, price, thumbnail, inventory, attributesJSON) {
     let attributes;
     try {
+        // Kiểm tra và parse JSON
         attributes = JSON.parse(decodeURIComponent(attributesJSON));
+        
+        // Validate attributes
+        if (!Array.isArray(attributes)) {
+            throw new Error('Attributes must be an array');
+        }
     } catch (e) {
         console.error("Lỗi parse JSON:", e);
-        attributes = [];
+        alert("Có lỗi khi xử lý thuộc tính sản phẩm. Vui lòng thử lại.");
+        checkbox.checked = false;
+        return;
     }
 
-    // For products with variants, check if all attributes are selected
+    // Xử lý các sản phẩm có biến thể
     if (attributes.length > 0) {
         const selectedProductAttributes = selectedAttributes[productID];
+        
+        // Kiểm tra xem đã chọn đủ thuộc tính chưa
         if (!selectedProductAttributes || 
             Object.keys(selectedProductAttributes).length !== attributes.length) {
             alert("Bạn cần chọn đầy đủ các thuộc tính trước khi chọn sản phẩm!");
@@ -335,12 +383,22 @@ function toggleProductSelection(checkbox, productID, name, price, thumbnail, inv
     let productIndex = selectedProducts.findIndex(p => p.productID === productID);
     if (checkbox.checked) {
         if (productIndex === -1) {
+            // Tìm variant phù hợp
+            const matchingVariant = findMatchingVariant(
+                attributes, 
+                selectedAttributes[productID]
+            );
+
+            // Chọn giá và số lượng
+            const selectedPrice = matchingVariant ? matchingVariant.price : Number(price);
+            const selectedInventory = matchingVariant ? matchingVariant.inventory : Number(inventory);
+
             selectedProducts.push({
                 productID,
                 name,
-                price: Number(price),
+                price: selectedPrice,
                 thumbnail,
-                inventory: Number(inventory),
+                inventory: selectedInventory,
                 quantity: 1, 
                 attributes: selectedAttributes[productID] || {}
             });
@@ -449,10 +507,8 @@ function saveAttributeSelection() {
     let selectedValues = {};
     let allAttributesSelected = true;
 
-    attributes.forEach(attributeGroup => {
-        if (attributeGroup.length === 0) return;
-
-        const attributeName = attributeGroup[0].name || 'Thuộc tính';
+    attributes.forEach(attribute => {
+        const attributeName = attribute.name;
         const selectedValue = document.querySelector(`input[name="attr-${productID}-${attributeName}"]:checked`);
 
         if (selectedValue) {
@@ -589,17 +645,19 @@ function addNewCustomer() {
         return;
     }
     
-    // Kiểm tra định dạng số điện thoại (đơn giản)
-    const phoneRegex = /^\d{10,11}$/;
+    // Kiểm tra định dạng số điện thoại
+    const phoneRegex = /^(0[3|5|7|8|9])+([0-9]{8})$/;
     if (!phoneRegex.test(phoneNumber)) {
-        alert("Số điện thoại không hợp lệ! Vui lòng nhập 10-11 chữ số.");
+        alert("Số điện thoại không hợp lệ! Vui lòng nhập đúng định dạng.");
         return;
     }
     
     // Thực hiện gọi API để thêm khách hàng mới
-    fetch("http://localhost:3000/customers", {
+    fetch("/customers", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+            "Content-Type": "application/json" 
+        },
         body: JSON.stringify({
             fullName,
             phoneNumber,
@@ -608,8 +666,12 @@ function addNewCustomer() {
         })
     })
     .then(response => {
+        // Kiểm tra trạng thái của phản hồi
         if (!response.ok) {
-            throw new Error('Network response was not ok');
+            // Đọc thông báo lỗi từ response
+            return response.json().then(errorData => {
+                throw new Error(errorData.message || 'Có lỗi xảy ra');
+            });
         }
         return response.json();
     })
@@ -627,19 +689,13 @@ function addNewCustomer() {
             // Cập nhật thông tin giao hàng
             updateDeliveryInfo();
         } else {
-            alert("Thêm khách hàng không thành công: " + data.message);
+            // Xử lý trường hợp không thành công nhưng không phải là lỗi server
+            alert(data.message || "Thêm khách hàng không thành công!");
         }
     })
     .catch(error => {
         console.error("Lỗi khi thêm khách hàng:", error);
-        
-        // Kiểm tra các lỗi phổ biến
-        if (error.message.includes("E11000")) {
-            // Lỗi duplicate key (trùng email hoặc số điện thoại)
-            alert("Email hoặc số điện thoại đã tồn tại trong hệ thống!");
-        } else {
-            alert("Có lỗi xảy ra khi thêm khách hàng. Vui lòng thử lại!");
-        }
+        alert(error.message || "Có lỗi xảy ra khi thêm khách hàng. Vui lòng thử lại!");
     });
 }
 
@@ -1035,18 +1091,31 @@ function removePromotion() {
         
         /* Tổng tiền & Nút Tạo Đơn Hàng nổi cố định ở bottom */
         .fixed-bottom-bar {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background: #ffffff;
-            padding: 15px 20px;
-            border-top: 2px solid #ddd;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0px -2px 10px rgba(0, 0, 0, 0.1);
-        }
+    position: fixed;
+    bottom: 0;
+    left: 10;
+    width: calc(82%); /* Giảm chiều rộng đi 200px */
+    background: #ffffff;
+    padding: 15px 20px;
+    border-top: 2px solid #ddd;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0px -2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Điều chỉnh vị trí nút "Tạo Đơn Hàng" */
+.submit-btn {
+    background-color: #007bff;
+    color: white;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    margin-right: 0; /* Loại bỏ margin-right 60px */
+    font-weight: bold;
+}
         
         /* Tổng tiền */
         .total-text {
@@ -1057,16 +1126,16 @@ function removePromotion() {
         
         /* Nút Tạo Đơn Hàng */
         .submit-btn {
-            background-color: #007bff;
-            color: white;
-            padding: 12px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-            margin-right: 60px;
-            font-weight: bold;
-        }
+    background-color: #007bff;
+    color: white;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    margin-right: 0; /* Loại bỏ margin-right 60px */
+    font-weight: bold;
+}
         
         .submit-btn:hover {
             background-color: #0056b3;
