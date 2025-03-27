@@ -308,7 +308,7 @@
     // Tải danh sách nhà cung cấp
     function loadProviders(selectElementId) {
         $.ajax({
-            url: '/provider/json',
+            url: '/providers/json',
             type: 'GET',
             success: function(response) {
                 console.log("Dữ liệu nhà cung cấp:", response);

@@ -35,6 +35,11 @@ interface InputProps {
   showPasswordIcon?: boolean;
   onTogglePassword?: () => void;
   error?: string;
+  editable?: boolean;
+  multiline?: boolean;
+  numberOfLines?: number;
+  textAlignVertical?: 'auto' | 'top' | 'bottom' | 'center';
+  inputStyle?: StyleProp<ViewStyle>;
 }
 
 export const Input = React.memo((props: InputProps) => {
@@ -52,6 +57,11 @@ export const Input = React.memo((props: InputProps) => {
     showPasswordIcon = false,
     onTogglePassword,
     error,
+    editable = true,
+    multiline = false,
+    numberOfLines,
+    textAlignVertical,
+    inputStyle,
   } = props;
 
   const textColor = useTextColor();
@@ -66,10 +76,17 @@ export const Input = React.memo((props: InputProps) => {
         style={[
           styles.inputContainer,
           error ? styles.inputContainerError : {},
+          !editable && styles.inputContainerDisabled,
           inputContainerStyle,
         ]}>
         <TextInput
-          style={[styles.input, {color: textColor}]}
+          style={[
+            styles.input,
+            {color: textColor},
+            multiline && styles.multilineInput,
+            multiline && textAlignVertical && {textAlignVertical},
+            inputStyle,
+          ]}
           placeholder={placeholderText}
           placeholderTextColor={color.accentColor.grayColor}
           value={value}
@@ -77,10 +94,13 @@ export const Input = React.memo((props: InputProps) => {
           secureTextEntry={secureTextEntry}
           autoFocus={autoFocus || false}
           keyboardType={keyboardType}
-          onSubmitEditing={Keyboard.dismiss}
+          onSubmitEditing={!multiline ? Keyboard.dismiss : undefined}
+          editable={editable}
+          multiline={multiline}
+          numberOfLines={numberOfLines}
         />
         <View style={styles.rightContainer}>
-          {showClearIcon && value.length > 0 && (
+          {showClearIcon && value.length > 0 && editable && (
             <TouchableOpacity onPress={clearInput}>
               <CloseCircle
                 color={color.accentColor.closeColor}
@@ -135,10 +155,20 @@ const styles = StyleSheet.create({
     borderColor: color.accentColor.errorColor,
     borderWidth: 0.5,
   },
+  inputContainerDisabled: {
+    backgroundColor: color.accentColor.grayColor + '20',
+    borderColor: color.accentColor.grayColor + '30',
+  },
   input: {
     flex: 1,
     fontSize: scaledSize(14),
     fontFamily: Fonts.Inter_Regular,
+  },
+  multilineInput: {
+    height: 'auto',
+    paddingTop: scaleHeight(12),
+    paddingBottom: scaleHeight(12),
+    minHeight: scaleHeight(100),
   },
   rightContainer: {
     flexDirection: 'row',

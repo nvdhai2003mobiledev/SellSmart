@@ -8,7 +8,7 @@ const { protect } = require("../middleware/auth");
 // 🚀 Routes cho Product (Sản phẩm)
 // Route tĩnh
 router.get("/", protect, productController.getProduct);
-router.get("/json", productController.getProductAsJson);
+router.get("/json", protect, productController.getProductAsJson);
 router.get("/getbienthe", productController.getVariantsPage);
 router.post("/create", productController.addProduct);
 router.put("/update/:productId", productController.updateProduct);
@@ -24,9 +24,21 @@ router.put("/getbienthe/update/:variantId", variantController.updateVariant);
 router.delete("/getbienthe/delete/:variantId", variantController.deleteVariant);
 
 // 🚀 Routes cho DetailsVariant (Chi tiết biến thể)
-router.get("/getdetailsvariant", detailsVariantController.getAllDetailsVariants);
-router.get("/getdetailsvariant/:productId", detailsVariantController.getDetailsByProduct);
-router.post("/getdetailsvariant/create", detailsVariantController.addDetailsVariant);
-router.delete("/getdetailsvariant/delete/:detailsVariantId", detailsVariantController.deleteDetailsVariant);
+router.get(
+  "/getdetailsvariant",
+  detailsVariantController.getAllDetailsVariants
+);
+router.get(
+  "/getdetailsvariant/:productId",
+  detailsVariantController.getDetailsByProduct
+);
+router.post(
+  "/getdetailsvariant/create",
+  detailsVariantController.addDetailsVariant
+);
+router.delete(
+  "/getdetailsvariant/delete/:detailsVariantId",
+  detailsVariantController.deleteDetailsVariant
+);
 
 module.exports = router;

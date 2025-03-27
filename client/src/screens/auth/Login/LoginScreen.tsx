@@ -1,6 +1,6 @@
 import {Image, StyleSheet, TouchableOpacity, View} from 'react-native';
 import React, {useState} from 'react';
-import {NavigationProp, useNavigation} from '@react-navigation/native'; // Import useNavigation and NavigationProp
+import {NavigationProp, useNavigation} from '@react-navigation/native';
 import {BaseLayout, Button, DynamicText, Input} from '../../../components';
 import {color, scaledSize, scaleHeight, scaleWidth} from '../../../utils';
 import {Fonts, Images} from '../../../assets';
@@ -8,16 +8,41 @@ import {Controller, useForm} from 'react-hook-form';
 import {contents} from '../../../context';
 import {RegexPatterns} from '../../../constants';
 import {RootStackParamList, Screen} from '../../../navigation/navigation.type';
+import {rootStore} from '../../../models/root-store';
+import {Api} from '../../../services/api/api';
+import {ApiEndpoint} from '../../../services/api/api-endpoint';
+import {observer} from 'mobx-react-lite';
 
-const LoginScreen = () => {
+interface LoginForm {
+  username: string;
+  password: string;
+}
+
+interface MobileLoginResponse {
+  success: boolean;
+  message?: string;
+  data?: {
+    accessToken: string;
+    tokenType: string;
+    refreshToken: string;
+    expiresIn: number;
+    userId: string;
+    role: 'admin' | 'employee';
+    fullName: string;
+    email: string;
+  };
+}
+
+const LoginScreen = observer(() => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const {
     control,
     handleSubmit,
     formState: {errors},
-    watch,
-  } = useForm({
+  } = useForm<LoginForm>({
     defaultValues: {
       username: '',
       password: '',
@@ -25,14 +50,36 @@ const LoginScreen = () => {
   });
 
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState('vi'); // Mặc định tiếng Việt
 
   const togglePasswordVisibility = () => {
     setIsPasswordVisible(!isPasswordVisible);
   };
 
-  const onSubmit = (data: any) => {
-    console.log(data);
+  const onSubmit = async (data: LoginForm) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await Api.post<MobileLoginResponse>(
+        ApiEndpoint.MOBILE_LOGIN,
+        {
+          email: data.username,
+          password: data.password,
+        },
+      );
+
+      if (response.ok && response.data?.success) {
+        rootStore.auth.setAuth(response.data.data!);
+      } else {
+        setError(response.data?.message || 'Đăng nhập thất bại');
+        console.log('Login response:', response.data);
+      }
+    } catch (err) {
+      setError('Đã có lỗi xảy ra khi đăng nhập');
+      console.error('Login error:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -86,11 +133,14 @@ const LoginScreen = () => {
             />
           )}
         />
+        {error && <DynamicText style={styles.errorText}>{error}</DynamicText>}
         {/* Button Đăng nhập */}
         <Button
           title={contents.login.button_title}
           onPress={handleSubmit(onSubmit)}
           buttonContainerStyle={styles.buttonContainer}
+          loading={loading}
+          disabled={loading}
         />
         {/* Forgot password */}
         <TouchableOpacity
@@ -100,24 +150,9 @@ const LoginScreen = () => {
           </DynamicText>
         </TouchableOpacity>
       </View>
-
-      {/* Dropdown chọn ngôn ngữ */}
-      {/* <View style={styles.languagePickerContainer}>
-        <View>
-          <RNPickerSelect
-            onValueChange={value => setSelectedLanguage(value)}
-            items={[
-              {label: '🇻🇳 Tiếng Việt', value: 'vi'},
-              {label: '🇬🇧 English', value: 'en'},
-            ]}
-            style={pickerSelectStyles}
-            value={selectedLanguage}
-          />
-        </View>
-      </View> */}
     </BaseLayout>
   );
-};
+});
 
 export default LoginScreen;
 
@@ -140,6 +175,8 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: color.accentColor.errorColor,
+    textAlign: 'center',
+    marginBottom: scaleHeight(10),
   },
   buttonContainer: {
     marginTop: scaleHeight(10),
@@ -150,24 +187,4 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.Inter_SemiBold,
     color: color.primaryColor,
   },
-  languagePickerContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
 });
-
-// Style cho dropdown
-const pickerSelectStyles = {
-  inputIOS: {
-    fontSize: 16,
-    padding: 10,
-    borderRadius: 5,
-    color: color.accentColor.darkColor,
-  },
-  inputAndroid: {
-    fontSize: 16,
-    padding: 10,
-    borderRadius: 5,
-    color: color.accentColor.darkColor,
-  },
-};

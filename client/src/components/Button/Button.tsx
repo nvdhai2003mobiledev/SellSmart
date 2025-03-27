@@ -8,6 +8,7 @@ import {
   TouchableOpacityProps,
   View,
   ViewStyle,
+  ActivityIndicator,
 } from 'react-native';
 
 import Animated, {
@@ -15,9 +16,8 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
-import { color, moderateScale, scaledSize, scaleHeight } from '../../utils';
-import { Fonts } from '../../assets';
-
+import {color, moderateScale, scaledSize, scaleHeight} from '../../utils';
+import {Fonts} from '../../assets';
 
 const AnimatedButtonComponent =
   Animated.createAnimatedComponent(TouchableOpacity);
@@ -28,11 +28,12 @@ interface ExtraButtonProps {
   titleStyle?: StyleProp<TextStyle>;
   title?: React.ReactNode;
   hasShadow?: boolean;
+  loading?: boolean;
 }
 
 const shadowStyle = {
   shadowColor: color.accentColor.darkColor,
-  shadowOffset: { width: 0, height: 10 },
+  shadowOffset: {width: 0, height: 10},
   shadowOpacity: 0.2,
   shadowRadius: 8,
   elevation: 4,
@@ -49,12 +50,12 @@ export type ButtonProps = AnimatedButtonProps & ExtraButtonProps;
 
 export const AnimatedTouchableOpacity = React.memo(
   (props: AnimatedButtonProps) => {
-    const { containerStyle } = props;
+    const {containerStyle} = props;
     const scaleValue = useSharedValue(1);
 
     const animatedButtonStyle = useAnimatedStyle(() => {
       return {
-        transform: [{ scale: scaleValue.value }],
+        transform: [{scale: scaleValue.value}],
       };
     });
 
@@ -78,6 +79,7 @@ export const Button = React.memo((props: ButtonProps) => {
     titleContainerStyle,
     titleStyle,
     hasShadow = true,
+    loading = false,
   } = props;
 
   return (
@@ -87,9 +89,14 @@ export const Button = React.memo((props: ButtonProps) => {
         buttonContainerStyle,
         hasShadow && shadowStyle,
       ]}
+      disabled={loading}
       {...props}>
       <View style={[styles.titleContainer, titleContainerStyle]}>
-        <Text style={[styles.titleStyle, titleStyle]}>{title}</Text>
+        {loading ? (
+          <ActivityIndicator color={color.accentColor.whiteColor} />
+        ) : (
+          <Text style={[styles.titleStyle, titleStyle]}>{title}</Text>
+        )}
       </View>
     </AnimatedTouchableOpacity>
   );

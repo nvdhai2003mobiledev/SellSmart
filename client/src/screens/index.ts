@@ -20,3 +20,7 @@ export {default as UpdateEmployeeScreen} from './main/Employee/UpdateEmployeeScr
 export {default as DetailEmployeeScreen} from './main/Employee/DetailEmployeeScreen';
 export {default as NotificationScreen} from './main/Notification/NotificationScreen';
 export {default as CreateOrderScreen} from './main/Order/CreateOrderScreen';
+export {default as DayScreen} from './bottomTab/Home/DayScreen';
+export {default as WeekScreen} from './bottomTab/Home/WeekScreen';
+export {default as MonthScreen} from './bottomTab/Home/MonthScreen';
+export {default as ProfileScreen} from './main/Profile/ProfileScreen';

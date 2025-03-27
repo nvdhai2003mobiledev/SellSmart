@@ -8,10 +8,11 @@ import {
 } from 'react-native';
 import React from 'react';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { useTextColor } from '../../hooks';
-import { scaledSize, scaleHeight } from '../../utils';
-import { DynamicText } from '../DynamicText/DynamicText';
-import { Fonts } from '../../assets';
+import {useTextColor} from '../../hooks';
+import {scaledSize, scaleHeight} from '../../utils';
+import {DynamicText} from '../DynamicText/DynamicText';
+import {Fonts} from '../../assets';
+import {ArrowLeft, ArrowLeft2, ArrowLeft3} from 'iconsax-react-native';
 
 interface HeaderProps {
   headerStyle?: StyleProp<ViewStyle>;
@@ -40,10 +41,10 @@ export const Header = (props: HeaderProps) => {
     <View style={[styles.container, headerStyle]}>
       <View style={styles.leftContainer}>
         {showBackIcon && (
-          <Icon
-            name={'chevron-back-outline'}
-            color={textColor}
+          <ArrowLeft2
             size={scaledSize(24)}
+            color={textColor}
+            variant="Linear"
             onPress={onPressBack}
           />
         )}

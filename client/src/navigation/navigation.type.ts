@@ -11,10 +11,10 @@ export enum Screen {
   PRODUCT = 'PRODUCT',
   STATISTICAL = 'STATISTICAL',
   MENU = 'MENU',
-  EMPLOYEES = 'EMPLOYEES',
   ADD_EMPLOYEE = 'ADD_EMPLOYEE',
   DETAIL_EMPLOYEE = 'DETAIL_EMPLOYEE',
   UPDATE_EMPLOYEE = 'UPDATE_EMPLOYEE',
+  EMPLOYEES = 'EMPLOYEES',
   CUSTOMERS = 'CUSTOMERS',
   ADD_CUSTOMER = 'ADD_CUSTOMER',
   UPDATE_CUSTOMER = 'UPDATECUSTOMER',
@@ -22,7 +22,11 @@ export enum Screen {
   CONFIG = 'CONFIG',
   NOTIFI = 'NOTIFINOTIFI',
   CREATEORDER ='CREATEORDER',
-  ORDERSCREEN ='ORDERSCREEN'
+  ORDERSCREEN = 'ORDERSCREEN',
+  DAYSCREEN = 'DAYSCREEN',
+  WEEKSCREEN = 'WEEKSCREEN',
+  MONTHSCREEN = 'MONTHSCREEN',
+  PROFILE = 'PROFILE'
 }
 
 export type RootStackParamList = {
@@ -33,10 +37,10 @@ export type RootStackParamList = {
   [Screen.VERIFY]: undefined;
   [Screen.CREATE_PASSWORD]: undefined;
   [Screen.BOTTOM_TAB]: undefined;
-  [Screen.EMPLOYEES]: undefined;
   [Screen.ADD_EMPLOYEE]: undefined;
-  [Screen.DETAIL_EMPLOYEE]: undefined;
-  [Screen.UPDATE_EMPLOYEE]: undefined;
+  [Screen.DETAIL_EMPLOYEE]: {id: string};
+  [Screen.UPDATE_EMPLOYEE]: {employeeId: string};
+  [Screen.EMPLOYEES]: undefined;
   [Screen.CUSTOMERS]: undefined;
   [Screen.ADD_CUSTOMER]: undefined;
   [Screen.UPDATE_CUSTOMER]: undefined;
@@ -45,6 +49,7 @@ export type RootStackParamList = {
   [Screen.NOTIFI]: undefined;
   [Screen.CREATEORDER]: undefined;
   [Screen.ORDERSCREEN]: undefined;
+  [Screen.PROFILE]: undefined;
 };
 
 export type BottomRootStackParamList = {
@@ -55,4 +60,8 @@ export type BottomRootStackParamList = {
   [Screen.MENU]: undefined;
 };
 
-export type TopParamList = {};
+export type TabParamList = {
+  [Screen.DAYSCREEN]: undefined;
+  [Screen.WEEKSCREEN]: undefined;
+  [Screen.MONTHSCREEN]: undefined;
+};

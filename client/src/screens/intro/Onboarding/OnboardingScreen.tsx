@@ -14,10 +14,11 @@ import {Screen} from '../../../navigation/navigation.type.ts';
 import {Fonts, Images} from '../../../assets';
 import {contents} from '../../../context';
 import Swiper from 'react-native-swiper';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import {observer} from 'mobx-react-lite';
+import {rootStore} from '../../../models/root-store';
 
 const {width} = Dimensions.get('window');
-const OnboardingScreen = () => {
+const OnboardingScreen = observer(() => {
   const navigation = useNavigation<any>();
   const swiperRef = useRef(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -46,17 +47,13 @@ const OnboardingScreen = () => {
       // @ts-ignore
       swiperRef.current?.scrollBy(1);
     } else {
-      await AsyncStorage.setItem('hasSeenOnboarding', 'true');
-      const value = await AsyncStorage.getItem('hasSeenOnboarding');
-      console.log('Saved value:', value); // Kiểm tra giá trị lưu
+      await rootStore.onboarding.setHasSeenOnboarding(true);
       navigation.replace(Screen.LOGIN);
     }
   };
 
   const handleSkip = async () => {
-    await AsyncStorage.setItem('hasSeenOnboarding', 'true');
-    const value = await AsyncStorage.getItem('hasSeenOnboarding');
-    console.log('Saved value:', value); // Kiểm tra giá trị lưu
+    await rootStore.onboarding.setHasSeenOnboarding(true);
     navigation.replace(Screen.LOGIN);
   };
 
@@ -113,7 +110,7 @@ const OnboardingScreen = () => {
       </View>
     </BaseLayout>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

@@ -1,107 +1,267 @@
-import React from "react";
-import { View, TouchableOpacity, StyleSheet } from "react-native";
-import Icon from "react-native-vector-icons/Ionicons";
-import { BaseLayout, Button, DynamicText, Input ,Header} from '../../../components';
-import { scaledSize, scaleHeight } from '../../../utils'; // Import responsive utils
-import { contents } from '../../../context';
-import { NavigationProp, useNavigation } from "@react-navigation/native";
-import { RootStackParamList, Screen } from "../../../navigation/navigation.type";
-
-
-
-
+import React, {useRef, useState} from 'react';
+import {
+  View,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+} from 'react-native';
+import {
+  AddCircle,
+  Calendar,
+  DocumentText,
+  ArrowRight2,
+  TruckFast,
+  Box,
+} from 'iconsax-react-native';
+import {BaseLayout, DynamicText, Header} from '../../../components';
+import {
+  color,
+  moderateScale,
+  scaledSize,
+  scaleHeight,
+  scaleWidth,
+} from '../../../utils';
+import {contents} from '../../../context';
+import {NavigationProp, useNavigation} from '@react-navigation/native';
+import {RootStackParamList, Screen} from '../../../navigation/navigation.type';
 
 const OrderScreen = () => {
- const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const scrollY = useRef(0);
+  const [bottomTabVisible, setBottomTabVisible] = useState(true);
+
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const currentScrollY = event.nativeEvent.contentOffset.y;
+
+    if (
+      currentScrollY > scrollY.current &&
+      bottomTabVisible &&
+      currentScrollY > 20
+    ) {
+      setBottomTabVisible(false);
+      navigation.getParent()?.setOptions({
+        tabBarStyle: {display: 'none'},
+      });
+    } else if (currentScrollY < scrollY.current && !bottomTabVisible) {
+      setBottomTabVisible(true);
+      navigation.getParent()?.setOptions({
+        tabBarStyle: {
+          height: scaleHeight(65),
+          borderRadius: moderateScale(20),
+          position: 'absolute',
+          bottom: scaleHeight(30),
+          marginHorizontal: scaleWidth(30),
+          paddingHorizontal: scaleHeight(20),
+          shadowColor: color.accentColor.darkColor,
+          shadowOffset: {width: 0, height: 10},
+          shadowOpacity: 0.2,
+          shadowRadius: moderateScale(20),
+          elevation: moderateScale(20),
+          backgroundColor: color.accentColor.whiteColor,
+          display: 'flex',
+        },
+      });
+    }
+
+    scrollY.current = currentScrollY;
+  };
+
   return (
-   <BaseLayout style={styles.container}>
-     
-   
-      <Header title={"Đơn Hàng"}/>
-
-
-        <TouchableOpacity style={styles.createOrderButton} onPress={()=>navigation.navigate(Screen.CREATEORDER)}>
-          <Icon name="add-circle-outline" size={scaledSize(24)} color="#007bff" />
-          <DynamicText style={styles.createOrderText}>{contents.order.create_order}</DynamicText>
+    <BaseLayout style={styles.scrollView}>
+      <Header title={'Đơn hàng'} />
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}>
+        <TouchableOpacity
+          style={styles.createOrderButton}
+          onPress={() => navigation.navigate(Screen.CREATEORDER)}>
+          <AddCircle
+            size={scaledSize(36)}
+            color={color.primaryColor}
+            variant="Bold"
+          />
+          <DynamicText style={styles.createOrderText}>
+            {contents.order.create_order}
+          </DynamicText>
         </TouchableOpacity>
+
+        <View style={styles.sectionTitle}>
+          <DynamicText style={styles.sectionTitleText}>
+            Quản lý đơn hàng
+          </DynamicText>
+        </View>
 
         <View style={styles.grid}>
           <TouchableOpacity style={styles.gridItem}>
-            <Icon name="calendar-outline" size={scaledSize(24)} color="#007bff" />
-            <DynamicText style={styles.gridText}>{contents.order.order}</DynamicText>
+            <View style={styles.gridItemContent}>
+              <View
+                style={[styles.iconContainer, {backgroundColor: '#E8F5FF'}]}>
+                <Calendar
+                  size={scaledSize(24)}
+                  color={color.primaryColor}
+                  variant="Bold"
+                />
+              </View>
+              <View>
+                <DynamicText style={styles.gridTitle}>
+                  {contents.order.order || 'Đơn hàng'}
+                </DynamicText>
+                <DynamicText style={styles.gridSubtitle}>0 đơn</DynamicText>
+              </View>
+            </View>
+            <ArrowRight2
+              size={20}
+              color={color.accentColor.grayColor}
+              variant="Linear"
+            />
           </TouchableOpacity>
+
           <TouchableOpacity style={styles.gridItem}>
-            <Icon name="document-text-outline" size={scaledSize(24)} color="#007bff" />
-            <DynamicText style={styles.gridText}>{contents.order.order_draft}</DynamicText>
+            <View style={styles.gridItemContent}>
+              <View
+                style={[styles.iconContainer, {backgroundColor: '#FFF5E8'}]}>
+                <DocumentText
+                  size={scaledSize(24)}
+                  color="#FFA500"
+                  variant="Bold"
+                />
+              </View>
+              <View>
+                <DynamicText style={styles.gridTitle}>
+                  {contents.order.order_draft || 'Đơn nháp'}
+                </DynamicText>
+                <DynamicText style={styles.gridSubtitle}>0 đơn</DynamicText>
+              </View>
+            </View>
+            <ArrowRight2
+              size={20}
+              color={color.accentColor.grayColor}
+              variant="Linear"
+            />
           </TouchableOpacity>
+
           <TouchableOpacity style={styles.gridItem}>
-            <Icon name="cube-outline" size={scaledSize(24)} color="#007bff" />
-            <DynamicText style={styles.gridText}>{contents.order.return_product}</DynamicText>
+            <View style={styles.gridItemContent}>
+              <View
+                style={[styles.iconContainer, {backgroundColor: '#E8FFF5'}]}>
+                <Box size={scaledSize(24)} color="#00CC99" variant="Bold" />
+              </View>
+              <View>
+                <DynamicText style={styles.gridTitle}>
+                  {contents.order.return_product || 'Trả hàng'}
+                </DynamicText>
+                <DynamicText style={styles.gridSubtitle}>0 đơn</DynamicText>
+              </View>
+            </View>
+            <ArrowRight2
+              size={20}
+              color={color.accentColor.grayColor}
+              variant="Linear"
+            />
           </TouchableOpacity>
+
           <TouchableOpacity style={styles.gridItem}>
-            <Icon name="car-outline" size={scaledSize(24)} color="#007bff" />
-            <DynamicText style={styles.gridText}>{contents.order.ship}</DynamicText>
+            <View style={styles.gridItemContent}>
+              <View
+                style={[styles.iconContainer, {backgroundColor: '#F5E8FF'}]}>
+                <TruckFast
+                  size={scaledSize(24)}
+                  color="#9B51E0"
+                  variant="Bold"
+                />
+              </View>
+              <View>
+                <DynamicText style={styles.gridTitle}>
+                  {contents.order.ship || 'Vận chuyển'}
+                </DynamicText>
+                <DynamicText style={styles.gridSubtitle}>0 đơn</DynamicText>
+              </View>
+            </View>
+            <ArrowRight2
+              size={20}
+              color={color.accentColor.grayColor}
+              variant="Linear"
+            />
           </TouchableOpacity>
         </View>
-     
+
+        {/* Thêm padding bottom để tránh bị che bởi bottom tab */}
+        <View style={styles.bottomPadding} />
+      </ScrollView>
     </BaseLayout>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  scrollView: {
     flex: 1,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    paddingTop: scaleHeight(50),
-   
-  },
-  
-  header: {
-    fontSize: scaledSize(20),
-    fontWeight: "bold",
-    marginBottom: scaleHeight(20),
   },
   createOrderButton: {
-    flexDirection: "column", // Chuyển từ row -> column
-    alignItems: "center",
-    backgroundColor: "#f8f9fa",
-    padding: scaleHeight(15),
-    borderRadius: scaledSize(10),
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'white',
+    padding: moderateScale(20),
+    borderRadius: moderateScale(12),
     borderWidth: 1,
-    borderColor: "#007bff",
-    width:scaledSize(400),
-    justifyContent: "center",
-    marginBottom: scaleHeight(20),
-    borderStyle: "dashed",
-   
+    borderColor: color.primaryColor,
+    borderStyle: 'dashed',
+    marginBottom: moderateScale(20),
   },
   createOrderText: {
-    color: "#007bff",
-    fontSize: scaledSize(16),
-    marginTop: scaleHeight(8), // Thay vì marginLeft, dùng marginTop để tạo khoảng cách giữa icon và chữ
-    textAlign: "center",
-   
+    color: color.primaryColor,
+    fontSize: moderateScale(14),
+    marginTop: moderateScale(8),
+    fontWeight: '500',
+  },
+  sectionTitle: {
+    marginBottom: moderateScale(12),
+  },
+  sectionTitleText: {
+    fontSize: moderateScale(16),
+    fontWeight: '600',
+    color: color.accentColor.darkColor,
   },
   grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-   width:scaledSize(400)
+    flexDirection: 'column',
+    gap: moderateScale(12),
   },
   gridItem: {
-    width: "48%",
-    backgroundColor: "#e7f1ff",
-    padding: scaleHeight(20),
-    borderRadius: scaledSize(10),
-    alignItems: "center",
-    marginBottom: scaleHeight(15),
+    backgroundColor: 'white',
+    padding: moderateScale(16),
+    borderRadius: moderateScale(12),
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  gridText: {
-    marginTop: scaleHeight(10),
-    fontSize: scaledSize(14),
-    fontWeight: "500",
-    color: "black",
+  gridItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  iconContainer: {
+    width: scaledSize(48),
+    height: scaledSize(48),
+    borderRadius: moderateScale(12),
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: moderateScale(12),
+  },
+  gridTitle: {
+    fontSize: moderateScale(14),
+    color: color.accentColor.darkColor,
+    marginBottom: moderateScale(4),
+    fontWeight: '500',
+  },
+  gridSubtitle: {
+    fontSize: moderateScale(12),
+    color: color.accentColor.grayColor,
+  },
+  bottomPadding: {
+    height: moderateScale(100),
   },
 });
 

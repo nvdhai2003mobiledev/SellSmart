@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import {Pressable, StyleSheet} from 'react-native';
 import {
   Box,
   Box1,
@@ -17,10 +17,24 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { BottomRootStackParamList, Screen } from './navigation.type';
-import { color, moderateScale, scaledSize, scaleHeight, scaleWidth } from '../utils';
-import { HomeScreen, MenuScreen, OrderScreen, ProductScreen, StatisticalScreen } from '../screens';
+import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
+import {BottomRootStackParamList, Screen} from './navigation.type';
+import {
+  color,
+  moderateScale,
+  scaledSize,
+  scaleHeight,
+  scaleWidth,
+} from '../utils';
+import {
+  HomeScreen,
+  MenuScreen,
+  OrderScreen,
+  ProductScreen,
+  StatisticalScreen,
+} from '../screens';
+import ProductDetailScreen from '../screens/main/Product/ProductDetailScreen';
+import ProductListScreen from '../screens/main/Product/ProductListScreen';
 
 const BottomTab = createBottomTabNavigator<BottomRootStackParamList>();
 
@@ -51,11 +65,11 @@ const AnimatedIcon = ({
 
   const handlePress = () => {
     scale.value = withSequence(
-      withTiming(0.8, { duration: 100 }),
-      withTiming(1, { duration: 150 }),
+      withTiming(0.8, {duration: 100}),
+      withTiming(1, {duration: 150}),
     );
     translateY.value = withSequence(
-      withSpring(-8, { ...SPRING_CONFIG, damping: 4 }),
+      withSpring(-8, {...SPRING_CONFIG, damping: 4}),
       withSpring(0, SPRING_CONFIG),
     );
     onPress?.();
@@ -64,52 +78,49 @@ const AnimatedIcon = ({
   React.useEffect(() => {
     if (focused) {
       translateY.value = withSequence(
-        withTiming(-15, { duration: 300 }),
-        withSpring(0, { ...SPRING_CONFIG, damping: 12 }),
+        withTiming(-15, {duration: 300}),
+        withSpring(0, {...SPRING_CONFIG, damping: 12}),
       );
 
       scale.value = withSequence(
-        withTiming(0.6, { duration: 150 }),
+        withTiming(0.6, {duration: 150}),
         withSpring(1.2, SPRING_CONFIG),
-        withSpring(1, { ...SPRING_CONFIG, damping: 15 }),
+        withSpring(1, {...SPRING_CONFIG, damping: 15}),
       );
 
       bubbleScale.value = withSequence(
-        withTiming(1.2, { duration: 200 }),
-        withTiming(1, { duration: 150 }),
+        withTiming(1.2, {duration: 200}),
+        withTiming(1, {duration: 150}),
       );
       ringScale.value = withSequence(
-        withTiming(0.8, { duration: 100 }),
-        withTiming(1.5, { duration: 300 }),
-        withTiming(1, { duration: 200 }),
+        withTiming(0.8, {duration: 100}),
+        withTiming(1.5, {duration: 300}),
+        withTiming(1, {duration: 200}),
       );
       ringOpacity.value = withSequence(
-        withTiming(0.6, { duration: 100 }),
-        withTiming(0, { duration: 300 }),
+        withTiming(0.6, {duration: 100}),
+        withTiming(0, {duration: 300}),
       );
     } else {
-      scale.value = withTiming(1, { duration: 300 });
-      translateY.value = withTiming(0, { duration: 300 });
-      bubbleScale.value = withTiming(0, { duration: 200 });
-      ringScale.value = withTiming(0, { duration: 200 });
-      ringOpacity.value = withTiming(0, { duration: 200 });
+      scale.value = withTiming(1, {duration: 300});
+      translateY.value = withTiming(0, {duration: 300});
+      bubbleScale.value = withTiming(0, {duration: 200});
+      ringScale.value = withTiming(0, {duration: 200});
+      ringOpacity.value = withTiming(0, {duration: 200});
     }
   }, [focused]);
 
   const iconStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: scale.value },
-      { translateY: translateY.value },
-    ],
+    transform: [{scale: scale.value}, {translateY: translateY.value}],
   }));
 
   const bubbleStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: bubbleScale.value }],
+    transform: [{scale: bubbleScale.value}],
     opacity: interpolate(bubbleScale.value, [0, 1], [0, 0.15]),
   }));
 
   const ringStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: ringScale.value }],
+    transform: [{scale: ringScale.value}],
     opacity: ringOpacity.value,
   }));
 
@@ -120,11 +131,11 @@ const AnimatedIcon = ({
           style={[
             styles.bubble,
             bubbleStyle,
-            { backgroundColor: color.primaryColor },
+            {backgroundColor: color.primaryColor},
           ]}
         />
         <Animated.View
-          style={[styles.ring, ringStyle, { borderColor: color.primaryColor }]}
+          style={[styles.ring, ringStyle, {borderColor: color.primaryColor}]}
         />
         <Animated.View style={iconStyle}>
           <IconComponent
@@ -142,8 +153,8 @@ export const BottomNavigation = () => {
   return (
     <BottomTab.Navigator
       initialRouteName={Screen.HOME}
-      screenOptions={({ route, navigation }) => ({
-        tabBarIcon: ({ focused }) => {
+      screenOptions={({route, navigation}) => ({
+        tabBarIcon: ({focused}) => {
           let IconComponent: any;
           let colors = focused
             ? color.primaryColor
@@ -184,18 +195,22 @@ export const BottomNavigation = () => {
           marginHorizontal: scaleWidth(30),
           paddingHorizontal: scaleHeight(20),
           shadowColor: color.accentColor.darkColor,
-          shadowOffset: { width: 0, height: 10 },
+          shadowOffset: {width: 0, height: 10},
           shadowOpacity: 0.2,
           shadowRadius: moderateScale(20),
           elevation: moderateScale(20),
           backgroundColor: color.accentColor.whiteColor,
+          display: 'flex',
         },
         headerShown: false,
       })}>
       <BottomTab.Screen name={Screen.HOME} component={HomeScreen} />
       <BottomTab.Screen name={Screen.ORDER} component={OrderScreen} />
-      <BottomTab.Screen name={Screen.PRODUCT} component={ProductScreen} />
-      <BottomTab.Screen name={Screen.STATISTICAL} component={StatisticalScreen} />
+      <BottomTab.Screen name={Screen.PRODUCT} component={ProductListScreen} />
+      <BottomTab.Screen
+        name={Screen.STATISTICAL}
+        component={StatisticalScreen}
+      />
       <BottomTab.Screen name={Screen.MENU} component={MenuScreen} />
     </BottomTab.Navigator>
   );

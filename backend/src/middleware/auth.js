@@ -3,11 +3,16 @@ const User = require("../models/User");
 
 const protect = async (req, res, next) => {
   const token = req.cookies.token;
+  const refreshToken = req.cookies.refreshToken;
+
   if (!token) {
-    return res.status(401).render("auth/login", {
-      title: "Đăng nhập",
-      error: "Bạn cần đăng nhập để truy cập trang này",
-    });
+    if (!refreshToken) {
+      return res.status(401).render("auth/login", {
+        title: "Đăng nhập",
+        error: "Bạn cần đăng nhập để truy cập trang này",
+      });
+    }
+    return verifyRefreshToken(req, res, next);
   }
 
   try {
@@ -15,7 +20,7 @@ const protect = async (req, res, next) => {
 
     // Lấy user từ database
     const user = await User.findById(decoded.id).select(
-      "fullName email avatar role",
+      "fullName email avatar role"
     );
 
     if (!user) {
@@ -37,6 +42,9 @@ const protect = async (req, res, next) => {
     res.locals.admin = user; // Gửi thông tin đến EJS để dùng trong template
     next();
   } catch (error) {
+    if (refreshToken) {
+      return verifyRefreshToken(req, res, next);
+    }
     res.clearCookie("token").status(401).render("auth/login", {
       title: "Đăng nhập",
       error: "Phiên đăng nhập không hợp lệ hoặc đã hết hạn",
@@ -44,4 +52,53 @@ const protect = async (req, res, next) => {
   }
 };
 
-module.exports = { protect };
+const verifyToken = (req, res, next) => {
+  const token = req.cookies.token;
+  const refreshToken = req.cookies.refreshToken;
+
+  if (!token) {
+    if (!refreshToken) {
+      return res.redirect("/login");
+    }
+    return verifyRefreshToken(req, res, next);
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    if (refreshToken) {
+      return verifyRefreshToken(req, res, next);
+    }
+    return res.redirect("/login");
+  }
+};
+
+const verifyRefreshToken = async (req, res, next) => {
+  try {
+    const refreshToken = req.cookies.refreshToken;
+    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+    const user = await User.findById(decoded.id);
+
+    if (!user || user.refreshToken !== refreshToken) {
+      return res.redirect("/login");
+    }
+
+    // Generate new access token
+    const newToken = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
+    // Set new access token in cookie
+    res.cookie("token", newToken, { httpOnly: true, maxAge: 3600000 }); // 1 hour
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.redirect("/login");
+  }
+};
+
+module.exports = { protect, verifyToken };

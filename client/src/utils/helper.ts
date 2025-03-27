@@ -1,4 +1,4 @@
-import { scaledSize } from "./dimensions";
+import { scaledSize } from './dimensions';
 
 export const scaled = (value: number) => {
   return {

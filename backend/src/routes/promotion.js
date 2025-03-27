@@ -7,7 +7,7 @@ const { protect } = require("../middleware/auth");
 router.get("/", protect, promotionController.getPromotions);
 
 // 📌 Lấy danh sách khuyến mãi dưới dạng JSON
-router.get("/json", promotionController.getPromotionAsJson);
+router.get("/json", protect, promotionController.getPromotionAsJson);
 
 // 📌 Lấy chi tiết khuyến mãi theo ID
 router.get("/:promotionId", promotionController.getPromotionById);

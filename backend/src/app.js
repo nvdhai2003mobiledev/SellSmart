@@ -1,7 +1,6 @@
 const express = require("express");
 const dotenv = require("dotenv");
 const mongoose = require("mongoose");
-const customerRoutes = require("./routes/customer");
 const bodyParser = require("body-parser");
 const path = require("path");
 const connectDB = require("./config/db");
@@ -11,6 +10,7 @@ const flash = require("connect-flash");
 const session = require("express-session");
 
 const routes = require("./routes");
+const apiRoutes = require("./routes/api"); // Import API routes
 
 dotenv.config();
 connectDB();
@@ -48,7 +48,11 @@ app.use((req, res, next) => {
   next();
 });
 
+// Sử dụng routes
 routes(app);
+
+// Sử dụng API routes
+app.use("/api", apiRoutes);
 
 // Middleware xử lý lỗi
 app.use((err, req, res, next) => {

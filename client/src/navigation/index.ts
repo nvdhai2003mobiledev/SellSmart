@@ -1,0 +1,1 @@
+export {DetailEmployeeScreen} from '../screens';

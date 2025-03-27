@@ -1,70 +1,78 @@
-import {Image, StyleSheet, View} from 'react-native';
-import React, {useEffect} from 'react';
+import React, {useEffect, useState} from 'react';
+import {StyleSheet, View} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
-import {BaseLayout} from '../../../components';
-import {Images} from '../../../assets';
-import {scaledSize} from '../../../utils';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import {observer} from 'mobx-react-lite';
+import {rootStore} from '../../../models/root-store';
 import {Screen} from '../../../navigation/navigation.type';
+import {Images} from '../../../assets';
+import {Image} from 'react-native';
+import {color, scaledSize} from '../../../utils';
 
-const SplashScreen = () => {
+const SplashScreen = observer(() => {
   const navigation = useNavigation();
+  const {isAuthenticated, hasSeenOnboarding} = rootStore;
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    const checkFirstTimeUse = async () => {
+    const initialize = async () => {
       try {
-        const hasSeenOnboarding = await AsyncStorage.getItem(
-          'hasSeenOnboarding',
-        );
+        // Load auth state
+        await rootStore.auth.loadStoredAuth();
+        // Load onboarding state
+        await rootStore.onboarding.loadStoredOnboarding();
 
+        // Mark as ready after a delay
         setTimeout(() => {
-          if (hasSeenOnboarding === 'true') {
-            navigation.reset({
-              index: 0,
-              routes: [{name: Screen.ONBOARDING as never}],
-            }); // Lần đầu vào app -> chuyển sang Onboarding
-          } else {
-            navigation.reset({
-              index: 0,
-              routes: [{name: Screen.ONBOARDING as never}],
-            }); // Lần đầu vào app -> chuyển sang Onboarding
-          }
-        }, 3000);
+          setIsReady(true);
+        }, 2000);
       } catch (error) {
-        console.error('Error checking onboarding status:', error);
+        console.error('Error during initialization:', error);
       }
     };
 
-    checkFirstTimeUse();
+    initialize();
   }, []);
 
+  useEffect(() => {
+    if (!isReady) {return;}
+
+    if (isAuthenticated) {
+      navigation.reset({
+        index: 0,
+        routes: [{name: Screen.BOTTOM_TAB}],
+      });
+    } else if (!hasSeenOnboarding) {
+      navigation.reset({
+        index: 0,
+        routes: [{name: Screen.ONBOARDING}],
+      });
+    } else {
+      navigation.reset({
+        index: 0,
+        routes: [{name: Screen.LOGIN}],
+      });
+    }
+  }, [isReady, isAuthenticated, hasSeenOnboarding, navigation]);
+
   return (
-    <BaseLayout style={styles.container} scrollable={false}>
-      <View style={styles.imageContainer}>
-        <Image source={Images.LOGO} style={styles.logoImage} />
-      </View>
-    </BaseLayout>
+    <View style={styles.container}>
+      <Image source={Images.LOGO} style={styles.logo} />
+    </View>
   );
-};
+});
 
 export default SplashScreen;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: color.accentColor.whiteColor,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  imageContainer: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoImage: {
-    width: scaledSize(120),
-    height: scaledSize(120),
+  logo: {
+    width: scaledSize(330),
+    height: scaledSize(130),
     resizeMode: 'contain',
   },
 });

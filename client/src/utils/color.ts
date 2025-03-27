@@ -6,9 +6,9 @@ export const color = {
     blackColor: '#000000',
     errorColor: '#FF3B30',
     grayColor: '#747475',
-    closeColor: '#A1AEDB'
+    closeColor: '#A1AEDB',
   },
   backgroundColor: '#F9F9FF',
   inputColor: '#F6F7F9',
-  
+
 };

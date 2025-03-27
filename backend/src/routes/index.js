@@ -20,5 +20,7 @@ const routes = (app) => {
   app.use("/providers", providerRouter);
   app.use("/documents", documentRouter);
   app.use("/promotions", promotionRouter);
+
+  return app;
 };
 module.exports = routes;
