@@ -229,5 +229,40 @@
   });
 
   // Khởi tạo trạng thái ban đầu khi tải form sửa
+  document.querySelectorAll(".btn-warning").forEach(button => {
+    button.addEventListener("click", function () {
+        const row = this.closest("tr"); // Lấy hàng chứa nút sửa
+        document.getElementById("promotionId").value = row.cells[0].innerText;
+        document.getElementById("name").value = row.cells[1].innerText;
+        document.getElementById("discount").value = parseInt(row.cells[2].innerText);
+        document.getElementById("minOrderValue").value = parseInt(row.cells[3].innerText);
+        document.getElementById("maxDiscount").value = parseInt(row.cells[4].innerText);
+        document.getElementById("startDate").value = formatDate(row.cells[6].innerText);
+        document.getElementById("endDate").value = formatDate(row.cells[7].innerText);
+        document.getElementById("status").value = getStatus(row.cells[5].innerText);
+        
+        document.getElementById("submitBtn").innerText = "Cập nhật";
+        document.getElementById("cancelBtn").style.display = "inline-block";
+    });
+});
+
+function formatDate(dateString) {
+    const parts = dateString.split("/");
+    return `${parts[2]}-${parts[1]}-${parts[0]}`; // Chuyển từ DD/MM/YYYY sang YYYY-MM-DD
+}
+
+function getStatus(text) {
+    if (text.includes("Đang diễn ra")) return "active";
+    if (text.includes("Sắp diễn ra")) return "sapdienra";
+    return "expired";
+}
+
+
+document.getElementById("cancelBtn").addEventListener("click", function () {
+    promotionForm.reset();
+    document.getElementById("promotionId").value = "";
+    document.getElementById("submitBtn").innerText = "Thêm";
+    this.style.display = "none";
+});
   updateStatus();
 </script>

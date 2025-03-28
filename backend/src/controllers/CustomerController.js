@@ -100,8 +100,10 @@ const createCustomerFromOrder = async (req, res) => {
     // Lưu khách hàng vào cơ sở dữ liệu
     await newCustomer.save();
 
-    // Trả về thông tin khách hàng mới
+
+
     res.redirect("/customers");
+
   } catch (error) {
     console.error("Lỗi khi thêm khách hàng:", error);
 
