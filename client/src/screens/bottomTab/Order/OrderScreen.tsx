@@ -26,6 +26,7 @@ import {
 import {contents} from '../../../context';
 import {NavigationProp, useNavigation} from '@react-navigation/native';
 import {RootStackParamList, Screen} from '../../../navigation/navigation.type';
+import { rootStore } from '../../../models/root-store';
 
 const OrderScreen = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
@@ -68,6 +69,11 @@ const OrderScreen = () => {
     scrollY.current = currentScrollY;
   };
 
+  // Function to navigate to OrderListScreen with filter
+  const navigateToOrderList = (status?: string) => {
+    navigation.navigate(Screen.ORDERLIST, { status });
+  };
+
   return (
     <BaseLayout style={styles.scrollView}>
       <Header title={'Đơn hàng'} />
@@ -95,7 +101,10 @@ const OrderScreen = () => {
         </View>
 
         <View style={styles.grid}>
-          <TouchableOpacity style={styles.gridItem}>
+          <TouchableOpacity 
+            style={styles.gridItem} 
+            onPress={() => navigateToOrderList()}
+          >
             <View style={styles.gridItemContent}>
               <View
                 style={[styles.iconContainer, {backgroundColor: '#E8F5FF'}]}>
@@ -109,7 +118,9 @@ const OrderScreen = () => {
                 <DynamicText style={styles.gridTitle}>
                   {contents.order.order || 'Đơn hàng'}
                 </DynamicText>
-                <DynamicText style={styles.gridSubtitle}>0 đơn</DynamicText>
+                <DynamicText style={styles.gridSubtitle}>
+                  {rootStore.orders?.orders?.length || 0} đơn
+                </DynamicText>
               </View>
             </View>
             <ArrowRight2
@@ -119,7 +130,10 @@ const OrderScreen = () => {
             />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.gridItem}>
+          <TouchableOpacity 
+            style={styles.gridItem} 
+            onPress={() => navigateToOrderList('pending')}
+          >
             <View style={styles.gridItemContent}>
               <View
                 style={[styles.iconContainer, {backgroundColor: '#FFF5E8'}]}>
@@ -133,7 +147,9 @@ const OrderScreen = () => {
                 <DynamicText style={styles.gridTitle}>
                   {contents.order.order_draft || 'Đơn nháp'}
                 </DynamicText>
-                <DynamicText style={styles.gridSubtitle}>0 đơn</DynamicText>
+                <DynamicText style={styles.gridSubtitle}>
+                  {rootStore.orders?.pendingOrders?.length || 0} đơn
+                </DynamicText>
               </View>
             </View>
             <ArrowRight2
@@ -143,7 +159,10 @@ const OrderScreen = () => {
             />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.gridItem}>
+          <TouchableOpacity 
+            style={styles.gridItem} 
+            onPress={() => navigateToOrderList('processing')}
+          >
             <View style={styles.gridItemContent}>
               <View
                 style={[styles.iconContainer, {backgroundColor: '#E8FFF5'}]}>
@@ -153,7 +172,9 @@ const OrderScreen = () => {
                 <DynamicText style={styles.gridTitle}>
                   {contents.order.return_product || 'Trả hàng'}
                 </DynamicText>
-                <DynamicText style={styles.gridSubtitle}>0 đơn</DynamicText>
+                <DynamicText style={styles.gridSubtitle}>
+                  {rootStore.orders?.processingOrders?.length || 0} đơn
+                </DynamicText>
               </View>
             </View>
             <ArrowRight2
@@ -163,7 +184,10 @@ const OrderScreen = () => {
             />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.gridItem}>
+          <TouchableOpacity 
+            style={styles.gridItem} 
+            onPress={() => navigateToOrderList('shipping')}
+          >
             <View style={styles.gridItemContent}>
               <View
                 style={[styles.iconContainer, {backgroundColor: '#F5E8FF'}]}>
@@ -177,7 +201,9 @@ const OrderScreen = () => {
                 <DynamicText style={styles.gridTitle}>
                   {contents.order.ship || 'Vận chuyển'}
                 </DynamicText>
-                <DynamicText style={styles.gridSubtitle}>0 đơn</DynamicText>
+                <DynamicText style={styles.gridSubtitle}>
+                  {rootStore.orders?.shippingOrders?.length || 0} đơn
+                </DynamicText>
               </View>
             </View>
             <ArrowRight2
@@ -213,7 +239,7 @@ const styles = StyleSheet.create({
   },
   createOrderText: {
     color: color.primaryColor,
-    fontSize: moderateScale(14),
+    fontSize: moderateScale(8),
     marginTop: moderateScale(8),
     fontWeight: '500',
   },
@@ -221,7 +247,7 @@ const styles = StyleSheet.create({
     marginBottom: moderateScale(12),
   },
   sectionTitleText: {
-    fontSize: moderateScale(16),
+    fontSize: moderateScale(8),
     fontWeight: '600',
     color: color.accentColor.darkColor,
   },
@@ -251,18 +277,19 @@ const styles = StyleSheet.create({
     marginRight: moderateScale(12),
   },
   gridTitle: {
-    fontSize: moderateScale(14),
+    fontSize: moderateScale(7),
     color: color.accentColor.darkColor,
     marginBottom: moderateScale(4),
     fontWeight: '500',
   },
   gridSubtitle: {
-    fontSize: moderateScale(12),
+    fontSize: moderateScale(7),
     color: color.accentColor.grayColor,
   },
   bottomPadding: {
     height: moderateScale(100),
   },
 });
+
 
 export default OrderScreen;
