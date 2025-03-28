@@ -12,6 +12,9 @@ const session = require("express-session");
 const routes = require("./routes");
 const apiRoutes = require("./routes/api"); // Import API routes
 
+const customerRouter = require("../../backend/src/routes/customer");
+
+
 dotenv.config();
 connectDB();
 
@@ -53,6 +56,10 @@ routes(app);
 
 // Sử dụng API routes
 app.use("/api", apiRoutes);
+app.use("/customers", customerRouter);
+
+
+
 
 // Middleware xử lý lỗi
 app.use((err, req, res, next) => {
