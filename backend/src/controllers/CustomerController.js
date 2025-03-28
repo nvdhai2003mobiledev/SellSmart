@@ -104,11 +104,12 @@ const createCustomerFromOrder = async (req, res) => {
     await newCustomer.save();
 
     // Trả về thông tin khách hàng mới
-    res.status(201).json({
-      success: true,
-      message: "Thêm khách hàng thành công",
-      customer: newCustomer
-    });
+    // res.status(201).json({
+    //   success: true,
+    //   message: "Thêm khách hàng thành công",
+    //   customer: newCustomer
+    // });
+    return res.redirect('/customers');
   } catch (error) {
     console.error("Lỗi khi thêm khách hàng:", error);
     

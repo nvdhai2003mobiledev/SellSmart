@@ -5,7 +5,9 @@ const { protect } = require("../middleware/auth");
 
 // 📌 Lấy danh sách khách hàng
 router.get("/", protect, customerController.getCustomers);
+router.get("/json", customerController.getCustomerAsJson);
 router.get("/customers/json", customerController.getCustomerAsJson);
+
 
 // 📌 Lấy khách hàng theo ID
 router.get(
