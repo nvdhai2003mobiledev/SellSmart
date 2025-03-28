@@ -6,5 +6,5 @@ export const ApiEndpoint = {
   PRODUCTS: '/products/json',
   CUSTOMERS: '/api/customers',
   EMPLOYEES: '/api/employees',
-  ORDERS: '/api/orders',
+  ORDERS: '/orders',
 };

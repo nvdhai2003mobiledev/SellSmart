@@ -23,6 +23,7 @@ export enum Screen {
   NOTIFI = 'NOTIFINOTIFI',
   CREATEORDER ='CREATEORDER',
   ORDERSCREEN = 'ORDERSCREEN',
+  ORDERLIST = 'ORDERLIST',
   DAYSCREEN = 'DAYSCREEN',
   WEEKSCREEN = 'WEEKSCREEN',
   MONTHSCREEN = 'MONTHSCREEN',
@@ -49,6 +50,7 @@ export type RootStackParamList = {
   [Screen.NOTIFI]: undefined;
   [Screen.CREATEORDER]: undefined;
   [Screen.ORDERSCREEN]: undefined;
+  [Screen.ORDERLIST]: undefined;
   [Screen.PROFILE]: undefined;
 };
 
