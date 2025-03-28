@@ -69,6 +69,25 @@ const getAllOrders = async (req, res) => {
       .json({ message: "Lỗi máy chủ nội bộ!", error: error.message });
   }
 };
+// Endpoint mới cho mobile để lấy danh sách đơn hàng
+const getMobileOrdersList = async (req, res) => {
+  try {
+    const orders = await orderService.getMobileOrders();
+    
+    res.json({
+      success: true,
+      count: orders.length,
+      data: orders
+    });
+  } catch (error) {
+    console.error("🔥 Lỗi server khi lấy danh sách đơn hàng cho mobile:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Lỗi máy chủ khi lấy danh sách đơn hàng", 
+      error: error.message 
+    });
+  }
+};
 const renderOrdersPage = async (req, res) => {
   try {
     const orders = await getAllOrders(); // Lấy danh sách đơn hàng
@@ -92,7 +111,29 @@ const getOrderById = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
-
+const getOrderDetail = async (req, res) => {
+  try {
+    const order = await orderService.getOrderById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Không tìm thấy đơn hàng" 
+      });
+    }
+    res.json({ 
+      success: true, 
+      message: "Lấy thông tin đơn hàng thành công", 
+      order 
+    });
+  } catch (error) {
+    console.error("Lỗi khi lấy thông tin đơn hàng:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Lỗi server khi lấy thông tin đơn hàng", 
+      error: error.message 
+    });
+  }
+};
 const updateOrderStatus = async (req, res) => {
   try {
     const updatedOrder = await orderService.updateOrderStatus(
@@ -129,6 +170,14 @@ const createOrderScreen = async (req, res) => {
     res.status(500).send("Lỗi server khi tải trang!");
   }
 };
+const getOrdersJson = async (req, res) => {
+  try {
+    const orders = await orderService.getAllOrders();
+    res.json(orders);
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 
 module.exports = {
   createOrder,
@@ -138,4 +187,7 @@ module.exports = {
   deleteOrder,
   renderOrdersPage,
   createOrderScreen,
+  getOrdersJson,
+  getMobileOrdersList,
+  getOrderDetail  // Add this line
 };
