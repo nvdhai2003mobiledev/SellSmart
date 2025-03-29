@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
   },
   createOrderText: {
     color: color.primaryColor,
-    fontSize: moderateScale(8),
+    fontSize: moderateScale(16),
     marginTop: moderateScale(8),
     fontWeight: '500',
   },
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
     marginBottom: moderateScale(12),
   },
   sectionTitleText: {
-    fontSize: moderateScale(8),
+    fontSize: moderateScale(16),
     fontWeight: '600',
     color: color.accentColor.darkColor,
   },
@@ -277,13 +277,13 @@ const styles = StyleSheet.create({
     marginRight: moderateScale(12),
   },
   gridTitle: {
-    fontSize: moderateScale(7),
+    fontSize: moderateScale(16),
     color: color.accentColor.darkColor,
     marginBottom: moderateScale(4),
     fontWeight: '500',
   },
   gridSubtitle: {
-    fontSize: moderateScale(7),
+    fontSize: moderateScale(15),
     color: color.accentColor.grayColor,
   },
   bottomPadding: {
