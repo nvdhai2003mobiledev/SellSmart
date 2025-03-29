@@ -27,7 +27,8 @@ import {
   UpdateEmployeeScreen,
   VerifyScreen,
   CreateOrderScreen,
-  OrderListScreen
+  OrderListScreen,
+  FilterOrderScreen,
 } from '../screens';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
@@ -46,7 +47,7 @@ export const AppNavigation = observer(() => {
   // Nếu chưa đăng nhập, chỉ hiển thị các màn hình auth
   if (!isAuthenticated) {
     return (
-      <RootStack.Navigator  initialRouteName={Screen.ORDERSCREEN} screenOptions={screenOptions} >
+      <RootStack.Navigator   screenOptions={screenOptions} >
         <RootStack.Screen name={Screen.SPLASH} component={SplashScreen} />
         <RootStack.Screen name={Screen.ORDERSCREEN} component={OrderScreen} />
         <RootStack.Screen
@@ -63,9 +64,10 @@ export const AppNavigation = observer(() => {
           name={Screen.CREATE_PASSWORD}
           component={CreatePasswordScreen}
         />
-
+<RootStack.Screen name={Screen.BOTTOM_TAB} component={BottomNavigation} />
         <RootStack.Screen name={Screen.CREATEORDER} component={CreateOrderScreen} />
-        <RootStack.Screen name={Screen.ORDERLIST} component={OrderListScreen}  />
+        <RootStack.Screen name={Screen.ORDERLIST} component={OrderListScreen}/>
+        <RootStack.Screen name={Screen.FILTERORDER} component={FilterOrderScreen}   options={{ presentation: 'modal' }}  />
       </RootStack.Navigator>
     );
   }

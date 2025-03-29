@@ -21,7 +21,7 @@ const OrderSchema = new mongoose.Schema({
     }
   ],
   totalAmount: { type: Number, required: true, min: 0 },
-  status: { type: String, enum: ['pending', 'processing', 'shipping', 'delivered', 'canceled'], default: 'pending' },
+  status: { type: String, enum: ['pending', 'processing', 'canceled'], default: 'pending' },
   paymentMethod: { type: String, enum: ['cash', 'credit card', 'debit card', 'e-wallet'], required: true },
   paymentStatus: { type: String, enum: ['paid', 'unpaid', 'refunded'], default: 'paid' },
   shippingAddress: { type: String, default:'Nhận hàng tại cửa hàng' },
