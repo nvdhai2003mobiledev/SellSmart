@@ -3,7 +3,9 @@ import {rootStore} from '../../models/root-store';
 import {ApiEndpoint} from './api-endpoint';
 import {EmployeeResponse} from '../../models/employee/employee';
 
-const BASE_URL = 'http://192.168.153.181:3000/';
+
+// const BASE_URL = 'http://192.168.1.100:3000/';
+const BASE_URL = 'http://10.0.2.2:3000/';
 
 // API response types
 export interface GeneralApiResponse {
@@ -89,10 +91,10 @@ Api.addRequestTransform(async request => {
       // Thử refresh token, nếu không thành công và token đã hết hạn thì clear auth
       if (auth.refreshToken) {
         try {
-          // Tạo request mới để tránh vòng lặp vô hạn
           const refreshApi = create({
             baseURL: BASE_URL,
             headers: {'Content-Type': 'application/json'},
+            timeout: 15000, // Tăng timeout cho refresh token
           });
           
           console.log('Gửi request refresh token');
@@ -103,15 +105,33 @@ Api.addRequestTransform(async request => {
           console.log('Nhận phản hồi refresh token:', {
             status: response.status,
             ok: response.ok,
+            problem: response.problem || 'No problem',
             data: response.data,
           });
+          
+          // Kiểm tra lỗi kết nối
+          if (!response.status || response.problem === 'NETWORK_ERROR' || response.problem === 'TIMEOUT_ERROR') {
+            console.log('Lỗi kết nối khi refresh token, tiếp tục sử dụng token hiện tại');
+            // Vẫn để tiếp tục request với token hiện tại
+            return;
+          }
           
           const data = response.data as GeneralApiResponse;
           if (response.ok && data?.success) {
             console.log('Refresh token thành công, cập nhật token mới');
             const accessToken = data.data?.accessToken;
-            auth.updateAccessToken(accessToken);
-            // Lưu thông tin token mới được thực hiện trong action riêng
+            const refreshToken = data.data?.refreshToken;
+            const expiresIn = data.data?.expiresIn || 3600;
+            
+            if (accessToken) {
+              const tokenExpiryTime = Date.now() + (expiresIn * 1000);
+              auth.updateAccessToken(accessToken, tokenExpiryTime);
+              
+              if (refreshToken) {
+                // Nếu có refresh token mới, cập nhật luôn
+                auth.refreshToken = refreshToken;
+              }
+            }
           } else {
             console.log('Refresh token thất bại, đăng xuất', {
               status: response.status,
@@ -266,3 +286,8 @@ export const ApiService = {
     }
   }
 };
+
+
+
+
+

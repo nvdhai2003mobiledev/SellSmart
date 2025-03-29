@@ -59,7 +59,7 @@ const LoginScreen = observer(() => {
     try {
       setLoading(true);
       setError(null);
-
+  
       const response = await Api.post<MobileLoginResponse>(
         ApiEndpoint.MOBILE_LOGIN,
         {
@@ -67,9 +67,14 @@ const LoginScreen = observer(() => {
           password: data.password,
         },
       );
-
+  
       if (response.ok && response.data?.success) {
-        rootStore.auth.setAuth(response.data.data!);
+        const authData = response.data.data!;
+        rootStore.auth.setAuth(authData);
+  
+        // Log token để kiểm tra
+        console.log('Access Token:', authData.accessToken);
+        console.log('Refresh Token:', authData.refreshToken);
       } else {
         setError(response.data?.message || 'Đăng nhập thất bại');
         console.log('Login response:', response.data);
@@ -81,6 +86,7 @@ const LoginScreen = observer(() => {
       setLoading(false);
     }
   };
+  
 
   return (
     <BaseLayout style={styles.container}>
