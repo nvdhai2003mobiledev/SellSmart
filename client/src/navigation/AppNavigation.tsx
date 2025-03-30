@@ -49,7 +49,6 @@ export const AppNavigation = observer(() => {
     return (
       <RootStack.Navigator   screenOptions={screenOptions} >
         <RootStack.Screen name={Screen.SPLASH} component={SplashScreen} />
-        <RootStack.Screen name={Screen.ORDERSCREEN} component={OrderScreen} />
         <RootStack.Screen
           name={Screen.ONBOARDING}
           component={OnboardingScreen}
@@ -65,9 +64,7 @@ export const AppNavigation = observer(() => {
           component={CreatePasswordScreen}
         />
 <RootStack.Screen name={Screen.BOTTOM_TAB} component={BottomNavigation} />
-        <RootStack.Screen name={Screen.CREATEORDER} component={CreateOrderScreen} />
-        <RootStack.Screen name={Screen.ORDERLIST} component={OrderListScreen}/>
-        <RootStack.Screen name={Screen.FILTERORDER} component={FilterOrderScreen}   options={{ presentation: 'modal' }}  />
+
       </RootStack.Navigator>
     );
   }
@@ -95,6 +92,9 @@ export const AppNavigation = observer(() => {
         name={Screen.ADD_CUSTOMER}
         component={AddCustomerScreen}
       />
+          <RootStack.Screen name={Screen.ORDERSCREEN} component={OrderScreen} />
+        <RootStack.Screen name={Screen.ORDERLIST} component={OrderListScreen}/>
+        <RootStack.Screen name={Screen.FILTERORDER} component={FilterOrderScreen}   options={{ presentation: 'modal' }}  />
       <RootStack.Screen name={Screen.CUSTOMERS} component={CustomerScreen} />
       {/* Chỉ admin mới thấy được các màn hình quản lý nhân viên */}
       {isAdmin && (
