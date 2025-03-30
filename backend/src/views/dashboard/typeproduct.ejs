@@ -1,56 +1,56 @@
 <%- include('../layouts/main.ejs') %>
-    <div class="main-content">
-        <h1 class="text-center mb-4">Danh sách loại sản phẩm</h1>
+<div class="main-content">
+    <h1 class="text-center mb-4">Danh sách loại sản phẩm</h1>
 
-        <!-- Nút thêm loại sản phẩm mới -->
-        <div class="mb-4 text-end">
-            <button class="btn btn-primary" onclick="openAddModal()">
-                <i class="fas fa-plus"></i> Thêm loại sản phẩm
-            </button>
-        </div>
+    <!-- Nút thêm loại sản phẩm -->
+    <div class="mb-4 text-end">
+        <button class="btn btn-primary" onclick="openAddModal()">
+            <i class="fas fa-plus"></i> Thêm loại sản phẩm
+        </button>
+    </div>
 
-        <!-- Danh sách loại sản phẩm -->
-        <div>
-            <table class="table table-bordered">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Tên loại sản phẩm</th>
-                        <th>Ngày tạo</th>
-                        <th>Ngày cập nhật</th>
-                        <th>Hành động</th>
+    <!-- Danh sách loại sản phẩm -->
+    <div>
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Tên loại sản phẩm</th>
+                    <th>Số biến thể</th>
+                    <th>Ngày tạo</th>
+                    <th>Ngày cập nhật</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% types.forEach(type => { %>
+                    <tr id="type-row-<%= type._id %>">
+                        <td><%= type._id %></td>
+                        <td><%= type.name %></td>
+                        <td><%= type.variants.length %></td>
+                        <td><%= new Date(type.createdAt).toLocaleString('vi-VN') %></td>
+                        <td><%= new Date(type.updatedAt).toLocaleString('vi-VN') %></td>
+                        <td>
+                            <button class="btn btn-warning btn-sm" onclick="editType('<%= type._id %>', '<%= type.name %>')">
+                                <i class="fas fa-edit"></i> Sửa
+                            </button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteType('<%= type._id %>')">
+                                <i class="fas fa-trash"></i> Xóa
+                            </button>
+                        </td>
                     </tr>
-                </thead>
-                <tbody>
-                    <% types.forEach(function(type) { %>
-                        <tr>
-                            <td><%= type._id %></td>
-                            <td><%= type.name %></td>
-                            <td><%= new Date(type.createdAt).toLocaleString('vi-VN') %></td>
-                            <td><%= new Date(type.updatedAt).toLocaleString('vi-VN') %></td>
-                            <td>
-                                <button class="btn btn-warning btn-sm"
-                                    onclick="editType('<%= type._id %>', '<%= type.name %>')">
-                                    <i class="fas fa-edit"></i> Sửa
-                                </button>
-                                <button onclick="deleteType('<%= type._id %>')" class="btn btn-danger btn-sm">
-                                    <i class="fas fa-trash"></i> Xóa
-                                </button>
-                            </td>
-                        </tr>
-                    <% }); %>
-                </tbody>
-            </table>
-        </div>
+                <% }); %>
+            </tbody>
+        </table>
     </div>
 
     <!-- Modal thêm loại sản phẩm -->
-    <div id="addTypeModal" class="modal" tabindex="-1">
+    <div id="addTypeModal" class="modal fade" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
-                <div class="modal-header">
+                <div class="modal-header bg-primary text-white">
                     <h5 class="modal-title">Thêm loại sản phẩm mới</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <form id="addTypeForm">
@@ -58,7 +58,7 @@
                             <label class="form-label">Tên loại sản phẩm</label>
                             <input type="text" class="form-control" id="addTypeName" required>
                         </div>
-                        <button type="button" class="btn btn-primary" onclick="saveNewType()">Lưu</button>
+                        <button type="submit" class="btn btn-primary">Lưu</button>
                     </form>
                 </div>
             </div>
@@ -66,10 +66,10 @@
     </div>
 
     <!-- Modal chỉnh sửa loại sản phẩm -->
-    <div id="editTypeModal" class="modal" tabindex="-1">
+    <div id="editTypeModal" class="modal fade" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
-                <div class="modal-header">
+                <div class="modal-header bg-warning text-dark">
                     <h5 class="modal-title">Chỉnh sửa loại sản phẩm</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
@@ -80,162 +80,132 @@
                             <label class="form-label">Tên loại sản phẩm</label>
                             <input type="text" class="form-control" id="editTypeName" required>
                         </div>
-                        <button type="button" class="btn btn-primary" onclick="updateType()">Lưu thay đổi</button>
+                        <button type="submit" class="btn btn-warning">Lưu thay đổi</button>
                     </form>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Bootstrap JS and Popper.js -->
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js"></script>
-    <!-- JavaScript -->
-    <script>
-        let addTypeModal, editTypeModal;
+    <!-- Toast thông báo -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div id="successToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header bg-success text-white">
+                <strong class="me-auto">Thành công</strong>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body"></div>
+        </div>
+        <div id="errorToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header bg-danger text-white">
+                <strong class="me-auto">Lỗi</strong>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body"></div>
+        </div>
+    </div>
+</div>
 
-        // Khởi tạo modal khi trang tải
-        document.addEventListener('DOMContentLoaded', function() {
-            addTypeModal = new bootstrap.Modal(document.getElementById('addTypeModal'));
-            editTypeModal = new bootstrap.Modal(document.getElementById('editTypeModal'));
-        });
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    let addTypeModal, editTypeModal;
 
-        // Hiển thị modal thêm loại sản phẩm
-        function openAddModal() {
-            document.getElementById("addTypeName").value = '';
-            addTypeModal.show();
+    $(document).ready(function() {
+        addTypeModal = new bootstrap.Modal($('#addTypeModal'));
+        editTypeModal = new bootstrap.Modal($('#editTypeModal'));
+    });
+
+    function openAddModal() {
+        $('#addTypeName').val('');
+        addTypeModal.show();
+    }
+
+    function editType(id, name) {
+        $('#editTypeId').val(id);
+        $('#editTypeName').val(name);
+        editTypeModal.show();
+    }
+
+    $('#addTypeForm').submit(function(e) {
+        e.preventDefault();
+        const name = $('#addTypeName').val().trim();
+        if (!name || name.length < 2) {
+            showErrorToast('Tên loại sản phẩm phải có ít nhất 2 ký tự!');
+            return;
         }
 
-        // Hiển thị modal chỉnh sửa loại sản phẩm
-        function editType(id, name) {
-            document.getElementById("editTypeId").value = id;
-            document.getElementById("editTypeName").value = name;
-            editTypeModal.show();
-        }
-
-        // Hàm thêm loại sản phẩm mới
-        function saveNewType() {
-            const name = document.getElementById("addTypeName").value.trim();
-
-            // Validate
-            if (!name || name.length < 2) {
-                alert("Tên loại sản phẩm phải có ít nhất 2 ký tự!");
-                return;
-            }
-
-            // Gửi request để thêm loại sản phẩm
-            fetch("/typeproduct/create", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ name })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === "Ok") {
-                    alert("Thêm loại sản phẩm thành công!");
+        $.ajax({
+            url: '/type-products/create',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ name }),
+            success: function(response) {
+                if (response.status === 'Ok') {
                     addTypeModal.hide();
-                    location.reload(); // Tải lại trang để hiển thị loại sản phẩm mới
+                    showSuccessToast('Thêm loại sản phẩm thành công!');
+                    setTimeout(() => location.reload(), 1500);
                 } else {
-                    alert("Lỗi: " + data.message);
+                    showErrorToast(response.message);
                 }
-            })
-            .catch(error => {
-                console.error("Lỗi khi thêm loại sản phẩm:", error);
-                alert("Có lỗi xảy ra khi thêm loại sản phẩm!");
-            });
+            },
+            error: xhr => showErrorToast('Lỗi khi thêm loại sản phẩm: ' + (xhr.responseJSON?.message || 'Vui lòng thử lại!'))
+        });
+    });
+
+    $('#editTypeForm').submit(function(e) {
+        e.preventDefault();
+        const id = $('#editTypeId').val();
+        const name = $('#editTypeName').val().trim();
+        if (!name || name.length < 2) {
+            showErrorToast('Tên loại sản phẩm phải có ít nhất 2 ký tự!');
+            return;
         }
 
-        // Hàm cập nhật loại sản phẩm
-        function updateType() {
-            const id = document.getElementById("editTypeId").value;
-            const name = document.getElementById("editTypeName").value.trim();
-
-            // Validate
-            if (!name || name.length < 2) {
-                alert("Tên loại sản phẩm phải có ít nhất 2 ký tự!");
-                return;
-            }
-
-            // Gửi request để cập nhật loại sản phẩm
-            fetch("/typeproduct/update/" + id, {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ name })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === "Ok") {
-                    alert("Cập nhật loại sản phẩm thành công!");
+        $.ajax({
+            url: `/type-products/update/${id}`,
+            type: 'PUT',
+            contentType: 'application/json',
+            data: JSON.stringify({ name }),
+            success: function(response) {
+                if (response.status === 'Ok') {
                     editTypeModal.hide();
-                    
-                    // Cập nhật giao diện mà không cần tải lại trang
-                    try {
-                        const rows = document.querySelectorAll("tbody tr");
-                        for (let row of rows) {
-                            const cells = row.querySelectorAll("td");
-                            if (cells[0] && cells[0].textContent.includes(id)) {
-                                cells[1].textContent = name;
-                                cells[3].textContent = new Date().toLocaleString('vi-VN'); // Cập nhật thời gian
-                                
-                                // Cập nhật onclick cho nút sửa
-                                const editButton = cells[4].querySelector(".btn-warning");
-                                if (editButton) {
-                                    editButton.setAttribute("onclick", `editType('${id}', '${name}')`);
-                                }
-                                break;
-                            }
-                        }
-                    } catch (err) {
-                        console.error("Lỗi khi cập nhật giao diện:", err);
-                        location.reload();
-                    }
+                    showSuccessToast('Cập nhật loại sản phẩm thành công!');
+                    $(`#type-row-${id} td:nth-child(2)`).text(name);
+                    $(`#type-row-${id} td:nth-child(5)`).text(new Date().toLocaleString('vi-VN'));
                 } else {
-                    alert("Lỗi: " + data.message);
+                    showErrorToast(response.message);
                 }
-            })
-            .catch(error => {
-                console.error("Lỗi khi cập nhật loại sản phẩm:", error);
-                alert("Có lỗi xảy ra khi cập nhật loại sản phẩm!");
+            },
+            error: xhr => showErrorToast('Lỗi khi cập nhật loại sản phẩm: ' + (xhr.responseJSON?.message || 'Vui lòng thử lại!'))
+        });
+    });
+
+    function deleteType(id) {
+        if (confirm('Bạn có chắc chắn muốn xóa loại sản phẩm này không?')) {
+            $.ajax({
+                url: `/type-products/delete/${id}`,
+                type: 'DELETE',
+                success: function(response) {
+                    if (response.status === 'Ok') {
+                        $(`#type-row-${id}`).remove();
+                        showSuccessToast('Xóa loại sản phẩm thành công!');
+                    } else {
+                        showErrorToast(response.message);
+                    }
+                },
+                error: xhr => showErrorToast('Lỗi khi xóa loại sản phẩm: ' + (xhr.responseJSON?.message || 'Vui lòng thử lại!'))
             });
         }
+    }
 
-        // Hàm xóa loại sản phẩm
-        function deleteType(id) {
-            if (confirm("Bạn có chắc chắn muốn xóa loại sản phẩm này không?")) {
-                fetch("/typeproduct/delete/" + id, {
-                    method: "DELETE"
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === "Ok") {
-                        alert("Xóa loại sản phẩm thành công!");
-                        
-                        // Xóa hàng khỏi bảng mà không cần tải lại trang
-                        try {
-                            const rows = document.querySelectorAll("tbody tr");
-                            for (let row of rows) {
-                                const cells = row.querySelectorAll("td");
-                                if (cells[0] && cells[0].textContent.includes(id)) {
-                                    row.remove();
-                                    break;
-                                }
-                            }
-                        } catch (err) {
-                            console.error("Lỗi khi cập nhật giao diện:", err);
-                            location.reload();
-                        }
-                    } else {
-                        alert("Lỗi: " + data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error("Lỗi khi xóa loại sản phẩm:", error);
-                    alert("Có lỗi xảy ra khi xóa loại sản phẩm!");
-                });
-            }
-        }
-    </script>
+    function showSuccessToast(message) {
+        $('#successToast .toast-body').text(message);
+        new bootstrap.Toast($('#successToast')).show();
+    }
+
+    function showErrorToast(message) {
+        $('#errorToast .toast-body').text(message);
+        new bootstrap.Toast($('#errorToast')).show();
+    }
+</script>
