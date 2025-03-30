@@ -50,8 +50,6 @@ const getProduct = async (req, res) => {
 const getProductAsJson = async (req, res) => {
     try {
         console.log("Bắt đầu lấy danh sách sản phẩm dạng JSON", {
-            userId: req.user?._id,
-            userRole: req.user?.role,
             method: req.method,
             url: req.originalUrl,
             headers: req.headers,
@@ -72,7 +70,6 @@ const getProductAsJson = async (req, res) => {
         console.error("Lỗi khi lấy danh sách sản phẩm dạng JSON:", {
             errorMessage: error.message,
             stack: error.stack,
-            userId: req.user?._id,
         });
         res.status(500).json({
             status: "Error",

@@ -3,6 +3,7 @@ import { AuthStore, authStore } from './auth/auth-store';
 import { OnboardingStore } from './onboarding/onboarding-store';
 import { EmployeeStoreModel, employeeStore } from './employee/employee-store';
 import { OrderStore } from './Order/Order';
+import { ProductStore } from './product/product';
 
 const RootStoreModel = types
   .model('RootStore', {
@@ -10,13 +11,15 @@ const RootStoreModel = types
     onboarding: types.late(() => OnboardingStore),
     employees: types.late(() => EmployeeStoreModel),
     orders: types.late(() => OrderStore),
+    productStore: types.late(() => ProductStore),
   })
   .actions((self) => ({
     reset() {
       self.auth.clearAuth();
       self.onboarding.setHasSeenOnboarding(false);
       self.employees.reset();
-      self.orders.reset(); // Add order store reset
+      self.orders.reset();
+      // Reset product store if needed
     },
   }))
   .views((self) => ({
@@ -50,4 +53,5 @@ export const rootStore = RootStoreModel.create({
   onboarding: OnboardingStore.create({}),
   employees: employeeStore,
   orders: OrderStore.create({ orders: [], isLoading: false, error: '' }),
+  productStore: ProductStore.create({ products: [], isLoading: false, error: '', totalPrice: 0 }),
 });
