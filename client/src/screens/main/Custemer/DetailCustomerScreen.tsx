@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,69 +6,108 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import {useNavigation} from '@react-navigation/native';
-import {DynamicText, Header} from '../../../components';
-import {contents} from '../../../context';
-import {color, scaledSize, scaleHeight, scaleWidth} from '../../../utils';
+import { useNavigation, NavigationProp } from '@react-navigation/native';
+import { observer } from 'mobx-react-lite';
+import { DynamicText, Header } from '../../../components';
+import { contents } from '../../../context';
+import { color, scaledSize, scaleHeight, scaleWidth } from '../../../utils';
+import { rootStore } from '../../../models/root-store';
+import { Images } from '../../../assets';
+import IconFontAwesome from 'react-native-vector-icons/FontAwesome';
+import { RootStackParamList, Screen } from '../../../navigation/navigation.type';
 
-const DetailCustomerScreen = () => {
-  const navigation = useNavigation();
+// Hàm định dạng ngày tháng
+const formatDate = (isoDate: string | null) => {
+  if (!isoDate) return 'Không có';
+  const date = new Date(isoDate);
+  return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1)
+    .toString()
+    .padStart(2, '0')}/${date.getFullYear()}`;
+};
+
+const DetailCustomerScreen = observer(() => {
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const customerStore = rootStore.customers;
+  const customer = customerStore.selectedCustomer;
+
+  // Xử lý khi nhấn nút chỉnh sửa
+  const handleEditCustomer = () => {
+    if (!customer) return;
+    navigation.navigate(Screen.UPDATE_CUSTOMER);
+  };
+
+  if (!customer) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={color.primaryColor} />
+        <DynamicText style={styles.loadingText}>Đang tải thông tin khách hàng...</DynamicText>
+      </View>
+    );
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Header
-        title={contents.detail_employee.title}
+        title="Chi tiết khách hàng"
         showBackIcon={true}
         onPressBack={() => navigation.goBack()}
         showRightIcon={true}
-        RightIcon={false}
+        RightIcon={
+          <TouchableOpacity onPress={handleEditCustomer}>
+            <IconFontAwesome name="edit" size={24} color={color.accentColor.whiteColor} />
+          </TouchableOpacity>
+        }
       />
 
       {/* Ảnh đại diện */}
       <Image
-        source={{uri: 'https://via.placeholder.com/100'}}
+        source={
+          customer.avatar && typeof customer.avatar === 'string' && customer.avatar.trim() !== ''
+            ? { uri: customer.avatar }
+            : require('../../../assets/images/device-mobile.png')
+        }
         style={styles.avatar}
       />
+      
+      {/* Tên khách hàng */}
+      <DynamicText style={styles.customerName}>{customer.fullName}</DynamicText>
 
       {/* Hộp thông tin */}
       <View style={styles.infoContainer}>
-        <DynamicText style={styles.rowNoBorder}>
-          <DynamicText style={styles.label}>
-            {contents.detail_customer.id}
-          </DynamicText>
-        </DynamicText>
-        {renderInfoRow(contents.detail_customer.username, 'Nguyễn Văn A')}
-        {renderInfoRow(contents.detail_customer.gender, 'Nam')}
-        {renderInfoRow(contents.detail_customer.phone, '0398289916')}
-        {renderInfoRow(contents.detail_customer.email, 'nva92@gmail.com')}
-        {renderInfoRow(contents.detail_customer.bithDate, '12/02/2000')}
-        {renderInfoRow(
-          contents.detail_customer.address,
-          'Minh Khai, Bắc Từ Liêm, Hà Nội',
-        )}
+        {renderInfoRow('ID khách hàng', customer._id)}
+        {renderInfoRow('Số điện thoại', customer.phoneNumber || 'Chưa cập nhật')}
+        {renderInfoRow('Email', customer.email || 'Chưa cập nhật')}
+        {renderInfoRow('Ngày sinh', customer.birthDate ? formatDate(customer.birthDate) : 'Chưa cập nhật')}
+        {renderInfoRow('Địa chỉ', customer.address || 'Chưa cập nhật')}
       </View>
-
-      {/* Nút xóa nhân viên */}
-      <TouchableOpacity style={styles.deleteButton}>
-        <Text style={styles.deleteText}>Xóa khách hàng</Text>
-      </TouchableOpacity>
     </ScrollView>
   );
-};
+});
 
 const renderInfoRow = (label: string, value: string) => (
-  <TouchableOpacity style={styles.row}>
+  <View style={styles.row}>
     <DynamicText style={styles.label}>{label}</DynamicText>
     {value && <DynamicText style={styles.value}>{value}</DynamicText>}
-  </TouchableOpacity>
+  </View>
 );
 
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     alignItems: 'center',
+    paddingBottom: scaleHeight(30),
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: scaleHeight(10),
+    fontSize: scaledSize(16),
+    color: color.accentColor.grayColor,
   },
   header: {
     flexDirection: 'row',
@@ -93,6 +132,12 @@ const styles = StyleSheet.create({
     borderRadius: scaledSize(50),
     backgroundColor: color.accentColor.whiteColor,
     marginBottom: scaleHeight(10),
+  },
+  customerName: {
+    fontSize: scaledSize(18),
+    fontWeight: 'bold',
+    marginBottom: scaleHeight(15),
+    color: color.primaryColor,
   },
   infoContainer: {
     backgroundColor: color.accentColor.whiteColor,
@@ -123,20 +168,13 @@ const styles = StyleSheet.create({
   value: {
     fontSize: scaledSize(16),
     color: color.accentColor.darkColor,
+    maxWidth: '60%',
+    textAlign: 'right',
   },
-  deleteButton: {
-    marginTop: scaleHeight(20),
-    paddingVertical: scaleHeight(15),
-    width: '90%',
-    alignItems: 'center',
-    borderRadius: scaledSize(8),
-    borderWidth: scaleWidth(1),
-    borderColor: color.accentColor.errorColor,
-  },
-  deleteText: {
-    color: color.accentColor.errorColor,
-    fontSize: scaledSize(16),
-    fontWeight: 'bold',
+  editIcon: {
+    width: scaleWidth(24),
+    height: scaleHeight(24),
+    tintColor: color.accentColor.whiteColor,
   },
 });
 

@@ -12,6 +12,7 @@ import {rootStore} from '../../../models/root-store';
 import {Api} from '../../../services/api/api';
 import {ApiEndpoint} from '../../../services/api/api-endpoint';
 import {observer} from 'mobx-react-lite';
+import {Platform} from 'react-native';
 
 interface LoginForm {
   username: string;
@@ -59,6 +60,9 @@ const LoginScreen = observer(() => {
     try {
       setLoading(true);
       setError(null);
+      
+      console.log('Đang đăng nhập với tài khoản:', data.username);
+      console.log('Gửi request đăng nhập tới:', `${Platform.OS === 'android' ? 'http://10.0.2.2:5000' : 'http://localhost:5000'}${ApiEndpoint.MOBILE_LOGIN}`);
   
       const response = await Api.post<MobileLoginResponse>(
         ApiEndpoint.MOBILE_LOGIN,
@@ -68,20 +72,34 @@ const LoginScreen = observer(() => {
         },
       );
   
+      console.log('Trạng thái phản hồi:', response.status);
+      console.log('Vấn đề API:', response.problem || 'Không có vấn đề');
+      
       if (response.ok && response.data?.success) {
         const authData = response.data.data!;
-        rootStore.auth.setAuth(authData);
-  
-        // Log token để kiểm tra
-        console.log('Access Token:', authData.accessToken);
-        console.log('Refresh Token:', authData.refreshToken);
+        console.log('Đăng nhập thành công với vai trò:', authData.role);
+        await rootStore.auth.setAuth(authData);
       } else {
-        setError(response.data?.message || 'Đăng nhập thất bại');
-        console.log('Login response:', response.data);
+        // Xử lý các loại lỗi khác nhau
+        let errorMsg = 'Đăng nhập thất bại. Vui lòng thử lại.';
+        
+        if (response.problem === 'NETWORK_ERROR') {
+          errorMsg = 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng và đảm bảo server đang chạy.';
+        } else if (response.problem === 'TIMEOUT_ERROR') {
+          errorMsg = 'Yêu cầu đăng nhập mất quá nhiều thời gian. Vui lòng thử lại.';
+        } else if (response.problem === 'SERVER_ERROR') {
+          errorMsg = 'Máy chủ gặp lỗi. Vui lòng liên hệ quản trị viên.';
+        } else if (response.data?.message) {
+          errorMsg = response.data.message;
+        }
+        
+        setError(errorMsg);
+        console.log('Lỗi đăng nhập:', errorMsg);
       }
     } catch (err) {
+      const error = err as Error;
       setError('Đã có lỗi xảy ra khi đăng nhập');
-      console.error('Login error:', err);
+      console.error('Lỗi ngoại lệ khi đăng nhập:', error.message);
     } finally {
       setLoading(false);
     }

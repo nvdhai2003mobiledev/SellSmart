@@ -116,7 +116,7 @@ export const AuthStore = types
           
           // Gọi trực tiếp API refresh token để tránh middleware
           const directApi = create({
-            baseURL: 'http://10.0.2.2:3000/', // Sử dụng địa chỉ dành cho máy ảo Android
+            baseURL: 'http://10.0.2.2:5000/', // Sử dụng địa chỉ dành cho máy ảo Android với port 5000
             headers: {'Content-Type': 'application/json'},
             timeout: 10000,
           });

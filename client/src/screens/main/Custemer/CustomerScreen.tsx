@@ -4,6 +4,9 @@ import { observer } from 'mobx-react-lite';
 import { BaseLayout, DynamicText, Header } from '../../../components';
 import { rootStore } from '../../../models/root-store';
 import { color, moderateScale, scaleWidth, scaleHeight } from '../../../utils';
+import IconFontAwesome from 'react-native-vector-icons/FontAwesome';
+import { useNavigation, NavigationProp } from '@react-navigation/native';
+import { RootStackParamList, Screen } from '../../../navigation/navigation.type';
 
 // Hàm định dạng ngày tháng
 const formatDate = (isoDate: string | null) => {
@@ -14,7 +17,7 @@ const formatDate = (isoDate: string | null) => {
     .padStart(2, '0')}/${date.getFullYear()}`;
 };
 
-const CustomerListScreen = observer(({ navigation }: any) => {
+const CustomerListScreen = observer(({ navigation }: {navigation: NavigationProp<RootStackParamList>}) => {
   const customerStore = rootStore.customers;
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -47,6 +50,23 @@ const CustomerListScreen = observer(({ navigation }: any) => {
 
   console.log('📌 customerStore trong CustomerListScreen:', customerStore.customers.slice());
 
+  // Hàm xử lý chuyển đến màn hình chi tiết khách hàng
+  const handleViewCustomerDetail = (customerId: string) => {
+    customerStore.setSelectedCustomer(customerId);
+    navigation.navigate(Screen.DETAIL_CUSTOMER);
+  };
+
+  // Hàm xử lý chuyển đến màn hình cập nhật khách hàng
+  const handleEditCustomer = (customerId: string) => {
+    customerStore.setSelectedCustomer(customerId);
+    navigation.navigate(Screen.UPDATE_CUSTOMER);
+  };
+
+  // Hàm xử lý chuyển đến màn hình thêm khách hàng
+  const handleAddCustomer = () => {
+    navigation.navigate(Screen.ADD_CUSTOMER);
+  };
+
   if (customerStore.isLoading) {
     return <ActivityIndicator size="large" color={color.primaryColor} style={styles.loading} />;
   }
@@ -76,23 +96,33 @@ const CustomerListScreen = observer(({ navigation }: any) => {
   const renderItem = ({ item }: any) => (
     <View style={styles.card}>
       <View style={styles.row}>
-        <Image
-          source={
-            item.avatar && typeof item.avatar === 'string' && item.avatar.trim() !== ''
-              ? { uri: item.avatar }
-              : require('../../../assets/images/device-mobile.png')
-          }
-          style={styles.avatar}
-        />
-        <View>
+        <TouchableOpacity 
+          onPress={() => handleViewCustomerDetail(item._id)}
+          style={styles.avatarContainer}
+        >
+          <Image
+            source={
+              item.avatar && typeof item.avatar === 'string' && item.avatar.trim() !== ''
+                ? { uri: item.avatar }
+                : require('../../../assets/images/device-mobile.png')
+            }
+            style={styles.avatar}
+          />
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.customerInfoContainer}
+          onPress={() => handleViewCustomerDetail(item._id)}
+        >
           <DynamicText style={styles.name}>{item.fullName || 'Không có tên'}</DynamicText>
           <DynamicText style={styles.info}>📞 {item.phoneNumber || 'Chưa cập nhật'}</DynamicText>
-          <DynamicText style={styles.info}>📧 {item.email || 'Chưa cập nhật'}</DynamicText>
-          {item.birthDate ? (
-            <DynamicText style={styles.info}>🎂 {formatDate(item.birthDate)}</DynamicText>
-          ) : null}
-          <DynamicText style={styles.info}>📍 {item.address || 'Chưa cập nhật'}</DynamicText>
-        </View>
+       
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.editButton}
+          onPress={() => handleEditCustomer(item._id)}
+        >
+          <IconFontAwesome name="edit" size={24} color={color.primaryColor} />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -145,6 +175,14 @@ const CustomerListScreen = observer(({ navigation }: any) => {
           </DynamicText>
         }
       />
+
+      {/* Nút thêm khách hàng */}
+      <TouchableOpacity
+        style={styles.addButton}
+        onPress={handleAddCustomer}
+      >
+        <IconFontAwesome name="plus" size={32} color={color.accentColor.whiteColor} />
+      </TouchableOpacity>
     </BaseLayout>
   );
 });
@@ -182,7 +220,7 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     padding: scaleWidth(16),
-    paddingBottom: scaleHeight(80),
+    paddingBottom: scaleHeight(100),
   },
   card: {
     backgroundColor: color.accentColor.whiteColor,
@@ -199,11 +237,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  avatarContainer: {
+    marginRight: scaleWidth(12),
+  },
   avatar: {
     width: scaleWidth(50),
     height: scaleHeight(50),
     borderRadius: moderateScale(25),
-    marginRight: scaleWidth(12),
+  },
+  customerInfoContainer: {
+    flex: 1,
   },
   name: {
     fontSize: moderateScale(16),
@@ -212,6 +255,9 @@ const styles = StyleSheet.create({
   info: {
     fontSize: moderateScale(12),
     color: color.accentColor.grayColor,
+  },
+  editButton: {
+    padding: scaleWidth(8),
   },
   searchContainer: {
     flexDirection: 'row',
@@ -250,7 +296,24 @@ const styles = StyleSheet.create({
     right: scaleWidth(10),
     top: '50%',
     marginTop: -scaleHeight(10),
-  }
+  },
+  addButton: {
+    position: 'absolute',
+    right: scaleWidth(-10),
+    bottom: scaleHeight(170),
+    backgroundColor: color.primaryColor,
+    width: scaleWidth(50),
+    height: scaleWidth(50),
+    borderRadius: scaleWidth(30),
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 8,
+    shadowColor: color.accentColor.darkColor,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 5,
+    zIndex: 999,
+  },
 });
 
 export default CustomerListScreen;

@@ -10,9 +10,9 @@ import { CustomerResponse } from '../../models/customer/customer';
 // For iOS simulator, use localhost
 // For real devices, you would use the actual IP or domain
 const BASE_URL = Platform.select({
-  android: 'http://10.0.2.2:3000',
-  ios: 'http://localhost:3000',
-  default: 'http://localhost:3000',
+  android: 'http://10.0.2.2:5000',
+  ios: 'http://localhost:5000',
+  default: 'http://localhost:5000',
 });
 
 console.log('🔌 API Base URL:', BASE_URL);
@@ -241,5 +241,5 @@ export const ApiService = {
         message: error instanceof Error ? error.message : 'Lỗi không xác định'
       };
     }
-  }
+  },
 };
