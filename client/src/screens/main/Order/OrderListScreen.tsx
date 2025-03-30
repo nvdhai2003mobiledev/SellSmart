@@ -127,7 +127,7 @@ const OrderListScreen = observer(() => {
   };
 
     const navigateToOrderScreen = (status?: string) => {
-      navigation.navigate(Screen.ORDERSCREEN, { status });
+      navigation.navigate(Screen.BOTTOM_TAB, { status });
     };
   // Navigate to Filter Screen
   const navigateToFilterScreen = () => {
@@ -139,7 +139,10 @@ const OrderListScreen = observer(() => {
   const renderOrderItem = ({ item }: { item: Order }) => {
     const truncatedOrderId = item.orderID.slice(-4);
     return(
-    <TouchableOpacity style={styles.orderItem}>
+    <TouchableOpacity 
+      style={styles.orderItem}
+      onPress={() => navigation.navigate(Screen.ORDER_DETAIL, { orderId: item._id })}
+    >
       <View style={styles.orderHeader}>
         <DynamicText style={styles.orderNumber}>
           #{truncatedOrderId}
@@ -170,9 +173,7 @@ const OrderListScreen = observer(() => {
           ]}
         >
           {item.status === 'pending' ? 'Chưa xử lý' :
-           item.status === 'processing' ? 'Đang xử lý' :
-           item.status === 'shipping' ? 'Đang giao' :
-           item.status === 'delivered' ? 'Đã giao' :
+           item.status === 'processing' ? 'Đã xử lý' :
            item.status === 'canceled' ? 'Đã hủy' : item.status}
         </DynamicText>
       </View>

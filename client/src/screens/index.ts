@@ -26,3 +26,6 @@ export {default as DayScreen} from './bottomTab/Home/DayScreen';
 export {default as WeekScreen} from './bottomTab/Home/WeekScreen';
 export {default as MonthScreen} from './bottomTab/Home/MonthScreen';
 export {default as ProfileScreen} from './main/Profile/ProfileScreen';
+export {default as ChooseOrderProduct} from './main/Order/ChooseOrderProduct';
+export {default as CustomerSelection} from './main/Order/CustomerSelection';
+export {default as OrderDetailScreen} from './main/Order/OrderDetailScreen';

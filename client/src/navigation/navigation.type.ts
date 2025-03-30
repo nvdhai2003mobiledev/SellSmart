@@ -28,7 +28,10 @@ export enum Screen {
   DAYSCREEN = 'DAYSCREEN',
   WEEKSCREEN = 'WEEKSCREEN',
   MONTHSCREEN = 'MONTHSCREEN',
-  PROFILE = 'PROFILE'
+  PROFILE = 'PROFILE',
+  CHOOSE_ORDER_PRODUCT = 'CHOOSE_ORDER_PRODUCT',
+  CUSTOMER_SELECTION = 'CUSTOMER_SELECTION',
+  ORDER_DETAIL = 'ORDER_DETAIL'
 }
 
 export type RootStackParamList = {
@@ -49,11 +52,24 @@ export type RootStackParamList = {
   [Screen.DETAIL_CUSTOMER]: undefined;
   [Screen.CONFIG]: undefined;
   [Screen.NOTIFI]: undefined;
-  [Screen.CREATEORDER]: undefined;
+  [Screen.CREATEORDER]: {
+    selectedProducts?: any[];
+    customer?: any;
+  };
   [Screen.ORDERSCREEN]: undefined;
   [Screen.ORDERLIST]: undefined;
   [Screen.FILTERORDER]: undefined;
   [Screen.PROFILE]: undefined;
+  [Screen.CHOOSE_ORDER_PRODUCT]: {
+    selectedProducts?: any[];
+    onProductsSelected?: (products: any[]) => void;
+  };
+  [Screen.CUSTOMER_SELECTION]: {
+    onSelect?: (customer: any) => void;
+  };
+  [Screen.ORDER_DETAIL]: {
+    orderId: string;
+  };
 };
 
 export type BottomRootStackParamList = {

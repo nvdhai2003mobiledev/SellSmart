@@ -12,8 +12,11 @@ const createOrder = async (req, res) => {
       products,
       totalAmount,
       paymentMethod,
+      paymentStatus,
       shippingAddress,
       notes,
+      status,
+      employeeID
     } = req.body;
 
     if (
@@ -21,7 +24,6 @@ const createOrder = async (req, res) => {
       !products ||
       products.length === 0 ||
       !totalAmount ||
-      !paymentMethod ||
       !shippingAddress
     ) {
       return res
@@ -29,13 +31,28 @@ const createOrder = async (req, res) => {
         .json({ success: false, message: "Dữ liệu đơn hàng không hợp lệ" });
     }
 
+    // Handle payment method based on payment status
+    let finalPaymentMethod = paymentMethod;
+    if (paymentStatus === 'unpaid') {
+      // For unpaid orders, we don't require a payment method yet
+      finalPaymentMethod = null;
+    } else if (!paymentMethod) {
+      // For paid orders, require payment method
+      return res
+        .status(400)
+        .json({ success: false, message: "Phương thức thanh toán không hợp lệ" });
+    }
+
     const newOrder = new Order({
       orderID: `ORD-${Date.now()}`,
       customerID,
       products,
       totalAmount,
-      paymentMethod,
+      paymentMethod: finalPaymentMethod,
+      paymentStatus: paymentStatus || 'unpaid',
+      status: status || 'pending',
       shippingAddress,
+      employeeID,
       notes,
     });
 
@@ -146,6 +163,71 @@ const updateOrderStatus = async (req, res) => {
   }
 };
 
+const updateOrderPayment = async (req, res) => {
+  try {
+    const { paymentMethod, paymentStatus } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "ID đơn hàng không hợp lệ" 
+      });
+    }
+
+    // Find the order first to check if it exists
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Không tìm thấy đơn hàng" 
+      });
+    }
+
+    // Validate payment method (required if updating to paid status)
+    if (paymentStatus === 'paid' && !paymentMethod) {
+      return res.status(400).json({
+        success: false,
+        message: "Phương thức thanh toán là bắt buộc khi đánh dấu đã thanh toán"
+      });
+    }
+
+    // Prepare update object
+    const updateData = {
+      paymentStatus: paymentStatus || 'paid' // Default to paid if not specified
+    };
+
+    // Only update payment method if provided
+    if (paymentMethod) {
+      updateData.paymentMethod = paymentMethod;
+    }
+
+    // Set status to 'processing' only when updating from 'unpaid' to 'paid'
+    if (order.paymentStatus === 'unpaid' && paymentStatus === 'paid') {
+      updateData.status = 'processing';
+    }
+
+    // Update order with payment details
+    const updatedOrder = await Order.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true }
+    );
+
+    res.json({
+      success: true,
+      message: "Cập nhật thông tin thanh toán thành công",
+      data: updatedOrder
+    });
+  } catch (error) {
+    console.error("Lỗi khi cập nhật thông tin thanh toán:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Lỗi server khi cập nhật thông tin thanh toán",
+      error: error.message
+    });
+  }
+};
+
 const deleteOrder = async (req, res) => {
   try {
     await orderService.deleteOrder(req.params.id);
@@ -189,5 +271,6 @@ module.exports = {
   createOrderScreen,
   getOrdersJson,
   getMobileOrdersList,
-  getOrderDetail  // Add this line
+  getOrderDetail,
+  updateOrderPayment
 };

@@ -8,6 +8,7 @@ router.post("/", orderController.createOrder);
 router.get("/", protect, orderController.getAllOrders);
 // router.get('/:id', orderController.getOrderById);
 router.put("/:id/status", orderController.updateOrderStatus);
+router.put("/:id/payment", orderController.updateOrderPayment);
 router.delete("/:id", orderController.deleteOrder);
 router.get("/create", protect, orderController.createOrderScreen);
 router.get("/:id/detail", protect, orderController.getOrderDetail);

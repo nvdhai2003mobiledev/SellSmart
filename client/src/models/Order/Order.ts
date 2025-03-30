@@ -1,5 +1,5 @@
 import { types, Instance, flow } from 'mobx-state-tree';
-import { fetchOrders, deleteOrder } from '../../services/api/ordersApi';
+import { fetchOrders, deleteOrder, createOrder } from '../../services/api/ordersApi';
 
 // Product item within an order
 const ProductAttribute = types.model({
@@ -85,6 +85,11 @@ export const OrderStore = types
     setError(message) {
       self.error = message;
     },
+    reset() {
+      self.orders = [];
+      self.isLoading = false;
+      self.error = '';
+    },
     fetchOrders: flow(function* () {
       self.isLoading = true;
       self.error = '';
@@ -157,6 +162,46 @@ export const OrderStore = types
         }
         
         return false;
+      } finally {
+        self.isLoading = false;
+      }
+    }),
+    createOrder: flow(function* (orderData) {
+      self.isLoading = true;
+      self.error = '';
+      
+      try {
+        console.log('Creating new order with data:', orderData);
+        
+        const response = yield createOrder(orderData);
+        
+        if (response.ok) {
+          console.log('Order created successfully:', response.data);
+          
+          // Refresh the orders list to include the new order
+          yield self.fetchOrders();
+          
+          return {
+            success: true,
+            data: response.data
+          };
+        } else {
+          console.error('Create Order Error:', response.problem, response.data);
+          self.error = response.data?.message || 'Failed to create order';
+          
+          return {
+            success: false,
+            error: self.error
+          };
+        }
+      } catch (error) {
+        console.error('Exception in createOrder:', error);
+        self.error = error.message || 'An unexpected error occurred';
+        
+        return {
+          success: false,
+          error: self.error
+        };
       } finally {
         self.isLoading = false;
       }
