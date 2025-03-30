@@ -11,31 +11,26 @@
 
     <!-- Danh sách loại sản phẩm -->
     <div>
-        <table class="table table-bordered">
-            <thead>
+        <table class="table table-bordered table-hover table-striped">
+            <thead class="table-primary">
                 <tr>
-                    <th>ID</th>
-                    <th>Tên loại sản phẩm</th>
-                    <th>Số biến thể</th>
-                    <th>Ngày tạo</th>
-                    <th>Ngày cập nhật</th>
-                    <th>Hành động</th>
+                    <th width="35%">Tên loại sản phẩm</th>
+                    <th width="15%" class="text-center">Số biến thể</th>
+                    <th width="20%" class="text-center">Ngày tạo</th>
+                    <th width="20%" class="text-center">Ngày cập nhật</th>
+                    <th width="10%" class="text-center">Hành động</th>
                 </tr>
             </thead>
             <tbody>
                 <% types.forEach(type => { %>
                     <tr id="type-row-<%= type._id %>">
-                        <td><%= type._id %></td>
-                        <td><%= type.name %></td>
-                        <td><%= type.variants.length %></td>
-                        <td><%= new Date(type.createdAt).toLocaleString('vi-VN') %></td>
-                        <td><%= new Date(type.updatedAt).toLocaleString('vi-VN') %></td>
-                        <td>
+                        <td><strong><%= type.name %></strong></td>
+                        <td class="text-center"><span class="badge bg-info"><%= type.variants.length %></span></td>
+                        <td class="text-center"><%= new Date(type.createdAt).toLocaleString('vi-VN') %></td>
+                        <td class="text-center"><%= new Date(type.updatedAt).toLocaleString('vi-VN') %></td>
+                        <td class="text-center">
                             <button class="btn btn-warning btn-sm" onclick="editType('<%= type._id %>', '<%= type.name %>')">
-                                <i class="fas fa-edit"></i> Sửa
-                            </button>
-                            <button class="btn btn-danger btn-sm" onclick="deleteType('<%= type._id %>')">
-                                <i class="fas fa-trash"></i> Xóa
+                                <i class="fas fa-edit"></i>
                             </button>
                         </td>
                     </tr>
@@ -171,8 +166,8 @@
                 if (response.status === 'Ok') {
                     editTypeModal.hide();
                     showSuccessToast('Cập nhật loại sản phẩm thành công!');
-                    $(`#type-row-${id} td:nth-child(2)`).text(name);
-                    $(`#type-row-${id} td:nth-child(5)`).text(new Date().toLocaleString('vi-VN'));
+                    $(`#type-row-${id} td:nth-child(1)`).html(`<strong>${name}</strong>`);
+                    $(`#type-row-${id} td:nth-child(4)`).text(new Date().toLocaleString('vi-VN'));
                 } else {
                     showErrorToast(response.message);
                 }
@@ -180,24 +175,6 @@
             error: xhr => showErrorToast('Lỗi khi cập nhật loại sản phẩm: ' + (xhr.responseJSON?.message || 'Vui lòng thử lại!'))
         });
     });
-
-    function deleteType(id) {
-        if (confirm('Bạn có chắc chắn muốn xóa loại sản phẩm này không?')) {
-            $.ajax({
-                url: `/type-products/delete/${id}`,
-                type: 'DELETE',
-                success: function(response) {
-                    if (response.status === 'Ok') {
-                        $(`#type-row-${id}`).remove();
-                        showSuccessToast('Xóa loại sản phẩm thành công!');
-                    } else {
-                        showErrorToast(response.message);
-                    }
-                },
-                error: xhr => showErrorToast('Lỗi khi xóa loại sản phẩm: ' + (xhr.responseJSON?.message || 'Vui lòng thử lại!'))
-            });
-        }
-    }
 
     function showSuccessToast(message) {
         $('#successToast .toast-body').text(message);

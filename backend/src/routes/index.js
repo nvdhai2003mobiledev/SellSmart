@@ -8,6 +8,7 @@ const typeProductRouter = require("./typeproduct");
 const providerRouter = require("./provider");
 const documentRouter = require("./document"); // Giữ từ HEAD
 const promotionRouter = require("./promotion");
+const warrantyRouter = require("./warranty");
 
 const routes = (app) => {
   app.use("/", authRouter);
@@ -20,6 +21,7 @@ const routes = (app) => {
   app.use("/providers", providerRouter);
   app.use("/documents", documentRouter);
   app.use("/promotions", promotionRouter);
+  app.use("/warranty", warrantyRouter);
 
   return app;
 };
