@@ -66,6 +66,16 @@ const ProductListScreen = observer(() => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Hàm trích xuất tên danh mục từ chuỗi hoặc đối tượng
+  const getCategoryName = (category: any): string => {
+    if (typeof category === 'string') {
+      return category;
+    } else if (category && typeof category === 'object' && category.name) {
+      return category.name;
+    }
+    return 'Không có danh mục';
+  };
+
   const loadProducts = async () => {
     try {
       setError(null);
@@ -195,8 +205,8 @@ const ProductListScreen = observer(() => {
                   }
                 />
                 <View style={styles.infoContainer}>
-                  <Text style={styles.name}>{item.name}</Text>
-                  <Text style={styles.category}>Danh mục: {item.category}</Text>
+                  <Text style={styles.name}>{typeof item.name === 'string' ? item.name : String(item.name)}</Text>
+                  <Text style={styles.category}>Danh mục: {getCategoryName(item.category)}</Text>
                   <Text
                     style={[
                       styles.status,

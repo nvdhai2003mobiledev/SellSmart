@@ -8,7 +8,7 @@ const { protect } = require("../middleware/auth");
 // 🚀 Routes cho Product (Sản phẩm)
 // Route tĩnh
 router.get("/", protect, productController.getProduct); // Lấy danh sách sản phẩm (view)
-router.get("/json", protect, productController.getProductAsJson); // Lấy danh sách sản phẩm (JSON)
+router.get("/json", productController.getProductAsJson); // Lấy danh sách sản phẩm (JSON) - đã bỏ protect
 router.post("/create", protect, productController.addProduct); // Tạo sản phẩm mới
 router.put("/update/:productId", protect, productController.updateProduct); // Cập nhật sản phẩm
 router.delete("/delete/:productId", protect, productController.deleteProduct); // Xóa sản phẩm
