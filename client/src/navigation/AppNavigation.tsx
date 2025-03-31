@@ -29,6 +29,9 @@ import {
   CreateOrderScreen,
   OrderListScreen,
   FilterOrderScreen,
+  ChooseOrderProduct,
+  CustomerSelection,
+  OrderDetailScreen,
 } from '../screens';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
@@ -79,6 +82,14 @@ export const AppNavigation = observer(() => {
         name={Screen.CREATEORDER}
         component={CreateOrderScreen}
       />
+      <RootStack.Screen
+        name={Screen.CHOOSE_ORDER_PRODUCT}
+        component={ChooseOrderProduct}
+      />
+      <RootStack.Screen
+        name={Screen.CUSTOMER_SELECTION}
+        component={CustomerSelection}
+      />
       <RootStack.Screen name={Screen.PROFILE} component={ProfileScreen} />
       <RootStack.Screen
         name={Screen.DETAIL_CUSTOMER}
@@ -95,6 +106,7 @@ export const AppNavigation = observer(() => {
           <RootStack.Screen name={Screen.ORDERSCREEN} component={OrderScreen} />
         <RootStack.Screen name={Screen.ORDERLIST} component={OrderListScreen}/>
         <RootStack.Screen name={Screen.FILTERORDER} component={FilterOrderScreen}   options={{ presentation: 'modal' }}  />
+        <RootStack.Screen name={Screen.ORDER_DETAIL} component={OrderDetailScreen} />
       <RootStack.Screen name={Screen.CUSTOMERS} component={CustomerScreen} />
       {/* Chỉ admin mới thấy được các màn hình quản lý nhân viên */}
       {isAdmin && (

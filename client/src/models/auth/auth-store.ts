@@ -241,6 +241,9 @@ export const AuthStore = types
     get userFullName() {
       return self.user?.fullName;
     },
+    get userId() {
+      return self.user?.id;
+    },
     get debugAuthInfo() {
       console.log('Auth Info:', {
         isAuthenticated: self.isAuthenticated,
