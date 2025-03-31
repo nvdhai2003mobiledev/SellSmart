@@ -16,6 +16,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { create } from 'apisauce';
 import { ApiEndpoint } from '../../../services/api/api-endpoint';
 import { Screen } from '../../../navigation/navigation.type';
+import { moderateScale } from '../../../utils';
 
 const ChooseOrderProduct = () => {
   const navigation = useNavigation();
@@ -53,7 +54,7 @@ const ChooseOrderProduct = () => {
     try {
       // Create API instance
       const api = create({
-        baseURL: "http://10.0.2.2:3000",
+        baseURL: "http://10.0.2.2:5000/",
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -297,7 +298,7 @@ const styles = StyleSheet.create({
   },
   productList: {
     padding: 16,
-    paddingBottom: 80, // Add padding for bottom bar
+    paddingBottom: moderateScale(120), // Add padding for bottom bar
   },
   productItem: {
     flexDirection: 'row',
@@ -370,7 +371,7 @@ const styles = StyleSheet.create({
   },
   bottomBar: {
     position: 'absolute',
-    bottom: 0,
+    bottom: 120,
     left: 0,
     right: 0,
     height: 70,

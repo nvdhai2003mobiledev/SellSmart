@@ -1,4 +1,4 @@
-import { types, Instance, flow } from 'mobx-state-tree';
+import { types, Instance, flow, cast } from 'mobx-state-tree';
 import { fetchOrders, deleteOrder, createOrder } from '../../services/api/ordersApi';
 
 // Product item within an order
@@ -36,7 +36,7 @@ export const Order = types.model({
   products: types.array(OrderProduct),
   totalAmount: types.number,
   status: types.enumeration(['pending', 'processing', 'shipping', 'delivered', 'canceled']),
-  paymentMethod: types.enumeration(['cash', 'credit card', 'debit card', 'e-wallet']),
+  paymentMethod: types.maybeNull(types.enumeration(['cash', 'credit card', 'debit card', 'e-wallet'])),
   paymentStatus: types.enumeration(['paid', 'unpaid', 'refunded']),
   shippingAddress: types.optional(types.string, ''),
   employeeID: types.maybeNull(
@@ -47,6 +47,15 @@ export const Order = types.model({
     })
   ),
   notes: types.optional(types.string, ''),
+  promotionID: types.maybeNull(types.string),
+  promotionDetails: types.maybeNull(
+    types.model({
+      name: types.string,
+      discount: types.number,
+      discountAmount: types.number
+    })
+  ),
+  originalAmount: types.maybeNull(types.number),
   createdAt: types.string,
   updatedAt: types.string
 });
@@ -76,17 +85,17 @@ export const OrderStore = types
     }
   }))
   .actions(self => ({
-    setOrders(orders) {
-      self.orders = orders;
+    setOrders(orders: Instance<typeof Order>[]) {
+      self.orders = cast(orders);
     },
-    setLoading(status) {
+    setLoading(status: boolean) {
       self.isLoading = status;
     },
-    setError(message) {
+    setError(message: string) {
       self.error = message;
     },
     reset() {
-      self.orders = [];
+      self.orders = cast([]);
       self.isLoading = false;
       self.error = '';
     },
@@ -95,30 +104,53 @@ export const OrderStore = types
       self.error = '';
       
       try {
-        // Use our custom fetch function that can handle various response types
         const ordersData = yield fetchOrders();
         
         console.log('Received orders data:', ordersData);
         
-        if (Array.isArray(ordersData) && ordersData.length > 0) {
-          // Make sure all required fields are present with defaults if needed
+        if (Array.isArray(ordersData)) {
+          // Process orders to ensure they match our model
           const processedOrders = ordersData.map(order => {
-            // If products array is missing or empty, provide default empty array
-            if (!order.products || !Array.isArray(order.products)) {
-              order.products = [];
-            }
-            
-            return order;
+            // Ensure all required fields are present with defaults if needed
+            return {
+              ...order,
+              products: order.products || [],
+              paymentMethod: order.paymentMethod || null,
+              paymentStatus: order.paymentStatus || 'unpaid',
+              shippingAddress: order.shippingAddress || '',
+              notes: order.notes || '',
+              promotionID: order.promotionID || null,
+              promotionDetails: order.promotionDetails ? {
+                name: order.promotionDetails.name || '',
+                discount: order.promotionDetails.discount || 0,
+                discountAmount: order.promotionDetails.discountAmount || 0
+              } : null,
+              originalAmount: order.originalAmount || null
+            };
           });
           
-          self.orders = processedOrders;
+          self.orders = cast(processedOrders);
           console.log('Orders loaded successfully, count:', processedOrders.length);
-        } else if (ordersData && typeof ordersData === 'object') {
-          // If we get an object with orders inside
-          const orders = ordersData.data || ordersData.orders;
+        } else if (ordersData && typeof ordersData === 'object' && 'data' in ordersData) {
+          const orders = (ordersData as { data: unknown }).data;
           if (Array.isArray(orders)) {
-            self.orders = orders;
-            console.log('Orders extracted from object, count:', orders.length);
+            const processedOrders = orders.map(order => ({
+              ...order,
+              products: order.products || [],
+              paymentMethod: order.paymentMethod || null,
+              paymentStatus: order.paymentStatus || 'unpaid',
+              shippingAddress: order.shippingAddress || '',
+              notes: order.notes || '',
+              promotionID: order.promotionID || null,
+              promotionDetails: order.promotionDetails ? {
+                name: order.promotionDetails.name || '',
+                discount: order.promotionDetails.discount || 0,
+                discountAmount: order.promotionDetails.discountAmount || 0
+              } : null,
+              originalAmount: order.originalAmount || null
+            }));
+            self.orders = cast(processedOrders);
+            console.log('Orders extracted from object, count:', processedOrders.length);
           } else {
             console.error('Unexpected orders data format:', ordersData);
             self.error = 'Unexpected data format received from server';
@@ -127,14 +159,14 @@ export const OrderStore = types
           console.error('Invalid orders data:', ordersData);
           self.error = 'Invalid data received from server';
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Exception in fetchOrders:', error);
-        self.error = error.message || 'An unexpected error occurred';
+        self.error = error instanceof Error ? error.message : 'An unexpected error occurred';
       } finally {
         self.isLoading = false;
       }
     }),
-    deleteOrder: flow(function* (id) {
+    deleteOrder: flow(function* (id: string) {
       self.isLoading = true;
       self.error = '';
       
@@ -142,22 +174,20 @@ export const OrderStore = types
         const response = yield deleteOrder(id);
         
         if (response.ok) {
-          // Remove the deleted order from the list
-          self.orders = self.orders.filter(order => order._id !== id);
+          self.orders = cast(self.orders.filter(order => order._id !== id));
           return true;
         } else {
           console.error('Delete Error:', response.problem, response.data);
           self.error = response.problem || 'Failed to delete order';
           return false;
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Exception in deleteOrder:', error);
-        self.error = error.message || 'An unexpected error occurred';
+        self.error = error instanceof Error ? error.message : 'An unexpected error occurred';
         
-        // For development: if the backend API is not working, simulate successful deletion
         if (__DEV__) {
           console.log('DEV MODE: Simulating successful delete');
-          self.orders = self.orders.filter(order => order._id !== id);
+          self.orders = cast(self.orders.filter(order => order._id !== id));
           return true;
         }
         
@@ -166,7 +196,7 @@ export const OrderStore = types
         self.isLoading = false;
       }
     }),
-    createOrder: flow(function* (orderData) {
+    createOrder: flow(function* (orderData: any) {
       self.isLoading = true;
       self.error = '';
       
@@ -177,8 +207,6 @@ export const OrderStore = types
         
         if (response.ok) {
           console.log('Order created successfully:', response.data);
-          
-          // Refresh the orders list to include the new order
           yield self.fetchOrders();
           
           return {
@@ -194,9 +222,9 @@ export const OrderStore = types
             error: self.error
           };
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Exception in createOrder:', error);
-        self.error = error.message || 'An unexpected error occurred';
+        self.error = error instanceof Error ? error.message : 'An unexpected error occurred';
         
         return {
           success: false,

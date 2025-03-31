@@ -41,7 +41,7 @@ export const fetchProducts = async () => {
 
     // Tạo instance API mới không yêu cầu token
     const publicApi = create({
-      baseURL: "http://10.0.2.2:3000",
+      baseURL: "http://10.0.2.2:5000/",
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
