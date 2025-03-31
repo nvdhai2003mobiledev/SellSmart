@@ -63,7 +63,8 @@
       <tr>
         <th>Mã đơn hàng</th>
         <th>Khách hàng</th>
-        <th>Tên sản phẩm</th>
+        <!-- <th>Tên sản phẩm</th> -->
+        <th>SĐT</th>
         <th>Tổng tiền</th>
         <th>Trạng thái</th>
         <th>Ngày tạo</th>
@@ -80,6 +81,9 @@
           <%= order.customerID ? order.customerID.fullName : "Unknown Customer" %>
         </td>
         <td>
+          <%= order.customerID ? order.customerID.phoneNumber : "Unknown Customer" %>
+        </td>
+        <!-- <td>
           <% if (order.products && order.products.length> 0) { %>
           <ul class="order-product-list">
             <% order.products.forEach(product=> { %>
@@ -117,7 +121,7 @@
           <% } else { %>
           Không có sản phẩm
           <% } %>
-        </td>
+        </td> -->
 
         <td><%= order.totalAmount.toLocaleString("vi-VN") %> VND</td>
         <td>
@@ -138,9 +142,9 @@
             <button class="order-action-btn order-view-btn" onclick="viewOrderDetail('<%= order._id %>')">
               <i class="fas fa-eye"></i> Chi tiết
             </button>
-            <button class="order-action-btn order-delete-btn" onclick="deleteOrder('<%= order._id %>')">
+            <!-- <button class="order-action-btn order-delete-btn" onclick="deleteOrder('<%= order._id %>')">
               <i class="fas fa-trash"></i> Xóa
-            </button>
+            </button> -->
           </div>
         </td>
       </tr>
@@ -242,83 +246,47 @@
     const fromDate = document.getElementById('searchFromDate').value;
     const toDate = document.getElementById('searchToDate').value;
 
-    // Chuyển đổi chuỗi ngày thành đối tượng Date để so sánh
-    const fromDateObj = fromDate ? new Date(fromDate) : null;
-    const toDateObj = toDate ? new Date(toDate) : null;
-
-    // Nếu có toDate, cộng thêm 1 ngày để bao gồm cả ngày kết thúc
-    if (toDateObj) {
-      toDateObj.setDate(toDateObj.getDate() + 1);
-    }
+    console.log("Tìm kiếm:", { orderID, customerName, phone, address, status, fromDate, toDate });
 
     const filteredOrders = allOrders.filter(order => {
-      // Kiểm tra xem đơn hàng có khớp với các tiêu chí tìm kiếm không
-      let matchOrderID = true;
-      let matchCustomerName = true;
-      let matchPhone = true;
-      let matchAddress = true;
-      let matchStatus = true;
+      // Kiểm tra OrderID
+      const matchOrderID = !orderID || 
+        (order.orderID && order.orderID.toLowerCase().includes(orderID));
+
+      // Kiểm tra Tên khách hàng
+      const matchCustomerName = !customerName || 
+        (order.customerID && order.customerID.fullName && 
+         order.customerID.fullName.toLowerCase().includes(customerName));
+
+      // Kiểm tra Số điện thoại
+      const matchPhone = !phone || 
+        (order.customerID && order.customerID.phoneNumber && 
+         order.customerID.phoneNumber.toLowerCase().includes(phone));
+
+      // Kiểm tra Địa chỉ (để trống vì chưa có thông tin địa chỉ)
+      const matchAddress = !address;
+
+      // Kiểm tra Trạng thái
+      const matchStatus = !status || 
+        (order.status && order.status.toLowerCase() === status.toLowerCase());
+
+      // Kiểm tra Khoảng ngày
       let matchDateRange = true;
-
-      if (orderID) {
-        matchOrderID = order.orderID.toLowerCase().includes(orderID);
-      }
-
-      if (customerName && order.customerID) {
-        matchCustomerName = order.customerID.fullName.toLowerCase().includes(customerName);
-      }
-
-      if (phone) {
-        matchPhone = order._originalRow.textContent.toLowerCase().includes(phone);
-      }
-
-      if (address) {
-        matchAddress = order._originalRow.textContent.toLowerCase().includes(address);
-      }
-
-      if (status) {
-        matchStatus = order.status.toLowerCase() === status.toLowerCase();
-      }
-
-      if (fromDateObj || toDateObj) {
+      if (fromDate || toDate) {
         try {
-          const dateTimeParts = order.createdAt.split(' ');
-          if (dateTimeParts.length === 2) {
-            const timeParts = dateTimeParts[0].split(':');
-            const dateParts = dateTimeParts[1].split('/');
-
-            if (timeParts.length === 2 && dateParts.length === 3) {
-              const hour = parseInt(timeParts[0], 10);
-              const minute = parseInt(timeParts[1], 10);
-              const day = parseInt(dateParts[0], 10);
-              const month = parseInt(dateParts[1], 10) - 1; // JavaScript tháng từ 0-11
-              const year = parseInt(dateParts[2], 10);
-
-              const orderDate = new Date(year, month, day, hour, minute);
-
-              if (fromDateObj) {
-                const fromDateStart = new Date(fromDateObj);
-                fromDateStart.setHours(0, 0, 0, 0);
-
-                if (toDateObj) {
-                  const toDateEnd = new Date(toDateObj);
-                  toDateEnd.setHours(23, 59, 59, 999);
-
-                  matchDateRange = orderDate >= fromDateStart && orderDate <= toDateEnd;
-                } else {
-                  matchDateRange = orderDate >= fromDateStart;
-                }
-              } else if (toDateObj) {
-                const toDateEnd = new Date(toDateObj);
-                toDateEnd.setHours(23, 59, 59, 999);
-
-                matchDateRange = orderDate <= toDateEnd;
-              }
-            } else {
-              matchDateRange = false;
-            }
-          } else {
-            matchDateRange = false;
+          // Chuyển đổi chuỗi ngày thành đối tượng Date
+          const [day, month, year] = order.createdAt.split(/[ /]/).map(Number);
+          const orderDate = new Date(year, month - 1, day);
+          
+          if (fromDate) {
+            const fromDateObj = new Date(fromDate);
+            matchDateRange = matchDateRange && orderDate >= fromDateObj;
+          }
+          
+          if (toDate) {
+            const toDateObj = new Date(toDate);
+            toDateObj.setDate(toDateObj.getDate() + 1);
+            matchDateRange = matchDateRange && orderDate < toDateObj;
           }
         } catch (error) {
           console.error("Lỗi khi phân tích ngày:", error);
@@ -326,9 +294,25 @@
         }
       }
 
-      return matchOrderID && matchCustomerName && matchPhone && matchAddress && matchStatus && matchDateRange;
+      const isMatch = matchOrderID && matchCustomerName && 
+                      matchPhone && matchAddress && 
+                      matchStatus && matchDateRange;
+
+      console.log("Kiểm tra đơn hàng:", {
+        orderID: order.orderID,
+        isMatch,
+        matchOrderID,
+        matchCustomerName,
+        matchPhone,
+        matchAddress,
+        matchStatus,
+        matchDateRange
+      });
+
+      return isMatch;
     });
 
+    console.log("Số đơn hàng tìm được:", filteredOrders.length);
     displayOrders(filteredOrders);
   }
 
@@ -346,23 +330,23 @@
       return;
     }
 
+    // Định nghĩa các trạng thái đơn hàng
+    const statusMap = {
+      'pending': 'Đang chờ xử lý',
+      'processing': 'Đang xử lý',
+      'shipping': 'Đang giao hàng',
+      'delivered': 'Đã giao hàng',
+      'canceled': 'Đã hủy'
+    };
+    
     orders.forEach(order => {
-      // Định nghĩa các trạng thái đơn hàng
-      const statusMap = {
-        'pending': 'Đang chờ xử lý',
-        'processing': 'Đang xử lý',
-        'shipping': 'Đang giao hàng',
-        'delivered': 'Đã giao hàng',
-        'canceled': 'Đã hủy'
-      };
-      
       const row = document.createElement('tr');
       
       row.innerHTML = `
         <td>${order.orderID}</td>
         <td>${order.customerID.fullName}</td>
-        <td>${order.productsHTML || 'Không có sản phẩm'}</td>
-        <td>${order.totalAmount} VND</td>
+        <td>${order.customerID.phoneNumber}</td>
+        <td>${order.totalAmount.toLocaleString("vi-VN")} VND</td>
         <td>
           <span class="order-status status-${order.status}">
             ${statusMap[order.status] || order.status}
@@ -383,7 +367,7 @@
 
       tableBody.appendChild(row);
     });
-  }
+  } 
 
   // Reset tìm kiếm
   function resetSearch() {
@@ -425,18 +409,21 @@
     console.log("Page loaded");
 
     allOrders = Array.from(document.querySelectorAll('.order-table tbody tr')).map(row => {
-      const orderDeleteBtn = row.querySelector('.order-delete-btn');
-      const orderId = orderDeleteBtn ? orderDeleteBtn.onclick.toString().match(/'([^']+)'/)[1] : '';
+      const orderViewBtn = row.querySelector('.order-view-btn');
+      const orderId = orderViewBtn ? orderViewBtn.getAttribute('onclick').match(/'([^']+)'/)[1] : '';
       
+      const statusElement = row.cells[4].querySelector('.order-status');
+      const statusClass = statusElement ? statusElement.classList[1].replace('status-', '') : '';
+
       const order = {
         _id: orderId,
         orderID: row.cells[0].textContent.trim(),
         customerID: {
-          fullName: row.cells[1].textContent.trim()
+          fullName: row.cells[1].textContent.trim(),
+          phoneNumber: row.cells[2].textContent.trim()
         },
-        productsHTML: row.cells[2].innerHTML,
-        totalAmount: row.cells[3].textContent.trim(),
-        status: row.cells[4].querySelector('.order-status').classList[1].replace('status-', ''),
+        totalAmount: parseFloat(row.cells[3].textContent.trim().replace(/\s*VND/, '').replace(/\./g, '')) || 0,
+        status: statusClass,
         createdAt: row.cells[5].textContent.trim(),
         _originalRow: row
       };
@@ -445,7 +432,10 @@
         id: order._id,
         orderID: order.orderID,
         customer: order.customerID.fullName,
-        date: order.createdAt
+        phone: order.customerID.phoneNumber,
+        total: order.totalAmount,
+        date: order.createdAt,
+        status: order.status
       });
 
       return order;
@@ -462,18 +452,17 @@
 
   // Hàm mở dialog xem chi tiết đơn hàng
   function viewOrderDetail(orderId) {
-    document.getElementById('orderDetailDialog').style.display = 'block';
-    document.getElementById('modalOverlay').style.display = 'block';
-    
-    fetch(`/orders/${orderId}/detail`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    })
+  document.getElementById('orderDetailDialog').style.display = 'block';
+  document.getElementById('modalOverlay').style.display = 'block';
+  
+  // Add loading indicator
+  const productsContainer = document.getElementById('orderDetailProducts');
+  productsContainer.innerHTML = '<tr><td colspan="5" style="text-align:center;">Đang tải...</td></tr>';
+  
+  fetch(`/orders/${orderId}/detail`)
     .then(response => {
       if (!response.ok) {
-        throw new Error('Network response was not ok');
+        throw new Error(`Server response: ${response.status} ${response.statusText}`);
       }
       return response.json();
     })
@@ -490,7 +479,7 @@
       alert("Có lỗi xảy ra khi lấy thông tin đơn hàng. Vui lòng thử lại!");
       closeOrderDetailDialog();
     });
-  }
+}
 
   // Hàm hiển thị thông tin chi tiết đơn hàng
   function displayOrderDetail(order) {
@@ -589,12 +578,12 @@
         let attributesHTML = '';
         if (product.attributes && product.attributes.length > 0) {
           attributesHTML = product.attributes.map(attr => 
-            `<div><strong>${attr.name}:</strong> ${Array.isArray(attr.value) ? attr.value.join(', ') : attr.value}</div>`
+            `<div><strong></strong> ${Array.isArray(attr.value) ? attr.value.join(', ') : attr.value}</div>`
           ).join('');
         } else if (product.productID && product.productID.attributes && product.productID.attributes.length > 0) {
           // Trường hợp thuộc tính nằm trong productID
           attributesHTML = product.productID.attributes.map(attr => 
-            `<div><strong>${attr.name}:</strong> ${Array.isArray(attr.values) ? attr.values.join(', ') : attr.values}</div>`
+            `<div><strong></strong> ${Array.isArray(attr.values) ? attr.values.join(', ') : attr.values}</div>`
           ).join('');
         } else {
           attributesHTML = 'Không có thuộc tính';
@@ -639,13 +628,13 @@
 
   // Hàm đóng dialog
   function closeOrderDetailDialog() {
-    document.getElementById('orderDetailDialog').style.display = 'none';
-    document.getElementById('modalOverlay').style.display = 'none';
-    
-    // Xóa các thông tin khuyến mãi nếu có để tránh hiển thị lại trong lần mở tiếp theo
-    const promotionInfo = document.querySelector('.order-promotion-info');
-    if (promotionInfo) {
-      promotionInfo.remove();
-    }
+  document.getElementById('orderDetailDialog').style.display = 'none';
+  document.getElementById('modalOverlay').style.display = 'none';
+  
+  // Remove any promotion info element that might have been added
+  const promotionInfo = document.querySelector('.order-promotion-info');
+  if (promotionInfo) {
+    promotionInfo.remove();
   }
+}
 </script>

@@ -4,9 +4,13 @@ import {ApiEndpoint} from './api-endpoint';
 import {EmployeeResponse} from '../../models/employee/employee';
 
 
+
 // const BASE_URL = 'http://192.168.1.100:3000/';
 // const BASE_URL = 'http://10.0.2.2:3000/';
 const BASE_URL = 'http://10.0.2.2:5000/';
+
+const BASE_URL = "http://10.0.2.2:3000";
+
 
 // API response types
 export interface GeneralApiResponse {
