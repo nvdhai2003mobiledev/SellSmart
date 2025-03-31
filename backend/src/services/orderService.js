@@ -3,6 +3,62 @@ const Customer = require("../models/Customer");
 const Product = require("../models/Product");
 const Employee = require("../models/Employee");
 const mongoose = require("mongoose");
+const Promotion = require("../models/Promotion");
+
+const getMobileOrders = async () => {
+  try {
+    const orders = await Order.find()
+      .populate('customerID', 'fullName phoneNumber email address')
+      .populate('employeeID', 'fullName position')
+      .populate('products.productID', 'name price')
+      .sort({ createdAt: -1 });
+
+    const transformedOrders = orders.map(order => ({
+      _id: order._id.toString(),
+      orderID: order.orderID,
+      customerID: {
+        _id: order.customerID ? order.customerID._id.toString() : 'unknown',
+        fullName: order.customerID ? order.customerID.fullName : 'Khách hàng',
+        phoneNumber: order.customerID ? order.customerID.phoneNumber : '',
+        email: order.customerID ? order.customerID.email : '',
+        address: order.customerID ? order.customerID.address : ''
+      },
+      products: order.products.map(product => ({
+        productID: product.productID ? product.productID._id.toString() : '',
+        name: product.productID ? product.productID.name : product.name,
+        inventory: product.inventory || 0,
+        price: product.price || 0,
+        quantity: product.quantity || 1,
+        attributes: product.attributes || []
+      })),
+      totalAmount: order.totalAmount || 0,
+      status: order.status || 'pending',
+      paymentMethod: order.paymentMethod || null,
+      paymentStatus: order.paymentStatus || 'unpaid',
+      shippingAddress: order.shippingAddress || 'Nhận hàng tại cửa hàng',
+      employeeID: order.employeeID ? {
+        _id: order.employeeID._id.toString(),
+        fullName: order.employeeID.fullName,
+        position: order.employeeID.position
+      } : null,
+      notes: order.notes || '',
+      promotionID: order.promotionID ? order.promotionID.toString() : null,
+      promotionDetails: order.promotionDetails ? {
+        name: order.promotionDetails.name || '',
+        discount: order.promotionDetails.discount || 0,
+        discountAmount: order.promotionDetails.discountAmount || 0
+      } : null,
+      originalAmount: order.originalAmount || null,
+      createdAt: order.createdAt.toISOString(),
+      updatedAt: order.updatedAt.toISOString()
+    }));
+
+    return transformedOrders;
+  } catch (error) {
+    console.error('Error in getMobileOrders:', error);
+    throw error;
+  }
+};
 
 // Lấy tất cả đơn hàng
 const getAllOrders = async () => {
@@ -16,7 +72,10 @@ const getAllOrders = async () => {
       .populate({
         path: "products.productID",
         model: "Product",
-        select: "name price stockQuantity thumbnail attributes",
+
+        select: "name price inventory thumbnail attributes",
+
+
       })
       .populate({
         path: "employeeID",
@@ -46,7 +105,7 @@ const getOrderById = async (orderId) => {
       })
       .populate({
         path: "products.productID",
-        select: "name price stockQuantity thumbnail attributes",
+        select: "name price inventory thumbnail attributes",
       })
       .populate({
         path: "employeeID",
@@ -136,18 +195,70 @@ const createOrder = async (orderData) => {
 
     const validatedProducts = await Promise.all(productPromises);
 
-    // Tạo đơn hàng mới
-    const newOrder = new Order({
+    // Calculate total amount from products
+    const calculatedTotal = validatedProducts.reduce(
+      (sum, product) => sum + product.price * product.quantity,
+      0
+    );
+
+    // Create order object with original amount
+    const orderObj = {
       customerID: customer._id,
       products: validatedProducts,
-      totalAmount: orderData.totalAmount,
+      originalAmount: calculatedTotal, // Store original amount before any discounts
+      totalAmount: orderData.totalAmount, // This may include discount
       status: "pending",
       paymentMethod: orderData.paymentMethod,
       paymentStatus: "paid",
       shippingAddress: orderData.shippingAddress,
       employeeID: orderData.employeeID || null,
       notes: orderData.notes || "",
-    });
+    };
+
+    // Handle promotion if provided
+    if (orderData.promotionID && mongoose.Types.ObjectId.isValid(orderData.promotionID)) {
+      const promotion = await Promotion.findById(orderData.promotionID);
+      
+      if (promotion) {
+        // Check if promotion is active and valid date range
+        const currentDate = new Date();
+        const startDate = new Date(promotion.startDate);
+        const endDate = new Date(promotion.endDate);
+        endDate.setHours(23, 59, 59, 999); // Include end date fully
+        
+        if ((currentDate >= startDate && currentDate <= endDate) && 
+            promotion.status === 'active' && 
+            calculatedTotal >= promotion.minOrderValue) {
+          
+          // Calculate discount amount
+          let discountAmount = (calculatedTotal * promotion.discount) / 100;
+          
+          // Cap at maximum discount
+          if (discountAmount > promotion.maxDiscount) {
+            discountAmount = promotion.maxDiscount;
+          }
+          
+          // Store promotion details
+          orderObj.promotionID = promotion._id;
+          orderObj.promotionDetails = {
+            name: promotion.name,
+            discount: promotion.discount,
+            discountAmount: discountAmount
+          };
+          
+          // Verify if the provided totalAmount matches our calculated discounted amount
+          const calculatedDiscountedTotal = calculatedTotal - discountAmount;
+          
+          // If there's a significant difference, use our calculated value
+          if (Math.abs(calculatedDiscountedTotal - orderData.totalAmount) > 1) {
+            orderObj.totalAmount = calculatedDiscountedTotal;
+          }
+        }
+      }
+    }
+
+    // Tạo đơn hàng mới
+    const newOrder = new Order(orderObj);
 
     await newOrder.save();
     return newOrder;
@@ -163,4 +274,5 @@ module.exports = {
   updateOrderStatus,
   deleteOrder,
   createOrder,
+  getMobileOrders
 };

@@ -54,7 +54,7 @@ const ChooseOrderProduct = () => {
     try {
       // Create API instance
       const api = create({
-        baseURL: "http://10.0.2.2:3000",
+        baseURL: "http://10.0.2.2:5000/",
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',

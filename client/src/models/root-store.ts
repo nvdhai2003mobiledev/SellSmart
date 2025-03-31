@@ -79,9 +79,8 @@ export const rootStore = RootStoreModel.create({
   employees: employeeStore,
 
   customers: customerStore,
-});
-
   orders: OrderStore.create({ orders: [], isLoading: false, error: '' }),
   productStore: ProductStore.create({ products: [], isLoading: false, error: '', totalPrice: 0 }),
 });
+
 
