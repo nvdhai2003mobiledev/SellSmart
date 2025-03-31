@@ -129,17 +129,16 @@ const createCustomerFromOrder = async (req, res) => {
   }
 };
 
-//API THÊM 
 // 🟢 API thêm khách hàng
 const addCustomer = async (req, res) => {
   try {
     const { fullName, phoneNumber, email, birthDate, address, avatar } = req.body;
 
     // Kiểm tra nếu thiếu thông tin
-    if (!fullName || !phoneNumber || !email  || !address) {
+    if (!fullName || !phoneNumber || !email) {
       return res
         .status(400)
-        .json({ message: "Vui lòng nhập đầy đủ thông tin!" });
+        .json({ message: "Vui lòng nhập đầy đủ họ tên, số điện thoại và email!" });
     }
 
     // Kiểm tra email đã tồn tại trong database chưa
@@ -164,18 +163,18 @@ const addCustomer = async (req, res) => {
       phoneNumber,
       email,
       birthDate: processedBirthDate,
-      address,
+      address: address || '', // Mặc định là chuỗi rỗng nếu không có address
       avatar,
     });
 
     await newCustomer.save();
 
-    // Thay vì render, sử dụng redirect để tránh lỗi
-    return res.redirect('/customers');
-    
-    // HOẶC nếu vẫn muốn render, đảm bảo đúng tên template và đủ biến
-    // const customers = await Customer.find();
-    // return res.render("dashboard/customers", { customers, page: "customers" });
+    // Trả về thành công với định dạng JSON cho API
+    return res.status(201).json({
+      success: true,
+      message: "Thêm khách hàng thành công!",
+      customer: newCustomer
+    });
     
   } catch (error) {
     console.error("Lỗi khi thêm khách hàng:", error); // Log lỗi chi tiết
@@ -184,7 +183,6 @@ const addCustomer = async (req, res) => {
       .json({ message: "Lỗi khi thêm khách hàng!", error: error.message });
   }
 };
-
 
 // 🟢 API cập nhật khách hàng
 const updateCustomer = async (req, res) => {
@@ -206,7 +204,7 @@ const updateCustomer = async (req, res) => {
       // Validate dữ liệu bắt buộc
       if (!fullName || !phoneNumber || !email) {
           return res.status(400).json({ 
-              message: "Vui lòng điền đầy đủ thông tin bắt buộc!" 
+              message: "Vui lòng điền đầy đủ họ tên, số điện thoại và email!" 
           });
       }
 
@@ -228,13 +226,6 @@ const updateCustomer = async (req, res) => {
       if (!emailRegex.test(email)) {
           return res.status(400).json({ 
               message: "Email không hợp lệ!" 
-          });
-      }
-
-      // Validate địa chỉ
-      if (!address || address.trim().length < 5) {
-          return res.status(400).json({ 
-              message: "Địa chỉ phải có ít nhất 5 ký tự!" 
           });
       }
 
@@ -287,7 +278,7 @@ const updateCustomer = async (req, res) => {
           fullName, 
           phoneNumber, 
           email, 
-          address, 
+          ...(address && { address }), // Chỉ cập nhật address nếu được cung cấp
           ...(processedBirthDate && { birthDate: processedBirthDate }),
           ...(avatar && { avatar })
       };
@@ -377,15 +368,36 @@ const searchCustomerByPhone = async (req, res) => {
   const { phoneNumber } = req.query;
 
   try {
-      const customers = await Customer.find({ phoneNumber: { $regex: phoneNumber, $options: 'i' } });
-      res.status(200).json({ customers });
+    // Kiểm tra nếu không có số điện thoại
+    if (!phoneNumber || phoneNumber.trim() === '') {
+      return res.status(200).json({ 
+        success: true,
+        customers: [] 
+      });
+    }
+
+    // Tìm kiếm khách hàng có số điện thoại chứa chuỗi tìm kiếm (không phân biệt hoa thường)
+    const customers = await Customer.find({ 
+      phoneNumber: { $regex: phoneNumber, $options: 'i' } 
+    }).select('-password -confirmPassword');
+
+    // Log kết quả tìm kiếm
+    console.log(`Tìm thấy ${customers.length} khách hàng với số điện thoại ${phoneNumber}`);
+
+    // Trả về kết quả
+    res.status(200).json({ 
+      success: true,
+      customers 
+    });
   } catch (error) {
-      console.error('Lỗi khi tìm kiếm khách hàng:', error);
-      res.status(500).json({ message: 'Lỗi server' });
+    console.error('❌ Lỗi khi tìm kiếm khách hàng:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Lỗi server khi tìm kiếm khách hàng',
+      error: error.message
+    });
   }
 };
-
-
 
 // ✅ Xuất tất cả hàm
 module.exports = {
