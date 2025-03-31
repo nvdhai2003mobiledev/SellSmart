@@ -4,69 +4,6 @@ const Product = require("../models/Product");
 const Employee = require("../models/Employee");
 const mongoose = require("mongoose");
 
-const getMobileOrders = async () => {
-  try {
-    const orders = await Order.find()
-      .populate({
-        path: "customerID",
-        model: "Customer",
-        select: "fullName phoneNumber email address" 
-      })
-      .populate({
-        path: "products.productID",
-        model: "Product",
-        select: "name price inventory thumbnail"
-      })
-      .lean()
-      .exec();
-
-    // Chuyển đổi dữ liệu để phù hợp với mobile app
-    const transformedOrders = orders.map(order => ({
-      _id: order._id.toString(),
-      orderID: order.orderID,
-      customerID: {
-        _id: order.customerID ? order.customerID._id.toString() : 'unknown',
-        fullName: order.customerID ? order.customerID.fullName : 'Khách hàng',
-        phoneNumber: order.customerID ? order.customerID.phoneNumber : '',
-        email: order.customerID ? order.customerID.email : '',
-        address: order.customerID ? order.customerID.address : ''
-      },
-      products: (order.products || []).map(product => ({
-        productID: product.productID ? product.productID._id.toString() : '',
-        name: product.name || product.productID?.name || 'Sản phẩm',
-        inventory: product.inventory || 0,
-        price: product.price || 0,
-        quantity: product.quantity || 1,
-        attributes: (product.attributes || []).map(attr => ({
-          name: attr.name || 'Thuộc tính',
-          value: Array.isArray(attr.value) ? attr.value : [attr.value || 'Không xác định']
-        }))
-      })),
-      totalAmount: order.totalAmount || 0,
-      status: order.status || 'pending',
-      paymentMethod: order.paymentMethod || 'cash',
-      paymentStatus: order.paymentStatus || 'paid',
-      shippingAddress: order.shippingAddress || 'Không có địa chỉ',
-      notes: order.notes || '',
-      createdAt: order.createdAt ? 
-        (order.createdAt instanceof Date 
-          ? order.createdAt.toISOString() 
-          : order.createdAt) 
-        : new Date().toISOString(),
-      updatedAt: order.updatedAt ? 
-        (order.updatedAt instanceof Date 
-          ? order.updatedAt.toISOString() 
-          : order.updatedAt) 
-        : new Date().toISOString()
-    }));
-
-    return transformedOrders;
-  } catch (error) {
-    console.error("Lỗi khi lấy danh sách đơn hàng cho mobile:", error);
-    throw error;
-  }
-};
-
 // Lấy tất cả đơn hàng
 const getAllOrders = async () => {
   try {
@@ -226,6 +163,4 @@ module.exports = {
   updateOrderStatus,
   deleteOrder,
   createOrder,
-
 };
-
