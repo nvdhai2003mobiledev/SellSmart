@@ -1,6 +1,7 @@
 import { Api } from './api';
 import { ApiEndpoint } from './api-endpoint';
 import { rootStore } from '../../models/root-store';
+import { create } from 'apisauce';
 
 // Định nghĩa interface cho response
 interface ApiResponse<T> {
@@ -15,13 +16,22 @@ interface Product {
   _id: string;
   name: string;
   thumbnail?: string;
-  category: string;
+  category: string | {
+    _id: string;
+    name: string;
+  };
+  providerId: string | {
+    _id: string;
+    fullName: string;
+  };
   status: 'available' | 'unavailable';
-  price: number;
+  price?: number;
+  inventory?: number;
   variants?: Array<{
     price: number;
     inventory: number;
   }>;
+  detailsVariants?: Array<any>;
 }
 
 // Hàm lấy danh sách sản phẩm
@@ -29,64 +39,35 @@ export const fetchProducts = async () => {
   try {
     console.log('Đang lấy danh sách sản phẩm...');
 
-    // Sử dụng đường dẫn API chính xác từ ApiEndpoint
-    const response = await Api.get<ApiResponse<Product[]>>(ApiEndpoint.PRODUCTS);
+    // Tạo instance API mới không yêu cầu token
+    const publicApi = create({
+      baseURL: "http://10.0.2.2:3000",
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      }
+    });
+
+    // Sử dụng đường dẫn API chính xác từ ApiEndpoint mà không cần xác thực
+    const response = await publicApi.get<ApiResponse<Product[]>>(ApiEndpoint.PRODUCTS);
     console.log('Response từ API sản phẩm:', {
       status: response.status,
-      ok: response.ok,
-      data: response.data
+      ok: response.ok
     });
 
     if (response.ok && response.data?.success) {
-      console.log('Lấy sản phẩm thành công (format success):', response.data);
+      console.log('Lấy sản phẩm thành công (format success)');
       return response.data.data || [];
     } else if (response.ok && Array.isArray(response.data?.data)) {
       // API trả về theo format cũ
-      console.log('Lấy sản phẩm thành công (format array):', response.data);
+      console.log('Lấy sản phẩm thành công (format array)');
       return response.data.data || [];
     } else if (response.ok && response.data?.status === 'Ok') {
       // API trả về theo format status: 'Ok'
-      console.log('Lấy sản phẩm thành công (format Ok):', response.data);
+      console.log('Lấy sản phẩm thành công (format Ok)');
       return response.data.data || [];
     } else {
-      // Kiểm tra nếu là lỗi xác thực
-      if (response.status === 401) {
-        console.log('Phiên đăng nhập hết hạn, tiến hành refresh token...');
-        const authStore = rootStore.auth;
-        
-        // Thử refresh token
-        const refreshSuccess = await authStore.refreshAccessToken();
-        console.log('Kết quả refresh token:', refreshSuccess);
-        
-        if (refreshSuccess) {
-          // Thử lại request sau khi refresh token thành công
-          console.log('Thử lại request sau khi refresh token thành công');
-          const retryResponse = await Api.get<ApiResponse<Product[]>>(ApiEndpoint.PRODUCTS);
-          console.log('Kết quả retry:', {
-            status: retryResponse.status,
-            ok: retryResponse.ok,
-            data: retryResponse.data
-          });
-          
-          if (retryResponse.ok && retryResponse.data?.success) {
-            return retryResponse.data.data || [];
-          } else if (retryResponse.ok && Array.isArray(retryResponse.data?.data)) {
-            return retryResponse.data.data || [];
-          } else if (retryResponse.ok && retryResponse.data?.status === 'Ok') {
-            return retryResponse.data.data || [];
-          } else {
-            console.error('Vẫn không thể lấy sản phẩm sau khi refresh token:', retryResponse);
-            throw new Error('Không thể tải danh sách sản phẩm sau khi làm mới phiên đăng nhập');
-          }
-        } else {
-          // Nếu refresh token thất bại, clear auth và throw error
-          console.error('Refresh token thất bại, đăng xuất người dùng');
-          authStore.clearAuth();
-          throw new Error('Phiên đăng nhập hết hạn, vui lòng đăng nhập lại');
-        }
-      }
-      
-      console.error('Không thể lấy danh sách sản phẩm:', response.problem, response.data);
+      console.error('Không thể lấy danh sách sản phẩm:', response.problem);
       throw new Error(response.data?.message || 'Không thể lấy danh sách sản phẩm');
     }
   } catch (error) {

@@ -7,38 +7,26 @@ const { protect } = require("../middleware/auth");
 
 // 🚀 Routes cho Product (Sản phẩm)
 // Route tĩnh
-router.get("/", protect, productController.getProduct);
-router.get("/json", protect, productController.getProductAsJson);
-router.get("/getbienthe", productController.getVariantsPage);
-router.post("/create", productController.addProduct);
-router.put("/update/:productId", productController.updateProduct);
-router.delete("/delete/:productId", productController.deleteProduct);
-
-// Route động (đặt sau các route tĩnh)
-router.get("/:productId", productController.getProductById);
+router.get("/", protect, productController.getProduct); // Lấy danh sách sản phẩm (view)
+router.get("/json", productController.getProductAsJson); // Lấy danh sách sản phẩm (JSON) - đã bỏ protect
+router.post("/create", protect, productController.addProduct); // Tạo sản phẩm mới
+router.put("/update/:productId", protect, productController.updateProduct); // Cập nhật sản phẩm
+router.delete("/delete/:productId", protect, productController.deleteProduct); // Xóa sản phẩm
 
 // 🚀 Routes cho Variant (Biến thể)
-router.get("/getbienthejson", variantController.getVariantsAsJson);
-router.post("/getbienthe/create", variantController.addVariant);
-router.put("/getbienthe/update/:variantId", variantController.updateVariant);
-router.delete("/getbienthe/delete/:variantId", variantController.deleteVariant);
+router.get("/variants", protect, productController.getVariantsPage); // Trang biến thể (view)
+router.get("/variants/json", protect, variantController.getVariantsAsJson); // Lấy danh sách biến thể (JSON)
+router.post("/variants/create", protect, variantController.addVariant); // Tạo biến thể mới
+router.put("/variants/update/:variantId", protect, variantController.updateVariant); // Cập nhật biến thể
+router.delete("/variants/delete/:variantId", protect, variantController.deleteVariant); // Xóa biến thể
 
 // 🚀 Routes cho DetailsVariant (Chi tiết biến thể)
-router.get(
-  "/getdetailsvariant",
-  detailsVariantController.getAllDetailsVariants
-);
-router.get(
-  "/getdetailsvariant/:productId",
-  detailsVariantController.getDetailsByProduct
-);
-router.post(
-  "/getdetailsvariant/create",
-  detailsVariantController.addDetailsVariant
-);
-router.delete(
-  "/getdetailsvariant/delete/:detailsVariantId",
-  detailsVariantController.deleteDetailsVariant
-);
+router.get("/details-variants", protect, detailsVariantController.getAllDetailsVariants); // Lấy tất cả chi tiết biến thể
+router.get("/details-variants/:productId", protect, detailsVariantController.getDetailsByProduct); // Lấy chi tiết biến thể theo productId
+router.post("/details-variants/create", protect, detailsVariantController.addDetailsVariant); // Tạo chi tiết biến thể mới
+router.delete("/details-variants/delete/:detailsVariantId", protect, detailsVariantController.deleteDetailsVariant); // Xóa chi tiết biến thể
+
+// Route động (đặt sau các route tĩnh)
+router.get("/:productId", protect, productController.getProductById); // Lấy sản phẩm theo ID
 
 module.exports = router;

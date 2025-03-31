@@ -2,8 +2,13 @@ import { Dimensions } from 'react-native';
 
 const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
 
+
 export const designWidth = 768;  // Phù hợp iPad 9.7" hoặc tablet nhỏ
 export const designHeight = 1024;
+
+export const designWidth = 800;
+export const designHeight = 1200;
+
 
 const scaleWidth = (val: number) => {
   return (screenWidth * val) / designWidth;

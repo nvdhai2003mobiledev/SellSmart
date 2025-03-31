@@ -206,7 +206,7 @@ export const BottomNavigation = () => {
       })}>
       <BottomTab.Screen name={Screen.HOME} component={HomeScreen} />
       <BottomTab.Screen name={Screen.ORDER} component={OrderScreen} />
-      <BottomTab.Screen name={Screen.PRODUCT} component={ProductListScreen} />
+      <BottomTab.Screen name={Screen.PRODUCT} component={ProductScreen} />
       <BottomTab.Screen
         name={Screen.STATISTICAL}
         component={StatisticalScreen}

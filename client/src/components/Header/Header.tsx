@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   title: {
-    fontSize: scaledSize(20),
+    fontSize: scaledSize(30),
     fontFamily: Fonts.Inter_SemiBold,
   },
 });

@@ -10,6 +10,11 @@ router.get("/", protect, orderController.getAllOrders);
 router.put("/:id/status", orderController.updateOrderStatus);
 router.delete("/:id", orderController.deleteOrder);
 router.get("/create", protect, orderController.createOrderScreen);
-// router.get("/:id/detail", protect, orderController.getOrderDetail);
+router.get("/:id/detail", protect, orderController.getOrderDetail);
 
+
+
+// Thêm API endpoints dành cho mobile, bỏ middleware protect
+router.get("/orders", orderController.getOrdersJson); // API JSON cho mobile
+router.get("/mobile/list", orderController.getMobileOrdersList);
 module.exports = router;
