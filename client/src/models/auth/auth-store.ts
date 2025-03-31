@@ -116,7 +116,7 @@ export const AuthStore = types
           
           // Gọi trực tiếp API refresh token để tránh middleware
           const directApi = create({
-            baseURL: 'http://192.168.82.120:3000/',
+            baseURL: 'http://10.0.2.2:5000/', // Sử dụng địa chỉ dành cho máy ảo Android với port 5000
             headers: {'Content-Type': 'application/json'},
             timeout: 10000,
           });
@@ -163,13 +163,25 @@ export const AuthStore = types
             yield saveAuthToStorage(authData);
             return true;
           } else {
+            // Log chi tiết để debug response
             console.error('Không thể refresh token:', {
-              message: response.data?.message,
-              status: response.status
+              message: response.data?.message || 'Không có message',
+              status: response.status || 'Không có status',
+              problem: response.problem || 'Không có problem',
+              data: response.data || 'Không có data',
+              statusText: response.statusText || 'Không có statusText'
             });
+            
+            // Check trường hợp {status: null} hoặc connection issue
+            if (!response.status || response.problem === 'NETWORK_ERROR' || response.problem === 'TIMEOUT_ERROR') {
+              console.log('Lỗi kết nối mạng, giữ nguyên token hiện tại');
+              // Giữ nguyên token hiện tại nếu chỉ là lỗi mạng tạm thời
+              return false;
+            }
             
             // Nếu là lỗi 401 hoặc 403, đăng xuất
             if (response.status === 401 || response.status === 403) {
+              console.log('Token không hợp lệ (401/403), đăng xuất');
               self.clearAuth();
             }
             return false;
@@ -180,12 +192,40 @@ export const AuthStore = types
         }
       }),
 
-      updateAccessToken(token: string, expiryTime?: number) {
+      updateAccessToken: flow(function* (token: string, expiryTime?: number) {
+        if (!token) {
+          console.log('Không thể cập nhật token vì token rỗng');
+          return;
+        }
+        
         self.accessToken = token;
         if (expiryTime) {
           self.tokenExpiryTime = expiryTime;
+        } else if (self.expiresIn) {
+          // Nếu không có expiryTime, tính dựa trên expiresIn
+          self.tokenExpiryTime = Date.now() + (self.expiresIn * 1000);
         }
-      },
+        
+        console.log('Token được cập nhật:', {
+          tokenLength: token.length,
+          expiryTime: self.tokenExpiryTime ? new Date(self.tokenExpiryTime).toISOString() : null
+        });
+        
+        // Lưu vào storage để giữ lại giữa các session
+        try {
+          const authData = {
+            isAuthenticated: self.isAuthenticated,
+            user: self.user,
+            accessToken: token,
+            refreshToken: self.refreshToken,
+            expiresIn: self.expiresIn,
+            tokenExpiryTime: self.tokenExpiryTime,
+          };
+          yield saveAuthToStorage(authData);
+        } catch (error) {
+          console.error('Lỗi khi lưu token mới vào storage:', error);
+        }
+      }),
     };
   })
   .views((self) => ({

@@ -4,7 +4,12 @@ export const ApiEndpoint = {
   LOGOUT: '/logout',
   REFRESH_TOKEN: '/refresh-token',
   PRODUCTS: '/products/json',
-  CUSTOMERS: '/api/customers',
+  CUSTOMERS: '/customers', 
   EMPLOYEES: '/api/employees',
+
+  ORDERS: '/api/orders',
+  CUSTOMERS_PUBLIC : '/customers/json',
+
   ORDERS: '/orders',
+
 };
