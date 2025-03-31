@@ -1,28 +1,91 @@
 const mongoose = require("mongoose");
 const Customer = require("../models/Customer");
 
+// Hàm chung để kiểm tra dữ liệu đầu vào
+const validateCustomerInput = (data, requiredFields) => {
+  const { fullName, phoneNumber, email, address } = data;
+
+  const missingFields = requiredFields.filter(
+    (field) => !data[field] || data[field].trim() === ""
+  );
+  if (missingFields.length > 0) {
+    return {
+      isValid: false,
+      message: `Vui lòng cung cấp đầy đủ: ${missingFields.join(", ")}`,
+    };
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return { isValid: false, message: "Email không hợp lệ" };
+  }
+
+  const phoneRegex = /^(0[3|5|7|8|9])+([0-9]{8})$/;
+  if (!phoneRegex.test(phoneNumber)) {
+    return { isValid: false, message: "Số điện thoại không hợp lệ" };
+  }
+
+  if (fullName.trim().length < 3) {
+    return { isValid: false, message: "Họ tên phải có ít nhất 3 ký tự" };
+  }
+
+  return { isValid: true };
+};
+
+// Hàm kiểm tra khách hàng đã tồn tại
+const checkExistingCustomer = async (conditions) => {
+  return await Customer.findOne(conditions);
+};
+
+// Hàm xử lý ngày sinh
+const processBirthDate = (birthDate) => {
+  if (!birthDate || birthDate.trim() === "") return null;
+
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  const birthDateObj = new Date(birthDate);
+  const today = new Date();
+
+  if (!dateRegex.test(birthDate) || isNaN(birthDateObj.getTime())) {
+    throw new Error("Ngày sinh không hợp lệ! Định dạng: YYYY-MM-DD");
+  }
+  if (birthDateObj > today) {
+    throw new Error("Ngày sinh không được lớn hơn ngày hiện tại!");
+  }
+  return birthDateObj;
+};
+
+// Hàm kiểm tra ObjectId
+const isValidObjectId = (id, res) => {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    res.status(400).json({ message: "ID khách hàng không hợp lệ!" });
+    return false;
+  }
+  return true;
+};
+
+// Hàm xử lý lỗi
+const handleError = (res, error, message) => {
+  console.error(`${message}:`, error);
+  res.status(500).json({ message, error: error.message });
+};
+
 // 🟢 Hiển thị danh sách khách hàng (render EJS)
 const getCustomers = async (req, res) => {
   try {
     const customers = await Customer.find();
     res.render("dashboard/customers", { customers, page: "customers" });
-    // res.json(customers);
   } catch (error) {
-    console.error("Lỗi lấy danh sách khách hàng:", error);
-    res.status(500).send("Lỗi server!");
+    handleError(res, error, "Lỗi lấy danh sách khách hàng");
   }
 };
 
 // 🟢 Lấy danh sách khách hàng dưới dạng JSON
 const getCustomerAsJson = async (req, res) => {
   try {
-    const customers = await Customer.find().select(
-      "-password -confirmPassword",
-    );
+    const customers = await Customer.find().select("-password -confirmPassword");
     res.json(customers);
   } catch (error) {
-    console.error("Lỗi lấy danh sách khách hàng:", error);
-    res.status(500).json({ message: "Lỗi khi lấy danh sách khách hàng!" });
+    handleError(res, error, "Lỗi lấy danh sách khách hàng");
   }
 };
 
@@ -30,10 +93,7 @@ const getCustomerAsJson = async (req, res) => {
 const getCustomerById = async (req, res) => {
   try {
     const { customerId } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(customerId)) {
-      return res.status(400).json({ message: "ID khách hàng không hợp lệ!" });
-    }
+    if (!isValidObjectId(customerId, res)) return;
 
     const customer = await Customer.findById(customerId);
     if (!customer) {
@@ -42,90 +102,47 @@ const getCustomerById = async (req, res) => {
 
     res.json(customer);
   } catch (error) {
-    console.error("Lỗi lấy khách hàng:", error);
-    res.status(500).json({ message: "Lỗi server!" });
+    handleError(res, error, "Lỗi lấy khách hàng");
   }
 };
-// Endpoint để thêm khách hàng mới từ trang tạo đơn hàng
+
+// 🟢 Thêm khách hàng từ trang tạo đơn hàng
 const createCustomerFromOrder = async (req, res) => {
   try {
     const { fullName, phoneNumber, email, address } = req.body;
 
-    // Kiểm tra dữ liệu đầu vào
-    if (!fullName || !phoneNumber || !email || !address) {
-      return res.status(400).json({
-        success: false,
-        message: "Vui lòng cung cấp đầy đủ thông tin khách hàng"
-      });
+    const validation = validateCustomerInput(req.body, [
+      "fullName",
+      "phoneNumber",
+      "email",
+      "address",
+    ]);
+    if (!validation.isValid) {
+      return res.status(400).json({ success: false, message: validation.message });
     }
 
-    // Kiểm tra email hợp lệ
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({
-        success: false,
-        message: "Email không hợp lệ"
-      });
-    }
-
-    // Kiểm tra số điện thoại hợp lệ
-    const phoneRegex = /^(0[3|5|7|8|9])+([0-9]{8})$/;
-    if (!phoneRegex.test(phoneNumber)) {
-      return res.status(400).json({
-        success: false,
-        message: "Số điện thoại không hợp lệ"
-      });
-    }
-
-    // Kiểm tra khách hàng đã tồn tại chưa (theo email hoặc số điện thoại)
-    const existingCustomer = await Customer.findOne({
-      $or: [
-        { email: email },
-        { phoneNumber: phoneNumber }
-      ]
+    const existingCustomer = await checkExistingCustomer({
+      $or: [{ email }, { phoneNumber }],
     });
-
     if (existingCustomer) {
       return res.status(400).json({
         success: false,
-        message: "Email hoặc số điện thoại đã tồn tại trong hệ thống"
+        message: "Email hoặc số điện thoại đã tồn tại",
       });
     }
 
-    // Tạo khách hàng mới
-    const newCustomer = new Customer({
-      fullName,
-      phoneNumber,
-      email,
-      address
-    });
-
-    // Lưu khách hàng vào cơ sở dữ liệu
+    const newCustomer = new Customer({ fullName, phoneNumber, email, address });
     await newCustomer.save();
 
-    // Trả về thông tin khách hàng mới
-    // res.status(201).json({
-    //   success: true,
-    //   message: "Thêm khách hàng thành công",
-    //   customer: newCustomer
-    // });
-    return res.redirect('/customers');
+    res.redirect("/customers");
   } catch (error) {
-    console.error("Lỗi khi thêm khách hàng:", error);
-    
-    // Xử lý lỗi duplicate key
     if (error.code === 11000) {
       return res.status(400).json({
         success: false,
-        message: "Email hoặc số điện thoại đã tồn tại"
+        message: "Email hoặc số điện thoại đã tồn tại",
       });
     }
-
-    res.status(500).json({
-      success: false,
-      message: "Lỗi server khi thêm khách hàng",
-      error: error.message
-    });
+    handleError(res, error, "Lỗi khi thêm khách hàng");
   }
 };
 
@@ -134,204 +151,140 @@ const addCustomer = async (req, res) => {
   try {
     const { fullName, phoneNumber, email, birthDate, address, avatar } = req.body;
 
-    // Kiểm tra nếu thiếu thông tin
-    if (!fullName || !phoneNumber || !email) {
-      return res
-        .status(400)
-        .json({ message: "Vui lòng nhập đầy đủ họ tên, số điện thoại và email!" });
+    const validation = validateCustomerInput(req.body, [
+      "fullName",
+      "phoneNumber",
+      "email",
+    ]);
+    if (!validation.isValid) {
+      return res.status(400).json({ message: validation.message });
     }
 
-    // Kiểm tra email đã tồn tại trong database chưa
-    const existingCustomer = await Customer.findOne({ email: email });
+    const existingCustomer = await checkExistingCustomer({ email });
     if (existingCustomer) {
-      return res
-        .status(400)
-        .json({ message: "Email đã tồn tại! Vui lòng nhập email khác." });
+      return res.status(400).json({ message: "Email đã tồn tại" });
     }
 
     let processedBirthDate = null;
-    if (birthDate && birthDate.trim() !== '') {
-        processedBirthDate = new Date(birthDate);
-        if (isNaN(processedBirthDate.getTime())) {
-            processedBirthDate = null; // Nếu ngày không hợp lệ, gán null
-        }
+    try {
+      processedBirthDate = processBirthDate(birthDate);
+    } catch (error) {
+      return res.status(400).json({ message: error.message });
     }
 
-    // Tạo khách hàng mới
+    if (avatar && avatar.trim() !== "") {
+      const urlRegex = /^(https?:\/\/.*\.(?:png|jpg|jpeg|gif|webp))$/i;
+      if (!urlRegex.test(avatar)) {
+        return res.status(400).json({
+          message: "Avatar phải là URL hợp lệ (png, jpg, jpeg, gif, webp)!",
+        });
+      }
+    }
+
     const newCustomer = new Customer({
       fullName,
       phoneNumber,
       email,
       birthDate: processedBirthDate,
-      address: address || '', // Mặc định là chuỗi rỗng nếu không có address
+      address: address || "",
       avatar,
     });
-
     await newCustomer.save();
 
-    // Trả về thành công với định dạng JSON cho API
     return res.status(201).json({
       success: true,
       message: "Thêm khách hàng thành công!",
-      customer: newCustomer
+      customer: newCustomer,
     });
-    
   } catch (error) {
-    console.error("Lỗi khi thêm khách hàng:", error); // Log lỗi chi tiết
-    return res
-      .status(500)
-      .json({ message: "Lỗi khi thêm khách hàng!", error: error.message });
+    handleError(res, error, "Lỗi khi thêm khách hàng");
   }
 };
 
 // 🟢 API cập nhật khách hàng
 const updateCustomer = async (req, res) => {
   try {
-      const { customerId } = req.params;
-      const { fullName, phoneNumber, email, address, birthDate, avatar } = req.body;
+    const { customerId } = req.params;
+    const { fullName, phoneNumber, email, address, birthDate, avatar } = req.body;
 
-      // Log thông tin request để debug
-      console.log("Request Params:", req.params);
-      console.log("Request Body:", req.body);
+    if (!isValidObjectId(customerId, res)) return;
 
-      // Kiểm tra ID có hợp lệ không
-      if (!mongoose.Types.ObjectId.isValid(customerId)) {
-          return res.status(400).json({ 
-              message: "ID khách hàng không hợp lệ!" 
-          });
-      }
+    const validation = validateCustomerInput(req.body, [
+      "fullName",
+      "phoneNumber",
+      "email",
+    ]);
+    if (!validation.isValid) {
+      return res.status(400).json({ message: validation.message });
+    }
 
-      // Validate dữ liệu bắt buộc
-      if (!fullName || !phoneNumber || !email) {
-          return res.status(400).json({ 
-              message: "Vui lòng điền đầy đủ họ tên, số điện thoại và email!" 
-          });
-      }
-
-      // Validate độ dài và định dạng
-      if (fullName.trim().length < 3) {
-          return res.status(400).json({ 
-              message: "Họ tên phải có ít nhất 3 ký tự!" 
-          });
-      }
-
-      const phoneRegex = /^[0-9]{10}$/;
-      if (!phoneRegex.test(phoneNumber)) {
-          return res.status(400).json({ 
-              message: "Số điện thoại không hợp lệ! Phải có đúng 10 chữ số." 
-          });
-      }
-
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-          return res.status(400).json({ 
-              message: "Email không hợp lệ!" 
-          });
-      }
-
-      // Xử lý ngày sinh
-      let processedBirthDate = null;
-      if (birthDate && birthDate.trim() !== '') {
-          const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-          const birthDateObj = new Date(birthDate);
-          const today = new Date();
-
-          if (!dateRegex.test(birthDate)) {
-              return res.status(400).json({ 
-                  message: "Ngày sinh không hợp lệ! Định dạng: YYYY-MM-DD" 
-              });
-          }
-
-          if (birthDateObj > today) {
-              return res.status(400).json({ 
-                  message: "Ngày sinh không được lớn hơn ngày hiện tại!" 
-              });
-          }
-
-          processedBirthDate = birthDateObj;
-      }
-
-      // Validate avatar
-      if (avatar && avatar.trim() !== '') {
-          const urlRegex = /^(https?:\/\/.*\.(?:png|jpg|jpeg|gif|webp))$/i;
-          if (!urlRegex.test(avatar)) {
-              return res.status(400).json({ 
-                  message: "Avatar phải là URL hợp lệ (png, jpg, jpeg, gif, webp)!" 
-              });
-          }
-      }
-
-      // Kiểm tra email trùng
-      const existingCustomerWithEmail = await Customer.findOne({ 
-          email, 
-          _id: { $ne: customerId } 
+    if (address && address.trim().length < 5) {
+      return res.status(400).json({
+        message: "Địa chỉ phải có ít nhất 5 ký tự!",
       });
+    }
 
-      if (existingCustomerWithEmail) {
-          return res.status(400).json({ 
-              message: "Email đã tồn tại cho một khách hàng khác!" 
-          });
+    let processedBirthDate = null;
+    try {
+      processedBirthDate = processBirthDate(birthDate);
+    } catch (error) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    if (avatar && avatar.trim() !== "") {
+      const urlRegex = /^(https?:\/\/.*\.(?:png|jpg|jpeg|gif|webp))$/i;
+      if (!urlRegex.test(avatar)) {
+        return res.status(400).json({
+          message: "Avatar phải là URL hợp lệ (png, jpg, jpeg, gif, webp)!",
+        });
       }
+    }
 
-      // Chuẩn bị dữ liệu cập nhật
-      const updateData = { 
-          fullName, 
-          phoneNumber, 
-          email, 
-          ...(address && { address }), // Chỉ cập nhật address nếu được cung cấp
-          ...(processedBirthDate && { birthDate: processedBirthDate }),
-          ...(avatar && { avatar })
-      };
-
-      // Cập nhật khách hàng
-      const updatedCustomer = await Customer.findByIdAndUpdate(
-          customerId,
-          updateData,
-          { 
-              new: true,     // Trả về bản ghi mới 
-              runValidators: true // Chạy validation 
-          }
-      );
-
-      // Kiểm tra kết quả cập nhật
-      if (!updatedCustomer) {
-          return res.status(404).json({ 
-              message: "Không tìm thấy khách hàng!" 
-          });
-      }
-
-      // Log thông tin khách hàng sau khi cập nhật
-      console.log("Khách hàng sau cập nhật:", updatedCustomer);
-
-      // Trả về kết quả
-      return res.status(200).json({
-          message: "Cập nhật khách hàng thành công!",
-          customer: updatedCustomer
+    const existingCustomerWithEmail = await checkExistingCustomer({
+      email,
+      _id: { $ne: customerId },
+    });
+    if (existingCustomerWithEmail) {
+      return res.status(400).json({
+        message: "Email đã tồn tại cho một khách hàng khác!",
       });
+    }
 
+    const updateData = {
+      fullName,
+      phoneNumber,
+      email,
+      ...(address && { address }),
+      ...(processedBirthDate && { birthDate: processedBirthDate }),
+      ...(avatar && { avatar }),
+    };
+
+    const updatedCustomer = await Customer.findByIdAndUpdate(customerId, updateData, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!updatedCustomer) {
+      return res.status(404).json({ message: "Không tìm thấy khách hàng!" });
+    }
+
+    return res.status(200).json({
+      message: "Cập nhật khách hàng thành công!",
+      customer: updatedCustomer,
+    });
   } catch (error) {
-      // Log lỗi chi tiết
-      console.error("Lỗi chi tiết khi cập nhật khách hàng:", error);
-
-      // Xử lý các lỗi cụ thể
-      if (error.name === 'ValidationError') {
-          return res.status(400).json({
-              message: "Lỗi xác thực dữ liệu",
-              errors: Object.values(error.errors).map(err => err.message)
-          });
-      }
-
-      if (error.code === 11000) {
-          return res.status(400).json({ 
-              message: "Email hoặc số điện thoại đã tồn tại!" 
-          });
-      }
-
-      // Lỗi chung
-      return res.status(500).json({ 
-          message: "Có lỗi xảy ra khi cập nhật khách hàng",
-          error: error.message 
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        message: "Lỗi xác thực dữ liệu",
+        errors: Object.values(error.errors).map((err) => err.message),
       });
+    }
+    if (error.code === 11000) {
+      return res.status(400).json({
+        message: "Email hoặc số điện thoại đã tồn tại!",
+      });
+    }
+    handleError(res, error, "Lỗi khi cập nhật khách hàng");
   }
 };
 
@@ -339,63 +292,35 @@ const updateCustomer = async (req, res) => {
 const deleteCustomer = async (req, res) => {
   try {
     const { customerId } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(customerId)) {
-      return res.status(400).json({ message: "ID khách hàng không hợp lệ!" });
-    }
+    if (!isValidObjectId(customerId, res)) return;
 
     const deletedCustomer = await Customer.findByIdAndDelete(customerId);
     if (!deletedCustomer) {
       return res.status(404).json({ message: "Không tìm thấy khách hàng!" });
     }
 
-    console.log("Đã xóa khách hàng:", deletedCustomer);
     return res.json({ success: true, message: "Xóa thành công!" });
-    
-    // Xóa hoặc comment hai dòng dưới đây
-    // const customers = await Customer.find();
-    // res.render("customers", { customers });
   } catch (error) {
-    console.error("Lỗi xóa khách hàng:", error);
-    return res.status(500).json({ message: "Lỗi khi xóa khách hàng!" });
+    handleError(res, error, "Lỗi khi xóa khách hàng");
   }
 };
 
-
-
-
+// 🟢 Tìm kiếm khách hàng theo số điện thoại
 const searchCustomerByPhone = async (req, res) => {
   const { phoneNumber } = req.query;
 
   try {
-    // Kiểm tra nếu không có số điện thoại
-    if (!phoneNumber || phoneNumber.trim() === '') {
-      return res.status(200).json({ 
-        success: true,
-        customers: [] 
-      });
+    if (!phoneNumber || phoneNumber.trim() === "") {
+      return res.status(200).json({ success: true, customers: [] });
     }
 
-    // Tìm kiếm khách hàng có số điện thoại chứa chuỗi tìm kiếm (không phân biệt hoa thường)
-    const customers = await Customer.find({ 
-      phoneNumber: { $regex: phoneNumber, $options: 'i' } 
-    }).select('-password -confirmPassword');
+    const customers = await Customer.find({
+      phoneNumber: { $regex: phoneNumber, $options: "i" },
+    }).select("-password -confirmPassword");
 
-    // Log kết quả tìm kiếm
-    console.log(`Tìm thấy ${customers.length} khách hàng với số điện thoại ${phoneNumber}`);
-
-    // Trả về kết quả
-    res.status(200).json({ 
-      success: true,
-      customers 
-    });
+    res.status(200).json({ success: true, customers });
   } catch (error) {
-    console.error('❌ Lỗi khi tìm kiếm khách hàng:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Lỗi server khi tìm kiếm khách hàng',
-      error: error.message
-    });
+    handleError(res, error, "Lỗi khi tìm kiếm khách hàng");
   }
 };
 
@@ -408,5 +333,5 @@ module.exports = {
   updateCustomer,
   deleteCustomer,
   searchCustomerByPhone,
-  createCustomerFromOrder
+  createCustomerFromOrder,
 };
