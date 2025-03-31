@@ -3,7 +3,6 @@ const Customer = require("../models/Customer");
 const Product = require("../models/Product");
 const Employee = require("../models/Employee");
 const mongoose = require("mongoose");
-const Promotion = require("../models/Promotion");
 
 // Lấy tất cả đơn hàng
 const getAllOrders = async () => {
@@ -17,10 +16,7 @@ const getAllOrders = async () => {
       .populate({
         path: "products.productID",
         model: "Product",
-
-        select: "name price inventory thumbnail attributes",
-
-
+        select: "name price stockQuantity thumbnail attributes",
       })
       .populate({
         path: "employeeID",
@@ -50,7 +46,7 @@ const getOrderById = async (orderId) => {
       })
       .populate({
         path: "products.productID",
-        select: "name price inventory thumbnail attributes",
+        select: "name price stockQuantity thumbnail attributes",
       })
       .populate({
         path: "employeeID",
@@ -140,70 +136,18 @@ const createOrder = async (orderData) => {
 
     const validatedProducts = await Promise.all(productPromises);
 
-    // Calculate total amount from products
-    const calculatedTotal = validatedProducts.reduce(
-      (sum, product) => sum + product.price * product.quantity,
-      0
-    );
-
-    // Create order object with original amount
-    const orderObj = {
+    // Tạo đơn hàng mới
+    const newOrder = new Order({
       customerID: customer._id,
       products: validatedProducts,
-      originalAmount: calculatedTotal, // Store original amount before any discounts
-      totalAmount: orderData.totalAmount, // This may include discount
+      totalAmount: orderData.totalAmount,
       status: "pending",
       paymentMethod: orderData.paymentMethod,
       paymentStatus: "paid",
       shippingAddress: orderData.shippingAddress,
       employeeID: orderData.employeeID || null,
       notes: orderData.notes || "",
-    };
-
-    // Handle promotion if provided
-    if (orderData.promotionID && mongoose.Types.ObjectId.isValid(orderData.promotionID)) {
-      const promotion = await Promotion.findById(orderData.promotionID);
-      
-      if (promotion) {
-        // Check if promotion is active and valid date range
-        const currentDate = new Date();
-        const startDate = new Date(promotion.startDate);
-        const endDate = new Date(promotion.endDate);
-        endDate.setHours(23, 59, 59, 999); // Include end date fully
-        
-        if ((currentDate >= startDate && currentDate <= endDate) && 
-            promotion.status === 'active' && 
-            calculatedTotal >= promotion.minOrderValue) {
-          
-          // Calculate discount amount
-          let discountAmount = (calculatedTotal * promotion.discount) / 100;
-          
-          // Cap at maximum discount
-          if (discountAmount > promotion.maxDiscount) {
-            discountAmount = promotion.maxDiscount;
-          }
-          
-          // Store promotion details
-          orderObj.promotionID = promotion._id;
-          orderObj.promotionDetails = {
-            name: promotion.name,
-            discount: promotion.discount,
-            discountAmount: discountAmount
-          };
-          
-          // Verify if the provided totalAmount matches our calculated discounted amount
-          const calculatedDiscountedTotal = calculatedTotal - discountAmount;
-          
-          // If there's a significant difference, use our calculated value
-          if (Math.abs(calculatedDiscountedTotal - orderData.totalAmount) > 1) {
-            orderObj.totalAmount = calculatedDiscountedTotal;
-          }
-        }
-      }
-    }
-
-    // Tạo đơn hàng mới
-    const newOrder = new Order(orderObj);
+    });
 
     await newOrder.save();
     return newOrder;
