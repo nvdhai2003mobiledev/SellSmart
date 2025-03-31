@@ -8,4 +8,5 @@ export enum Images {
   LOGO_TEXT = require('./logo-text.png'),
   AVATAR_BYEWIND = require('./avatar-byewind.png'),
   SHOP = require('./shop.png'),
+  EDIT_BUTTON = require('./edit.png'),
 }

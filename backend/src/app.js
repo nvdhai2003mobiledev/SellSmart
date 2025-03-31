@@ -8,6 +8,7 @@ const cookieParser = require("cookie-parser");
 const methodOverride = require("method-override");
 const flash = require("connect-flash");
 const session = require("express-session");
+const cors = require("cors");
 
 const routes = require("./routes");
 const apiRoutes = require("./routes/api"); // Import API routes
@@ -20,6 +21,13 @@ connectDB();
 
 // Khởi tạo ứng dụng
 const app = express();
+
+// Cấu hình CORS
+app.use(cors({
+  origin: '*', // Cho phép tất cả các nguồn gốc truy cập API
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 // Cấu hình EJS làm view engine
 app.set("views", path.join(__dirname, "views"));
@@ -67,10 +75,36 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: "Lỗi máy chủ nội bộ!" });
 });
 
-// Lắng nghe cổng
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server is running on http://localhost:${PORT}`);
-});
+// Lắng nghe cổng với xử lý lỗi port đã được sử dụng
+const PORT = process.env.PORT || 5000;
+const alternativePorts = [3000, 8000, 8080];
+let currentPortIndex = 0;
+
+function startServer(port) {
+  const server = app.listen(port)
+    .on('listening', () => {
+      console.log(`🚀 Server is running on http://localhost:${port}`);
+    })
+    .on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        console.log(`⚠️ Port ${port} is already in use.`);
+        
+        // Try alternative ports
+        if (currentPortIndex < alternativePorts.length) {
+          const nextPort = alternativePorts[currentPortIndex++];
+          console.log(`⚠️ Trying alternative port ${nextPort}...`);
+          startServer(nextPort);
+        } else {
+          console.error('❌ All ports are in use. Cannot start the server!');
+          process.exit(1);
+        }
+      } else {
+        console.error('❌ Server error:', err);
+        process.exit(1);
+      }
+    });
+}
+
+startServer(PORT);
 
 module.exports = app;

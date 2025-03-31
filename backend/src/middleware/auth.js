@@ -2,17 +2,37 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
 const protect = async (req, res, next) => {
-  const token = req.cookies.token;
-  const refreshToken = req.cookies.refreshToken;
+  let token;
 
+  // Kiểm tra token từ cookie (web) hoặc header Authorization (mobile app)
+  if (req.cookies && req.cookies.token) {
+    token = req.cookies.token;
+  } else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    // Lấy token từ header Authorization: Bearer TOKEN
+    token = req.headers.authorization.split(' ')[1];
+  }
+
+  const refreshToken = req.cookies?.refreshToken;
+
+  // Nếu không có token
   if (!token) {
-    if (!refreshToken) {
-      return res.status(401).render("auth/login", {
-        title: "Đăng nhập",
-        error: "Bạn cần đăng nhập để truy cập trang này",
+    // Kiểm tra API request (từ app mobile)
+    if (req.originalUrl.startsWith('/api/')) {
+      return res.status(401).json({ 
+        message: "Bạn không có quyền thực hiện chức năng này. Vui lòng đăng nhập lại." 
       });
     }
-    return verifyRefreshToken(req, res, next);
+
+    // Nếu có refreshToken, thử dùng refreshToken
+    if (refreshToken) {
+      return verifyRefreshToken(req, res, next);
+    }
+
+    // Đối với web request
+    return res.status(401).render("auth/login", {
+      title: "Đăng nhập",
+      error: "Bạn cần đăng nhập để truy cập trang này",
+    });
   }
 
   try {
@@ -24,6 +44,13 @@ const protect = async (req, res, next) => {
     );
 
     if (!user) {
+      // Xử lý response dựa vào loại request
+      if (req.originalUrl.startsWith('/api/')) {
+        return res.status(401).json({ 
+          message: "Tài khoản không tồn tại" 
+        });
+      }
+      
       res.clearCookie("token");
       return res.status(401).render("auth/login", {
         title: "Đăng nhập",
@@ -31,7 +58,8 @@ const protect = async (req, res, next) => {
       });
     }
 
-    if (user.role !== "admin") {
+    // Kiểm tra role, bỏ qua kiểm tra role cho API requests từ mobile app
+    if (user.role !== "admin" && !req.originalUrl.startsWith('/api/')) {
       return res.status(403).render("auth/login", {
         title: "Đăng nhập",
         error: "Chỉ admin mới được truy cập",
@@ -42,9 +70,18 @@ const protect = async (req, res, next) => {
     res.locals.admin = user; // Gửi thông tin đến EJS để dùng trong template
     next();
   } catch (error) {
+    console.error("Lỗi xác thực:", error.message);
+    
+    if (req.originalUrl.startsWith('/api/')) {
+      return res.status(401).json({ 
+        message: "Phiên đăng nhập không hợp lệ hoặc đã hết hạn" 
+      });
+    }
+    
     if (refreshToken) {
       return verifyRefreshToken(req, res, next);
     }
+    
     res.clearCookie("token").status(401).render("auth/login", {
       title: "Đăng nhập",
       error: "Phiên đăng nhập không hợp lệ hoặc đã hết hạn",
