@@ -6,6 +6,7 @@ const Product = require("../models/Product");
 const Variant = require("../models/Variant");
 const DetailsVariant = require("../models/DetailsVariant");
 const TypeProduct = require("../models/TypeProduct");
+const Warranty = require("../models/Warranty");
 
 // Lấy danh sách sản phẩm
 const getProduct = async (req, res) => {
@@ -20,6 +21,16 @@ const getProduct = async (req, res) => {
             .populate("detailsVariants")
             .lean();
 
+        // Lấy thông tin bảo hành cho mỗi sản phẩm
+        for (let product of products) {
+            const warranty = await Warranty.findOne({ product: product._id })
+                .sort({ createdAt: -1 })
+                .lean();
+            if (warranty) {
+                product.warrantyPeriod = warranty.warrantyPeriod;
+            }
+        }
+
         console.log(`Tìm thấy ${products.length} sản phẩm`);
 
         if (req.path.includes("/json") || req.headers.accept === "application/json") {
@@ -31,6 +42,14 @@ const getProduct = async (req, res) => {
         res.render("dashboard/products", {
             products,
             page: "products",
+            admin: {
+                fullName: req.user?.fullName || 'Admin',
+                avatar: req.user?.avatar || null
+            },
+            user: {
+                fullName: req.user?.fullName || 'Admin',
+                avatar: req.user?.avatar || null
+            }
         });
     } catch (error) {
         console.error("Lỗi khi lấy danh sách sản phẩm:", {
@@ -203,7 +222,7 @@ const addProduct = async (req, res) => {
             file: req.file,
         });
 
-        const { name, category, providerId, status, variantDetails, price, inventory } = req.body;
+        const { name, category, providerId, status, variantDetails, price, inventory, warrantyPeriod } = req.body;
 
         if (!name || !category || !providerId) {
             console.warn("Dữ liệu đầu vào không hợp lệ", { name, category, providerId });
@@ -374,6 +393,15 @@ const addProduct = async (req, res) => {
 
         const savedProduct = await newProduct.save();
 
+        // Tạo bảo hành mới cho sản phẩm
+        const newWarranty = new Warranty({
+            product: savedProduct._id,
+            status: 'Chờ kích hoạt',
+            warrantyPeriod: warrantyPeriod || 12 // Mặc định 12 tháng nếu không được chỉ định
+        });
+
+        await newWarranty.save();
+
         if (hasVariants) {
             const detailsVariants = await DetailsVariant.insertMany(
                 parsedVariantDetails.map((detail) => ({
@@ -387,19 +415,24 @@ const addProduct = async (req, res) => {
             await savedProduct.save();
         }
 
-        console.log("Sản phẩm đã được thêm thành công", {
+        console.log("Sản phẩm và bảo hành đã được thêm thành công", {
             productId: savedProduct._id,
             productName: savedProduct.name,
-            variantsCount: parsedVariantDetails.length
+            variantsCount: parsedVariantDetails.length,
+            warrantyId: newWarranty._id,
+            warrantyPeriod: newWarranty.warrantyPeriod
         });
 
         res.status(201).json({
             status: "Ok",
-            message: "Sản phẩm đã được thêm thành công",
-            data: savedProduct,
+            message: "Sản phẩm và bảo hành đã được thêm thành công",
+            data: {
+                product: savedProduct,
+                warranty: newWarranty
+            },
         });
     } catch (error) {
-        console.error("Lỗi khi thêm sản phẩm:", {
+        console.error("Lỗi khi thêm sản phẩm và bảo hành:", {
             body: req.body,
             file: req.file,
             errorMessage: error.message,
@@ -407,7 +440,7 @@ const addProduct = async (req, res) => {
         });
         res.status(500).json({
             status: "Error",
-            message: "Lỗi khi thêm sản phẩm: " + error.message,
+            message: "Lỗi khi thêm sản phẩm và bảo hành: " + error.message,
         });
     }
 };
