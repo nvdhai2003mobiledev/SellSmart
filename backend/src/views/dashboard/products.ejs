@@ -21,19 +21,18 @@
                                 <th class="fw-bold text-dark">Hình ảnh</th>
                                 <th class="fw-bold text-dark">Danh mục</th>
                                 <th class="fw-bold text-dark text-center">Trạng thái</th>
-                                <th class="fw-bold text-dark">Giá</th>
+                                <th class="fw-bold text-dark">Giá (VNĐ)</th>
                                 <th class="fw-bold text-dark">Tồn kho</th>
                                 <th class="fw-bold text-dark">Nhà cung cấp</th>
                                 <th class="fw-bold text-dark">Bảo hành</th>
                                 <th class="fw-bold text-dark">Biến thể</th>
-                                <th class="fw-bold text-dark">Hành động</th>
                             </tr>
                         </thead>
                         <tbody>
                             <% products.forEach(product => { %>
                                 <% if (product._id) { %>
-                                    <tr id="product-row-<%= product._id %>">
-                                        <td style="cursor: pointer;" onclick="showProductDetails('<%= product._id %>')">
+                                    <tr id="product-row-<%= product._id %>" style="cursor: pointer;" onclick="showProductDetails('<%= product._id %>')">
+                                        <td>
                                             <%= product.name || 'N/A' %>
                                         </td>
                                         <td>
@@ -52,19 +51,40 @@
                                         </td>
                                         <td>
                                             <% if (product.hasVariants && product.detailsVariants?.length > 0) { %>
-                                                <%= product.detailsVariants[0].price?.toLocaleString() || 'N/A' %> VNĐ
-                                                <% if (product.detailsVariants.length > 1) { %>
-                                                    <span class="text-muted">(+<%= product.detailsVariants.length - 1 %> biến thể khác)</span>
+                                                <% 
+                                                    const prices = product.detailsVariants.map(v => v.price).filter(p => p !== undefined);
+                                                    const minPrice = Math.min(...prices);
+                                                    const maxPrice = Math.max(...prices);
+                                                %>
+                                                <% if (minPrice === maxPrice) { %>
+                                                    <span class="text-success fw-bold"><%= minPrice.toLocaleString() %></span>
+                                                <% } else { %>
+                                                    <span class="text-success fw-bold"><%= minPrice.toLocaleString() %></span>
+                                                    <i class="fas fa-arrow-right mx-1"></i>
+                                                    <span class="text-danger fw-bold"><%= maxPrice.toLocaleString() %></span>
                                                 <% } %>
                                             <% } else { %>
-                                                <%= product.price?.toLocaleString() || 'N/A' %> VNĐ
+                                                <span class="text-success fw-bold"><%= product.price?.toLocaleString() || 'N/A' %></span>
                                             <% } %>
                                         </td>
                                         <td>
                                             <% if (product.hasVariants && product.detailsVariants?.length > 0) { %>
-                                                <%= product.detailsVariants[0].inventory ?? 'N/A' %>
+                                                <% 
+                                                    const inventories = product.detailsVariants.map(v => v.inventory).filter(i => i !== undefined);
+                                                    const totalInventory = inventories.reduce((sum, curr) => sum + curr, 0);
+                                                    const minInventory = Math.min(...inventories);
+                                                    const maxInventory = Math.max(...inventories);
+                                                %>
+                                                <span class="fw-bold"><%= totalInventory %></span>
+                                                <br>
+                                                <small>
+                                                    (<span class="text-success fw-bold"><%= minInventory %></span>
+                                                    <i class="fas fa-arrow-right mx-1"></i>
+                                                    <span class="text-danger fw-bold"><%= maxInventory %></span>
+                                                    / biến thể)
+                                                </small>
                                             <% } else { %>
-                                                <%= product.inventory ?? 'N/A' %>
+                                                <span class="fw-bold"><%= product.inventory ?? 'N/A' %></span>
                                             <% } %>
                                         </td>
                                         <td><%= product.providerId?.fullName || 'Chưa có' %></td>
@@ -82,16 +102,6 @@
                                             <% } else { %>
                                                 <span class="text-muted">Không có biến thể</span>
                                             <% } %>
-                                        </td>
-                                        <td>
-                                            <button class="btn btn-warning btn-sm me-2 shadow-sm" 
-                                                    onclick="event.stopPropagation(); editProduct('<%= product._id %>')">
-                                                <i class="fas fa-edit"></i> Sửa
-                                            </button>
-                                            <button class="btn btn-danger btn-sm shadow-sm" 
-                                                    onclick="event.stopPropagation(); deleteProduct('<%= product._id %>')">
-                                                <i class="fas fa-trash-alt"></i> Xóa
-                                            </button>
                                         </td>
                                     </tr>
                                 <% } %>
@@ -461,7 +471,11 @@
         }
         const url = `/products/variants?typeProductId=${typeProductId}`;
         console.log('Mở trang biến thể với URL:', url);
-        window.open(url, 'VariantsWindow', 'width=800,height=600');
+        const width = Math.min(1200, window.screen.width * 0.9);
+        const height = Math.min(800, window.screen.height * 0.9);
+        const left = (window.screen.width - width) / 2;
+        const top = (window.screen.height - height) / 2;
+        window.open(url, 'VariantsWindow', `width=${width},height=${height},left=${left},top=${top}`);
     }
 
     // Hiển thị chi tiết sản phẩm
@@ -743,28 +757,4 @@
             $('#variantPriceModal').modal('show');
         }
     });
-
-    // Xóa sản phẩm
-    function deleteProduct(productId) {
-        if (!/^[0-9a-fA-F]{24}$/.test(productId)) {
-            showToast('error', 'ID sản phẩm không hợp lệ!');
-            return;
-        }
-        if (confirm('Bạn có chắc chắn muốn xóa sản phẩm này không?')) {
-            console.log('Gửi yêu cầu xóa sản phẩm:', productId);
-            $.ajax({
-                url: `/products/delete/${productId}`,
-                type: 'DELETE',
-                success: response => {
-                    if (response.status === 'Ok') {
-                        $(`#product-row-${productId}`).remove();
-                        showToast('success', 'Xóa sản phẩm thành công!');
-                    } else {
-                        showToast('error', response.message);
-                    }
-                },
-                error: xhr => showToast('error', `Lỗi khi xóa sản phẩm: ${xhr.responseJSON?.message || 'Vui lòng thử lại!'}`)
-            });
-        }
-    }
 </script>

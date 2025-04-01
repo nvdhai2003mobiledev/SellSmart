@@ -145,9 +145,6 @@
                             <button class="btn btn-warning btn-sm" onclick="editWarranty('<%= warranty._id %>')">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button class="btn btn-danger btn-sm" onclick="deleteWarranty('<%= warranty._id %>')">
-                                <i class="fas fa-trash"></i>
-                            </button>
                         </td>
                     </tr>
                 <% }); %>
@@ -272,31 +269,6 @@ async function submitEditWarranty() {
     }
 }
 
-// Xóa bảo hành
-async function deleteWarranty(warrantyId) {
-    if (!confirm('Bạn có chắc chắn muốn xóa bảo hành này?')) {
-        return;
-    }
-    
-    try {
-        const response = await fetch(`/warranty/${warrantyId}`, {
-            method: 'DELETE'
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            alert('Xóa bảo hành thành công!');
-            location.reload();
-        } else {
-            alert(result.message || 'Có lỗi xảy ra!');
-        }
-    } catch (error) {
-        console.error('Error deleting warranty:', error);
-        alert('Có lỗi xảy ra khi xóa bảo hành!');
-    }
-}
-
 // Lọc theo trạng thái
 document.getElementById('statusFilter').addEventListener('change', function() {
     const status = this.value;
@@ -356,9 +328,6 @@ document.getElementById('customerSearch').addEventListener('input', debounce(asy
                 <td>
                     <button class="btn btn-warning btn-sm" onclick="editWarranty('${warranty._id}')">
                         <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn btn-danger btn-sm" onclick="deleteWarranty('${warranty._id}')">
-                        <i class="fas fa-trash"></i>
                     </button>
                 </td>
             </tr>
