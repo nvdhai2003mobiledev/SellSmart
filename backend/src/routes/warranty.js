@@ -16,6 +16,9 @@ router.get("/:warrantyId", warrantyController.getWarrantyById);
 // 📌 Thêm bảo hành (POST)
 router.post("/", warrantyController.addWarranty);
 
+// 📌 Kích hoạt bảo hành khi tạo đơn hàng
+router.post("/activate", warrantyController.activateWarranty);
+
 // 📌 Cập nhật bảo hành (PUT)
 router.put("/:warrantyId", warrantyController.updateWarranty);
 

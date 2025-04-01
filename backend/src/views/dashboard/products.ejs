@@ -24,6 +24,7 @@
                                 <th class="fw-bold text-dark">Giá</th>
                                 <th class="fw-bold text-dark">Tồn kho</th>
                                 <th class="fw-bold text-dark">Nhà cung cấp</th>
+                                <th class="fw-bold text-dark">Bảo hành</th>
                                 <th class="fw-bold text-dark">Biến thể</th>
                                 <th class="fw-bold text-dark">Hành động</th>
                             </tr>
@@ -67,6 +68,12 @@
                                             <% } %>
                                         </td>
                                         <td><%= product.providerId?.fullName || 'Chưa có' %></td>
+                                        <td>
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="fas fa-shield-alt me-1"></i>
+                                                <%= product.warrantyPeriod || 12 %> tháng
+                                            </span>
+                                        </td>
                                         <td>
                                             <% if (product.hasVariants && product.detailsVariants?.length > 0) { %>
                                                 <span class="badge bg-info">
@@ -138,7 +145,15 @@
                                         <option value="unavailable">Hết hàng</option>
                                     </select>
                                 </div>
-                                <div class="col-md-6 mb-3" id="priceInventoryFields">
+                                <div class="col-md-6 mb-3">
+                                    <label for="warrantyPeriod" class="form-label fw-bold">Thời gian bảo hành (tháng)</label>
+                                    <input type="number" class="form-control" id="warrantyPeriod" name="warrantyPeriod" 
+                                           value="12" min="1" required>
+                                    <small class="text-muted">Mặc định là 12 tháng nếu không nhập</small>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-12 mb-3" id="priceInventoryFields">
                                     <label for="price" class="form-label fw-bold">Giá (VNĐ)</label>
                                     <input type="number" class="form-control" id="price" name="price" min="0" placeholder="Nhập giá" required>
                                     <label for="inventory" class="form-label fw-bold mt-2">Tồn kho</label>
@@ -206,7 +221,15 @@
                                         <option value="unavailable">Hết hàng</option>
                                     </select>
                                 </div>
-                                <div class="col-md-6 mb-3" id="editPriceInventoryFields">
+                                <div class="col-md-6 mb-3">
+                                    <label for="editWarrantyPeriod" class="form-label fw-bold">Thời gian bảo hành (tháng)</label>
+                                    <input type="number" class="form-control" id="editWarrantyPeriod" name="warrantyPeriod" 
+                                           min="1" required>
+                                    <small class="text-muted">Mặc định là 12 tháng nếu không nhập</small>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-12 mb-3" id="editPriceInventoryFields">
                                     <label for="editPrice" class="form-label fw-bold">Giá (VNĐ)</label>
                                     <input type="number" class="form-control" id="editPrice" name="price" min="0" placeholder="Nhập giá">
                                     <label for="editInventory" class="form-label fw-bold mt-2">Tồn kho</label>
@@ -274,6 +297,12 @@
                                 <div class="row mb-1">
                                     <div class="col-md-4 fw-bold">Trạng thái:</div>
                                     <div class="col-md-8" id="productStatus"></div>
+                                </div>
+                                <div class="row mb-1">
+                                    <div class="col-md-4 fw-bold">Bảo hành:</div>
+                                    <div class="col-md-8">
+                                        <span class="badge bg-warning text-dark" id="productWarranty"></span>
+                                    </div>
                                 </div>
                                 <div class="row mb-1" id="productBasicPriceRow">
                                     <div class="col-md-4 fw-bold">Giá cơ bản:</div>
@@ -459,6 +488,13 @@
                     $('#productName').text(product.name || 'N/A');
                     $('#productCategory').text(product.category?.name || 'Chưa có');
                     $('#productProvider').text(product.providerId?.fullName || 'Chưa có');
+                    
+                    // Cập nhật thông tin bảo hành
+                    const warrantyPeriod = product.warrantyPeriod || 12;
+                    $('#productWarranty').html(`
+                        <i class="fas fa-shield-alt me-1"></i>
+                        ${warrantyPeriod} tháng
+                    `);
                     
                     // Cập nhật trạng thái với icon và màu sắc
                     if (product.status === 'available') {

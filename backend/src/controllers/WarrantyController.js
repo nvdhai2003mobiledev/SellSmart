@@ -18,12 +18,12 @@ const getWarranties = async (req, res) => {
       title: 'Quản lý bảo hành',
       page: 'warranty',
       admin: {
-        fullName: 'Admin',
-        avatar: null
+        fullName: req.user?.fullName || 'Admin',
+        avatar: req.user?.avatar || null
       },
       user: {
-        fullName: 'Admin',
-        avatar: null
+        fullName: req.user?.fullName || 'Admin',
+        avatar: req.user?.avatar || null
       }
     });
   } catch (error) {
@@ -76,11 +76,11 @@ const getWarrantyById = async (req, res) => {
 // 🟢 API thêm bảo hành
 const addWarranty = async (req, res) => {
   try {
-    const { productId, customerId, orderId, status, startDate, endDate, warrantyPeriod } = req.body;
+    const { productId, warrantyPeriod } = req.body;
 
-    // Validate required fields - only productId, startDate, endDate and warrantyPeriod are required
-    if (!productId || !startDate || !endDate || !warrantyPeriod) {
-      return res.status(400).json({ success: false, message: "Vui lòng điền đầy đủ thông tin bắt buộc!" });
+    // Validate required fields - only productId is required
+    if (!productId) {
+      return res.status(400).json({ success: false, message: "Vui lòng chọn sản phẩm!" });
     }
 
     // Validate ID for product (required)
@@ -88,15 +88,6 @@ const addWarranty = async (req, res) => {
       return res.status(400).json({ success: false, message: "ID sản phẩm không hợp lệ!" });
     }
 
-    // Validate IDs for customer and order (optional)
-    if (customerId && !mongoose.Types.ObjectId.isValid(customerId)) {
-      return res.status(400).json({ success: false, message: "ID khách hàng không hợp lệ!" });
-    }
-    
-    if (orderId && !mongoose.Types.ObjectId.isValid(orderId)) {
-      return res.status(400).json({ success: false, message: "ID đơn hàng không hợp lệ!" });
-    }
-
     // Check if product exists (required)
     const product = await Product.findById(productId);
     if (!product) {
@@ -106,64 +97,108 @@ const addWarranty = async (req, res) => {
       });
     }
 
-    // Check if customer exists (optional)
-    let customer = null;
-    if (customerId) {
-      customer = await Customer.findById(customerId);
-      if (!customer) {
-        return res.status(404).json({ 
-          success: false, 
-          message: "Không tìm thấy khách hàng!" 
-        });
-      }
-    }
-
-    // Check if order exists (optional)
-    let order = null;
-    if (orderId) {
-      order = await Order.findById(orderId);
-      if (!order) {
-        return res.status(404).json({ 
-          success: false, 
-          message: "Không tìm thấy đơn hàng!" 
-        });
-      }
-    }
-
-    // Kiểm tra ngày
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      return res.status(400).json({ message: "Ngày không hợp lệ!" });
-    }
-
-    if (end <= start) {
-      return res.status(400).json({ message: "Ngày kết thúc phải sau ngày bắt đầu!" });
-    }
-
-    // Kiểm tra thời gian bảo hành
-    if (isNaN(warrantyPeriod) || warrantyPeriod <= 0) {
-      return res.status(400).json({ message: "Thời gian bảo hành không hợp lệ!" });
-    }
-
-    // Create new warranty
+    // Create new warranty with default values
     const newWarranty = new Warranty({
       product: productId,
-      customer: customerId || null,
-      order: orderId || null,
-      status: status || "Đang xử lý",
-      startDate: start,
-      endDate: end,
-      warrantyPeriod
+      status: "Chờ kích hoạt",
+      warrantyPeriod: warrantyPeriod || 12 // Default 12 months if not specified
     });
 
     await newWarranty.save();
 
-    res.redirect("/warranty");
+    res.json({ 
+      success: true, 
+      message: "Thêm thông tin bảo hành thành công!", 
+      warranty: newWarranty 
+    });
   } catch (error) {
     console.error("Error adding warranty:", error);
     res.status(500).json({ success: false, message: "Có lỗi xảy ra khi thêm thông tin bảo hành!" });
+  }
+};
+
+// 🟢 API kích hoạt bảo hành khi tạo đơn hàng
+const activateWarranty = async (req, res) => {
+  try {
+    const { warrantyId, orderId, customerId } = req.body;
+
+    // Validate required fields
+    if (!warrantyId || !orderId || !customerId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Vui lòng cung cấp đầy đủ thông tin bảo hành, đơn hàng và khách hàng!" 
+      });
+    }
+
+    // Validate IDs
+    if (!mongoose.Types.ObjectId.isValid(warrantyId) || 
+        !mongoose.Types.ObjectId.isValid(orderId) || 
+        !mongoose.Types.ObjectId.isValid(customerId)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "ID không hợp lệ!" 
+      });
+    }
+
+    // Check if warranty exists and is in pending status
+    const warranty = await Warranty.findById(warrantyId);
+    if (!warranty) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Không tìm thấy thông tin bảo hành!" 
+      });
+    }
+
+    if (warranty.status !== "Chờ kích hoạt") {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Bảo hành đã được kích hoạt hoặc không thể kích hoạt!" 
+      });
+    }
+
+    // Check if order exists
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Không tìm thấy đơn hàng!" 
+      });
+    }
+
+    // Check if customer exists
+    const customer = await Customer.findById(customerId);
+    if (!customer) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Không tìm thấy khách hàng!" 
+      });
+    }
+
+    // Calculate warranty dates
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setMonth(endDate.getMonth() + warranty.warrantyPeriod);
+
+    // Update warranty
+    warranty.order = orderId;
+    warranty.customer = customerId;
+    warranty.status = "Đang xử lý";
+    warranty.startDate = startDate;
+    warranty.endDate = endDate;
+
+    await warranty.save();
+
+    res.json({ 
+      success: true, 
+      message: "Kích hoạt bảo hành thành công!", 
+      warranty 
+    });
+  } catch (error) {
+    console.error("Error activating warranty:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Có lỗi xảy ra khi kích hoạt bảo hành!" 
+    });
   }
 };
 
@@ -171,25 +206,11 @@ const addWarranty = async (req, res) => {
 const updateWarranty = async (req, res) => {
   try {
     const { warrantyId } = req.params;
-    const { productId, customerId, orderId, status, startDate, endDate, warrantyPeriod } = req.body;
+    const { status, notes } = req.body;
 
     // Validate ID
     if (!mongoose.Types.ObjectId.isValid(warrantyId)) {
       return res.status(400).json({ success: false, message: "ID bảo hành không hợp lệ!" });
-    }
-
-    // Validate required fields - only productId, startDate, endDate and warrantyPeriod are required
-    if (!productId || !startDate || !endDate || !warrantyPeriod) {
-      return res.status(400).json({ success: false, message: "Vui lòng điền đầy đủ thông tin bắt buộc!" });
-    }
-
-    // Check if product exists (required)
-    const product = await Product.findById(productId);
-    if (!product) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "Không tìm thấy sản phẩm!" 
-      });
     }
 
     // Check if warranty exists
@@ -198,14 +219,9 @@ const updateWarranty = async (req, res) => {
       return res.status(404).json({ success: false, message: "Không tìm thấy thông tin bảo hành!" });
     }
 
-    // Update warranty
-    warranty.product = productId;
-    warranty.customer = customerId || null;
-    warranty.order = orderId || null;
-    warranty.status = status;
-    warranty.startDate = startDate;
-    warranty.endDate = endDate;
-    warranty.warrantyPeriod = warrantyPeriod;
+    // Only allow updating status and notes
+    if (status) warranty.status = status;
+    if (notes) warranty.notes = notes;
 
     await warranty.save();
 
@@ -278,5 +294,6 @@ module.exports = {
   addWarranty,
   updateWarranty,
   deleteWarranty,
-  searchWarrantyByCustomer
+  searchWarrantyByCustomer,
+  activateWarranty
 };
