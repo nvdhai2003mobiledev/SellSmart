@@ -5,6 +5,7 @@ import { EmployeeStoreModel, employeeStore } from './employee/employee-store';
 import { CustomerStoreModel, customerStore } from './customer/customer-store'; // Thêm import
 import { OrderStore } from './Order/Order';
 import { ProductStore } from './product/product';
+import { PromotionStoreModel } from './promotion/promotion-store';
 
 
 const RootStoreModel = types
@@ -15,7 +16,7 @@ const RootStoreModel = types
     customers: types.late(() => CustomerStoreModel), // Thêm customers
     orders: types.late(() => OrderStore),
     productStore: types.late(() => ProductStore),
-
+    promotionStore: types.late(() => PromotionStoreModel),
   })
   .actions((self) => ({
     reset() {
@@ -26,6 +27,7 @@ const RootStoreModel = types
       self.customers.reset(); // Thêm reset cho customers
 
       self.orders.reset();
+      self.promotionStore.reset();
       // Reset product store if needed
 
     },
@@ -81,6 +83,7 @@ export const rootStore = RootStoreModel.create({
   customers: customerStore,
   orders: OrderStore.create({ orders: [], isLoading: false, error: '' }),
   productStore: ProductStore.create({ products: [], isLoading: false, error: '', totalPrice: 0 }),
+  promotionStore: PromotionStoreModel.create({ promotions: [], isLoading: false, error: '' }),
 });
 
 

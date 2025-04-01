@@ -31,7 +31,11 @@ export enum Screen {
   PROFILE = 'PROFILE',
   CHOOSE_ORDER_PRODUCT = 'CHOOSE_ORDER_PRODUCT',
   CUSTOMER_SELECTION = 'CUSTOMER_SELECTION',
-  ORDER_DETAIL = 'ORDER_DETAIL'
+  ORDER_DETAIL = 'ORDER_DETAIL',
+  PROMOTION_LIST = 'PROMOTION_LIST',
+  PROMOTION_DETAIL = 'PROMOTION_DETAIL',
+  ADD_PROMOTION = 'ADD_PROMOTION',
+  UPDATE_PROMOTION = 'UPDATE_PROMOTION'
 }
 
 export type RootStackParamList = {
@@ -69,6 +73,14 @@ export type RootStackParamList = {
   };
   [Screen.ORDER_DETAIL]: {
     orderId: string;
+  };
+  [Screen.PROMOTION_LIST]: undefined;
+  [Screen.PROMOTION_DETAIL]: {
+    id: string;
+  };
+  [Screen.ADD_PROMOTION]: undefined;
+  [Screen.UPDATE_PROMOTION]: {
+    id: string;
   };
 };
 

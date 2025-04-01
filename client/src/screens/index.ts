@@ -1,5 +1,3 @@
-
-
 export {default as HomeScreen} from './bottomTab/Home/HomeScreen';
 export {default as OrderScreen} from './bottomTab/Order/OrderScreen';
 export {default as ProductScreen} from './bottomTab/Product/ProductScreen';
@@ -32,4 +30,6 @@ export {default as ChooseOrderProduct} from './main/Order/ChooseOrderProduct';
 export {default as CustomerSelection} from './main/Order/CustomerSelection';
 export {default as OrderDetailScreen} from './main/Order/OrderDetailScreen';
 export {default as ProductListScreen} from './main/Product/ProductListScreen';
+export {default as PromotionListScreen} from './main/Promotion/PromotionListScreen';
+export {default as AddPromotionScreen} from './main/Promotion/AddPromotionScreen';
 

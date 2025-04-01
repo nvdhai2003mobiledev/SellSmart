@@ -32,6 +32,8 @@ import {
   ChooseOrderProduct,
   CustomerSelection,
   OrderDetailScreen,
+  PromotionListScreen,
+  AddPromotionScreen,
 } from '../screens';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
@@ -108,6 +110,8 @@ export const AppNavigation = observer(() => {
         <RootStack.Screen name={Screen.FILTERORDER} component={FilterOrderScreen}   options={{ presentation: 'modal' }}  />
         <RootStack.Screen name={Screen.ORDER_DETAIL} component={OrderDetailScreen} />
       <RootStack.Screen name={Screen.CUSTOMERS} component={CustomerScreen} />
+      <RootStack.Screen name={Screen.PROMOTION_LIST} component={PromotionListScreen} />
+      <RootStack.Screen name={Screen.ADD_PROMOTION} component={AddPromotionScreen} />
       {/* Chỉ admin mới thấy được các màn hình quản lý nhân viên */}
       {isAdmin && (
         <>

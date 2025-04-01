@@ -15,6 +15,7 @@ import {
   Profile,
   Profile2User,
   Setting2,
+  TicketDiscount,
 } from 'iconsax-react-native';
 import {observer} from 'mobx-react-lite';
 import {rootStore} from '../../../models/root-store';
@@ -86,6 +87,10 @@ const MenuScreen = observer(() => {
     navigation.navigate(Screen.CUSTOMERS);
   };
 
+  const navigateToPromotions = () => {
+    navigation.navigate(Screen.PROMOTION_LIST);
+  };
+
   const navigateToSettings = () => {
     navigation.navigate(Screen.CONFIG);
   };
@@ -152,6 +157,12 @@ const MenuScreen = observer(() => {
           Icon={Profile2User}
           title={contents.menu.sections.customer}
           onPress={navigateToCustomers}
+        />
+        <View style={styles.separator} />
+        <MenuItem
+          Icon={TicketDiscount}
+          title="Khuyến mãi"
+          onPress={navigateToPromotions}
         />
         <View style={styles.separator} />
         <MenuItem
