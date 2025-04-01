@@ -24,33 +24,34 @@ const WarrantySchema = new Schema({
   // Trạng thái bảo hành
   status: {
     type: String,
-    enum: ['Đang xử lý', 'Đã hoàn thành', 'Hết hạn'],
-    default: 'Đang xử lý'
+    enum: ['Chờ kích hoạt', 'Đang xử lý', 'Đã hoàn thành', 'Hết hạn'],
+    default: 'Chờ kích hoạt'
   },
   // Ngày bắt đầu bảo hành
   startDate: {
     type: Date,
-    required: [true, 'Ngày bắt đầu là bắt buộc']
+    required: false // Không bắt buộc
   },
   // Ngày kết thúc bảo hành
   endDate: {
     type: Date,
-    required: [true, 'Ngày kết thúc là bắt buộc']
+    required: false // Không bắt buộc
   },
   // Thời gian bảo hành (ví dụ: số tháng hoặc số ngày)
   warrantyPeriod: {
     type: Number,
     required: [true, 'Thời gian bảo hành là bắt buộc'],
-    min: [1, 'Thời gian bảo hành phải lớn hơn 0']
+    min: [1, 'Thời gian bảo hành phải lớn hơn 0'],
+    default: 12 // Mặc định 12 tháng
   },
   notes: {
     type: String
   }
 }, { timestamps: true });
 
-// Middleware để kiểm tra ngày kết thúc phải sau ngày bắt đầu
+// Middleware để kiểm tra ngày kết thúc phải sau ngày bắt đầu (chỉ khi cả hai đều có)
 WarrantySchema.pre('save', function(next) {
-  if (this.endDate <= this.startDate) {
+  if (this.startDate && this.endDate && this.endDate <= this.startDate) {
     const error = new Error('Ngày kết thúc phải sau ngày bắt đầu');
     return next(error);
   }
@@ -59,14 +60,16 @@ WarrantySchema.pre('save', function(next) {
 
 // Kiểm tra thời gian bảo hành còn hiệu lực
 WarrantySchema.methods.isActive = function() {
+  if (!this.startDate || !this.endDate) return false;
   const currentDate = new Date();
   return currentDate <= this.endDate;
 };
 
 // Tính số ngày còn lại của bảo hành
 WarrantySchema.methods.remainingDays = function() {
-  const currentDate = new Date();
+  if (!this.startDate || !this.endDate) return 0;
   
+  const currentDate = new Date();
   if (currentDate > this.endDate) {
     return 0;
   }
@@ -77,8 +80,9 @@ WarrantySchema.methods.remainingDays = function() {
 
 // Định nghĩa ảo cho phần trăm hoàn thành của bảo hành
 WarrantySchema.virtual('completionPercentage').get(function() {
-  const currentDate = new Date();
+  if (!this.startDate || !this.endDate) return 0;
   
+  const currentDate = new Date();
   if (currentDate <= this.startDate) {
     return 0;
   }
@@ -96,7 +100,6 @@ WarrantySchema.virtual('completionPercentage').get(function() {
 // Tự động cập nhật trạng thái dựa trên ngày
 WarrantySchema.pre('find', async function() {
   try {
-    // Instead of executing the query directly in the pre hook
     await mongoose.model('Warranty').updateMany(
       { status: { $ne: 'Đã hoàn thành' }, endDate: { $lt: new Date() } },
       { $set: { status: 'Hết hạn' } }
@@ -108,7 +111,6 @@ WarrantySchema.pre('find', async function() {
 
 WarrantySchema.pre('findOne', async function() {
   try {
-    // Use the model reference instead of this.model
     await mongoose.model('Warranty').updateMany(
       { status: { $ne: 'Đã hoàn thành' }, endDate: { $lt: new Date() } },
       { $set: { status: 'Hết hạn' } }

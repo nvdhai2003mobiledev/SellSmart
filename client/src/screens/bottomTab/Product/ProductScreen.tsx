@@ -113,22 +113,17 @@ const ProductScreen = observer(() => {
     let price = 0;
     
     if (item.price !== null && item.price !== undefined) {
-      // Product has a direct price
       price = item.price;
     } else if (item.hasVariants && item.detailsVariants && item.detailsVariants.length > 0) {
-      // Product has variants, use the first variant's price
       price = item.detailsVariants[0].price;
     } else if (item.variants && item.variants.length > 0) {
-      // Fallback to variants array if detailsVariants isn't available
       price = item.variants[0].price;
     }
     
-    // Make sure we have a string for the name
     const productName = typeof item.name === 'string' ? item.name : 
                         (item.name && typeof item.name.toString === 'function' ? 
                          item.name.toString() : 'Sản phẩm không tên');
     
-    // Format thumbnail URL
     const thumbnailUrl = item.thumbnail 
       ? (item.thumbnail.startsWith('http') ? item.thumbnail : `http://10.0.2.2:3000${item.thumbnail}`)
       : 'https://via.placeholder.com/150';
@@ -148,6 +143,11 @@ const ProductScreen = observer(() => {
           <Text style={styles.productName} numberOfLines={2}>{productName}</Text>
           <Text style={styles.productCategory}>{categoryName}</Text>
           <Text style={styles.productPrice}>{price.toLocaleString('vi-VN')} đ</Text>
+          <View style={styles.warrantyBadge}>
+            <Text style={styles.warrantyText}>
+              <Text style={styles.warrantyIcon}>🛡️</Text> {item.warrantyPeriod || 12} tháng BH
+            </Text>
+          </View>
         </View>
         <TouchableOpacity 
           style={styles.addButton}
@@ -259,6 +259,10 @@ const ProductScreen = observer(() => {
                       
                       <Text style={styles.detailStatus}>
                         Trạng thái: {selectedProduct.status === 'available' ? 'Còn hàng' : 'Hết hàng'}
+                      </Text>
+                      
+                      <Text style={styles.detailWarranty}>
+                        Bảo hành: {selectedProduct.warrantyPeriod || 12} tháng
                       </Text>
                       
                       {selectedProduct.price !== null && selectedProduct.price !== undefined ? (
@@ -690,5 +694,30 @@ const styles = StyleSheet.create({
   disabledButton: {
     backgroundColor: '#a5d6a7',
     opacity: 0.7,
+  },
+  warrantyBadge: {
+    backgroundColor: '#ffeeba',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 4,
+    alignSelf: 'flex-start',
+  },
+  warrantyText: {
+    fontSize: 10,
+    color: '#856404',
+    fontWeight: '500',
+  },
+  warrantyIcon: {
+    fontSize: 10,
+  },
+  detailWarranty: {
+    fontSize: 14,
+    color: '#856404',
+    marginBottom: 5,
+    backgroundColor: '#ffeeba',
+    padding: 8,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
   },
 });
