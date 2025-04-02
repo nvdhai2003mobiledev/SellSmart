@@ -10,80 +10,127 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { BaseLayout, Header } from '../../../components';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { create } from 'apisauce';
-import { ApiEndpoint } from '../../../services/api/api-endpoint';
 import { Screen } from '../../../navigation/navigation.type';
+import { observer } from 'mobx-react-lite';
+import { rootStore } from '../../../models/root-store';
+import { ApiService } from '../../../services/api/customerAPI';
 
-const CustomerSelection = () => {
+// Define a type that captures essential customer properties
+interface CustomerLike {
+  _id: string;
+  fullName: string;
+  phoneNumber: string;
+  email: string;
+  birthDate?: string | null;
+  address: string;
+  avatar?: string | null;
+}
+
+interface RouteParams {
+  onSelect?: (customer: CustomerLike) => void;
+}
+
+const CustomerSelection = observer(() => {
   const navigation = useNavigation();
-  const route = useRoute();
+  const route = useRoute<RouteProp<Record<string, RouteParams>, string>>();
   const [searchQuery, setSearchQuery] = useState('');
-  const [customers, setCustomers] = useState([]);
-  const [filteredCustomers, setFilteredCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [localSearchResults, setLocalSearchResults] = useState<CustomerLike[]>([]);
+  const [isSearchMode, setIsSearchMode] = useState(false);
 
-  useEffect(() => {
-    fetchCustomers();
-  }, []);
+  // Get customers from the store
+  const customers = rootStore.customers.customerList;
 
   // Filter customers when search query changes
   useEffect(() => {
     if (searchQuery.trim() === '') {
-      setFilteredCustomers(customers);
+      setIsSearchMode(false);
     } else {
+      setIsSearchMode(true);
       const query = searchQuery.toLowerCase().trim();
       const filtered = customers.filter(customer =>
         customer.fullName.toLowerCase().includes(query) || 
         customer.phoneNumber.includes(query) || 
         (customer.email && customer.email.toLowerCase().includes(query))
       );
-      setFilteredCustomers(filtered);
+      
+      // Convert to plain objects to avoid MobX state tree mutations
+      const plainResults = filtered.map(customer => ({
+        _id: customer._id,
+        fullName: customer.fullName,
+        phoneNumber: customer.phoneNumber,
+        email: customer.email,
+        birthDate: customer.birthDate,
+        address: customer.address,
+        avatar: customer.avatar
+      }));
+      
+      setLocalSearchResults(plainResults);
     }
   }, [searchQuery, customers]);
+
+  // Load customers from API on component mount
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
 
   const fetchCustomers = async () => {
     setLoading(true);
     try {
-      // Create API instance
-      const api = create({
-        baseURL: "http://10.0.2.2:3000",
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        }
-      });
-
-      // Fetch customers
-      const response = await api.get(ApiEndpoint.CUSTOMERS);
+      // Sử dụng rootStore để fetch customers
+      await rootStore.customers.fetchCustomers();
       
-      if (response.ok) {
-        const customersData = response.data?.data || [];
-        setCustomers(customersData);
-        setFilteredCustomers(customersData);
-      } else {
-        console.error('Failed to fetch customers:', response.problem);
-        Alert.alert('Error', 'Failed to load customers. Please try again.');
+      if (rootStore.customers.error) {
+        console.error('Failed to fetch customers:', rootStore.customers.error);
+        Alert.alert('Error', `Không thể tải danh sách khách hàng: ${rootStore.customers.error}`);
       }
     } catch (error) {
       console.error('Error fetching customers:', error);
-      Alert.alert('Error', 'An unexpected error occurred.');
+      Alert.alert('Error', 'Đã xảy ra lỗi. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSelectCustomer = (customer) => {
-    // Navigate back to CreateOrderScreen with selected customer
-    if (route.params?.onSelect) {
-      route.params.onSelect(customer);
+  // Fallback to direct API call if store method fails
+  const fetchCustomersDirectly = async () => {
+    setLoading(true);
+    try {
+      // Sử dụng customerAPI trực tiếp
+      const result = await ApiService.getCustomers();
+      
+      if (result.kind === 'ok' && 'customers' in result && Array.isArray(result.customers)) {
+        // Cập nhật trực tiếp vào store
+        rootStore.customers.setLoading(false);
+        rootStore.customers.setError(null);
+        rootStore.customers.customers.replace(result.customers);
+      } else {
+        console.error('Failed to fetch customers directly:', result);
+        Alert.alert('Error', 'Không thể tải danh sách khách hàng. Vui lòng thử lại.');
+      }
+    } catch (error) {
+      console.error('Error directly fetching customers:', error);
+      Alert.alert('Error', 'Đã xảy ra lỗi. Vui lòng thử lại.');
+    } finally {
+      setLoading(false);
     }
-    navigation.goBack();
   };
 
-  const renderCustomerItem = ({ item }) => (
+  const handleSelectCustomer = (customer: CustomerLike) => {
+    // Kiểm tra nếu có callback onSelect từ route.params
+    if (route.params?.onSelect && typeof route.params.onSelect === 'function') {
+      route.params.onSelect(customer);
+      navigation.goBack();
+    } else {
+      console.error('onSelect callback not found in route.params');
+      Alert.alert('Error', 'Không thể chọn khách hàng. Vui lòng thử lại.');
+    }
+  };
+
+  const renderCustomerItem = ({ item }: { item: CustomerLike }) => (
     <TouchableOpacity
       style={styles.customerItem}
       onPress={() => handleSelectCustomer(item)}
@@ -105,15 +152,29 @@ const CustomerSelection = () => {
 
   const handleCreateNewCustomer = () => {
     // Navigate to customer creation screen
+    // @ts-ignore - Bypass type checking for navigation
     navigation.navigate(Screen.ADD_CUSTOMER, { 
-      onCustomerCreated: (newCustomer) => {
+      onCustomerCreated: (newCustomer: CustomerLike) => {
         if (route.params?.onSelect) {
           route.params.onSelect(newCustomer);
         }
+        // @ts-ignore - Bypass type checking for navigation
         navigation.navigate(Screen.CREATEORDER, { customer: newCustomer });
       }
     });
   };
+
+  // Retry fetching if no customers and not loading
+  useEffect(() => {
+    if (!loading && customers.length === 0) {
+      // Try direct API call as fallback
+      fetchCustomersDirectly();
+    }
+  }, [loading, customers.length]);
+
+  const displayedCustomers = isSearchMode ? localSearchResults : customers;
+  const isCustomersEmpty = displayedCustomers.length === 0;
+  const isLoading = loading || rootStore.customers.isLoading;
 
   return (
     <BaseLayout>
@@ -148,26 +209,44 @@ const CustomerSelection = () => {
       </TouchableOpacity>
       
       {/* Customer List */}
-      {loading ? (
-        <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
+      {isLoading ? (
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={styles.loaderText}>Đang tải danh sách khách hàng...</Text>
+        </View>
       ) : (
         <FlatList
-          data={filteredCustomers}
+          data={displayedCustomers as CustomerLike[]}
           renderItem={renderCustomerItem}
           keyExtractor={(item) => item._id}
-          contentContainerStyle={styles.customerList}
+          contentContainerStyle={[
+            styles.customerList,
+            isCustomersEmpty && styles.emptyListContainer
+          ]}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Icon name="people-outline" size={60} color="#ddd" />
-              <Text style={styles.emptyText}>Không tìm thấy khách hàng</Text>
+              <Text style={styles.emptyText}>
+                {isSearchMode 
+                  ? 'Không tìm thấy khách hàng phù hợp'
+                  : 'Chưa có khách hàng nào'}
+              </Text>
+              {!isSearchMode && customers.length === 0 && (
+                <TouchableOpacity 
+                  style={styles.retryButton}
+                  onPress={fetchCustomers}
+                >
+                  <Text style={styles.retryText}>Thử lại</Text>
+                </TouchableOpacity>
+              )}
             </View>
           }
         />
       )}
     </BaseLayout>
   );
-};
+});
 
 const styles = StyleSheet.create({
   searchContainer: {
@@ -206,6 +285,10 @@ const styles = StyleSheet.create({
   customerList: {
     padding: 0,
   },
+  emptyListContainer: {
+    flex: 1,
+    justifyContent: 'center',
+  },
   customerItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -238,6 +321,16 @@ const styles = StyleSheet.create({
     color: '#999',
     marginTop: 2,
   },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loaderText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#666',
+  },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -247,11 +340,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#999',
     marginTop: 12,
+    marginBottom: 12,
   },
-  loader: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  retryButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  retryText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 

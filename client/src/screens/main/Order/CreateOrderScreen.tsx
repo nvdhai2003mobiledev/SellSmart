@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, Alert, Modal, FlatList } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { BaseLayout, Button, Input, Header } from '../../../components';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { BaseLayout, Button, Input, Header, DynamicText } from '../../../components';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { observer } from 'mobx-react-lite';
 import { rootStore } from '../../../models/root-store';
 import { Screen } from '../../../navigation/navigation.type';
 import { color, moderateScale } from '../../../utils';
 import { createOrder } from '../../../services/api/ordersApi';
+import { IPromotion } from '../../../models/promotion/promotion';
+import { promotionAPI } from '../../../services/api/promotionAPI';
 
-// Define TypeScript interfaces
+// Product type definition
 interface Product {
   _id: string;
   name: string;
@@ -23,6 +25,7 @@ interface Product {
   }>;
 }
 
+// Customer type definition
 interface Customer {
   _id: string;
   fullName: string;
@@ -31,61 +34,156 @@ interface Customer {
   email?: string;
 }
 
+// Payment method type
 type PaymentMethodType = 'cash' | 'credit card' | 'debit card' | 'e-wallet';
+
+// Route params type
+interface CreateOrderParams {
+  selectedProducts?: Product[];
+  customer?: Customer;
+}
 
 const CreateOrderScreen = observer(() => {
   const navigation = useNavigation();
-  const route = useRoute();
+  const route = useRoute<RouteProp<Record<string, CreateOrderParams>, string>>();
   const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [notes, setNotes] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('cash');
-  const [customer, setCustomer] = useState<Customer | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<'paid' | 'unpaid'>('paid');
-
-  // Mock customer để test
-  const mockCustomer: Customer = {
-    _id: '65ef1a8be4f41ba6be68e123', // Đây là một mock ID, có thể thay thế bằng ID thực tế từ hệ thống của bạn
-    fullName: 'Nguyễn Văn A',
-    phoneNumber: '0123456789',
-    address: 'Số 123, Đường ABC, Quận 1, TP.HCM',
-    email: 'nguyenvana@example.com'
-  };
-
-  // Hàm để sử dụng mock customer
-  const useMockCustomer = () => {
-    setCustomer(mockCustomer);
-    Alert.alert('Thông báo', 'Đã sử dụng khách hàng mẫu để test');
-  };
+  
+  // Promotion related state
+  const [promotions, setPromotions] = useState<IPromotion[]>([]);
+  const [selectedPromotion, setSelectedPromotion] = useState<IPromotion | null>(null);
+  const [showPromotionModal, setShowPromotionModal] = useState(false);
+  const [promotionError, setPromotionError] = useState('');
+  const [isLoadingPromotions, setIsLoadingPromotions] = useState(false);
 
   // Calculate totals
-  const totalQuantity = selectedProducts.reduce((sum, product) => sum + product.quantity, 0);
-  const totalAmount = selectedProducts.reduce((sum, product) => sum + (product.price * product.quantity), 0);
+  const calculateTotal = () => {
+    return selectedProducts.reduce((sum, product) => sum + (product.price * product.quantity), 0);
+  };
 
-  // Get selected products from navigation params
+  const calculateDiscount = () => {
+    if (!selectedPromotion) return 0;
+    const total = calculateTotal();
+    if (total < selectedPromotion.minOrderValue) return 0;
+    
+    const discount = (total * selectedPromotion.discount) / 100;
+    return Math.min(discount, selectedPromotion.maxDiscount);
+  };
+
+  const isValidOrder = () => {
+    return selectedProducts.length > 0 && selectedCustomer !== null;
+  };
+
+  // Format currency function
+  const formatCurrency = (amount: number) => {
+    return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + 'đ';
+  };
+
+  // Fetch promotions - preload active promotions that match current order value
+  const fetchPromotions = async () => {
+    try {
+      setIsLoadingPromotions(true);
+      setPromotionError('');
+      
+      const response = await promotionAPI.getPromotions();
+      
+      if (response.ok && response.data) {
+        // Filter only active promotions with valid dates
+        const currentDate = new Date();
+        const activePromotions = response.data.filter(promotion => 
+          promotion.status === 'active' && 
+          new Date(promotion.startDate) <= currentDate && 
+          new Date(promotion.endDate) >= currentDate
+        );
+        
+        console.log('Active promotions found:', activePromotions.length);
+        setPromotions(activePromotions);
+      } else {
+        console.error('Failed to fetch promotions:', response.problem);
+        setPromotionError('Không thể tải danh sách khuyến mãi');
+      }
+    } catch (error) {
+      console.error('Error fetching promotions:', error);
+      setPromotionError('Đã xảy ra lỗi khi tải khuyến mãi');
+    } finally {
+      setIsLoadingPromotions(false);
+    }
+  };
+
+  // Automatically fetch promotions when products change
   useEffect(() => {
-    if (route.params?.selectedProducts) {
-      setSelectedProducts(route.params.selectedProducts);
+    if (selectedProducts.length > 0) {
+      fetchPromotions();
     }
-    if (route.params?.customer) {
-      setCustomer(route.params.customer);
-    }
-  }, [route.params]);
+  }, [selectedProducts]);
 
+  // Apply selected promotion
+  const applyPromotion = (promotion: IPromotion) => {
+    const total = calculateTotal();
+    if (total < promotion.minOrderValue) {
+      Alert.alert(
+        'Không đủ điều kiện',
+        `Giá trị đơn hàng phải từ ${formatCurrency(promotion.minOrderValue)} để áp dụng khuyến mãi này.`
+      );
+      return;
+    }
+    setSelectedPromotion(promotion);
+    setShowPromotionModal(false);
+  };
+
+  // Remove applied promotion
+  const removePromotion = () => {
+    setSelectedPromotion(null);
+  };
+
+  // Navigation functions
   const navigateToProductSelection = () => {
-    navigation.navigate(Screen.CHOOSE_ORDER_PRODUCT as never, { 
+    // Truyền cả thông tin khách hàng để giữ trạng thái khi quay lại
+    navigation.navigate(Screen.CHOOSE_ORDER_PRODUCT as any, { 
       selectedProducts,
+      selectedCustomer,
       onProductsSelected: (products: Product[]) => setSelectedProducts(products)
-    } as never);
+    });
   };
 
   const navigateToSelectCustomer = () => {
     // Navigate to customer selection screen
-    navigation.navigate(Screen.CUSTOMER_SELECTION as never, { 
-      onSelect: (selectedCustomer: Customer) => setCustomer(selectedCustomer) 
-    } as never);
+    navigation.navigate(Screen.CUSTOMER_SELECTION as any, { 
+      onSelect: (customer: Customer) => setSelectedCustomer(customer) 
+    });
   };
 
-  const increaseQuantity = (index) => {
+  // Open promotion selection modal
+  const openPromotionModal = () => {
+    if (promotions.length === 0) {
+      fetchPromotions();
+    }
+    setShowPromotionModal(true);
+  };
+
+  // Get selected products and customer from navigation params
+  useEffect(() => {
+    // Lưu trạng thái khách hàng hiện tại trước khi cập nhật
+    const currentCustomer = selectedCustomer;
+    
+    // Cập nhật từ route.params
+    if (route.params?.selectedProducts) {
+      setSelectedProducts(route.params.selectedProducts);
+    }
+    
+    if (route.params?.customer) {
+      setSelectedCustomer(route.params.customer);
+    } else if (currentCustomer) {
+      // Nếu route.params không có customer mới nhưng đã có customer được chọn từ trước, giữ lại customer cũ
+      setSelectedCustomer(currentCustomer);
+    }
+  }, [route.params]);
+
+  // Product quantity management
+  const increaseQuantity = (index: number) => {
     const product = selectedProducts[index];
     if (product.quantity < product.inventory) {
       const updatedProducts = [...selectedProducts];
@@ -99,7 +197,7 @@ const CreateOrderScreen = observer(() => {
     }
   };
 
-  const decreaseQuantity = (index) => {
+  const decreaseQuantity = (index: number) => {
     const product = selectedProducts[index];
     if (product.quantity > 1) {
       const updatedProducts = [...selectedProducts];
@@ -111,18 +209,15 @@ const CreateOrderScreen = observer(() => {
     }
   };
 
-  const removeProduct = (index) => {
+  const removeProduct = (index: number) => {
     const updatedProducts = [...selectedProducts];
     updatedProducts.splice(index, 1);
     setSelectedProducts(updatedProducts);
   };
 
-  const formatCurrency = (amount) => {
-    return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + 'đ';
-  };
-
+  // Create order function
   const handleCreateOrder = async () => {
-    if (!customer) {
+    if (!selectedCustomer) {
       Alert.alert('Cảnh báo', 'Vui lòng chọn khách hàng');
       return;
     }
@@ -133,15 +228,9 @@ const CreateOrderScreen = observer(() => {
     }
 
     try {
-      // Calculate total amount
-      const totalAmount = selectedProducts.reduce(
-        (sum, product) => sum + product.price * product.quantity,
-        0
-      );
-
       // Prepare order data
       const orderData = {
-        customerID: customer._id,
+        customerID: selectedCustomer._id,
         products: selectedProducts.map(product => ({
           productID: product._id,
           name: product.name,
@@ -158,20 +247,25 @@ const CreateOrderScreen = observer(() => {
             }
           ]
         })),
-        totalAmount,
+        totalAmount: calculateTotal() - calculateDiscount(),
+        originalAmount: calculateTotal(),
         // Only set payment method if payment status is 'paid'
         paymentMethod: paymentStatus === 'paid' ? paymentMethod : '',
         paymentStatus: paymentStatus,
         status: paymentStatus === 'paid' ? 'processing' : 'pending',
-        shippingAddress: customer.address || 'Nhận hàng tại cửa hàng',
+        shippingAddress: selectedCustomer.address || 'Nhận hàng tại cửa hàng',
         employeeID: rootStore.auth.userId || null,
-        notes: notes || ""
+        notes: notes || "",
+        // Add promotion data if a promotion is selected
+        promotionID: selectedPromotion?._id || null,
+        promotionDetails: selectedPromotion ? {
+          name: selectedPromotion.name,
+          discount: selectedPromotion.discount,
+          discountAmount: calculateDiscount()
+        } : null
       };
 
       console.log('Creating order with data:', orderData);
-
-      // Debug log to verify createOrder is properly imported
-      console.log('createOrder function type:', typeof createOrder);
       
       // Create order using API
       const response = await createOrder(orderData);
@@ -182,13 +276,13 @@ const CreateOrderScreen = observer(() => {
         
         if (createdOrderId) {
           // Navigate to order detail screen with the new order ID
-          navigation.navigate(Screen.ORDER_DETAIL as never, { 
+          navigation.navigate(Screen.ORDER_DETAIL as any, { 
             orderId: createdOrderId 
-          } as never);
+          });
         } else {
           // Fallback if we can't get the order ID
           Alert.alert('Thành công', 'Đơn hàng đã được tạo thành công', [
-            { text: 'OK', onPress: () => navigation.navigate(Screen.ORDERLIST as never) }
+            { text: 'OK', onPress: () => navigation.navigate(Screen.ORDERLIST as any) }
           ]);
         }
         
@@ -217,118 +311,158 @@ const CreateOrderScreen = observer(() => {
     Alert.alert('Thông báo', 'Chức năng lưu nháp đang được phát triển');
   };
 
-  const renderProductItem = (product, index) => (
+  // Render product item in the list
+  const renderProductItem = (product: Product, index: number) => (
     <View key={product._id || index} style={styles.productContainer}>
-      <Image
-        source={{ uri: product.thumbnail || 'https://via.placeholder.com/80' }}
-        style={styles.productImage}
-      />
       <View style={styles.productDetails}>
-        <Text style={styles.productName}>{product.name}</Text>
-        <Text style={styles.productVariant}>
+        <DynamicText style={styles.productName}>{product.name}</DynamicText>
+        <DynamicText style={styles.productVariant}>
           {product.attributes?.map(attr => `${attr.name}: ${Array.isArray(attr.value) ? attr.value.join(', ') : attr.value}`).join(' | ')}
-        </Text>
-        <Text style={styles.productPrice}>{formatCurrency(product.price)}</Text>
+        </DynamicText>
+        <DynamicText style={styles.productPrice}>{formatCurrency(product.price)}</DynamicText>
         <View style={styles.quantityContainer}>
           <TouchableOpacity onPress={() => decreaseQuantity(index)} style={styles.quantityButton}>
-            <Icon name="remove-outline" size={20} color="#007AFF" />
+            <DynamicText style={styles.quantityButtonText}>-</DynamicText>
           </TouchableOpacity>
-          <Text style={styles.productQuantity}>{product.quantity}</Text>
+          <DynamicText style={styles.productQuantity}>{product.quantity}</DynamicText>
           <TouchableOpacity onPress={() => increaseQuantity(index)} style={styles.quantityButton}>
-            <Icon name="add-outline" size={20} color="#007AFF" />
+            <DynamicText style={styles.quantityButtonText}>+</DynamicText>
           </TouchableOpacity>
         </View>
       </View>
       <TouchableOpacity onPress={() => removeProduct(index)}>
-        <Icon name="close-outline" size={24} color="#000" />
+        <DynamicText style={styles.removeText}>×</DynamicText>
       </TouchableOpacity>
     </View>
   );
 
   return (
     <BaseLayout>
-      {/* Header */}
       <Header
         title="Tạo đơn hàng"
-        showBackIcon
+        showBackIcon={true} 
         onPressBack={() => navigation.goBack()}
       />
-
-      <ScrollView style={styles.scrollView}>
-        {/* Product Selection */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Sản phẩm</Text>
-          <TouchableOpacity onPress={navigateToProductSelection}>
-            <Text style={styles.linkText}>Cửa hàng chính</Text>
-          </TouchableOpacity>
+      <ScrollView contentContainerStyle={styles.scrollView}>
+        {/* Products Section - Đặt lên đầu tiên */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <DynamicText style={styles.sectionTitle}>Sản phẩm</DynamicText>
+            <TouchableOpacity 
+              style={styles.editButton}
+              onPress={navigateToProductSelection}
+            >
+              <DynamicText style={styles.editButtonText}>Thêm</DynamicText>
+            </TouchableOpacity>
+          </View>
+          {selectedProducts.length > 0 ? (
+            <View style={styles.productsList}>
+              {selectedProducts.map((product, index) => renderProductItem(product, index))}
+            </View>
+          ) : (
+            <TouchableOpacity 
+              style={styles.selectProductButton}
+              onPress={navigateToProductSelection}
+            >
+              <DynamicText style={styles.selectProductText}>Thêm sản phẩm</DynamicText>
+            </TouchableOpacity>
+          )}
         </View>
 
-        {/* Selected Products */}
-        {selectedProducts.length > 0 ? (
-          selectedProducts.map((product, index) => renderProductItem(product, index))
-        ) : (
-          <View style={styles.emptyProductContainer}>
-            <Icon name="cart-outline" size={50} color="#ccc" />
-            <Text style={styles.emptyText}>Đơn hàng của bạn chưa có sản phẩm nào!</Text>
-            <TouchableOpacity style={styles.selectProductButton} onPress={navigateToProductSelection}>
-              <Icon name="add-outline" size={24} color="#fff" />
-              <Text style={styles.selectProductText}>Chọn sản phẩm</Text>
+        {/* Customer Selection Section - Chuyển xuống sau sản phẩm */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <DynamicText style={styles.sectionTitle}>Thông tin khách hàng</DynamicText>
+            <TouchableOpacity 
+              style={styles.editButton}
+              onPress={navigateToSelectCustomer}
+            >
+              <DynamicText style={styles.editButtonText}>Chọn</DynamicText>
             </TouchableOpacity>
+          </View>
+          {selectedCustomer ? (
+            <View style={styles.customerInfo}>
+              <DynamicText style={styles.customerName}>{selectedCustomer.fullName}</DynamicText>
+              <DynamicText style={styles.customerPhone}>{selectedCustomer.phoneNumber}</DynamicText>
+              <DynamicText style={styles.customerAddress}>{selectedCustomer.address}</DynamicText>
+            </View>
+          ) : (
+            <TouchableOpacity 
+              style={styles.selectCustomerButton}
+              onPress={navigateToSelectCustomer}
+            >
+              <DynamicText style={styles.selectCustomerText}>Chọn khách hàng</DynamicText>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Promotion Section - Only show if products are selected */}
+        {selectedProducts.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <DynamicText style={styles.sectionTitle}>Khuyến mãi</DynamicText>
+              <TouchableOpacity 
+                style={styles.editButton}
+                onPress={openPromotionModal}
+              >
+                <DynamicText style={styles.editButtonText}>Chọn</DynamicText>
+              </TouchableOpacity>
+            </View>
+            {selectedPromotion ? (
+              <View style={styles.selectedPromotionContainer}>
+                <View style={styles.promotionHeader}>
+                  <DynamicText style={styles.promotionName}>{selectedPromotion.name}</DynamicText>
+                  <TouchableOpacity 
+                    style={styles.removePromotionButton}
+                    onPress={removePromotion}
+                  >
+                    <DynamicText style={styles.removePromotionText}>×</DynamicText>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.promotionDetails}>
+                  <DynamicText style={styles.promotionDetailText}>
+                    Giảm giá: {selectedPromotion.discount}%
+                  </DynamicText>
+                  <DynamicText style={styles.promotionDetailText}>
+                    Giảm tối đa: {formatCurrency(selectedPromotion.maxDiscount)}
+                  </DynamicText>
+                  <DynamicText style={styles.promotionDetailText}>
+                    Đơn tối thiểu: {formatCurrency(selectedPromotion.minOrderValue)}
+                  </DynamicText>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity 
+                style={styles.selectPromotionButton}
+                onPress={openPromotionModal}
+              >
+                <DynamicText style={styles.selectPromotionText}>Chọn khuyến mãi</DynamicText>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
-        {/* Customer Info */}
-        <TouchableOpacity style={styles.customerSection} onPress={navigateToSelectCustomer}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Khách hàng</Text>
-            <Icon name="chevron-forward-outline" size={moderateScale(20)} color="#007AFF" />
-          </View>
-          
-          {customer ? (
-            <View style={styles.customerInfo}>
-              <Text style={styles.customerName}>{customer.fullName}</Text>
-              <Text style={styles.customerPhone}>{customer.phoneNumber}</Text>
-              <Text style={styles.customerAddress}>{customer.address}</Text>
-            </View>
-          ) : (
-            <>
-              <Text style={styles.selectCustomerText}>Chọn khách hàng</Text>
-              <TouchableOpacity 
-                style={styles.mockCustomerButton} 
-                onPress={useMockCustomer}
-              >
-                <Text style={styles.mockCustomerText}>Sử dụng khách hàng mẫu</Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </TouchableOpacity>
-
         {/* Payment Method Section */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Thanh toán</Text>
+        <View style={styles.section}>
+          <DynamicText style={styles.sectionTitle}>Thanh toán</DynamicText>
           <View style={styles.paymentStatusContainer}>
-            <Text style={styles.paymentStatusLabel}>Trạng thái thanh toán:</Text>
+            <DynamicText style={styles.paymentStatusLabel}>Trạng thái thanh toán:</DynamicText>
             <View style={styles.paymentStatusOptions}>
-              <TouchableOpacity
+              <TouchableOpacity 
                 style={[
                   styles.paymentStatusOption,
                   paymentStatus === 'paid' && styles.selectedPaymentStatusOption
                 ]}
                 onPress={() => setPaymentStatus('paid')}
               >
-                <Icon
-                  name="checkmark-circle-outline"
-                  size={moderateScale(22)}
-                  color={paymentStatus === 'paid' ? color.accentColor.whiteColor : color.accentColor.darkColor}
-                />
-                <Text
+                <DynamicText
                   style={[
                     styles.paymentStatusText,
-                    paymentStatus === 'paid' && styles.selectedPaymentMethodText
+                    paymentStatus === 'paid' && styles.selectedPaymentStatusText
                   ]}
                 >
                   Đã thanh toán
-                </Text>
+                </DynamicText>
               </TouchableOpacity>
               
               <TouchableOpacity
@@ -338,19 +472,14 @@ const CreateOrderScreen = observer(() => {
                 ]}
                 onPress={() => setPaymentStatus('unpaid')}
               >
-                <Icon
-                  name="time-outline"
-                  size={moderateScale(22)}
-                  color={paymentStatus === 'unpaid' ? color.accentColor.whiteColor : color.accentColor.darkColor}
-                />
-                <Text
+                <DynamicText
                   style={[
                     styles.paymentStatusText,
-                    paymentStatus === 'unpaid' && styles.selectedPaymentMethodText
+                    paymentStatus === 'unpaid' && styles.selectedPaymentStatusText
                   ]}
                 >
                   Thanh toán sau
-                </Text>
+                </DynamicText>
               </TouchableOpacity>
             </View>
           </View>
@@ -358,7 +487,7 @@ const CreateOrderScreen = observer(() => {
           {/* Only show payment methods if status is 'paid' */}
           {paymentStatus === 'paid' && (
             <View style={styles.paymentMethodsContainer}>
-              <Text style={styles.paymentMethodsLabel}>Phương thức thanh toán:</Text>
+              <DynamicText style={styles.paymentMethodsLabel}>Phương thức thanh toán:</DynamicText>
               
               <View style={styles.paymentMethodsOptions}>
                 <TouchableOpacity
@@ -368,19 +497,14 @@ const CreateOrderScreen = observer(() => {
                   ]}
                   onPress={() => setPaymentMethod('cash')}
                 >
-                  <Icon
-                    name="cash-outline"
-                    size={moderateScale(22)}
-                    color={paymentMethod === 'cash' ? color.accentColor.whiteColor : color.accentColor.darkColor}
-                  />
-                  <Text
+                  <DynamicText
                     style={[
                       styles.paymentMethodText,
                       paymentMethod === 'cash' && styles.selectedPaymentMethodText
                     ]}
                   >
                     Tiền mặt
-                  </Text>
+                  </DynamicText>
                 </TouchableOpacity>
                 
                 <TouchableOpacity
@@ -390,24 +514,14 @@ const CreateOrderScreen = observer(() => {
                   ]}
                   onPress={() => setPaymentMethod('credit card')}
                 >
-                  <Icon
-                    name="card-outline"
-                    size={moderateScale(22)}
-                    color={
-                      paymentMethod === 'credit card'
-                        ? color.accentColor.whiteColor
-                        : color.accentColor.darkColor
-                    }
-                  />
-                  <Text
+                  <DynamicText
                     style={[
                       styles.paymentMethodText,
-                      paymentMethod === 'credit card' &&
-                        styles.selectedPaymentMethodText
+                      paymentMethod === 'credit card' && styles.selectedPaymentMethodText
                     ]}
                   >
                     Chuyển khoản
-                  </Text>
+                  </DynamicText>
                 </TouchableOpacity>
                 
                 <TouchableOpacity
@@ -417,195 +531,216 @@ const CreateOrderScreen = observer(() => {
                   ]}
                   onPress={() => setPaymentMethod('e-wallet')}
                 >
-                  <Icon
-                    name="wallet-outline"
-                    size={moderateScale(22)}
-                    color={
-                      paymentMethod === 'e-wallet' ? color.accentColor.whiteColor : color.accentColor.darkColor
-                    }
-                  />
-                  <Text
+                  <DynamicText
                     style={[
                       styles.paymentMethodText,
-                      paymentMethod === 'e-wallet' &&
-                        styles.selectedPaymentMethodText
+                      paymentMethod === 'e-wallet' && styles.selectedPaymentMethodText
                     ]}
                   >
                     Ví điện tử
-                  </Text>
+                  </DynamicText>
                 </TouchableOpacity>
               </View>
             </View>
           )}
         </View>
 
-        {/* Notes */}
-        <View style={styles.notesSection}>
-          <Text style={styles.sectionTitle}>Ghi chú</Text>
-          <Input
-            placeholderText="Nhập ghi chú đơn hàng"
+        {/* Notes Section */}
+        <View style={styles.section}>
+          <DynamicText style={styles.sectionTitle}>Ghi chú</DynamicText>
+          <Input 
+            placeholderText="Nhập ghi chú cho đơn hàng"
+            value={notes}
+            onChangeText={setNotes}
+            inputContainerStyle={styles.notesInput}
             multiline
             numberOfLines={3}
-            inputContainerStyle={styles.textArea}
-            onChangeText={setNotes}
-            value={notes}
           />
         </View>
 
-        {/* Order Summary */}
-        <View style={styles.summarySection}>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Tổng số lượng</Text>
-            <Text style={styles.summaryValue}>{totalQuantity}</Text>
+        {/* Order Summary Section */}
+        <View style={styles.section}>
+          <DynamicText style={styles.sectionTitle}>Tổng đơn hàng</DynamicText>
+          <View style={styles.summaryContainer}>
+            <View style={styles.summaryRow}>
+              <DynamicText style={styles.summaryLabel}>Tạm tính:</DynamicText>
+              <DynamicText style={styles.summaryValue}>
+                {formatCurrency(calculateTotal())}
+              </DynamicText>
+            </View>
+            {selectedPromotion && (
+              <>
+                <View style={styles.summaryRow}>
+                  <DynamicText style={styles.summaryLabel}>Giảm giá:</DynamicText>
+                  <DynamicText style={[styles.summaryValue, styles.discountText]}>
+                    -{formatCurrency(calculateDiscount())}
+                  </DynamicText>
+                </View>
+                <View style={styles.summaryRow}>
+                  <DynamicText style={styles.summaryLabel}>Tổng cộng:</DynamicText>
+                  <DynamicText style={[styles.summaryValue, styles.totalText]}>
+                    {formatCurrency(calculateTotal() - calculateDiscount())}
+                  </DynamicText>
+                </View>
+              </>
+            )}
           </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Tổng tiền hàng</Text>
-            <Text style={styles.summaryValue}>{formatCurrency(totalAmount)}</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Giảm giá</Text>
-            <Text style={styles.summaryValue}>0đ</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Phí giao hàng</Text>
-            <Text style={styles.summaryValue}>0đ</Text>
-          </View>
-          <View style={[styles.summaryRow, styles.totalRow]}>
-            <Text style={styles.totalLabel}>Tổng khách phải trả</Text>
-            <Text style={styles.totalAmount}>{formatCurrency(totalAmount)}</Text>
-          </View>
+        </View>
+
+        {/* Action Buttons */}
+        <View style={styles.actionButtons}>
+          <TouchableOpacity 
+            style={[styles.button, styles.saveDraftButton]}
+            onPress={saveAsDraft}
+          >
+            <DynamicText style={styles.saveDraftButtonText}>Lưu nháp</DynamicText>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.button, styles.createOrderButton]}
+            onPress={handleCreateOrder}
+            disabled={!isValidOrder()}
+          >
+            <DynamicText style={styles.createOrderButtonText}>Tạo đơn hàng</DynamicText>
+          </TouchableOpacity>
         </View>
       </ScrollView>
 
-      {/* Buttons */}
-      <View style={styles.buttonContainer}>
-        <Button
-          title="Lưu nháp"
-          buttonContainerStyle={styles.draftButton}
-          titleStyle={styles.draftButtonText}
-          onPress={saveAsDraft}
-        />
-        <Button
-          title="Tạo đơn"
-          buttonContainerStyle={styles.createButton}
-          titleStyle={styles.createButtonText}
-          onPress={handleCreateOrder}
-        />
-      </View>
+      {/* Promotion Selection Modal */}
+      <Modal
+        visible={showPromotionModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowPromotionModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <DynamicText style={styles.modalTitle}>Danh sách khuyến mãi</DynamicText>
+              <TouchableOpacity 
+                onPress={() => setShowPromotionModal(false)}
+                style={styles.closeButton}
+              >
+                <DynamicText style={styles.closeButtonText}>×</DynamicText>
+              </TouchableOpacity>
+            </View>
+            
+            {isLoadingPromotions ? (
+              <View style={styles.loadingContainer}>
+                <DynamicText style={styles.loadingText}>Đang tải...</DynamicText>
+              </View>
+            ) : promotionError ? (
+              <View style={styles.errorContainer}>
+                <DynamicText style={styles.errorText}>{promotionError}</DynamicText>
+              </View>
+            ) : promotions.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <DynamicText style={styles.emptyText}>Không có khuyến mãi nào đang diễn ra</DynamicText>
+              </View>
+            ) : (
+              <FlatList
+                data={promotions}
+                renderItem={({ item }) => {
+                  const isEligible = calculateTotal() >= item.minOrderValue;
+                  return (
+                    <TouchableOpacity
+                      style={[
+                        styles.promotionItem,
+                        !isEligible && styles.ineligiblePromotion
+                      ]}
+                      onPress={() => {
+                        if (isEligible) {
+                          applyPromotion(item);
+                        } else {
+                          Alert.alert(
+                            'Không đủ điều kiện',
+                            `Giá trị đơn hàng phải từ ${formatCurrency(item.minOrderValue)} để áp dụng khuyến mãi này.`
+                          );
+                        }
+                      }}
+                      disabled={!isEligible}
+                    >
+                      <View style={styles.promotionItemHeader}>
+                        <DynamicText style={styles.promotionItemName}>
+                          {item.name}
+                        </DynamicText>
+                        <View style={[styles.statusBadge, isEligible ? styles.eligibleBadge : styles.ineligibleBadge]}>
+                          <DynamicText style={styles.statusText}>
+                            {isEligible ? 'Đang diễn ra' : 'Đơn tối thiểu ' + formatCurrency(item.minOrderValue)}
+                          </DynamicText>
+                        </View>
+                      </View>
+                      <View style={styles.promotionItemDetails}>
+                        <DynamicText style={styles.promotionItemDetail}>
+                          Giảm giá: {item.discount}%
+                        </DynamicText>
+                        <DynamicText style={styles.promotionItemDetail}>
+                          Đơn tối thiểu: {formatCurrency(item.minOrderValue)}
+                        </DynamicText>
+                        <DynamicText style={styles.promotionItemDetail}>
+                          Giảm tối đa: {formatCurrency(item.maxDiscount)}
+                        </DynamicText>
+                      </View>
+                      <View style={styles.promotionDates}>
+                        <DynamicText style={styles.dateText}>
+                          Từ: {new Date(item.startDate).toLocaleDateString()}
+                        </DynamicText>
+                        <DynamicText style={styles.dateText}>
+                          Đến: {new Date(item.endDate).toLocaleDateString()}
+                        </DynamicText>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                }}
+                keyExtractor={(item) => item._id}
+                contentContainerStyle={styles.promotionList}
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
     </BaseLayout>
   );
 });
 
-// Styles
 const styles = StyleSheet.create({
   scrollView: {
     paddingHorizontal: moderateScale(16),
-    paddingTop: moderateScale(10),
+    paddingTop: moderateScale(16),
     paddingBottom: moderateScale(50),
-    marginBottom:moderateScale(100),
+    marginBottom: moderateScale(50),
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: moderateScale(8),
-  },
-  sectionTitle: {
-    fontSize: moderateScale(15),
-    fontWeight: 'bold',
-    color: '#000',
-  },
-  linkText: {
-    fontSize: moderateScale(12),
-    color: '#007AFF',
-  },
-  productContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderRadius: moderateScale(8),
-    padding: moderateScale(8),
-    marginBottom: moderateScale(8),
-    alignItems: 'center',
-  },
-  productImage: {
-    width: moderateScale(80),
-    height: moderateScale(80),
-    borderRadius:moderateScale(8),
-    marginRight: moderateScale(8),
-  },
-  productDetails: {
-    flex: 1,
-  },
-  productName: {
-    fontSize: moderateScale(15),
-    fontWeight: 'bold',
-    color: '#000',
-  },
-  productVariant: {
-    fontSize: moderateScale(12),
-    color: '#666',
-    marginVertical: moderateScale(2),
-  },
-  productPrice: {
-    fontSize: moderateScale(15),
-    fontWeight: 'bold',
-    color: '#000',
-    marginVertical: moderateScale(2),
-  },
-  quantityContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: moderateScale(4),
-  },
-  quantityButton: {
-    width: moderateScale(28),
-    height: moderateScale(28),
-    borderRadius: moderateScale(14),
-    backgroundColor: '#f1f1f1',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  productQuantity: {
-    fontSize: moderateScale(12),
-    color: '#000',
-    marginHorizontal: moderateScale(10),
-  },
-  emptyProductContainer: {
-    backgroundColor: '#fff',
-    borderRadius: moderateScale(8),
-    padding: moderateScale(24),
-    marginBottom: moderateScale(14),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyText: {
-    fontSize: moderateScale(12),
-    color: '#666',
-    marginVertical: moderateScale(16),
-  },
-  selectProductButton: {
-    flexDirection: 'row',
-    backgroundColor: '#007AFF',
-    borderRadius: moderateScale(8),
-    padding: moderateScale(8),
-    alignItems: 'center',
-  },
-  selectProductText: {
-    fontSize: moderateScale(14),
-    color: '#fff',
-    marginLeft: moderateScale(8),
-  },
-  customerSection: {
+  section: {
     backgroundColor: '#fff',
     borderRadius: moderateScale(8),
     padding: moderateScale(16),
     marginBottom: moderateScale(16),
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: moderateScale(12),
+  },
+  sectionTitle: {
+    fontSize: moderateScale(16),
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  editButton: {
+    padding: moderateScale(8),
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    borderRadius: moderateScale(8),
+  },
+  editButtonText: {
+    fontSize: moderateScale(12),
+    color: '#007AFF',
+  },
   customerInfo: {
     marginTop: moderateScale(8),
   },
   customerName: {
-    fontSize: moderateScale(13),
+    fontSize: moderateScale(16),
     fontWeight: 'bold',
     color: '#000',
   },
@@ -615,200 +750,368 @@ const styles = StyleSheet.create({
     marginTop: moderateScale(4),
   },
   customerAddress: {
-    fontSize: moderateScale(12),
+    fontSize: moderateScale(14),
     color: '#666',
     marginTop: moderateScale(4),
   },
+  selectCustomerButton: {
+    padding: moderateScale(8),
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    borderRadius: moderateScale(8),
+    alignItems: 'center',
+  },
   selectCustomerText: {
     fontSize: moderateScale(14),
-    color: '#666',
+    color: '#007AFF',
+  },
+  productsList: {
     marginTop: moderateScale(8),
   },
-  paymentStatusContainer: {
+  productContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: moderateScale(16),
+    alignItems: 'center',
+    paddingVertical: moderateScale(8),
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
-  paymentStatusLabel: {
+  productDetails: {
+    flex: 1,
+    marginRight: moderateScale(8),
+  },
+  productName: {
     fontSize: moderateScale(14),
     fontWeight: 'bold',
     color: '#000',
   },
-  paymentStatusOptions: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  productVariant: {
+    fontSize: moderateScale(12),
+    color: '#666',
+    marginTop: moderateScale(2),
   },
-  paymentStatusOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: moderateScale(8),
-    borderWidth: 1,
-    borderColor: color.accentColor.grayColor,
-    borderRadius: moderateScale(8),
-    marginVertical: moderateScale(8),
-    marginHorizontal: moderateScale(4),
-    minWidth: moderateScale(150),
-  },
-  selectedPaymentStatusOption: {
-    borderColor: color.primaryColor,
-    backgroundColor: color.primaryColor,
-  },
-  paymentStatusText: {
+  productPrice: {
     fontSize: moderateScale(14),
-    color: color.accentColor.darkColor,
+    color: '#007AFF',
+    marginTop: moderateScale(4),
+  },
+  quantityContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: moderateScale(4),
+  },
+  quantityButton: {
+    backgroundColor: '#f0f0f0',
+    width: moderateScale(24),
+    height: moderateScale(24),
+    borderRadius: moderateScale(12),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quantityButtonText: {
+    fontSize: moderateScale(18),
+    color: '#007AFF',
+    lineHeight: moderateScale(24),
+  },
+  productQuantity: {
+    fontSize: moderateScale(14),
+    color: '#000',
+    marginHorizontal: moderateScale(10),
+  },
+  removeText: {
+    fontSize: moderateScale(24),
+    color: 'red',
+    padding: moderateScale(8),
+  },
+  selectProductButton: {
+    padding: moderateScale(12),
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    borderRadius: moderateScale(8),
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  selectProductText: {
+    fontSize: moderateScale(14),
+    color: '#007AFF',
     marginLeft: moderateScale(8),
   },
-  selectedPaymentMethodText: {
-    color: color.accentColor.whiteColor,
-  },
-  sectionContainer: {
-    backgroundColor: '#fff',
+  selectedPromotionContainer: {
+    backgroundColor: '#f0f7ff',
     borderRadius: moderateScale(8),
-    padding: moderateScale(16),
-    marginBottom: moderateScale(16),
-  },
-  paymentMethodsContainer: {
-    marginBottom: moderateScale(16),
-  },
-  paymentMethodsLabel: {
-    fontSize: moderateScale(14),
-    fontWeight: 'bold',
-    color: color.accentColor.darkColor,
-    marginBottom: moderateScale(8),
-  },
-  paymentMethodsOptions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  paymentMethodOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: color.white,
-    paddingHorizontal: moderateScale(12),
-    paddingVertical: moderateScale(8),
-    borderRadius: moderateScale(8),
-    borderWidth: 1,
-    borderColor: color.accentColor.grayColor,
-    flex: 1,
-    marginHorizontal: moderateScale(4),
-  },
-  selectedPaymentMethod: {
-    borderColor: color.primaryColor,
-    backgroundColor: color.primaryColor,
-  },
-  paymentMethodText: {
-    fontSize: moderateScale(12),
-    color: color.accentColor.darkColor,
-    marginLeft: moderateScale(4),
-  },
-  notesSection: {
-    backgroundColor: '#fff',
-    borderRadius: moderateScale(8),
-    padding: moderateScale(16),
-    marginBottom: moderateScale(16),
-  },
-  textArea: {
-    borderWidth: moderateScale(1),
-    borderColor: '#ddd',
-    borderRadius: moderateScale(8),
-    padding: moderateScale(20),
-    fontSize: moderateScale(30),
-    textAlignVertical: 'top',
+    padding: moderateScale(12),
     marginTop: moderateScale(8),
   },
-  summarySection: {
-    backgroundColor: '#fff',
+  promotionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: moderateScale(8),
+  },
+  promotionName: {
+    fontSize: moderateScale(16),
+    fontWeight: 'bold',
+    color: color.accentColor.darkColor,
+  },
+  promotionDetails: {
+    marginTop: moderateScale(4),
+  },
+  promotionDetailText: {
+    fontSize: moderateScale(14),
+    color: color.accentColor.darkColor,
+    marginBottom: moderateScale(4),
+  },
+  removePromotionButton: {
+    padding: moderateScale(4),
+  },
+  removePromotionText: {
+    fontSize: moderateScale(20),
+    color: color.accentColor.errorColor,
+  },
+  selectPromotionButton: {
+    padding: moderateScale(12),
+    borderWidth: 1,
+    borderColor: '#007AFF',
     borderRadius: moderateScale(8),
-    padding: moderateScale(16),
-    marginBottom: moderateScale(16),
+    alignItems: 'center',
+  },
+  selectPromotionText: {
+    fontSize: moderateScale(14),
+    color: '#007AFF',
+  },
+  summaryContainer: {
+    marginTop: moderateScale(8),
   },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: moderateScale(8),
+    alignItems: 'center',
+    paddingVertical: moderateScale(8),
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
   summaryLabel: {
     fontSize: moderateScale(14),
-    color: '#666',
+    color: '#000',
   },
   summaryValue: {
     fontSize: moderateScale(14),
-    color: '#000',
-  },
-  totalRow: {
-    marginTop: moderateScale(8),
-    paddingTop: moderateScale(8),
-    borderTopWidth: moderateScale(1),
-    borderTopColor: '#eee',
-  },
-  totalLabel: {
-    fontSize: moderateScale(16),
     fontWeight: 'bold',
     color: '#000',
   },
-  totalAmount: {
+  discountText: {
+    fontSize: moderateScale(14),
+    color: 'red',
+  },
+  totalText: {
     fontSize: moderateScale(16),
-    fontWeight: 'bold',
     color: '#007AFF',
   },
-  buttonContainer: {
+  actionButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: moderateScale(10),
-    backgroundColor: '#ffffff',
-    borderTopWidth: 1,
-    borderTopColor: '#eeeeee',
-    position: 'absolute',
-    bottom: 70,
-    left: 0,
-    right: 0,
-    zIndex: 10,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
+    marginTop: moderateScale(16),
   },
-  draftButton: {
+  button: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
-    paddingVertical: moderateScale(0),
+    padding: moderateScale(12),
     borderRadius: moderateScale(8),
     alignItems: 'center',
-    marginRight: moderateScale(8),
-    marginVertical:moderateScale(5),
-    height:moderateScale(35),
+    marginHorizontal: moderateScale(4),
   },
-  draftButtonText: {
+  saveDraftButton: {
+    backgroundColor: '#f0f0f0',
+  },
+  saveDraftButtonText: {
     fontSize: moderateScale(14),
     color: '#000',
   },
-  createButton: {
-    flex: 1,
+  createOrderButton: {
     backgroundColor: '#007AFF',
-    paddingVertical: moderateScale(0),
-    borderRadius: moderateScale(8),
-    alignItems: 'center',
-    marginLeft: moderateScale(8),
-    marginVertical:moderateScale(5),
-    height:moderateScale(35),
   },
-  createButtonText: {
+  createOrderButtonText: {
     fontSize: moderateScale(14),
     color: '#fff',
   },
-  mockCustomerButton: {
-    marginTop: moderateScale(8),
-    backgroundColor: color.primaryColor,
-    borderRadius: moderateScale(8),
-    padding: moderateScale(8),
-    alignItems: 'center',
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
+    alignItems: 'center',
   },
-  mockCustomerText: {
-    fontSize: moderateScale(14),
-    color: color.accentColor.whiteColor,
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: moderateScale(12),
+    width: '90%',
+    maxHeight: '80%',
+    padding: moderateScale(16),
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: moderateScale(16),
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    paddingBottom: moderateScale(8),
+  },
+  modalTitle: {
+    fontSize: moderateScale(18),
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  closeButton: {
+    padding: moderateScale(4),
+  },
+  closeButtonText: {
+    fontSize: moderateScale(24),
+    color: '#000',
+  },
+  loadingContainer: {
+    padding: moderateScale(32),
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: moderateScale(16),
+    color: '#666',
+  },
+  errorContainer: {
+    padding: moderateScale(32),
+    alignItems: 'center',
+  },
+  errorText: {
+    fontSize: moderateScale(16),
+    color: 'red',
     textAlign: 'center',
+  },
+  emptyContainer: {
+    padding: moderateScale(32),
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: moderateScale(16),
+    color: '#666',
+    textAlign: 'center',
+  },
+  promotionItem: {
+    backgroundColor: '#f0f7ff',
+    borderRadius: moderateScale(8),
+    padding: moderateScale(16),
+    marginBottom: moderateScale(12),
+  },
+  promotionItemHeader: {
+    marginBottom: moderateScale(8),
+  },
+  promotionItemName: {
+    fontSize: moderateScale(16),
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  promotionItemDetails: {
+    marginBottom: moderateScale(8),
+  },
+  promotionItemDetail: {
+    fontSize: moderateScale(14),
+    color: '#666',
+    marginVertical: moderateScale(2),
+  },
+  statusBadge: {
+    paddingHorizontal: moderateScale(8),
+    paddingVertical: moderateScale(4),
+    borderRadius: moderateScale(4),
+    marginTop: moderateScale(4),
+    alignSelf: 'flex-start',
+  },
+  eligibleBadge: {
+    backgroundColor: '#4CAF50',
+  },
+  ineligibleBadge: {
+    backgroundColor: '#FF5722',
+  },
+  statusText: {
+    fontSize: moderateScale(12),
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  ineligiblePromotion: {
+    opacity: 0.7,
+    backgroundColor: '#f0f0f0',
+  },
+  promotionDates: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: moderateScale(8),
+  },
+  dateText: {
+    fontSize: moderateScale(12),
+    color: '#666',
+  },
+  promotionList: {
+    paddingVertical: moderateScale(8),
+  },
+  paymentStatusContainer: {
+    marginTop: moderateScale(8),
+  },
+  paymentStatusLabel: {
+    fontSize: moderateScale(14),
+    color: '#000',
+    marginBottom: moderateScale(4),
+  },
+  paymentStatusOptions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  paymentStatusOption: {
+    padding: moderateScale(8),
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    borderRadius: moderateScale(8),
+  },
+  selectedPaymentStatusOption: {
+    backgroundColor: '#007AFF',
+  },
+  paymentStatusText: {
+    fontSize: moderateScale(14),
+    color: '#000',
+    fontWeight: 'bold',
+  },
+  selectedPaymentStatusText: {
+    color: '#fff',
+  },
+  paymentMethodsContainer: {
+    marginTop: moderateScale(8),
+  },
+  paymentMethodsLabel: {
+    fontSize: moderateScale(14),
+    color: '#000',
+    marginBottom: moderateScale(4),
+  },
+  paymentMethodsOptions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  paymentMethodOption: {
+    padding: moderateScale(8),
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    borderRadius: moderateScale(8),
+  },
+  selectedPaymentMethod: {
+    backgroundColor: '#007AFF',
+  },
+  paymentMethodText: {
+    fontSize: moderateScale(14),
+    color: '#000',
+    fontWeight: 'bold',
+  },
+  selectedPaymentMethodText: {
+    color: '#fff',
+  },
+  notesInput: {
+    marginTop: moderateScale(8),
   },
 });
 
