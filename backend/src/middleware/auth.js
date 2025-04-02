@@ -58,8 +58,11 @@ const protect = async (req, res, next) => {
       });
     }
 
-    // Kiểm tra role, bỏ qua kiểm tra role cho API requests từ mobile app
-    if (user.role !== "admin" && !req.originalUrl.startsWith('/api/')) {
+    // Kiểm tra role cho web interface (không phải API)
+    // Cho phép cả admin và employee truy cập API promotions
+    if (user.role !== "admin" && 
+        !req.originalUrl.startsWith('/api/') && 
+        !req.originalUrl.includes('/promotions/api/')) {
       return res.status(403).render("auth/login", {
         title: "Đăng nhập",
         error: "Chỉ admin mới được truy cập",
