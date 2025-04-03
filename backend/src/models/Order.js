@@ -30,6 +30,8 @@ const OrderSchema = new mongoose.Schema({
   shippingAddress: { type: String, default:'Nhận hàng tại cửa hàng' },
   employeeID: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee' },
   notes: { type: String },
+  // Thêm trường mới để lưu lý do hủy đơn hàng
+  cancelReason: { type: String, default: null },
   // Add this new field to store promotion reference
   promotionID: { type: mongoose.Schema.Types.ObjectId, ref: 'Promotion' },
   // Add fields to store promotion information when the order was created

@@ -102,21 +102,48 @@ export const updateOrderPayment = async (id: string, paymentMethod: string) => {
   }
 };
 
-export const updateOrderStatus = async (id: string, status: string) => {
+export const updateOrderStatus = async (id: string, status: string, cancelReason?: string) => {
   try {
     console.log(`===== REQUEST START: Cập nhật trạng thái đơn hàng ${id} thành ${status} =====`);
     
     // Kiểm tra thông tin trước khi gửi
     console.log(`URL: ${ApiEndpoint.ORDERS}/${id}/status`);
-    console.log(`Dữ liệu gửi: `, { status });
     
-    const response = await Api.put(`${ApiEndpoint.ORDERS}/${id}/status`, {
-      status: status
-    });
+    // Chuẩn bị dữ liệu gửi đi
+    const requestData: { status: string; cancelReason?: string } = { status };
+    
+    // Thêm lý do nếu là hủy đơn hàng và có lý do
+    if (status === 'canceled' && cancelReason) {
+      console.log(`Lý do hủy đơn: ${cancelReason}`);
+      requestData.cancelReason = cancelReason;
+    }
+    
+    console.log(`Dữ liệu gửi: `, requestData);
+    
+    const response = await Api.put(`${ApiEndpoint.ORDERS}/${id}/status`, requestData);
     
     console.log(`===== RESPONSE RECEIVED =====`);
     console.log(`Status code: ${response.status}`);
     console.log(`Response data: `, response.data);
+    
+    // Chi tiết hơn về phản hồi khi hủy đơn hàng
+    if (status === 'canceled') {
+      console.log(`THÔNG TIN CHI TIẾT SAU KHI HỦY ĐƠN HÀNG:`);
+      
+      if (response.data) {
+        // Sử dụng type assertion để truy cập các thuộc tính
+        const orderData = response.data as {
+          totalAmount?: number;
+          status?: string;
+          cancelReason?: string | null;
+        };
+        
+        console.log(`- Tổng tiền hiện tại: ${orderData.totalAmount !== undefined ? orderData.totalAmount : 'Không có thông tin'}`);
+        console.log(`- Trạng thái: ${orderData.status || 'Không có thông tin'}`);
+        console.log(`- Lý do hủy: ${orderData.cancelReason || 'Không có'}`);
+      }
+    }
+    
     console.log(`Problem?: ${response.problem || 'Không có'}`);
     
     if (!response.ok) {

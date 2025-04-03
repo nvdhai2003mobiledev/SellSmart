@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { observer } from 'mobx-react-lite';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { BaseLayout, Header, Button } from '../../../components';
+import { BaseLayout, Header, Button, DynamicText } from '../../../components';
 import { color, moderateScale } from '../../../utils';
 import { rootStore } from '../../../models/root-store';
 import { format } from 'date-fns';
 import { updateOrderPayment, updateOrderStatus } from '../../../services/api/ordersApi';
 import { Screen } from '../../../navigation/navigation.type';
+import { More, CloseCircle, Timer, ReceiptItem } from 'iconsax-react-native';
 
 // Định nghĩa những phương thức thanh toán có thể có
 const PAYMENT_METHODS = [
@@ -21,12 +22,14 @@ const OrderDetailScreen = observer(() => {
   const navigation = useNavigation();
   const route = useRoute();
   const { orderId } = route.params as { orderId: string };
-  const navigateToOrderList1 = (status?: string) => {
+  const navigateToOrderList = (status?: string) => {
+    // @ts-ignore - ignore navigation type error
     navigation.navigate(Screen.ORDERLIST, { status });
   };
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showPaymentMethods, setShowPaymentMethods] = useState(false);
+  const [showActions, setShowActions] = useState(false);
   
   // Define loadOrderDetails with useCallback to prevent it from changing on every render
   const loadOrderDetails = useCallback(async () => {
@@ -148,13 +151,45 @@ const OrderDetailScreen = observer(() => {
     }
   };
   
+  // Toggle action sheet visibility
+  const toggleActions = () => {
+    setShowActions(!showActions);
+  };
+  
+  const handleActionSelected = (action: string) => {
+    setShowActions(false);
+    
+    if (action === 'cancel') {
+      // Kiểm tra xem đơn hàng đã bị hủy chưa
+      if (order?.status === 'canceled') {
+        Alert.alert('Thông báo', 'Đơn hàng này đã bị hủy');
+        return;
+      }
+      
+      // Điều hướng đến màn hình hủy đơn hàng với thông tin ID đơn hàng
+      navigation.navigate(Screen.ORDER_CANCEL, { 
+        orderId: order?._id,
+        orderNumber: order?.orderID.slice(-4) // Gửi mã đơn ngắn gọn để hiển thị
+      });
+    } else if (action === 'history') {
+      // TODO: Implement order history view
+      Alert.alert('Thông báo', 'Tính năng đang được phát triển');
+    } else if (action === 'archive') {
+      // TODO: Implement order archiving
+      Alert.alert('Thông báo', 'Tính năng đang được phát triển');
+    }
+  };
+  
   if (loading) {
     return (
       <BaseLayout>
         <Header
           title="Chi tiết đơn hàng"
           showBackIcon
-          onPressBack={() => navigation.goBack()}
+          onPressBack={() => navigateToOrderList()}
+          showRightIcon
+          RightIcon={<More size={24} color={color.accentColor.darkColor} />}
+          onPressRight={toggleActions}
         />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={color.primaryColor} />
@@ -169,10 +204,13 @@ const OrderDetailScreen = observer(() => {
         <Header
           title="Chi tiết đơn hàng"
           showBackIcon
-          onPressBack={() => navigation.goBack()}
+          onPressBack={() => navigateToOrderList()}
+          showRightIcon
+          RightIcon={<More size={24} color={color.accentColor.darkColor} />}
+          onPressRight={toggleActions}
         />
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>Không tìm thấy thông tin đơn hàng</Text>
+          <DynamicText style={styles.emptyText}>Không tìm thấy thông tin đơn hàng</DynamicText>
         </View>
       </BaseLayout>
     );
@@ -191,14 +229,20 @@ const OrderDetailScreen = observer(() => {
       <Header
         title="Chi tiết đơn hàng"
         showBackIcon
-        onPressBack={() => navigateToOrderList1()}
+        onPressBack={() => navigateToOrderList()}
+        showRightIcon
+        RightIcon={<More size={24} color={color.accentColor.darkColor} />}
+        onPressRight={toggleActions}
       />
       
       <ScrollView style={styles.scrollView}>
         {/* Thông tin đơn hàng */}
         <View style={styles.orderInfoSection}>
           <View style={styles.orderIdRow}>
-            <Text style={styles.orderId}>#{orderIdShort}</Text>
+            <DynamicText style={[
+              styles.orderId,
+              order.status === 'canceled' && styles.canceledOrderId
+            ]}>#{orderIdShort}</DynamicText>
             <View style={[
               styles.statusBadge,
               order.status === 'pending' ? styles.statusPending :
@@ -206,63 +250,68 @@ const OrderDetailScreen = observer(() => {
               order.status === 'canceled' ? styles.statusCanceled :
               styles.statusDelivered
             ]}>
-              <Text style={styles.statusText}>
+              <DynamicText style={styles.statusText}>
                 {order.status === 'pending' ? 'Chưa xử lý' :
                  order.status === 'processing' ? 'Đã xử lý' :
                  order.status === 'shipping' ? 'Đang giao' :
                  order.status === 'delivered' ? 'Đã giao' :
                  order.status === 'canceled' ? 'Đã hủy' : order.status}
-              </Text>
+              </DynamicText>
             </View>
           </View>
           
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Thời gian:</Text>
-            <Text style={styles.infoValue}>{formattedDate}</Text>
+            <DynamicText style={styles.infoLabel}>Thời gian:</DynamicText>
+            <DynamicText style={styles.infoValue}>{formattedDate}</DynamicText>
           </View>
           
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Người thực hiện:</Text>
-            <Text style={styles.infoValue}>{employeeName}</Text>
+            <DynamicText style={styles.infoLabel}>Người thực hiện:</DynamicText>
+            <DynamicText style={styles.infoValue}>{employeeName}</DynamicText>
           </View>
           
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Trạng thái thanh toán:</Text>
+            <DynamicText style={styles.infoLabel}>Trạng thái thanh toán:</DynamicText>
             <View style={[
               styles.paymentStatusBadge,
               order.paymentStatus === 'paid' ? styles.statusPaid : styles.statusUnpaid
             ]}>
-              <Text style={styles.paymentStatusText}>
+              <DynamicText style={styles.paymentStatusText}>
                 {order.paymentStatus === 'paid' ? 'Đã thanh toán' : 
                  order.paymentStatus === 'unpaid' ? 'Chưa thanh toán' : 'Đã hoàn tiền'}
-              </Text>
+              </DynamicText>
             </View>
           </View>
           
           {order.paymentStatus === 'paid' && order.paymentMethod && (
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Phương thức thanh toán:</Text>
-              <Text style={styles.infoValue}>
+              <DynamicText style={styles.infoLabel}>Phương thức thanh toán:</DynamicText>
+              <DynamicText style={styles.infoValue}>
                 {order.paymentMethod === 'cash' ? 'Tiền mặt' : 
                  order.paymentMethod === 'credit card' ? 'Chuyển khoản' : 
                  order.paymentMethod === 'e-wallet' ? 'Ví điện tử' : order.paymentMethod}
-              </Text>
+              </DynamicText>
             </View>
           )}
           
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Tổng tiền:</Text>
-            <Text style={styles.totalValue}>{formatCurrency(order.totalAmount)}</Text>
+            <DynamicText style={styles.totalLabel}>Tổng tiền:</DynamicText>
+            <DynamicText style={[
+              styles.totalValue,
+              order.status === 'canceled' && styles.canceledTotal
+            ]}>
+              {order.status === 'canceled' ? '0đ' : formatCurrency(order.totalAmount)}
+            </DynamicText>
           </View>
         </View>
         
         {/* Phần thanh toán - Chỉ hiển thị khi đơn hàng chưa thanh toán */}
-        {order.paymentStatus === 'unpaid' && (
+        {order.paymentStatus === 'unpaid' && order.status !== 'canceled' && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Xử lý thanh toán</Text>
-            <Text style={styles.paymentDescription}>
+            <DynamicText style={styles.sectionTitle}>Xử lý thanh toán</DynamicText>
+            <DynamicText style={styles.paymentDescription}>
               Đơn hàng này chưa được thanh toán. Hãy nhận thanh toán để tiếp tục xử lý.
-            </Text>
+            </DynamicText>
             
             <Button
               title="Nhận thanh toán"
@@ -275,33 +324,33 @@ const OrderDetailScreen = observer(() => {
         
         {/* Thông tin khách hàng */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Thông tin khách hàng</Text>
+          <DynamicText style={styles.sectionTitle}>Thông tin khách hàng</DynamicText>
           <View style={styles.customerInfo}>
-            <Text style={styles.customerName}>{order.customerID.fullName}</Text>
-            <Text style={styles.customerPhone}>{order.customerID.phoneNumber}</Text>
+            <DynamicText style={styles.customerName}>{order.customerID.fullName}</DynamicText>
+            <DynamicText style={styles.customerPhone}>{order.customerID.phoneNumber}</DynamicText>
             {order.customerID.address && (
-              <Text style={styles.customerAddress}>Địa chỉ: {order.customerID.address}</Text>
+              <DynamicText style={styles.customerAddress}>Địa chỉ: {order.customerID.address}</DynamicText>
             )}
           </View>
         </View>
         
         {/* Danh sách sản phẩm */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Sản phẩm ({order.products.length})</Text>
+          <DynamicText style={styles.sectionTitle}>Sản phẩm ({order.products.length})</DynamicText>
           {order.products.map((product: any, index: number) => (
             <View key={index} style={styles.productItem}>
               <View style={styles.productInfo}>
-                <Text style={styles.productName}>{product.name}</Text>
-                <Text style={styles.productVariants}>
+                <DynamicText style={styles.productName}>{product.name}</DynamicText>
+                <DynamicText style={styles.productVariants}>
                   {product.attributes.map((attr: any) => 
                     `${attr.name}: ${Array.isArray(attr.value) ? attr.value.join(', ') : attr.value}`
                   ).join(' | ')}
-                </Text>
-                <Text style={styles.productPrice}>{formatCurrency(product.price)}</Text>
+                </DynamicText>
+                <DynamicText style={styles.productPrice}>{formatCurrency(product.price)}</DynamicText>
               </View>
               <View style={styles.productQuantity}>
-                <Text style={styles.quantityText}>x{product.quantity}</Text>
-                <Text style={styles.itemTotal}>{formatCurrency(product.price * product.quantity)}</Text>
+                <DynamicText style={styles.quantityText}>x{product.quantity}</DynamicText>
+                <DynamicText style={styles.itemTotal}>{formatCurrency(product.price * product.quantity)}</DynamicText>
               </View>
             </View>
           ))}
@@ -310,15 +359,68 @@ const OrderDetailScreen = observer(() => {
         {/* Ghi chú */}
         {order.notes && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Ghi chú</Text>
-            <Text style={styles.notes}>{order.notes}</Text>
+            <DynamicText style={styles.sectionTitle}>Ghi chú</DynamicText>
+            <DynamicText style={styles.notes}>{order.notes}</DynamicText>
+          </View>
+        )}
+        
+        {/* Lý do hủy đơn - Chỉ hiển thị khi đơn hàng đã bị hủy */}
+        {order.status === 'canceled' && (
+          <View style={styles.section}>
+            <DynamicText style={[styles.sectionTitle, { color: color.accentColor.errorColor }]}>
+              Lý do hủy đơn
+            </DynamicText>
+            {order.cancelReason ? (
+              <DynamicText style={styles.cancelReason}>{order.cancelReason}</DynamicText>
+            ) : (
+              <DynamicText style={styles.cancelReasonNotAvailable}>
+                Không có thông tin về lý do hủy đơn hàng
+              </DynamicText>
+            )}
           </View>
         )}
       </ScrollView>
       
+      {/* Action Sheet for 3-dots menu */}
+      {showActions && (
+        <>
+          <TouchableOpacity 
+            style={styles.actionSheetOverlay}
+            activeOpacity={1} 
+            onPress={() => setShowActions(false)}
+          >
+            <View style={styles.actionSheet}>
+              <TouchableOpacity 
+                style={styles.actionItem} 
+                onPress={() => handleActionSelected('cancel')}
+              >
+                <CloseCircle size={24} color={color.accentColor.errorColor} />
+                <DynamicText style={[styles.actionText, styles.cancelText]}>Hủy đơn hàng</DynamicText>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.actionItem} 
+                onPress={() => handleActionSelected('history')}
+              >
+                <ReceiptItem size={24} color={color.accentColor.darkColor} />
+                <DynamicText style={styles.actionText}>Lịch sử đơn hàng</DynamicText>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.actionItem} 
+                onPress={() => handleActionSelected('archive')}
+              >
+                <Timer size={24} color={color.accentColor.darkColor} />
+                <DynamicText style={styles.actionText}>Lưu trữ</DynamicText>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </>
+      )}
+      
       {/* Nút xử lý đơn hàng */}
       <View style={styles.buttonContainer}>
-        {order.paymentStatus === 'unpaid' && (
+        {order.paymentStatus === 'unpaid' && order.status !== 'canceled' && (
           <Button
             title="Nhận thanh toán"
             buttonContainerStyle={styles.receivePaymentButton}
@@ -337,7 +439,7 @@ const OrderDetailScreen = observer(() => {
           />
         )}
         
-        {order.status === 'processing' && (
+        {order.status === 'processing' && order.status !== 'canceled' && (
           <Button
             title="Giao hàng"
             buttonContainerStyle={styles.shippingButton}
@@ -351,7 +453,7 @@ const OrderDetailScreen = observer(() => {
       {showPaymentMethods && (
         <View style={styles.paymentMethodsModal}>
           <View style={styles.paymentMethodsContainer}>
-            <Text style={styles.paymentMethodsTitle}>Chọn phương thức thanh toán</Text>
+            <DynamicText style={styles.paymentMethodsTitle}>Chọn phương thức thanh toán</DynamicText>
             {PAYMENT_METHODS.map(method => (
               <TouchableOpacity
                 key={method.id}
@@ -359,14 +461,14 @@ const OrderDetailScreen = observer(() => {
                 onPress={() => handleSelectPaymentMethod(method.id)}
               >
                 <Icon name={method.icon} size={moderateScale(24)} color={color.accentColor.darkColor} />
-                <Text style={styles.paymentMethodLabel}>{method.label}</Text>
+                <DynamicText style={styles.paymentMethodLabel}>{method.label}</DynamicText>
               </TouchableOpacity>
             ))}
             <TouchableOpacity
               style={styles.cancelButton}
               onPress={() => setShowPaymentMethods(false)}
             >
-              <Text style={styles.cancelButtonText}>Hủy</Text>
+              <DynamicText style={styles.cancelButtonText}>Hủy</DynamicText>
             </TouchableOpacity>
           </View>
         </View>
@@ -648,6 +750,58 @@ const styles = StyleSheet.create({
     color: color.accentColor.darkColor,
     fontWeight: 'bold',
     textAlign: 'center',
+  },
+  canceledOrderId: {
+    textDecorationLine: 'line-through',
+    opacity: 0.6,
+  },
+  canceledTotal: {
+    color: color.accentColor.grayColor,
+    textDecorationLine: 'line-through',
+  },
+  actionSheetOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    top: 0,
+    zIndex: 1000,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  actionSheet: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'white',
+    borderTopLeftRadius: moderateScale(20),
+    borderTopRightRadius: moderateScale(20),
+    paddingTop: moderateScale(20),
+    paddingBottom: moderateScale(30),
+    paddingHorizontal: moderateScale(16),
+  },
+  actionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: moderateScale(16),
+    borderBottomWidth: 1,
+    borderBottomColor: '#F2F2F2',
+  },
+  actionText: {
+    fontSize: moderateScale(16),
+    marginLeft: moderateScale(16),
+    color: color.accentColor.darkColor,
+  },
+  cancelText: {
+    color: color.accentColor.errorColor,
+  },
+  cancelReason: {
+    fontSize: moderateScale(14),
+    color: color.accentColor.darkColor,
+  },
+  cancelReasonNotAvailable: {
+    fontSize: moderateScale(14),
+    color: color.accentColor.grayColor,
   },
 });
 

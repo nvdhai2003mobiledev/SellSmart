@@ -32,6 +32,7 @@ export enum Screen {
   CHOOSE_ORDER_PRODUCT = 'CHOOSE_ORDER_PRODUCT',
   CUSTOMER_SELECTION = 'CUSTOMER_SELECTION',
   ORDER_DETAIL = 'ORDER_DETAIL',
+  ORDER_CANCEL = 'ORDER_CANCEL',
   PROMOTION_LIST = 'PROMOTION_LIST',
   PROMOTION_DETAIL = 'PROMOTION_DETAIL',
   ADD_PROMOTION = 'ADD_PROMOTION',
@@ -61,7 +62,9 @@ export type RootStackParamList = {
     customer?: any;
   };
   [Screen.ORDERSCREEN]: undefined;
-  [Screen.ORDERLIST]: undefined;
+  [Screen.ORDERLIST]: {
+    status?: string;
+  };
   [Screen.FILTERORDER]: undefined;
   [Screen.PROFILE]: undefined;
   [Screen.CHOOSE_ORDER_PRODUCT]: {
@@ -73,6 +76,12 @@ export type RootStackParamList = {
   };
   [Screen.ORDER_DETAIL]: {
     orderId: string;
+  };
+  [Screen.ORDER_CANCEL]: {
+    orderId: string;
+    orderAmount: number;
+    paymentStatus: string;
+    orderStatus: string;
   };
   [Screen.PROMOTION_LIST]: undefined;
   [Screen.PROMOTION_DETAIL]: {

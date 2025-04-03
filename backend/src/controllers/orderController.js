@@ -549,6 +549,13 @@ const processOrderStatusChange = async (orderId, newStatus) => {
     
     // Cập nhật trạng thái
     order.status = newStatus;
+    
+    // Nếu đơn hàng bị hủy, đặt tổng tiền về 0
+    if (newStatus === 'canceled') {
+      console.log(`Đơn hàng ${orderId} bị hủy, đặt tổng tiền về 0`);
+      order.totalAmount = 0;
+    }
+    
     await order.save();
     
     // Kiểm tra và cập nhật tồn kho
@@ -569,6 +576,30 @@ const processOrderStatusChange = async (orderId, newStatus) => {
       await updateInventoryForOrder(orderObj);
       
       return true;
+    } else if (newStatus === 'canceled') {
+      console.log(`Đơn hàng ${orderId} chuyển sang trạng thái canceled, sẽ kiểm tra để hoàn trả tồn kho`);
+      
+      // Chỉ hoàn trả tồn kho nếu đơn hàng đã thanh toán
+      if (order.paymentStatus === 'paid') {
+        console.log(`Đơn hàng đã thanh toán, sẽ hoàn trả tồn kho`);
+        
+        // In thông tin sản phẩm
+        order.products.forEach((product, idx) => {
+          console.log(`Sản phẩm #${idx+1}: ${product.name}, SL cần hoàn trả: ${product.quantity}`);
+          if (product.variantID) {
+            console.log(`  - Có biến thể: ${product.variantID}`);
+          }
+        });
+        
+        // Tạo đối tượng để hoàn trả tồn kho
+        const orderObj = order.toObject();
+        await restoreInventoryForOrder(orderObj);
+        
+        return true;
+      } else {
+        console.log(`Đơn hàng chưa thanh toán (${order.paymentStatus}), không cần hoàn trả tồn kho`);
+        return false;
+      }
     } else {
       console.log(`Không cần cập nhật tồn kho cho trạng thái ${newStatus}`);
       return false;
@@ -586,8 +617,12 @@ const updateOrderStatus = async (req, res) => {
   try {
     const orderId = req.params.id;
     const newStatus = req.body.status;
+    const cancelReason = req.body.cancelReason;
     
     console.log(`Nhận yêu cầu thay đổi trạng thái đơn hàng ${orderId} thành ${newStatus}`);
+    if (cancelReason) {
+      console.log(`Lý do hủy đơn hàng: ${cancelReason}`);
+    }
     
     if (!mongoose.Types.ObjectId.isValid(orderId)) {
       return res.status(400).json({ message: "ID đơn hàng không hợp lệ" });
@@ -595,6 +630,19 @@ const updateOrderStatus = async (req, res) => {
     
     if (!newStatus) {
       return res.status(400).json({ message: "Trạng thái đơn hàng không được để trống" });
+    }
+    
+    // Lấy đơn hàng để cập nhật
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
+    }
+    
+    // Lưu lý do hủy đơn hàng nếu có
+    if (newStatus === 'canceled' && cancelReason) {
+      order.cancelReason = cancelReason;
+      await order.save();
+      console.log(`Đã lưu lý do hủy đơn hàng: ${cancelReason}`);
     }
     
     await processOrderStatusChange(orderId, newStatus);
@@ -723,6 +771,91 @@ const getOrdersJson = async (req, res) => {
     res.json(orders);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * Hoàn trả tồn kho khi hủy đơn hàng
+ * @param {Object} order - Đơn hàng đã được hủy
+ */
+const restoreInventoryForOrder = async (order) => {
+  try {
+    console.log(`===== BẮT ĐẦU HOÀN TRẢ TỒN KHO =====`);
+    console.log(`Đơn hàng: ${order._id}, Trạng thái: ${order.status}, Thanh toán: ${order.paymentStatus}`);
+    
+    // Chỉ hoàn trả tồn kho nếu đơn hàng đã thanh toán
+    if (order.paymentStatus !== 'paid') {
+      console.log(`Đơn hàng chưa thanh toán (${order.paymentStatus}), không cần hoàn trả tồn kho`);
+      return;
+    }
+    
+    if (!order.products || order.products.length === 0) {
+      console.log('Không có sản phẩm nào để hoàn trả tồn kho');
+      return;
+    }
+    
+    console.log(`Đơn hàng có ${order.products.length} sản phẩm cần hoàn trả tồn kho`);
+    
+    // Xử lý từng sản phẩm trong đơn hàng
+    for (const orderProduct of order.products) {
+      console.log(`\n------ Xử lý hoàn trả sản phẩm: ${orderProduct.name} ------`);
+      
+      const productID = orderProduct.productID._id || orderProduct.productID.toString();
+      const quantity = orderProduct.quantity || 1;
+      
+      console.log(`ID Sản phẩm: ${productID}`);
+      console.log(`Số lượng cần hoàn trả: ${quantity}`);
+      
+      // Kiểm tra nếu có variantID
+      const variantID = orderProduct.variantID?._id || orderProduct.variantID || null;
+      
+      if (variantID) {
+        console.log(`Biến thể ID: ${variantID}`);
+        
+        // Tìm kiếm biến thể và hoàn trả
+        const variant = await DetailsVariant.findById(variantID);
+        
+        if (variant) {
+          console.log(`Tìm thấy biến thể: ${variant._id}`);
+          console.log(`Tồn kho biến thể hiện tại: ${variant.inventory}`);
+          
+          // Cập nhật tồn kho: CỘNG số lượng để hoàn trả
+          const oldInventory = variant.inventory;
+          variant.inventory += quantity;
+          
+          // Lưu thay đổi
+          await variant.save();
+          
+          console.log(`Đã hoàn trả tồn kho biến thể: ${oldInventory} -> ${variant.inventory}`);
+        } else {
+          console.log(`Không tìm thấy biến thể với ID: ${variantID}`);
+        }
+      } else {
+        // Nếu không có biến thể, hoàn trả tồn kho sản phẩm chính
+        const product = await Product.findById(productID);
+        
+        if (product) {
+          console.log(`Tìm thấy sản phẩm: ${product.name}`);
+          console.log(`Tồn kho sản phẩm hiện tại: ${product.inventory}`);
+          
+          // Cập nhật tồn kho: CỘNG số lượng để hoàn trả
+          const oldInventory = product.inventory;
+          product.inventory += quantity;
+          
+          // Lưu thay đổi
+          await product.save();
+          
+          console.log(`Đã hoàn trả tồn kho sản phẩm: ${oldInventory} -> ${product.inventory}`);
+        } else {
+          console.log(`Không tìm thấy sản phẩm với ID: ${productID}`);
+        }
+      }
+    }
+    
+    console.log(`===== HOÀN THÀNH HOÀN TRẢ TỒN KHO =====`);
+  } catch (error) {
+    console.error(`LỖI HOÀN TRẢ TỒN KHO: ${error.message}`);
+    console.error(error.stack);
   }
 };
 

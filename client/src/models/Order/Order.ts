@@ -47,6 +47,7 @@ export const Order = types.model({
     })
   ),
   notes: types.optional(types.string, ''),
+  cancelReason: types.optional(types.maybeNull(types.string), null),
   promotionID: types.maybeNull(types.string),
   promotionDetails: types.maybeNull(
     types.model({
@@ -119,6 +120,7 @@ export const OrderStore = types
               paymentStatus: order.paymentStatus || 'unpaid',
               shippingAddress: order.shippingAddress || '',
               notes: order.notes || '',
+              cancelReason: order.cancelReason || null,
               promotionID: order.promotionID || null,
               promotionDetails: order.promotionDetails ? {
                 name: order.promotionDetails.name || '',
@@ -141,6 +143,7 @@ export const OrderStore = types
               paymentStatus: order.paymentStatus || 'unpaid',
               shippingAddress: order.shippingAddress || '',
               notes: order.notes || '',
+              cancelReason: order.cancelReason || null,
               promotionID: order.promotionID || null,
               promotionDetails: order.promotionDetails ? {
                 name: order.promotionDetails.name || '',
