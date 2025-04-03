@@ -10,7 +10,7 @@ const createDocument = async (req, res) => {
 
     if (!product_id || !user_id || !title || !description) {
       req.flash("error_msg", "Dữ liệu tài liệu không hợp lệ");
-      return res.redirect("/document");
+      return res.redirect("/documents");
     }
 
     if (
@@ -18,7 +18,7 @@ const createDocument = async (req, res) => {
       !mongoose.Types.ObjectId.isValid(user_id)
     ) {
       req.flash("error_msg", "ID sản phẩm hoặc người dùng không hợp lệ");
-      return res.redirect("/document");
+      return res.redirect("/documents");
     }
 
     const newDocument = new Document({
@@ -32,11 +32,11 @@ const createDocument = async (req, res) => {
 
     await newDocument.save();
     req.flash("success_msg", "Tài liệu đã được tạo thành công!");
-    res.redirect("/document");
+    res.redirect("/documents");
   } catch (error) {
     console.error("Lỗi khi tạo tài liệu:", error);
     req.flash("error_msg", "Lỗi khi tạo tài liệu: " + error.message);
-    res.redirect("/document");
+    res.redirect("/documents");
   }
 };
 
@@ -68,7 +68,7 @@ const createDocumentScreen = async (req, res) => {
     const users = await User.find();
     console.log("📌 Sản phẩm:", products);
     console.log("📌 Người dùng:", users);
-    res.render("dashboard/document", {
+    res.render("dashboard/documents", {
       products,
       users,
       documents: [],
@@ -78,7 +78,7 @@ const createDocumentScreen = async (req, res) => {
   } catch (error) {
     console.error("🔥 Lỗi khi tải trang tạo tài liệu:", error);
     req.flash("error_msg", "Lỗi server khi tải trang: " + error.message);
-    res.redirect("/document");
+    res.redirect("/documents");
   }
 };
 
@@ -102,19 +102,16 @@ const updateDocument = async (req, res) => {
     const { product_id, user_id, title, description, media } = req.body;
 
     if (!product_id || !user_id || !title || !description) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Dữ liệu không đầy đủ" });
+      req.flash("error_msg", "Dữ liệu không đầy đủ");
+      return res.redirect("/documents");
     }
 
     if (
       !mongoose.Types.ObjectId.isValid(product_id) ||
       !mongoose.Types.ObjectId.isValid(user_id)
     ) {
-      return res.status(400).json({
-        success: false,
-        message: "ID sản phẩm hoặc người dùng không hợp lệ",
-      });
+      req.flash("error_msg", "ID sản phẩm hoặc người dùng không hợp lệ");
+      return res.redirect("/documents");
     }
 
     const updatedDocument = await Document.findByIdAndUpdate(
@@ -127,26 +124,20 @@ const updateDocument = async (req, res) => {
         media: media || "",
         date: new Date(),
       },
-      { new: true, runValidators: true },
-    ).populate("product_id user_id");
+      { new: true }
+    );
 
     if (!updatedDocument) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Tài liệu không tồn tại" });
+      req.flash("error_msg", "Tài liệu không tồn tại");
+      return res.redirect("/documents");
     }
 
-    res.json({
-      success: true,
-      message: "Cập nhật tài liệu thành công!",
-      document: updatedDocument,
-    });
+    req.flash("success_msg", "Cập nhật tài liệu thành công!");
+    res.redirect("/documents");
   } catch (error) {
     console.error("Lỗi khi cập nhật tài liệu:", error);
-    res.status(500).json({
-      success: false,
-      message: "Lỗi khi cập nhật tài liệu: " + error.message,
-    });
+    req.flash("error_msg", "Lỗi khi cập nhật tài liệu: " + error.message);
+    res.redirect("/documents");
   }
 };
 
@@ -156,14 +147,14 @@ const deleteDocument = async (req, res) => {
     const document = await Document.findByIdAndDelete(req.params.id);
     if (!document) {
       req.flash("error_msg", "Tài liệu không tồn tại");
-      return res.redirect("/document");
+      return res.redirect("/documents");
     }
     req.flash("success_msg", "Tài liệu đã được xóa thành công");
-    res.redirect("/document");
+    res.redirect("/documents");
   } catch (error) {
     console.error("Lỗi khi xóa tài liệu:", error);
     req.flash("error_msg", "Lỗi khi xóa tài liệu: " + error.message);
-    res.redirect("/document");
+    res.redirect("/documents");
   }
 };
 

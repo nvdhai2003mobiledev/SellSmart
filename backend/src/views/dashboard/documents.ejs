@@ -78,7 +78,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="addDocumentForm" action="/document/add" method="POST">
+                    <form id="addDocumentForm" action="/documents/add" method="POST">
                         <div class="form-group">
                             <label for="add_product_id">Sản phẩm:</label>
                             <select name="product_id" id="add_product_id" required>
@@ -221,7 +221,6 @@
                         <th>Mô tả</th>
                         <th>Media</th>
                         <th>Sản phẩm</th>
-                        <th>Thương hiệu</th>
                         <th>Nguồn gốc</th>
                         <th>Ngày</th>
                         <th>Hành động</th>
@@ -236,14 +235,13 @@
                             <td data-product-id="<%= doc.product_id ? doc.product_id._id : '' %>">
                                 <%= doc.product_id ? doc.product_id.name : 'Không xác định' %>
                             </td>
-                            <td><%= doc.product_id ? doc.product_id.brand : 'Không xác định' %></td>
                             <td data-user-id="<%= doc.user_id ? doc.user_id._id : '' %>">
                                 <%= doc.user_id ? doc.user_id.fullName : 'Không xác định' %>
                             </td>
                             <td><%= doc.date.toISOString().split('T')[0] %></td>
                             <td>
                                 <button class="btn btn-primary" onclick="openEditModal('<%= doc._id %>')">Sửa</button>
-                                <form action="/document/delete/<%= doc._id %>?_method=DELETE" method="POST" style="display: inline-block;">
+                                <form action="/documents/delete/<%= doc._id %>?_method=DELETE" method="POST" style="display: inline-block;">
                                     <button type="submit" class="btn btn-danger" onclick="return confirm('Xác nhận xóa?')">Xóa</button>
                                 </form>
                             </td>
@@ -275,12 +273,16 @@
         displayDocuments(allDocuments); // Hiển thị tất cả tài liệu ban đầu
 
         // Xử lý form sửa tài liệu qua AJAX
-        document.getElementById('editDocumentForm').addEventListener('submit', async function (e) {
-            e.preventDefault(); // Ngăn submit mặc định
-
-            const docId = this.action.split('/').pop(); // Lấy ID từ action
-
-            // Thu thập dữ liệu từ form
+        document.getElementById('editDocumentForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const docId = this.getAttribute('data-doc-id');
+            
+            // Tạo form mới để submit
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/documents/edit/${docId}?_method=PUT`;
+            
+            // Thêm các trường dữ liệu vào form
             const formData = {
                 product_id: document.getElementById('edit_product_id').value,
                 user_id: document.getElementById('edit_user_id').value,
@@ -288,30 +290,19 @@
                 description: document.getElementById('edit_description').value,
                 media: document.getElementById('edit_media').value || ''
             };
-
-            try {
-                const response = await fetch(`/document/edit/${docId}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(formData)
-                });
-                const result = await response.json();
-
-                if (result.success) {
-                    // Đóng modal
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('editDocumentModal'));
-                    modal.hide();
-                    // Tải lại trang
-                    window.location.reload();
-                } else {
-                    alert(result.message || 'Lỗi khi cập nhật tài liệu');
-                }
-            } catch (error) {
-                console.error('Lỗi khi gửi form:', error);
-                alert('Lỗi khi cập nhật tài liệu: ' + error.message);
-            }
+            
+            // Thêm các input hidden vào form
+            Object.keys(formData).forEach(key => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = formData[key];
+                form.appendChild(input);
+            });
+            
+            // Thêm form vào document và submit
+            document.body.appendChild(form);
+            form.submit();
         });
     };
 
@@ -390,7 +381,7 @@
             document.getElementById('edit_media').value = doc._originalRow.cells[2].textContent.trim() === 'Không có' ? '' : doc._originalRow.cells[2].querySelector('a').href;
 
             const form = document.getElementById('editDocumentForm');
-            form.action = `/document/edit/${docId}`;
+            form.setAttribute('data-doc-id', docId);
 
             const modal = new bootstrap.Modal(document.getElementById('editDocumentModal'));
             modal.show();
