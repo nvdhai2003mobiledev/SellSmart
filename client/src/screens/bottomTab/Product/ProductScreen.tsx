@@ -3,8 +3,11 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { observer } from 'mobx-react-lite';
 import { ProductStore } from '../../../models/product/product';
 import { khoiTaoStore } from '../../../models/product/product-store';
+import { useNavigation } from '@react-navigation/native';
+import { Screen } from '../../../navigation/navigation.type';
 
 const ProductScreen = observer(() => {
+  const navigation = useNavigation();
   const [store] = useState(() => {
     const rootStore = khoiTaoStore();
     return rootStore.productStore;
@@ -171,6 +174,51 @@ const ProductScreen = observer(() => {
     </View>
   );
 
+  const handleCheckout = () => {
+    // Convert cart items to selected products format
+    const selectedProducts = Object.entries(cartItems).map(([key, quantity]) => {
+      const [productId, variantId] = key.split('_');
+      const product = store.products.find(p => p._id === productId);
+      
+      if (!product) return null;
+
+      if (variantId) {
+        // Product with variant
+        const variant = product.detailsVariants.find(v => v._id === variantId);
+        if (!variant) return null;
+
+        return {
+          _id: product._id,
+          name: product.name,
+          price: variant.price,
+          inventory: variant.inventory,
+          quantity: quantity,
+          thumbnail: product.thumbnail,
+          variantId: variant._id,
+          attributes: variant.variantDetails.map((detail: any) => ({
+            name: detail.variantId,
+            value: detail.value
+          }))
+        };
+      } else {
+        // Product without variant
+        return {
+          _id: product._id,
+          name: product.name,
+          price: product.price,
+          inventory: product.inventory,
+          quantity: quantity,
+          thumbnail: product.thumbnail
+        };
+      }
+    }).filter(Boolean);
+
+    // Navigate to CreateOrderScreen with selected products
+    navigation.navigate(Screen.CREATEORDER as any, {
+      selectedProducts
+    });
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       {store.isLoading && !refreshing ? (
@@ -191,7 +239,10 @@ const ProductScreen = observer(() => {
       ) : (
         <>
           {totalCartItems > 0 && (
-            <TouchableOpacity style={styles.checkoutButton}>
+            <TouchableOpacity 
+              style={styles.checkoutButton}
+              onPress={handleCheckout}
+            >
               <Text style={styles.checkoutButtonText}>Thanh toán ({totalCartItems})</Text>
             </TouchableOpacity>
           )}
