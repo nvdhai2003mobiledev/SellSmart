@@ -25,8 +25,8 @@ const ProviderSchema = new Schema(
     },
     status:{
         type:String,
-        enum:['active','inactive'],
-        default:'active'
+        enum:['cung cấp','dừng cung cấp'],
+        default:'cung cấp'
     }
   },
   { timestamps:true },

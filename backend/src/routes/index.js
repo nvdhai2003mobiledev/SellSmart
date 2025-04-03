@@ -22,7 +22,6 @@ const routes = (app) => {
   app.use("/documents", documentRouter);
   app.use("/promotions", promotionRouter);
   app.use("/warranty", warrantyRouter);
-
   return app;
 };
 module.exports = routes;
