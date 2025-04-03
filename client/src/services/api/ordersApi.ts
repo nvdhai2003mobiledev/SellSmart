@@ -101,3 +101,40 @@ export const updateOrderPayment = async (id: string, paymentMethod: string) => {
     throw error;
   }
 };
+
+export const updateOrderStatus = async (id: string, status: string) => {
+  try {
+    console.log(`===== REQUEST START: Cập nhật trạng thái đơn hàng ${id} thành ${status} =====`);
+    
+    // Kiểm tra thông tin trước khi gửi
+    console.log(`URL: ${ApiEndpoint.ORDERS}/${id}/status`);
+    console.log(`Dữ liệu gửi: `, { status });
+    
+    const response = await Api.put(`${ApiEndpoint.ORDERS}/${id}/status`, {
+      status: status
+    });
+    
+    console.log(`===== RESPONSE RECEIVED =====`);
+    console.log(`Status code: ${response.status}`);
+    console.log(`Response data: `, response.data);
+    console.log(`Problem?: ${response.problem || 'Không có'}`);
+    
+    if (!response.ok) {
+      console.error('Error status code:', response.status);
+      console.error('Error response:', response.data);
+    }
+    
+    return response;
+  } catch (error) {
+    console.error('EXCEPTION in updateOrderStatus:', error);
+    // In chi tiết lỗi
+    if (error instanceof Error) {
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    } else {
+      console.error('Unknown error type:', error);
+    }
+    throw error;
+  }
+};

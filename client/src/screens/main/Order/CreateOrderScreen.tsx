@@ -23,6 +23,7 @@ interface Product {
     name: string;
     value: string | string[];
   }>;
+  variantId?: string;
 }
 
 // Customer type definition
@@ -228,35 +229,26 @@ const CreateOrderScreen = observer(() => {
     }
 
     try {
-      // Prepare order data
       const orderData = {
         customerID: selectedCustomer._id,
         products: selectedProducts.map(product => ({
           productID: product._id,
           name: product.name,
-          price: product.price,
           quantity: product.quantity,
-          inventory: Math.max(1, product.inventory || 1),
-          attributes: product.attributes ? product.attributes.map(attr => ({
-            name: attr.name,
-            value: Array.isArray(attr.value) ? attr.value : [attr.value]
-          })) : [
-            {
-              name: "Loại",
-              value: ["Mặc định"]
-            }
-          ]
+          price: product.price,
+          inventory: product.inventory || Math.max(1, product.quantity),
+          attributes: product.attributes || [],
+          variantID: product.variantId || undefined
         })),
-        totalAmount: calculateTotal() - calculateDiscount(),
-        originalAmount: calculateTotal(),
-        // Only set payment method if payment status is 'paid'
-        paymentMethod: paymentStatus === 'paid' ? paymentMethod : '',
-        paymentStatus: paymentStatus,
+        totalAmount: selectedPromotion
+          ? calculateTotal() - calculateDiscount()
+          : calculateTotal(),
+        paymentMethod: paymentStatus === 'paid' ? paymentMethod : null,
+        paymentStatus,
         status: paymentStatus === 'paid' ? 'processing' : 'pending',
         shippingAddress: selectedCustomer.address || 'Nhận hàng tại cửa hàng',
-        employeeID: rootStore.auth.userId || null,
-        notes: notes || "",
-        // Add promotion data if a promotion is selected
+        employeeID: rootStore.auth.userId,
+        notes,
         promotionID: selectedPromotion?._id || null,
         promotionDetails: selectedPromotion ? {
           name: selectedPromotion.name,
@@ -265,34 +257,57 @@ const CreateOrderScreen = observer(() => {
         } : null
       };
 
-      console.log('Creating order with data:', orderData);
+      console.log('Creating order with data:', JSON.stringify(orderData, null, 2));
       
       // Create order using API
       const response = await createOrder(orderData);
 
       if (response.ok) {
-        // Get the created order ID from the response
-        const createdOrderId = response.data?.data?._id || response.data?._id;
+        // Lấy ID đơn hàng từ response
+        // Kiểm tra cả hai định dạng phản hồi có thể có từ API
+        let orderId = null;
         
-        if (createdOrderId) {
-          // Navigate to order detail screen with the new order ID
-          navigation.navigate(Screen.ORDER_DETAIL as any, { 
-            orderId: createdOrderId 
-          });
-        } else {
-          // Fallback if we can't get the order ID
-          Alert.alert('Thành công', 'Đơn hàng đã được tạo thành công', [
-            { text: 'OK', onPress: () => navigation.navigate(Screen.ORDERLIST as any) }
-          ]);
+        if (response.data) {
+          // Sử dụng any để tránh các lỗi TypeScript
+          const responseData = response.data as any;
+          
+          if (responseData.order && responseData.order._id) {
+            // Định dạng: { success: true, message: '...', order: { _id: '...' } }
+            orderId = responseData.order._id;
+          } else if (responseData.data && responseData.data._id) {
+            // Định dạng: { data: { _id: '...' } }
+            orderId = responseData.data._id;
+          } else if (responseData._id) {
+            // Định dạng: { _id: '...' }
+            orderId = responseData._id;
+          }
         }
         
+        console.log('Đơn hàng đã tạo thành công với ID:', orderId);
+        
         // Refresh orders in the store
-        rootStore.orders.fetchOrders();
+        await rootStore.orders.fetchOrders();
+        
+        if (orderId) {
+          // Điều hướng đến trang chi tiết đơn hàng với ID đơn hàng vừa tạo
+          navigation.navigate(Screen.ORDER_DETAIL, { orderId });
+        } else {
+          // Fallback nếu không lấy được ID đơn hàng
+          Alert.alert('Thành công', 'Đơn hàng đã được tạo thành công', [
+            { text: 'OK', onPress: () => navigation.navigate(Screen.ORDERLIST) }
+          ]);
+        }
       } else {
         console.error('Order creation failed with status:', response.status);
-        console.error('Response data:', JSON.stringify(response.data, null, 2));
+        console.error('Response data:', response.data);
         
-        const errorMessage = response.data?.message || 'Không thể tạo đơn hàng';
+        let errorMessage = 'Không thể tạo đơn hàng';
+        if (response.data) {
+          // Sử dụng any cho response.data
+          const errorData = response.data as any;
+          errorMessage = errorData.message || errorMessage;
+        }
+        
         Alert.alert('Lỗi', errorMessage);
       }
     } catch (error) {
