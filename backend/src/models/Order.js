@@ -8,6 +8,7 @@ const OrderSchema = new mongoose.Schema({
   products: [
     {
       productID: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
+      variantID: { type: mongoose.Schema.Types.ObjectId, ref: 'DetailsVariant' },
       name: { type: String, required: true },
       inventory: { type: Number, required: true, min: 1 },
       price: { type: Number, required: true, min: 0 },

@@ -7,7 +7,8 @@ import { BaseLayout, Header, Button } from '../../../components';
 import { color, moderateScale } from '../../../utils';
 import { rootStore } from '../../../models/root-store';
 import { format } from 'date-fns';
-import { updateOrderPayment } from '../../../services/api/ordersApi';
+import { updateOrderPayment, updateOrderStatus } from '../../../services/api/ordersApi';
+import { Screen } from '../../../navigation/navigation.type';
 
 // Định nghĩa những phương thức thanh toán có thể có
 const PAYMENT_METHODS = [
@@ -20,7 +21,9 @@ const OrderDetailScreen = observer(() => {
   const navigation = useNavigation();
   const route = useRoute();
   const { orderId } = route.params as { orderId: string };
-  
+  const navigateToOrderList1 = (status?: string) => {
+    navigation.navigate(Screen.ORDERLIST, { status });
+  };
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showPaymentMethods, setShowPaymentMethods] = useState(false);
@@ -30,14 +33,14 @@ const OrderDetailScreen = observer(() => {
     try {
       setLoading(true);
       // Tìm đơn hàng từ store
-      const foundOrder = rootStore.orders.orders.find(o => o._id === orderId);
+      const foundOrder = rootStore.orders.orders.find((o: any) => o._id === orderId);
       
       if (foundOrder) {
         setOrder(foundOrder);
       } else {
         // Nếu không tìm thấy, có thể fetch lại từ server
         await rootStore.orders.fetchOrders();
-        const refreshedOrder = rootStore.orders.orders.find(o => o._id === orderId);
+        const refreshedOrder = rootStore.orders.orders.find((o: any) => o._id === orderId);
         
         if (refreshedOrder) {
           setOrder(refreshedOrder);
@@ -99,6 +102,52 @@ const OrderDetailScreen = observer(() => {
     Alert.alert('Thông báo', 'Chức năng giao hàng đang được phát triển');
   };
   
+  const handleProcessOrder = async () => {
+    try {
+      setLoading(true);
+      console.log(`Bắt đầu xử lý đơn hàng ${orderId}`);
+
+      Alert.alert(
+        'Xác nhận',
+        'Xử lý đơn hàng này sẽ cập nhật trạng thái và giảm tồn kho tương ứng. Bạn có chắc chắn muốn tiếp tục?',
+        [
+          {
+            text: 'Hủy',
+            style: 'cancel',
+            onPress: () => {
+              console.log('Người dùng đã hủy xử lý đơn hàng');
+              setLoading(false);
+            }
+          },
+          {
+            text: 'Xác nhận',
+            onPress: async () => {
+              console.log(`Đang gửi yêu cầu cập nhật trạng thái đơn hàng ${orderId} thành processing`);
+              const response = await updateOrderStatus(orderId, 'processing');
+              console.log('Kết quả cập nhật trạng thái:', response);
+
+              if (response.ok) {
+                Alert.alert('Thành công', 'Đơn hàng đã được xử lý và cập nhật tồn kho');
+                await rootStore.orders.fetchOrders();
+                await loadOrderDetails();
+              } else {
+                const errorData = response.data as { message?: string } | undefined;
+                const errorMessage = errorData?.message || 'Không thể xử lý đơn hàng';
+                Alert.alert('Lỗi', errorMessage);
+                console.error('Lỗi cập nhật trạng thái:', errorMessage);
+              }
+              setLoading(false);
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error processing order:', error);
+      Alert.alert('Lỗi', 'Đã xảy ra lỗi khi xử lý đơn hàng');
+      setLoading(false);
+    }
+  };
+  
   if (loading) {
     return (
       <BaseLayout>
@@ -142,7 +191,7 @@ const OrderDetailScreen = observer(() => {
       <Header
         title="Chi tiết đơn hàng"
         showBackIcon
-        onPressBack={() => navigation.goBack()}
+        onPressBack={() => navigateToOrderList1()}
       />
       
       <ScrollView style={styles.scrollView}>
@@ -277,6 +326,17 @@ const OrderDetailScreen = observer(() => {
             onPress={handleReceivePayment}
           />
         )}
+        
+        {/* Chỉ hiển thị nút này nếu đơn hàng có trạng thái pending và đã thanh toán */}
+        {order.status === 'pending' && order.paymentStatus === 'paid' && (
+          <Button
+            title="Xử lý đơn hàng"
+            buttonContainerStyle={styles.processOrderButton}
+            titleStyle={styles.buttonText}
+            onPress={handleProcessOrder}
+          />
+        )}
+        
         {order.status === 'processing' && (
           <Button
             title="Giao hàng"
@@ -516,6 +576,13 @@ const styles = StyleSheet.create({
     borderTopColor: '#eeeeee',
   },
   receivePaymentButton: {
+    flex: 1,
+    backgroundColor: color.primaryColor,
+    paddingVertical: moderateScale(12),
+    borderRadius: moderateScale(8),
+    marginRight: moderateScale(8),
+  },
+  processOrderButton: {
     flex: 1,
     backgroundColor: color.primaryColor,
     paddingVertical: moderateScale(12),
