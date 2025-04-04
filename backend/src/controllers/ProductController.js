@@ -31,6 +31,10 @@ const getProduct = async (req, res) => {
             }
         }
 
+        // Lấy danh sách nhà cung cấp và danh mục
+        const providers = await mongoose.model('Provider').find().lean();
+        const categories = await TypeProduct.find().lean();
+
         console.log(`Tìm thấy ${products.length} sản phẩm`);
 
         if (req.path.includes("/json") || req.headers.accept === "application/json") {
@@ -41,6 +45,8 @@ const getProduct = async (req, res) => {
         console.log("Render trang dashboard/products");
         res.render("dashboard/products", {
             products,
+            providers,
+            categories,
             page: "products",
             admin: {
                 fullName: req.user?.fullName || 'Admin',
