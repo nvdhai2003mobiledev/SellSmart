@@ -33,6 +33,7 @@ export enum Screen {
   CUSTOMER_SELECTION = 'CUSTOMER_SELECTION',
   ORDER_DETAIL = 'ORDER_DETAIL',
   ORDER_CANCEL = 'ORDER_CANCEL',
+  PAYMENT_METHODS = 'PAYMENT_METHODS',
   PROMOTION_LIST = 'PROMOTION_LIST',
   PROMOTION_DETAIL = 'PROMOTION_DETAIL',
   ADD_PROMOTION = 'ADD_PROMOTION',
@@ -82,6 +83,15 @@ export type RootStackParamList = {
     orderAmount: number;
     paymentStatus: string;
     orderStatus: string;
+  };
+  [Screen.PAYMENT_METHODS]: {
+    orderId: string;
+    orderNumber: string;
+    totalAmount: number;
+    remainingAmount?: number;
+    isPartialPayment?: boolean;
+    isNewOrder?: boolean;
+    onPaymentComplete?: (method: string, amount: number) => void;
   };
   [Screen.PROMOTION_LIST]: undefined;
   [Screen.PROMOTION_DETAIL]: {
