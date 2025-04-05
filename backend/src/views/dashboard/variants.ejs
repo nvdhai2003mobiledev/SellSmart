@@ -152,7 +152,7 @@
     <div class="top-controls">
         <div class="left-buttons">
             <button class="btn btn-primary btn-custom" data-bs-toggle="modal" data-bs-target="#addVariantModal">
-                <i class="fas fa-plus me-1"></i> Thêm biến thể
+                <i class="fas fa-plus me-1"></i> Thêm thuộc tính
             </button>
         </div>
         <div class="right-buttons">
@@ -166,12 +166,12 @@
     <div class="main-container">
         <!-- Left Panel - Variant List -->
         <div class="left-panel">
-            <h5 class="panel-title">Danh sách biến thể</h5>
+            <h5 class="panel-title">Danh sách thuộc tính</h5>
             <div class="table-container">
                 <table class="table table-hover">
                     <thead>
                         <tr>
-                            <th>Tên biến thể</th>
+                            <th>Tên thuộc tính</th>
                             <th>Giá trị</th>
                             <th class="text-center">Thao tác</th>
                         </tr>
@@ -204,12 +204,12 @@
 
         <!-- Right Panel - Variant Selection -->
         <div class="right-panel">
-            <h5 class="panel-title">Tổ hợp biến thể</h5>
+            <h5 class="panel-title">Tổ hợp thuộc tính</h5>
             <div id="variantSelectionRows" class="variant-selection-container">
                 <!-- Variant groups will be added here -->
             </div>
             <button class="btn btn-info btn-custom mt-3" onclick="addVariantGroup()">
-                <i class="fas fa-plus me-1"></i> Thêm tổ hợp biến thể
+                <i class="fas fa-plus me-1"></i> Thêm tổ hợp thuộc tính
             </button>
         </div>
     </div>
@@ -219,13 +219,13 @@
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title">Thêm biến thể mới</h5>
+                    <h5 class="modal-title">Thêm thuộc tính mới</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <form id="addVariantForm">
                         <div class="mb-3">
-                            <label class="form-label fw-bold">Tên biến thể</label>
+                            <label class="form-label fw-bold">Tên thuộc tính</label>
                             <input type="text" id="variantName" class="form-control" required>
                         </div>
                         <div class="mb-3">
@@ -235,11 +235,11 @@
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label fw-bold">Giá trị biến thể</label>
+                            <label class="form-label fw-bold">Giá trị thuộc tính</label>
                             <input type="text" id="variantValues" class="form-control" 
                                    placeholder="Nhập các giá trị, cách nhau bằng dấu phẩy" required>
                         </div>
-                        <button type="submit" class="btn btn-primary w-100">Thêm biến thể</button>
+                        <button type="submit" class="btn btn-primary w-100">Thêm thuộc tính</button>
                     </form>
                 </div>
             </div>
@@ -251,14 +251,14 @@
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header bg-warning">
-                    <h5 class="modal-title">Chỉnh sửa biến thể</h5>
+                    <h5 class="modal-title">Chỉnh sửa thuộc tính</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <form id="editVariantForm">
                         <input type="hidden" id="editVariantId">
                         <div class="mb-3">
-                            <label class="form-label fw-bold">Tên biến thể</label>
+                            <label class="form-label fw-bold">Tên thuộc tính</label>
                             <input type="text" id="editVariantName" class="form-control" required>
                         </div>
                         <div class="mb-3">
@@ -268,7 +268,7 @@
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label fw-bold">Giá trị biến thể</label>
+                            <label class="form-label fw-bold">Giá trị thuộc tính</label>
                             <input type="text" id="editVariantValues" class="form-control" required>
                         </div>
                         <button type="submit" class="btn btn-warning w-100">Lưu thay đổi</button>
