@@ -5,9 +5,6 @@ import { Provider } from 'mobx-react';
 import { rootStore } from './src/models/root-store';
 import { CustomerScreen, EmployeeScreen, ProductListScreen } from './src/screens';
 
-
-
-
 const App = () => {
   return (
     <Provider rootStore={rootStore}>

@@ -3,6 +3,115 @@ const Customer = require("../models/Customer");
 const Product = require("../models/Product");
 const Employee = require("../models/Employee");
 const mongoose = require("mongoose");
+const Promotion = require("../models/Promotion");
+
+const getMobileOrders = async () => {
+  try {
+    const orders = await Order.find()
+      .populate('customerID', 'fullName phoneNumber email address')
+      .populate('employeeID', 'fullName position')
+      .populate('products.productID', 'name price')
+      .populate('promotionID', 'name discount maxDiscount')
+      .sort({ createdAt: -1 });
+
+    const transformedOrders = orders.map(order => ({
+      _id: order._id.toString(),
+      orderID: order.orderID,
+      customerID: {
+        _id: order.customerID ? order.customerID._id.toString() : 'unknown',
+        fullName: order.customerID ? order.customerID.fullName : 'Khách hàng',
+        phoneNumber: order.customerID ? order.customerID.phoneNumber : '',
+        email: order.customerID ? order.customerID.email : '',
+        address: order.customerID ? order.customerID.address : ''
+      },
+      products: order.products.map(product => ({
+        productID: product.productID ? product.productID._id.toString() : '',
+        name: product.productID ? product.productID.name : product.name,
+        inventory: product.inventory || 0,
+        price: product.price || 0,
+        quantity: product.quantity || 1,
+        attributes: product.attributes || []
+      })),
+      totalAmount: order.totalAmount || 0,
+      status: order.status || 'pending',
+      paymentMethod: order.paymentMethod || null,
+      paymentStatus: order.paymentStatus || 'unpaid',
+      shippingAddress: order.shippingAddress || 'Nhận hàng tại cửa hàng',
+      employeeID: order.employeeID ? {
+        _id: order.employeeID._id.toString(),
+        fullName: order.employeeID.fullName,
+        position: order.employeeID.position
+      } : null,
+      notes: order.notes || '',
+      paidAmount: order.paidAmount || 0,
+      paymentDetails: order.paymentDetails || [],
+      promotionID: order.promotionID ? order.promotionID._id.toString() : null,
+      promotionDetails: order.promotionDetails ? {
+        name: order.promotionDetails.name || (order.promotionID ? order.promotionID.name : ''),
+        discount: order.promotionDetails.discount || (order.promotionID ? order.promotionID.discount : 0),
+        discountAmount: getDiscountAmount(order)
+      } : null,
+      originalAmount: order.originalAmount || calculateOriginalAmount(order),
+      createdAt: order.createdAt.toISOString(),
+      updatedAt: order.updatedAt.toISOString()
+    }));
+
+    console.log('Transforming orders for mobile, example first order:');
+    if (transformedOrders.length > 0) {
+      console.log('ID:', transformedOrders[0]._id);
+      console.log('Total Amount:', transformedOrders[0].totalAmount);
+      console.log('Original Amount:', transformedOrders[0].originalAmount);
+      console.log('Payment Status:', transformedOrders[0].paymentStatus);
+      console.log('Paid Amount:', transformedOrders[0].paidAmount);
+      console.log('Has Payment Details:', transformedOrders[0].paymentDetails.length > 0);
+      
+      if (transformedOrders[0].promotionDetails) {
+        console.log('Promotion Details:', JSON.stringify(transformedOrders[0].promotionDetails));
+      } else {
+        console.log('No promotion details available');
+      }
+    }
+
+    return transformedOrders;
+  } catch (error) {
+    console.error('Error in getMobileOrders:', error);
+    throw error;
+  }
+};
+
+// Hàm tính toán giá trị giảm giá từ thông tin đơn hàng
+function getDiscountAmount(order) {
+  if (order.promotionDetails && order.promotionDetails.discountAmount > 0) {
+    return order.promotionDetails.discountAmount;
+  }
+  
+  if (order.originalAmount && order.totalAmount) {
+    return order.originalAmount - order.totalAmount;
+  }
+  
+  const productsTotal = order.products.reduce((sum, item) => 
+    sum + (item.price || 0) * (item.quantity || 1), 0);
+  
+  if (productsTotal > order.totalAmount) {
+    return productsTotal - order.totalAmount;
+  }
+  
+  return 0;
+}
+
+// Hàm tính toán giá gốc nếu không có sẵn
+function calculateOriginalAmount(order) {
+  if (order.originalAmount) {
+    return order.originalAmount;
+  }
+  
+  if (order.promotionDetails && order.promotionDetails.discountAmount) {
+    return order.totalAmount + order.promotionDetails.discountAmount;
+  }
+  
+  return order.products.reduce((sum, item) => 
+    sum + (item.price || 0) * (item.quantity || 1), 0);
+}
 
 // Lấy tất cả đơn hàng
 const getAllOrders = async () => {
@@ -16,7 +125,10 @@ const getAllOrders = async () => {
       .populate({
         path: "products.productID",
         model: "Product",
-        select: "name price stockQuantity thumbnail attributes",
+
+        select: "name price inventory thumbnail attributes",
+
+
       })
       .populate({
         path: "employeeID",
@@ -46,7 +158,7 @@ const getOrderById = async (orderId) => {
       })
       .populate({
         path: "products.productID",
-        select: "name price stockQuantity thumbnail attributes",
+        select: "name price inventory thumbnail attributes",
       })
       .populate({
         path: "employeeID",
@@ -136,18 +248,80 @@ const createOrder = async (orderData) => {
 
     const validatedProducts = await Promise.all(productPromises);
 
-    // Tạo đơn hàng mới
-    const newOrder = new Order({
+    // Calculate total amount from products
+    const calculatedTotal = validatedProducts.reduce(
+      (sum, product) => sum + product.price * product.quantity,
+      0
+    );
+
+    // Log thông tin thanh toán để debug
+    console.log('=== SERVICE - THÔNG TIN THANH TOÁN ===');
+    console.log(`Phương thức thanh toán: ${orderData.paymentMethod}`);
+    console.log(`Trạng thái thanh toán: ${orderData.paymentStatus}`);
+    console.log(`Số tiền đã thanh toán: ${orderData.paidAmount}`);
+    console.log(`Chi tiết thanh toán:`, JSON.stringify(orderData.paymentDetails));
+
+    // Create order object with original amount
+    const orderObj = {
       customerID: customer._id,
       products: validatedProducts,
-      totalAmount: orderData.totalAmount,
-      status: "pending",
+      originalAmount: calculatedTotal, // Store original amount before any discounts
+      totalAmount: orderData.totalAmount, // This may include discount
+      status: orderData.status || "pending",
       paymentMethod: orderData.paymentMethod,
-      paymentStatus: "paid",
+      paymentStatus: orderData.paymentStatus || "unpaid",
       shippingAddress: orderData.shippingAddress,
       employeeID: orderData.employeeID || null,
       notes: orderData.notes || "",
-    });
+      // Thêm thông tin thanh toán
+      paidAmount: orderData.paidAmount || 0,
+      paymentDetails: orderData.paymentDetails || []
+    };
+
+    // Handle promotion if provided
+    if (orderData.promotionID && mongoose.Types.ObjectId.isValid(orderData.promotionID)) {
+      const promotion = await Promotion.findById(orderData.promotionID);
+      
+      if (promotion) {
+        // Check if promotion is active and valid date range
+        const currentDate = new Date();
+        const startDate = new Date(promotion.startDate);
+        const endDate = new Date(promotion.endDate);
+        endDate.setHours(23, 59, 59, 999); // Include end date fully
+        
+        if ((currentDate >= startDate && currentDate <= endDate) && 
+            promotion.status === 'active' && 
+            calculatedTotal >= promotion.minOrderValue) {
+          
+          // Calculate discount amount
+          let discountAmount = (calculatedTotal * promotion.discount) / 100;
+          
+          // Cap at maximum discount
+          if (discountAmount > promotion.maxDiscount) {
+            discountAmount = promotion.maxDiscount;
+          }
+          
+          // Store promotion details
+          orderObj.promotionID = promotion._id;
+          orderObj.promotionDetails = {
+            name: promotion.name,
+            discount: promotion.discount,
+            discountAmount: discountAmount
+          };
+          
+          // Verify if the provided totalAmount matches our calculated discounted amount
+          const calculatedDiscountedTotal = calculatedTotal - discountAmount;
+          
+          // If there's a significant difference, use our calculated value
+          if (Math.abs(calculatedDiscountedTotal - orderData.totalAmount) > 1) {
+            orderObj.totalAmount = calculatedDiscountedTotal;
+          }
+        }
+      }
+    }
+
+    // Tạo đơn hàng mới
+    const newOrder = new Order(orderObj);
 
     await newOrder.save();
     return newOrder;
@@ -163,4 +337,5 @@ module.exports = {
   updateOrderStatus,
   deleteOrder,
   createOrder,
+  getMobileOrders
 };

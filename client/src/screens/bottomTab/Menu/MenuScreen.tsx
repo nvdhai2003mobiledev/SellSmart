@@ -95,6 +95,10 @@ const MenuScreen = observer(() => {
     navigation.navigate(Screen.CONFIG);
   };
 
+  const navigateToProviders = () => {
+    navigation.navigate(Screen.PROVIDER);
+  };
+
   return (
     <BaseLayout>
       <Header title={contents.menu.title} />

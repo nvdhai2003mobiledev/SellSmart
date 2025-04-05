@@ -59,11 +59,13 @@ app.use((req, res, next) => {
   next();
 });
 
-// Sử dụng routes
+// Sử dụng API routes trước routes thông thường
+app.use("/api", apiRoutes);
+
+// Sử dụng web routes
 routes(app);
 
 // Sử dụng API routes
-app.use("/api", apiRoutes);
 app.use("/customers", customerRouter);
 app.use("/public", require('./routes/public')); // Thêm dòng này
 
@@ -72,7 +74,19 @@ app.use("/public", require('./routes/public')); // Thêm dòng này
 // Middleware xử lý lỗi
 app.use((err, req, res, next) => {
   console.error("🔥 Server Error:", err.stack);
-  res.status(500).json({ message: "Lỗi máy chủ nội bộ!" });
+  
+  // Kiểm tra nếu là API request
+  if (req.path.includes('/api/')) {
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi máy chủ nội bộ!",
+      error: err.message
+    });
+  }
+  
+  // Flash message cho web request
+  req.flash('error', 'Lỗi máy chủ nội bộ!');
+  res.redirect('/');
 });
 
 // Lắng nghe cổng với xử lý lỗi port đã được sử dụng

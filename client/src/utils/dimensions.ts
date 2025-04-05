@@ -17,7 +17,7 @@ const scaleHeight = (val: number) => {
   return (screenHeight * val) / designHeight;
 };
 
-const scale = Math.min(screenWidth / designWidth, screenHeight / designHeight);
+const scale = Math.min(screenWidth / designWidth, screenHeight / designHeight) * 1.2;
 
 const moderateScale = (size: number, factor = 1) =>
   size + (scaleWidth(size) - size) * factor;

@@ -11,8 +11,8 @@
             <input type="text" id="providerPhone" placeholder="Số điện thoại" required class="form-control mb-2">
             <input type="text" id="providerAddress" placeholder="Địa chỉ" required class="form-control mb-2">
             <select id="providerStatus" class="form-control mb-2">
-                <option value="active">Hoạt động</option>
-                <option value="inactive">Không hoạt động</option>
+                <option value="cung cấp">Đang cung cấp</option>
+                <option value="dừng cung cấp">Dừng cung cấp</option>
             </select>
             <button type="submit" class="btn btn-primary">Thêm</button>
         </form>
@@ -42,13 +42,13 @@
                 <td><%= provider.phoneNumber %></td>
                 <td><%= provider.address %></td>
                 <td>
-                        <span class="badge bg-<%= provider.status === 'active' ? 'success' : 'secondary' %>">
-                            <%= provider.status %>
+                        <span class="badge bg-<%= provider.status === 'cung cấp' ? 'success' : 'secondary' %>">
+                            <%= provider.status === 'cung cấp' ? 'Đang cung cấp' : 'Dừng cung cấp' %>
                         </span>
                 </td>
                 <td>
                     <button class="btn btn-warning btn-sm" onclick="editProvider('<%= provider._id %>')">Sửa</button>
-                    <button class="btn btn-danger btn-sm" onclick="deleteProvider('<%= provider._id %>')">Xóa</button>
+                    <!-- <button class="btn btn-danger btn-sm" onclick="deleteProvider('<%= provider._id %>')">Xóa</button> -->
                 </td>
             </tr>
         <% }); %>
@@ -85,8 +85,8 @@
                     <div class="form-group mb-3">
                         <label for="editStatus" class="form-label">Trạng thái</label>
                         <select id="editStatus" class="form-control">
-                            <option value="active">Hoạt động</option>
-                            <option value="inactive">Không hoạt động</option>
+                            <option value="cung cấp">Đang cung cấp</option>
+                            <option value="dừng cung cấp">Dừng cung cấp</option>
                         </select>
                     </div>
                 </form>
@@ -163,7 +163,7 @@
             <td>${provider.email}</td>
             <td>${provider.phoneNumber}</td>
             <td>${provider.address}</td>
-            <td><span class="badge bg-${provider.status === 'active' ? 'success' : 'secondary'}">${provider.status}</span></td>
+            <td><span class="badge bg-${provider.status === 'cung cấp' ? 'success' : 'secondary'}">${provider.status === 'cung cấp' ? 'Đang cung cấp' : 'Dừng cung cấp'}</span></td>
             <td>
               <button class="btn btn-warning btn-sm" onclick="editProvider('${provider._id}')">Sửa</button>
               <button class="btn btn-danger btn-sm" onclick="deleteProvider('${provider._id}')">Xóa</button>

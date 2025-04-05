@@ -1,4 +1,4 @@
-const orderService = require("../services/orderService");
+const orderService = require("../services/OrderService");
 const mongoose = require("mongoose");
 const Order = require("../models/Order");
 const Customer = require("../models/Customer");

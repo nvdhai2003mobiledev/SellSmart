@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, FlatList, Image, TouchableOpacity, ActivityIndicator, SafeAreaView, RefreshControl, Modal, Dimensions, ScrollView } from 'react-native';
+import { StyleSheet, Text, View, FlatList, Image, TouchableOpacity, ActivityIndicator, SafeAreaView, RefreshControl, Modal, Dimensions, ScrollView,  } from 'react-native';
 import React, { useEffect, useState, useCallback } from 'react';
 import { observer } from 'mobx-react-lite';
 import { ProductStore } from '../../../models/product/product';
@@ -137,7 +137,7 @@ const ProductScreen = observer(() => {
         onPress={() => showProductDetails(item)}
         activeOpacity={0.7}
       >
-        <Image 
+        <FastImage
           source={{ uri: thumbnailUrl }} 
           style={styles.productImage} 
           resizeMode="cover"
@@ -281,7 +281,7 @@ const ProductScreen = observer(() => {
                 
                 {selectedProduct && (
                   <ScrollView style={styles.detailsScrollView}>
-                    <Image 
+                    <AsyncImage 
                       source={{ 
                         uri: selectedProduct.thumbnail 
                           ? (selectedProduct.thumbnail.startsWith('http') 
