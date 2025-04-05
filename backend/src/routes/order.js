@@ -12,8 +12,10 @@ router.put("/:id/payment", orderController.updateOrderPayment);
 router.delete("/:id", orderController.deleteOrder);
 router.get("/create", protect, orderController.createOrderScreen);
 router.get("/:id/detail", protect, orderController.getOrderDetail);
-
-
+router.get("/payment-stats", orderController.getPaymentStats);
+router.get("/order-distribution", orderController.getOrderDistribution);
+router.get("/employee-performance", orderController.getEmployeePerformance);
+router.get("/daily-revenue", orderController.getDailyRevenue);
 
 // Thêm API endpoints dành cho mobile, bỏ middleware protect
 router.get("/orders", orderController.getOrdersJson); // API JSON cho mobile

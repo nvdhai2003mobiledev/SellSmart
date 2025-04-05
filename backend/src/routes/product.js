@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const productController = require("../controllers/ProductController");
+const statisticsController = require("../controllers/StatisticsController");
 const variantController = require("../controllers/VariantController");
 const detailsVariantController = require("../controllers/DetailsVariantController");
 const { protect } = require("../middleware/auth");
@@ -9,6 +10,12 @@ const { protect } = require("../middleware/auth");
 // Route tĩnh
 router.get("/", protect, productController.getProduct); // Lấy danh sách sản phẩm (view)
 router.get("/json", productController.getProductAsJson); // Lấy danh sách sản phẩm (JSON) - đã bỏ protect
+router.get("/sales", productController.getProductSales); // Thêm route mới để lấy thông tin bán hàng
+router.get("/dashboard-stats", productController.getDashboardStats); // Thêm route mới để lấy thống kê dashboard
+router.get("/order-distribution", productController.getOrderDistribution); // Thêm route mới để lấy phân bố đơn hàng
+router.get("/employee-performance", productController.getEmployeePerformance); // Thêm route mới để lấy hiệu suất nhân viên
+router.get("/statistics", protect, statisticsController.getProductStatistics); // Lấy thống kê sản phẩm
+router.get("/inventory", protect, statisticsController.getInventoryProducts); // Lấy danh sách sản phẩm tồn kho
 router.post("/create", protect, productController.addProduct); // Tạo sản phẩm mới
 router.put("/update/:productId", protect, productController.updateProduct); // Cập nhật sản phẩm
 router.delete("/delete/:productId", protect, productController.deleteProduct); // Xóa sản phẩm

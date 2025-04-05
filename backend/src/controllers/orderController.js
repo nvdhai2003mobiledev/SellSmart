@@ -6,6 +6,7 @@ const Product = require("../models/Product");
 const Employee = require("../models/Employee");
 const DetailsVariant = require("../models/DetailsVariant");
 const Variant = require("../models/Variant");
+const User = require("../models/User");
 const Promotion = require("../models/Promotion");
 
 const createOrder = async (req, res) => {
@@ -870,6 +871,352 @@ const getOrdersJson = async (req, res) => {
   }
 };
 
+// Thêm hàm mới để lấy thống kê thanh toán
+const getPaymentStats = async (req, res) => {
+    try {
+        console.log('\n===== FETCHING PAYMENT STATISTICS =====');
+        
+        // Lấy tất cả đơn hàng không bị hủy
+        const orders = await Order.find({ status: { $ne: 'canceled' } });
+        console.log(`Found ${orders.length} non-canceled orders`);
+        
+        // Khởi tạo đối tượng thống kê
+        const stats = {
+            methods: {
+                cash: 0,
+                bank: 0,
+                eWallet: 0
+            },
+            status: {
+                paid: 0,
+                unpaid: 0
+            }
+        };
+        
+        // Tính toán thống kê
+        orders.forEach(order => {
+            console.log(`\nProcessing order ${order.orderID}:`);
+            console.log(`- Payment Status: ${order.paymentStatus}`);
+            console.log(`- Payment Method: ${order.paymentMethod}`);
+            console.log(`- Total Amount: ${order.totalAmount}`);
+            
+            // Thống kê theo phương thức thanh toán
+            if (order.paymentStatus === 'paid' && order.totalAmount) {
+                switch (order.paymentMethod?.toLowerCase()) {
+                    case 'cash':
+                        stats.methods.cash += order.totalAmount;
+                        console.log(`Added ${order.totalAmount} to cash payments`);
+                        break;
+                    case 'credit card':
+                    case 'debit card':
+                    case 'bank':
+                    case 'bank transfer':
+                        stats.methods.bank += order.totalAmount;
+                        console.log(`Added ${order.totalAmount} to bank payments`);
+                        break;
+                    case 'e-wallet':
+                    case 'ewallet':
+                    case 'momo':
+                    case 'zalopay':
+                        stats.methods.eWallet += order.totalAmount;
+                        console.log(`Added ${order.totalAmount} to e-wallet payments`);
+                        break;
+                    default:
+                        console.log(`Unknown payment method: ${order.paymentMethod}`);
+                }
+            }
+            
+            // Thống kê theo trạng thái thanh toán
+            if (order.paymentStatus === 'paid') {
+                stats.status.paid++;
+            } else if (order.paymentStatus === 'unpaid') {
+                stats.status.unpaid++;
+            }
+        });
+        
+        console.log('\nFinal Statistics:');
+        console.log(JSON.stringify(stats, null, 2));
+        console.log('===== END PAYMENT STATISTICS =====\n');
+        
+        res.json({
+            status: 'Ok',
+            data: stats
+        });
+    } catch (error) {
+        console.error('Error getting payment statistics:', error);
+        res.status(500).json({
+            status: 'Error',
+            message: error.message
+        });
+    }
+};
+
+// Thêm hàm mới để lấy phân bố đơn hàng
+const getOrderDistribution = async (req, res) => {
+    try {
+        console.log('\n===== FETCHING TODAY\'S ORDER DISTRIBUTION =====');
+
+        // Get today's start and end
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        console.log(`Fetching orders between: ${today.toISOString()} and ${tomorrow.toISOString()}`);
+
+        // Get only today's orders
+        const orders = await Order.find({
+            createdAt: {
+                $gte: today,
+                $lt: tomorrow
+            }
+        });
+        
+        console.log(`Found ${orders.length} orders for today`);
+
+        // Initialize counters
+        const stats = {
+            completed: 0,
+            processing: 0,
+            canceled: 0,
+            pending: 0
+        };
+
+        // Count orders by status
+        orders.forEach(order => {
+            console.log(`Order ${order.orderID}: status = ${order.status}`);
+            if (order.status in stats) {
+                stats[order.status]++;
+            }
+        });
+
+        // Calculate total
+        const total = stats.completed + stats.processing + stats.canceled + stats.pending;
+
+        // Calculate percentages and format to one decimal place
+        const distribution = {
+            completed: {
+                count: stats.completed,
+                percentage: total > 0 ? ((stats.completed / total) * 100).toFixed(1) : "0.0"
+            },
+            processing: {
+                count: stats.processing,
+                percentage: total > 0 ? ((stats.processing / total) * 100).toFixed(1) : "0.0"
+            },
+            canceled: {
+                count: stats.canceled,
+                percentage: total > 0 ? ((stats.canceled / total) * 100).toFixed(1) : "0.0"
+            },
+            pending: {
+                count: stats.pending,
+                percentage: total > 0 ? ((stats.pending / total) * 100).toFixed(1) : "0.0"
+            },
+            total: total
+        };
+
+        console.log('Today\'s order distribution:', distribution);
+        console.log('===== END ORDER DISTRIBUTION =====\n');
+
+        return res.status(200).json({
+            status: "Ok",
+            data: distribution
+        });
+
+    } catch (error) {
+        console.error('Error in getOrderDistribution:', error);
+        return res.status(500).json({
+            status: "Error",
+            message: "Lỗi khi lấy phân bố đơn hàng: " + error.message
+        });
+    }
+};
+
+const getEmployeePerformance = async (req, res) => {
+    try {
+        console.log('\n===== FETCHING EMPLOYEE PERFORMANCE DATA =====');
+        
+        // Get the date range (default to current month)
+        const endDate = new Date();
+        const startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+        
+        console.log(`Analyzing performance from ${startDate.toISOString()} to ${endDate.toISOString()}`);
+
+        // Get all employees first
+        const employees = await Employee.find()
+            .populate('userId', 'fullName avatar')
+            .lean();
+
+        console.log(`Found ${employees.length} total employees`);
+
+        // Get all completed and paid orders within date range
+        const orders = await Order.find({
+            createdAt: { $gte: startDate, $lte: endDate },
+            status: { $ne: 'canceled' },
+            employeeID: { $exists: true, $ne: null },
+            paymentStatus: 'paid'
+        }).populate('employeeID');
+
+        console.log(`Found ${orders.length} valid orders in date range`);
+
+        // Initialize performance map with all employees
+        const employeeStats = new Map();
+        let totalRevenue = 0;
+        let totalOrders = 0;
+
+        // Initialize stats for all employees
+        employees.forEach(employee => {
+            if (employee.userId) {  // Only include employees with valid user data
+                employeeStats.set(employee._id.toString(), {
+                    employeeId: employee._id,
+                    fullName: employee.userId.fullName || 'Unknown',
+                    avatar: employee.userId.avatar || null,
+                    position: employee.position || 'Nhân viên bán hàng',
+                    orderCount: 0,
+                    totalRevenue: 0,
+                    averageOrderValue: 0,
+                    successRate: 0,
+                    totalCustomers: new Set()
+                });
+            }
+        });
+
+        // Process orders
+        orders.forEach(order => {
+            if (!order.employeeID) return;
+
+            const employeeId = order.employeeID._id.toString();
+            const stats = employeeStats.get(employeeId);
+            
+            if (stats) {
+                stats.orderCount++;
+                stats.totalRevenue += order.totalAmount || 0;
+                stats.totalCustomers.add(order.customerID.toString());
+                totalRevenue += order.totalAmount || 0;
+                totalOrders++;
+            }
+        });
+
+        // Calculate final statistics and convert to array
+        let performanceData = Array.from(employeeStats.values())
+            .map(employee => {
+                const orderCount = employee.orderCount;
+                const totalRevenue = employee.totalRevenue;
+                
+                return {
+                    employeeId: employee.employeeId,
+                    fullName: employee.fullName,
+                    avatar: employee.avatar,
+                    position: employee.position,
+                    orderCount,
+                    totalRevenue,
+                    averageOrderValue: orderCount > 0 ? totalRevenue / orderCount : 0,
+                    contributionRatio: totalRevenue > 0 ? (employee.totalRevenue / totalRevenue) : 0,
+                    customerCount: employee.totalCustomers.size,
+                    performance: {
+                        orders: orderCount,
+                        revenue: totalRevenue,
+                        averageOrder: orderCount > 0 ? totalRevenue / orderCount : 0,
+                        contribution: totalRevenue > 0 ? (employee.totalRevenue / totalRevenue * 100).toFixed(1) : 0
+                    }
+                };
+            })
+            .filter(employee => employee.orderCount > 0)  // Only include employees with orders
+            .sort((a, b) => b.totalRevenue - a.totalRevenue);  // Sort by revenue
+
+        console.log('\nPerformance Summary:');
+        console.log(`Total Revenue: ${totalRevenue}`);
+        console.log(`Total Orders: ${totalOrders}`);
+        console.log(`Active Employees: ${performanceData.length}`);
+        
+        console.log('===== END EMPLOYEE PERFORMANCE DATA =====\n');
+
+        return res.json({
+            status: 'Ok',
+            data: {
+                summary: {
+                    totalRevenue,
+                    totalOrders,
+                    activeEmployees: performanceData.length,
+                    averageOrderValue: totalOrders > 0 ? totalRevenue / totalOrders : 0,
+                    period: {
+                        start: startDate,
+                        end: endDate
+                    }
+                },
+                employees: performanceData
+            }
+        });
+    } catch (error) {
+        console.error('Error in getEmployeePerformance:', error);
+        return res.status(500).json({
+            status: 'Error',
+            message: error.message
+        });
+    }
+};
+
+const getDailyRevenue = async (req, res) => {
+    try {
+        console.log('Fetching daily revenue data...');
+        
+        // Get today's start and end time
+        const today = new Date();
+        today.setHours(8, 0, 0, 0); // Start from 8:00
+        const endTime = new Date(today);
+        endTime.setHours(22, 59, 59, 999); // End at 22:59:59.999
+
+        // Query for completed orders within today's business hours
+        const orders = await Order.find({
+            createdAt: {
+                $gte: today,
+                $lte: endTime
+            },
+            status: 'processing', // Only count completed orders
+            paymentStatus: 'paid' // Only count paid orders
+        }).sort('createdAt');
+
+        console.log(`Found ${orders.length} orders for today's business hours`);
+
+        // Initialize arrays for business hours (8-22)
+        const labels = Array.from({length: 15}, (_, i) => `${i + 8}h`);
+        const revenue = Array(15).fill(0);
+
+        // Process orders
+        orders.forEach(order => {
+            const hour = order.createdAt.getHours();
+            if (hour >= 8 && hour <= 22) {
+                revenue[hour - 8] += order.totalAmount;
+            }
+        });
+
+        // Calculate total revenue and orders
+        const totalRevenue = revenue.reduce((sum, val) => sum + val, 0);
+        const totalOrders = orders.length;
+
+        console.log('Processed revenue data:', {
+            totalRevenue,
+            totalOrders,
+            hourlyRevenue: revenue
+        });
+
+        res.json({
+            status: 'Ok',
+            data: {
+                labels,
+                revenue,
+                totalRevenue,
+                totalOrders,
+                averageOrderValue: totalOrders > 0 ? totalRevenue / totalOrders : 0
+            }
+        });
+    } catch (error) {
+        console.error('Error in getDailyRevenue:', error);
+        res.status(500).json({
+            status: 'Error',
+            message: 'Failed to fetch daily revenue data'
+        });
+    }
+
 /**
  * Hoàn trả tồn kho khi hủy đơn hàng
  * @param {Object} order - Đơn hàng đã được hủy
@@ -967,8 +1314,8 @@ module.exports = {
   getMobileOrdersList,
   getOrderDetail,
   updateOrderPayment,
-  // Không export các hàm hỗ trợ vì chúng chỉ được sử dụng nội bộ trong controller
-  // updateInventoryForOrder,
-  // updateVariantInventory,
-  // updateProductInventory
+  getPaymentStats,
+  getOrderDistribution,
+  getEmployeePerformance,
+  getDailyRevenue
 };
