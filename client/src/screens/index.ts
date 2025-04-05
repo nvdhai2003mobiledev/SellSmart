@@ -1,6 +1,3 @@
-import { Provider } from 'mobx-react';
-
-
 export {default as HomeScreen} from './bottomTab/Home/HomeScreen';
 export {default as OrderScreen} from './bottomTab/Order/OrderScreen';
 export {default as ProductScreen} from './bottomTab/Product/ProductScreen';
@@ -33,7 +30,6 @@ export {default as ChooseOrderProduct} from './main/Order/ChooseOrderProduct';
 export {default as CustomerSelection} from './main/Order/CustomerSelection';
 export {default as OrderDetailScreen} from './main/Order/OrderDetailScreen';
 export {default as ProductListScreen} from './main/Product/ProductListScreen';
-export {default as ProviderScreen} from './main/Provider/ProviderScreen';
-export {default as DetailProviderScreen} from './main/Provider/DetailProviderScreen';
-export {default as AddProviderScreen} from './main/Provider/AddProviderScreen';
+export {default as PromotionListScreen} from './main/Promotion/PromotionListScreen';
+export {default as AddPromotionScreen} from './main/Promotion/AddPromotionScreen';
 

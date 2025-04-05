@@ -1,25 +1,119 @@
 import { create, ApiResponse } from 'apisauce';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { rootStore } from '../../models/root-store';
-import { ApiEndpoint } from './api-endpoint';
 import { Platform } from 'react-native';
 import { CustomerResponse } from '../../models/customer/customer';
+import { ApiEndpoint } from './api-endpoint';
 
-// Choose the right BASE_URL based on the platform
-// For Android emulator, use 10.0.2.2 which maps to host machine's localhost
-// For iOS simulator, use localhost
-// For real devices, you would use the actual IP or domain
-const BASE_URL = Platform.select({
-  android: 'http://10.0.2.2:5000',
-  ios: 'http://localhost:5000',
-  default: 'http://localhost:5000',
-});
+// Define base URLs for different environments
+const ANDROID_BASE_URL = 'http://10.0.2.2';  // Android emulator localhost
+const IOS_BASE_URL = 'http://localhost';     // iOS simulator localhost
+const DEFAULT_BASE_URL = 'http://localhost'; // Fallback
 
-console.log('🔌 API Base URL:', BASE_URL);
+// List of ports to try
+const PORTS = [5000, 3000, 8000, 8080];
 
-/**
- * 🛠️ Xử lý lỗi chung cho API
- */
+// Generate all possible base URLs
+const generateBaseUrls = (baseUrl: string) => {
+  return PORTS.map(port => `${baseUrl}:${port}`);
+};
+
+// Get appropriate base URLs for current platform
+const getBaseUrls = () => {
+  if (Platform.OS === 'android') {
+    return generateBaseUrls(ANDROID_BASE_URL);
+  } else if (Platform.OS === 'ios') {
+    return generateBaseUrls(IOS_BASE_URL);
+  }
+  return generateBaseUrls(DEFAULT_BASE_URL);
+};
+
+// Start with first URL
+let currentUrlIndex = 0;
+const baseUrls = getBaseUrls();
+
+// Current BASE_URL - will be updated if a port works
+export const BASE_URL = baseUrls[currentUrlIndex];
+
+// Store the active port when found
+const saveActivePort = async (port: number) => {
+  try {
+    console.log(`🔄 Saved active API port: ${port}`);
+  } catch (error) {
+    console.error('❌ Failed to save active port:', error);
+  }
+};
+
+// API functions
+export const customerAPI = {
+  // Lấy danh sách khách hàng
+  getCustomers: async () => {
+    // Create a new API instance
+    const apiClient = create({
+      baseURL: BASE_URL,
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 30000, // 30 seconds
+    });
+    
+    return apiClient.get(ApiEndpoint.CUSTOMERS_PUBLIC);
+  },
+  
+  // Thêm khách hàng mới
+  addCustomer: (customerData: any) => {
+    const apiClient = create({
+      baseURL: BASE_URL,
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 30000,
+    });
+    
+    console.log('Sending to endpoint:', '/customers/mobile/customers/add');
+    console.log('Data:', JSON.stringify(customerData, null, 2));
+    return apiClient.post('/customers/mobile/customers/add', customerData);
+  },
+  
+  // Cập nhật khách hàng - Sử dụng endpoint đặc biệt cho mobile app
+  updateCustomer: (customerId: string, customerData: any) => {
+    const apiClient = create({
+      baseURL: BASE_URL,
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 30000,
+    });
+    
+    console.log('Updating customer at endpoint:', `/customers/mobile/customers/update/${customerId}`);
+    console.log('Update data:', JSON.stringify(customerData, null, 2));
+    return apiClient.put(`/customers/mobile/customers/update/${customerId}`, customerData);
+  },
+  
+  // Xóa khách hàng
+  deleteCustomer: (customerId: string) => {
+    const apiClient = create({
+      baseURL: BASE_URL,
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 30000,
+    });
+    
+    return apiClient.delete(`/customers/${customerId}`);
+  },
+  
+  // Tìm kiếm khách hàng theo số điện thoại
+  searchCustomerByPhone: (phoneNumber: string) => {
+    const apiClient = create({
+      baseURL: BASE_URL,
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 30000,
+    });
+    
+    return apiClient.get('/customers/search', { phoneNumber });
+  },
+
+  // Try the next available port if the current one fails
+  tryNextPort: () => {
+    currentUrlIndex = (currentUrlIndex + 1) % baseUrls.length;
+    const newBaseUrl = baseUrls[currentUrlIndex];
+    console.log(`🔄 Switching to next API URL: ${newBaseUrl}`);
+    return newBaseUrl;
+  }
+};
+
+// Helper function to process API errors
 export function getGeneralApiProblem(response: ApiResponse<any>) {
   console.error('❌ API ERROR:', response.problem, response.status, response.data);
 
@@ -56,69 +150,10 @@ export function getGeneralApiProblem(response: ApiResponse<any>) {
   return null;
 }
 
-/**
- * 🎯 Khởi tạo API chính với cấu hình nâng cao
- */
-export const Api = create({
-  baseURL: BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-  },
-  timeout: 15000, // 15 seconds timeout - not too long, not too short
-});
-
-/**
- * 🧐 Monitor phản hồi API
- */
-Api.addMonitor(response => {
-  console.log('📢 API Response:', JSON.stringify({
-    url: response.config?.url,
-    method: response.config?.method,
-    status: response.status,
-    data: response.data,
-    problem: response.problem,
-  }, null, 2));
-});
-
-/**
- * 🔍 Check if the server is reachable before making actual API calls
- */
-const checkServerConnectivity = async () => {
-  try {
-    const pingApi = create({
-      baseURL: BASE_URL,
-      timeout: 5000, // Short timeout for ping
-    });
-    
-    console.log('🏓 Pinging server at:', BASE_URL);
-    const response = await pingApi.get('/');
-    
-    // Even if we get a 404, it means the server is up
-    console.log('🏓 Ping response:', response.status, response.problem);
-    return response.status !== 0;
-  } catch (error) {
-    console.error('🏓 Ping failed:', error);
-    return false;
-  }
-};
-
-/**
- * 🚀 **Gọi API: Lấy danh sách khách hàng**
- */
+// Main API Service object for customers
 export const ApiService = {
   async getCustomers() {
     try {
-      // Check server connectivity first
-      const isServerReachable = await checkServerConnectivity();
-      if (!isServerReachable) {
-        console.error('❌ Server không thể kết nối được');
-        return { 
-          kind: 'network', 
-          message: 'Không thể kết nối đến máy chủ. Vui lòng đảm bảo server đang chạy và kết nối mạng ổn định.' 
-        };
-      }
-      
       console.log('📌 Gọi API: Lấy danh sách khách hàng từ', ApiEndpoint.CUSTOMERS_PUBLIC);
       console.log('📌 URL đầy đủ:', `${BASE_URL}${ApiEndpoint.CUSTOMERS_PUBLIC}`);
 
@@ -133,9 +168,7 @@ export const ApiService = {
       const response = await publicApi.get(ApiEndpoint.CUSTOMERS_PUBLIC);
       
       // Ghi log phản hồi
-      console.log('🔄 Response từ API:', response);
-      console.log('🔄 Response status:', response.status);
-      console.log('🔄 Response problem:', response.problem);
+      console.log('🔄 Response từ API:', response.status, response.problem);
 
       // Kiểm tra lỗi
       if (!response.ok) {
@@ -173,16 +206,6 @@ export const ApiService = {
         return { kind: 'ok', customers: [] };
       }
       
-      // Check server connectivity first
-      const isServerReachable = await checkServerConnectivity();
-      if (!isServerReachable) {
-        console.error('❌ Server không thể kết nối được');
-        return { 
-          kind: 'network', 
-          message: 'Không thể kết nối đến máy chủ. Vui lòng đảm bảo server đang chạy và kết nối mạng ổn định.' 
-        };
-      }
-      
       // Đường dẫn API search
       const searchEndpoint = '/customers/search';
       console.log('📱 Gọi API tìm kiếm khách hàng theo SĐT:', phoneNumber);
@@ -200,11 +223,6 @@ export const ApiService = {
         phoneNumber // Đảm bảo sử dụng đúng tham số mà backend mong đợi
       });
       
-      // Ghi log phản hồi
-      console.log('🔄 Response từ API tìm kiếm:', response);
-      console.log('🔄 Response status:', response.status);
-      console.log('🔄 Response problem:', response.problem);
-
       // Kiểm tra lỗi
       if (!response.ok) {
         const problem = getGeneralApiProblem(response);
@@ -217,9 +235,6 @@ export const ApiService = {
         console.error('⚠️ API tìm kiếm trả về dữ liệu không hợp lệ:', response.data);
         return { kind: 'bad-data', message: 'Dữ liệu không hợp lệ' };
       }
-
-      // Log chi tiết để debug
-      console.log('✅ API tìm kiếm trả về dữ liệu:', response.data);
       
       // Xử lý dữ liệu trả về an toàn
       let customers: CustomerResponse[] = [];
@@ -243,3 +258,5 @@ export const ApiService = {
     }
   },
 };
+
+export default customerAPI;

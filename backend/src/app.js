@@ -67,7 +67,7 @@ routes(app);
 
 // Sử dụng API routes
 app.use("/customers", customerRouter);
-
+app.use("/public", require('./routes/public')); // Thêm dòng này
 
 
 

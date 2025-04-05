@@ -36,9 +36,12 @@ export enum Screen {
   CHOOSE_ORDER_PRODUCT = 'CHOOSE_ORDER_PRODUCT',
   CUSTOMER_SELECTION = 'CUSTOMER_SELECTION',
   ORDER_DETAIL = 'ORDER_DETAIL',
-  PROVIDER = 'Provider',
-  DETAIL_PROVIDER = 'DetailProvider',
-  ADD_PROVIDER = 'ADD_PROVIDER',
+  ORDER_CANCEL = 'ORDER_CANCEL',
+  PAYMENT_METHODS = 'PAYMENT_METHODS',
+  PROMOTION_LIST = 'PROMOTION_LIST',
+  PROMOTION_DETAIL = 'PROMOTION_DETAIL',
+  ADD_PROMOTION = 'ADD_PROMOTION',
+  UPDATE_PROMOTION = 'UPDATE_PROMOTION'
 }
 
 export type RootStackParamList = {
@@ -66,7 +69,9 @@ export type RootStackParamList = {
     customer?: any;
   };
   [Screen.ORDERSCREEN]: undefined;
-  [Screen.ORDERLIST]: undefined;
+  [Screen.ORDERLIST]: {
+    status?: string;
+  };
   [Screen.FILTERORDER]: undefined;
   [Screen.PROFILE]: undefined;
   [Screen.CHOOSE_ORDER_PRODUCT]: {
@@ -79,11 +84,29 @@ export type RootStackParamList = {
   [Screen.ORDER_DETAIL]: {
     orderId: string;
   };
-  [Screen.PROVIDER]: undefined;
-  [Screen.DETAIL_PROVIDER]: {
-    provider: any;
+  [Screen.ORDER_CANCEL]: {
+    orderId: string;
+    orderAmount: number;
+    paymentStatus: string;
+    orderStatus: string;
   };
-  [Screen.ADD_PROVIDER]: undefined;
+  [Screen.PAYMENT_METHODS]: {
+    orderId: string;
+    orderNumber: string;
+    totalAmount: number;
+    remainingAmount?: number;
+    isPartialPayment?: boolean;
+    isNewOrder?: boolean;
+    onPaymentComplete?: (method: string, amount: number) => void;
+  };
+  [Screen.PROMOTION_LIST]: undefined;
+  [Screen.PROMOTION_DETAIL]: {
+    id: string;
+  };
+  [Screen.ADD_PROMOTION]: undefined;
+  [Screen.UPDATE_PROMOTION]: {
+    id: string;
+  };
 };
 
 export type BottomRootStackParamList = {

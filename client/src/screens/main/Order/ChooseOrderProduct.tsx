@@ -82,8 +82,8 @@ const ChooseOrderProduct = () => {
               
               // Add this variant as a selectable product
               processedProducts.push({
-                _id: variant._id, // Use variant ID as product ID
-                productId: product._id, // Keep reference to parent product
+                _id: product._id, // Sử dụng ID sản phẩm chính
+                variantId: variant._id, // Lưu ID biến thể riêng biệt
                 name: product.name,
                 thumbnail: product.thumbnail,
                 price: variant.price,
@@ -123,19 +123,32 @@ const ChooseOrderProduct = () => {
   };
 
   const toggleProductSelection = (product) => {
-    const isSelected = selectedProducts.some(p => p._id === product._id);
+    // Kiểm tra sản phẩm có trong danh sách đã chọn không
+    // So sánh cả ID sản phẩm và ID biến thể (nếu có)
+    const isSelected = selectedProducts.some(p => 
+      p._id === product._id && 
+      ((!p.variantId && !product.variantId) || (p.variantId === product.variantId))
+    );
     
     if (isSelected) {
-      // Remove product
-      setSelectedProducts(selectedProducts.filter(p => p._id !== product._id));
+      // Xóa sản phẩm khỏi danh sách đã chọn
+      setSelectedProducts(selectedProducts.filter(p => 
+        !(p._id === product._id && 
+          ((!p.variantId && !product.variantId) || (p.variantId === product.variantId)))
+      ));
     } else {
-      // Add product
+      // Thêm sản phẩm vào danh sách đã chọn
       setSelectedProducts([...selectedProducts, {...product, quantity: 1}]);
     }
   };
 
-  const isProductSelected = (productId) => {
-    return selectedProducts.some(p => p._id === productId);
+  const isProductSelected = (product) => {
+    // Kiểm tra sản phẩm đã được chọn hay chưa
+    // So sánh cả ID sản phẩm và ID biến thể (nếu có)
+    return selectedProducts.some(p => 
+      p._id === product._id && 
+      ((!p.variantId && !product.variantId) || (p.variantId === product.variantId))
+    );
   };
 
   const handleComplete = () => {
@@ -155,27 +168,32 @@ const ChooseOrderProduct = () => {
   const renderVariantDetails = (attributes) => {
     if (!attributes || attributes.length === 0) return null;
     
+    // Hiển thị chi tiết biến thể rõ ràng hơn
     return (
       <Text style={styles.variantText}>
-        {attributes.map(attr => `${attr.name ? attr.name + ': ' : ''}${attr.value}`).join(' | ')}
+        {attributes.map(attr => `${attr.value}`).join(' | ')}
       </Text>
     );
   };
 
-  const renderProductItem = ({ item }) => (
+  const renderProductItem = ({ item }) => {
+    // Tạo ID duy nhất cho mỗi biến thể
+    const uniqueId = item.variantId ? `${item._id}-${item.variantId}` : item._id;
+    
+    return (
     <TouchableOpacity
       style={[
         styles.productItem,
-        isProductSelected(item._id) && styles.selectedProductItem
+        isProductSelected(item) && styles.selectedProductItem
       ]}
       onPress={() => toggleProductSelection(item)}
     >
       <View style={styles.checkboxContainer}>
         <View style={[
           styles.checkbox,
-          isProductSelected(item._id) && styles.checkedCheckbox
+          isProductSelected(item) && styles.checkedCheckbox
         ]}>
-          {isProductSelected(item._id) && (
+          {isProductSelected(item) && (
             <Icon name="checkmark" size={16} color="#fff" />
           )}
         </View>
@@ -193,7 +211,7 @@ const ChooseOrderProduct = () => {
         <Text style={styles.inventory}>Tồn kho: {item.inventory}</Text>
       </View>
     </TouchableOpacity>
-  );
+  )};
 
   return (
     <BaseLayout>
@@ -233,7 +251,7 @@ const ChooseOrderProduct = () => {
           <FlatList
             data={filteredProducts}
             renderItem={renderProductItem}
-            keyExtractor={(item) => item._id}
+            keyExtractor={(item) => item.variantId ? `${item._id}-${item.variantId}` : item._id}
             contentContainerStyle={styles.productList}
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={

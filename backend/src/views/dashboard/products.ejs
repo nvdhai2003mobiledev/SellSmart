@@ -10,6 +10,52 @@
             </button>
         </div>
 
+        <!-- Filter options -->
+        <div class="card mb-4 shadow-sm">
+            <div class="card-body">
+                <form id="filterForm" class="row g-3">
+                    <div class="col-md-3">
+                        <label for="providerFilter" class="form-label">Nhà cung cấp</label>
+                        <select class="form-select" id="providerFilter">
+                            <option value="">Tất cả nhà cung cấp</option>
+                            <% providers.forEach(provider => { %>
+                                <option value="<%= provider._id %>"><%= provider.fullName %></option>
+                            <% }); %>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="categoryFilter" class="form-label">Danh mục</label>
+                        <select class="form-select" id="categoryFilter">
+                            <option value="">Tất cả danh mục</option>
+                            <% categories.forEach(category => { %>
+                                <option value="<%= category._id %>"><%= category.name %></option>
+                            <% }); %>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="statusFilter" class="form-label">Trạng thái</label>
+                        <select class="form-select" id="statusFilter">
+                            <option value="">Tất cả trạng thái</option>
+                            <option value="available">Có sẵn</option>
+                            <option value="unavailable">Hết hàng</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="searchInput" class="form-label">Tìm kiếm</label>
+                        <input type="text" class="form-control" id="searchInput" placeholder="Tìm theo tên sản phẩm...">
+                    </div>
+                    <div class="col-12 text-end">
+                        <button type="button" class="btn btn-outline-primary" id="applyFilter">
+                            <i class="fas fa-filter me-2"></i>Lọc
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary ms-2" id="resetFilter">
+                            <i class="fas fa-undo me-2"></i>Đặt lại
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <!-- Danh sách sản phẩm -->
         <div class="card shadow-sm">
             <div class="card-body p-0">
@@ -21,18 +67,18 @@
                                 <th class="fw-bold text-dark">Hình ảnh</th>
                                 <th class="fw-bold text-dark">Danh mục</th>
                                 <th class="fw-bold text-dark text-center">Trạng thái</th>
-                                <th class="fw-bold text-dark">Giá</th>
+                                <th class="fw-bold text-dark">Giá (VNĐ)</th>
                                 <th class="fw-bold text-dark">Tồn kho</th>
                                 <th class="fw-bold text-dark">Nhà cung cấp</th>
+                                <th class="fw-bold text-dark">Bảo hành</th>
                                 <th class="fw-bold text-dark">Biến thể</th>
-                                <th class="fw-bold text-dark">Hành động</th>
                             </tr>
                         </thead>
                         <tbody>
                             <% products.forEach(product => { %>
                                 <% if (product._id) { %>
-                                    <tr id="product-row-<%= product._id %>">
-                                        <td style="cursor: pointer;" onclick="showProductDetails('<%= product._id %>')">
+                                    <tr id="product-row-<%= product._id %>" style="cursor: pointer;" onclick="showProductDetails('<%= product._id %>')">
+                                        <td>
                                             <%= product.name || 'N/A' %>
                                         </td>
                                         <td>
@@ -41,7 +87,9 @@
                                                  class="rounded" 
                                                  style="width: 80px; height: 80px; object-fit: cover;">
                                         </td>
-                                        <td><%= product.category?.name || 'Chưa có' %></td>
+                                        <td data-category-id="<%= product.category?._id || '' %>">
+                                            <%= product.category?.name || 'Chưa có' %>
+                                        </td>
                                         <td class="text-center">
                                             <% if (product.status === 'available') { %>
                                                 <i class="fas fa-check-circle text-success me-1"></i>Có sẵn
@@ -51,22 +99,51 @@
                                         </td>
                                         <td>
                                             <% if (product.hasVariants && product.detailsVariants?.length > 0) { %>
-                                                <%= product.detailsVariants[0].price?.toLocaleString() || 'N/A' %> VNĐ
-                                                <% if (product.detailsVariants.length > 1) { %>
-                                                    <span class="text-muted">(+<%= product.detailsVariants.length - 1 %> biến thể khác)</span>
+                                                <% 
+                                                    const prices = product.detailsVariants.map(v => v.price).filter(p => p !== undefined);
+                                                    const minPrice = Math.min(...prices);
+                                                    const maxPrice = Math.max(...prices);
+                                                %>
+                                                <% if (minPrice === maxPrice) { %>
+                                                    <span class="text-success fw-bold"><%= minPrice.toLocaleString() %></span>
+                                                <% } else { %>
+                                                    <span class="text-success fw-bold"><%= minPrice.toLocaleString() %></span>
+                                                    <i class="fas fa-arrow-right mx-1"></i>
+                                                    <span class="text-danger fw-bold"><%= maxPrice.toLocaleString() %></span>
                                                 <% } %>
                                             <% } else { %>
-                                                <%= product.price?.toLocaleString() || 'N/A' %> VNĐ
+                                                <span class="text-success fw-bold"><%= product.price?.toLocaleString() || 'N/A' %></span>
                                             <% } %>
                                         </td>
                                         <td>
                                             <% if (product.hasVariants && product.detailsVariants?.length > 0) { %>
-                                                <%= product.detailsVariants[0].inventory ?? 'N/A' %>
+                                                <% 
+                                                    const inventories = product.detailsVariants.map(v => v.inventory).filter(i => i !== undefined);
+                                                    const totalInventory = inventories.reduce((sum, curr) => sum + curr, 0);
+                                                    const minInventory = Math.min(...inventories);
+                                                    const maxInventory = Math.max(...inventories);
+                                                %>
+                                                <span class="fw-bold"><%= totalInventory %></span>
+                                                <br>
+                                                <small>
+                                                    (<span class="text-success fw-bold"><%= minInventory %></span>
+                                                    <i class="fas fa-arrow-right mx-1"></i>
+                                                    <span class="text-danger fw-bold"><%= maxInventory %></span>
+                                                    / biến thể)
+                                                </small>
                                             <% } else { %>
-                                                <%= product.inventory ?? 'N/A' %>
+                                                <span class="fw-bold"><%= product.inventory ?? 'N/A' %></span>
                                             <% } %>
                                         </td>
-                                        <td><%= product.providerId?.fullName || 'Chưa có' %></td>
+                                        <td data-provider-id="<%= product.providerId?._id || '' %>">
+                                            <%= product.providerId?.fullName || 'Chưa có' %>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="fas fa-shield-alt me-1"></i>
+                                                <%= product.warrantyPeriod || 12 %> tháng
+                                            </span>
+                                        </td>
                                         <td>
                                             <% if (product.hasVariants && product.detailsVariants?.length > 0) { %>
                                                 <span class="badge bg-info">
@@ -75,16 +152,6 @@
                                             <% } else { %>
                                                 <span class="text-muted">Không có biến thể</span>
                                             <% } %>
-                                        </td>
-                                        <td>
-                                            <button class="btn btn-warning btn-sm me-2 shadow-sm" 
-                                                    onclick="event.stopPropagation(); editProduct('<%= product._id %>')">
-                                                <i class="fas fa-edit"></i> Sửa
-                                            </button>
-                                            <button class="btn btn-danger btn-sm shadow-sm" 
-                                                    onclick="event.stopPropagation(); deleteProduct('<%= product._id %>')">
-                                                <i class="fas fa-trash-alt"></i> Xóa
-                                            </button>
                                         </td>
                                     </tr>
                                 <% } %>
@@ -138,7 +205,15 @@
                                         <option value="unavailable">Hết hàng</option>
                                     </select>
                                 </div>
-                                <div class="col-md-6 mb-3" id="priceInventoryFields">
+                                <div class="col-md-6 mb-3">
+                                    <label for="warrantyPeriod" class="form-label fw-bold">Thời gian bảo hành (tháng)</label>
+                                    <input type="number" class="form-control" id="warrantyPeriod" name="warrantyPeriod" 
+                                           value="12" min="1" required>
+                                    <small class="text-muted">Mặc định là 12 tháng nếu không nhập</small>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-12 mb-3" id="priceInventoryFields">
                                     <label for="price" class="form-label fw-bold">Giá (VNĐ)</label>
                                     <input type="number" class="form-control" id="price" name="price" min="0" placeholder="Nhập giá" required>
                                     <label for="inventory" class="form-label fw-bold mt-2">Tồn kho</label>
@@ -206,7 +281,15 @@
                                         <option value="unavailable">Hết hàng</option>
                                     </select>
                                 </div>
-                                <div class="col-md-6 mb-3" id="editPriceInventoryFields">
+                                <div class="col-md-6 mb-3">
+                                    <label for="editWarrantyPeriod" class="form-label fw-bold">Thời gian bảo hành (tháng)</label>
+                                    <input type="number" class="form-control" id="editWarrantyPeriod" name="warrantyPeriod" 
+                                           min="1" required>
+                                    <small class="text-muted">Mặc định là 12 tháng nếu không nhập</small>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-12 mb-3" id="editPriceInventoryFields">
                                     <label for="editPrice" class="form-label fw-bold">Giá (VNĐ)</label>
                                     <input type="number" class="form-control" id="editPrice" name="price" min="0" placeholder="Nhập giá">
                                     <label for="editInventory" class="form-label fw-bold mt-2">Tồn kho</label>
@@ -274,6 +357,12 @@
                                 <div class="row mb-1">
                                     <div class="col-md-4 fw-bold">Trạng thái:</div>
                                     <div class="col-md-8" id="productStatus"></div>
+                                </div>
+                                <div class="row mb-1">
+                                    <div class="col-md-4 fw-bold">Bảo hành:</div>
+                                    <div class="col-md-8">
+                                        <span class="badge bg-warning text-dark" id="productWarranty"></span>
+                                    </div>
                                 </div>
                                 <div class="row mb-1" id="productBasicPriceRow">
                                     <div class="col-md-4 fw-bold">Giá cơ bản:</div>
@@ -432,7 +521,11 @@
         }
         const url = `/products/variants?typeProductId=${typeProductId}`;
         console.log('Mở trang biến thể với URL:', url);
-        window.open(url, 'VariantsWindow', 'width=800,height=600');
+        const width = Math.min(1200, window.screen.width * 0.9);
+        const height = Math.min(800, window.screen.height * 0.9);
+        const left = (window.screen.width - width) / 2;
+        const top = (window.screen.height - height) / 2;
+        window.open(url, 'VariantsWindow', `width=${width},height=${height},left=${left},top=${top}`);
     }
 
     // Hiển thị chi tiết sản phẩm
@@ -459,6 +552,13 @@
                     $('#productName').text(product.name || 'N/A');
                     $('#productCategory').text(product.category?.name || 'Chưa có');
                     $('#productProvider').text(product.providerId?.fullName || 'Chưa có');
+                    
+                    // Cập nhật thông tin bảo hành
+                    const warrantyPeriod = product.warrantyPeriod || 12;
+                    $('#productWarranty').html(`
+                        <i class="fas fa-shield-alt me-1"></i>
+                        ${warrantyPeriod} tháng
+                    `);
                     
                     // Cập nhật trạng thái với icon và màu sắc
                     if (product.status === 'available') {
@@ -708,27 +808,51 @@
         }
     });
 
-    // Xóa sản phẩm
-    function deleteProduct(productId) {
-        if (!/^[0-9a-fA-F]{24}$/.test(productId)) {
-            showToast('error', 'ID sản phẩm không hợp lệ!');
-            return;
-        }
-        if (confirm('Bạn có chắc chắn muốn xóa sản phẩm này không?')) {
-            console.log('Gửi yêu cầu xóa sản phẩm:', productId);
-            $.ajax({
-                url: `/products/delete/${productId}`,
-                type: 'DELETE',
-                success: response => {
-                    if (response.status === 'Ok') {
-                        $(`#product-row-${productId}`).remove();
-                        showToast('success', 'Xóa sản phẩm thành công!');
-                    } else {
-                        showToast('error', response.message);
-                    }
-                },
-                error: xhr => showToast('error', `Lỗi khi xóa sản phẩm: ${xhr.responseJSON?.message || 'Vui lòng thử lại!'}`)
-            });
-        }
-    }
+    // Filter functionality
+    $('#applyFilter').click(function () {
+        const providerId = $('#providerFilter').val();
+        const categoryId = $('#categoryFilter').val();
+        const status = $('#statusFilter').val();
+        const search = $('#searchInput').val().toLowerCase();
+
+        $('tbody tr').each(function () {
+            const row = $(this);
+            const rowProviderId = row.find('td:eq(6)').attr('data-provider-id');
+            const rowCategoryId = row.find('td:eq(2)').attr('data-category-id');
+            const rowStatus = row.find('td:eq(3)').text().trim().toLowerCase();
+            const rowName = row.find('td:eq(0)').text().trim().toLowerCase();
+
+            const providerMatch = !providerId || rowProviderId === providerId;
+            const categoryMatch = !categoryId || rowCategoryId === categoryId;
+            const statusMatch = !status || 
+                (status === 'available' && rowStatus.includes('có sẵn')) ||
+                (status === 'unavailable' && rowStatus.includes('hết hàng'));
+            const searchMatch = !search || rowName.includes(search);
+
+            if (providerMatch && categoryMatch && statusMatch && searchMatch) {
+                row.show();
+            } else {
+                row.hide();
+            }
+        });
+    });
+
+    // Reset filter functionality
+    $('#resetFilter').click(function () {
+        $('#providerFilter').val('');
+        $('#categoryFilter').val('');
+        $('#statusFilter').val('');
+        $('#searchInput').val('');
+        $('tbody tr').show();
+    });
+
+    // Apply filter on search input change
+    $('#searchInput').on('input', function() {
+        $('#applyFilter').click();
+    });
+
+    // Apply filter on select change
+    $('#providerFilter, #categoryFilter, #statusFilter').change(function() {
+        $('#applyFilter').click();
+    });
 </script>

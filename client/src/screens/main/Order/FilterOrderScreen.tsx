@@ -24,7 +24,7 @@ const PAYMENT_STATUS_OPTIONS = [
 // Order status options
 const ORDER_STATUS_OPTIONS = [
   { label: 'Chưa xử lý', value: 'pending' },
-  { label: 'Đang xử lý', value: 'processing' },
+  { label: 'Đã xử lý', value: 'processing' },
   { label: 'Đã hủy', value: 'canceled' },
 ];
 

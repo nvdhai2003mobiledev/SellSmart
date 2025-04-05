@@ -42,7 +42,7 @@ export const Header = (props: HeaderProps) => {
       <View style={styles.leftContainer}>
         {showBackIcon && (
           <ArrowLeft2
-            size={scaledSize(24)}
+            size={scaledSize(28)}
             color={textColor}
             variant="Linear"
             onPress={onPressBack}
@@ -70,9 +70,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: scaleHeight(15),
     marginBottom: scaleHeight(20),
+    paddingHorizontal: scaledSize(16),
   },
   leftContainer: {
-    width: scaledSize(24),
+    width: scaledSize(28),
     alignItems: 'flex-start',
   },
   titleContainer: {
@@ -81,7 +82,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   rightContainer: {
-    width: scaledSize(24),
+    width: scaledSize(28),
     alignItems: 'flex-end',
   },
   title: {

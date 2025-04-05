@@ -1,0 +1,44 @@
+<!-- backend/src/views/productDetails.ejs -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chi tiết sản phẩm</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1 { color: #333; }
+    .product-info { border: 1px solid #ddd; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
+    .product-info img { max-width: 200px; }
+    .document { border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 5px; }
+    .document img { max-width: 300px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Chi tiết sản phẩm</h1>
+  <div class="product-info">
+    <h2><%= product.name %></h2>
+    <% if (product.thumbnail) { %>
+      <img src="<%= product.thumbnail %>" alt="Thumbnail">
+    <% } %>
+  </div>
+
+  <h3>Tài liệu liên quan</h3>
+  <% if (documents.length > 0) { %>
+    <% documents.forEach(function(doc) { %>
+      <div class="document">
+        <h4><%= doc.title %></h4>
+        <p><%= doc.description %></p>
+        <% if (doc.media) { %>
+          <img src="<%= doc.media %>" alt="Media">
+        <% } %>
+      </div>
+    <% }); %>
+  <% } else { %>
+    <p>Không có tài liệu nào cho sản phẩm này.</p>
+  <% } %>
+
+  <a href="/public/documents">Quay lại danh sách tài liệu</a>
+</body>
+</html>
