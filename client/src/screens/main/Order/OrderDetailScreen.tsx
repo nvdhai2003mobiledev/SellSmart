@@ -34,6 +34,7 @@ const OrderDetailScreen = observer(() => {
         console.log(`ID: ${foundOrder._id}`);
         console.log(`Mã đơn hàng: ${foundOrder.orderID}`);
         console.log(`Trạng thái: ${foundOrder.status}`);
+        console.log(`Lý do hủy đơn hàng: ${foundOrder.cancelReason || 'Không có'}`);
         console.log(`Trạng thái thanh toán: ${foundOrder.paymentStatus}`);
         console.log(`Số tiền tổng: ${foundOrder.totalAmount}`);
         console.log(`Giá gốc: ${foundOrder.originalAmount !== undefined ? foundOrder.originalAmount : 'không có thông tin'}`);
@@ -74,6 +75,10 @@ const OrderDetailScreen = observer(() => {
         }
         
         setOrder(foundOrder);
+        console.log('=== KIỂM TRA DỮ LIỆU ĐƠN HÀNG ===');
+        console.log('Trạng thái đơn hàng:', foundOrder.status);
+        console.log('Lý do hủy:', foundOrder.cancelReason);
+        console.log('Chi tiết đơn hàng:', JSON.stringify(foundOrder, null, 2));
       } else {
         // Nếu không tìm thấy, có thể fetch lại từ server
         console.log(`Không tìm thấy đơn hàng ID ${orderId} trong store, tiến hành fetch lại từ server...`);
@@ -85,6 +90,7 @@ const OrderDetailScreen = observer(() => {
           console.log(`ID: ${refreshedOrder._id}`);
           console.log(`Mã đơn hàng: ${refreshedOrder.orderID}`);
           console.log(`Trạng thái: ${refreshedOrder.status}`);
+          console.log(`Lý do hủy đơn hàng: ${refreshedOrder.cancelReason || 'Không có'}`);
           console.log(`Trạng thái thanh toán: ${refreshedOrder.paymentStatus}`);
           console.log(`Số tiền tổng: ${refreshedOrder.totalAmount}`);
           console.log(`Số tiền đã thanh toán: ${refreshedOrder.paidAmount !== undefined ? refreshedOrder.paidAmount : 'không có thông tin'}`);
@@ -97,6 +103,10 @@ const OrderDetailScreen = observer(() => {
           }
           
           setOrder(refreshedOrder);
+          console.log('=== KIỂM TRA DỮ LIỆU ĐƠN HÀNG SAU KHI REFRESH ===');
+          console.log('Trạng thái đơn hàng:', refreshedOrder.status);
+          console.log('Lý do hủy:', refreshedOrder.cancelReason);
+          console.log('Chi tiết đơn hàng:', JSON.stringify(refreshedOrder, null, 2));
         } else {
           console.error(`Không thể tìm thấy đơn hàng ID ${orderId} sau khi refresh`);
           Alert.alert('Lỗi', 'Không tìm thấy thông tin đơn hàng');
@@ -561,6 +571,22 @@ const OrderDetailScreen = observer(() => {
             onPress={handleShipping}
           />
         )}
+        
+        {/* Nút hiển thị lý do hủy đơn */}
+        {order.status === 'canceled' && (
+          <Button
+            title={order.cancelReason ? "Xem lý do hủy đơn" : "Không có lý do hủy đơn"}
+            buttonContainerStyle={styles.cancelReasonButton}
+            titleStyle={styles.buttonText}
+            onPress={() => {
+              Alert.alert(
+                "Lý do hủy đơn hàng",
+                order.cancelReason || "Không có thông tin về lý do hủy đơn hàng",
+                [{ text: "Đóng", style: "cancel" }]
+              );
+            }}
+          />
+        )}
       </View>
     </BaseLayout>
   );
@@ -837,12 +863,15 @@ const styles = StyleSheet.create({
     color: color.accentColor.errorColor,
   },
   cancelReason: {
-    fontSize: moderateScale(14),
+    fontSize: moderateScale(16),
     color: color.accentColor.darkColor,
+    fontWeight: '500',
+    paddingVertical: moderateScale(8),
   },
   cancelReasonNotAvailable: {
     fontSize: moderateScale(14),
     color: color.accentColor.grayColor,
+    fontStyle: 'italic',
   },
   statusPartialPaid: {
     backgroundColor: '#FFB74D', // Orange color for partial payment
@@ -936,6 +965,14 @@ const styles = StyleSheet.create({
     fontSize: moderateScale(14),
     color: color.accentColor.grayColor,
     textDecorationLine: 'line-through',
+  },
+  
+  cancelReasonButton: {
+    flex: 1,
+    backgroundColor: color.accentColor.errorColor,
+    paddingVertical: moderateScale(12),
+    borderRadius: moderateScale(8),
+    marginRight: moderateScale(8),
   },
 });
 

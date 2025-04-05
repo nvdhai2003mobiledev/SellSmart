@@ -10,10 +10,8 @@ import {
 import {
   AddCircle,
   Calendar,
-  DocumentText,
   ArrowRight2,
-  TruckFast,
-  Box,
+  CloseCircle,
 } from 'iconsax-react-native';
 import {BaseLayout, DynamicText, Header} from '../../../components';
 import {
@@ -71,6 +69,7 @@ const OrderScreen = () => {
 
   // Function to navigate to OrderListScreen with filter
   const navigateToOrderList = (status?: string) => {
+    // @ts-ignore - Bỏ qua TypeScript error vì chúng ta biết Screen.ORDERLIST là hợp lệ
     navigation.navigate(Screen.ORDERLIST, { status });
   };
 
@@ -101,6 +100,7 @@ const OrderScreen = () => {
         </View>
 
         <View style={styles.grid}>
+          {/* Tất cả đơn hàng */}
           <TouchableOpacity 
             style={styles.gridItem} 
             onPress={() => navigateToOrderList()}
@@ -116,7 +116,7 @@ const OrderScreen = () => {
               </View>
               <View>
                 <DynamicText style={styles.gridTitle}>
-                  {contents.order.order || 'Đơn hàng'}
+                  Đơn hàng
                 </DynamicText>
                 <DynamicText style={styles.gridSubtitle}>
                   {rootStore.orders?.orders?.length || 0} đơn
@@ -130,79 +130,26 @@ const OrderScreen = () => {
             />
           </TouchableOpacity>
 
+          {/* Đơn hàng đã hủy */}
           <TouchableOpacity 
             style={styles.gridItem} 
-            onPress={() => navigateToOrderList('pending')}
+            onPress={() => navigateToOrderList('canceled')}
           >
             <View style={styles.gridItemContent}>
               <View
-                style={[styles.iconContainer, {backgroundColor: '#FFF5E8'}]}>
-                <DocumentText
+                style={[styles.iconContainer, {backgroundColor: '#FFF0F0'}]}>
+                <CloseCircle
                   size={scaledSize(24)}
-                  color="#FFA500"
+                  color="#FF3B30"
                   variant="Bold"
                 />
               </View>
               <View>
                 <DynamicText style={styles.gridTitle}>
-                  {contents.order.order_draft || 'Đơn nháp'}
+                  Đơn hủy
                 </DynamicText>
                 <DynamicText style={styles.gridSubtitle}>
-                  {rootStore.orders?.pendingOrders?.length || 0} đơn
-                </DynamicText>
-              </View>
-            </View>
-            <ArrowRight2
-              size={20}
-              color={color.accentColor.grayColor}
-              variant="Linear"
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.gridItem} 
-            onPress={() => navigateToOrderList('processing')}
-          >
-            <View style={styles.gridItemContent}>
-              <View
-                style={[styles.iconContainer, {backgroundColor: '#E8FFF5'}]}>
-                <Box size={scaledSize(24)} color="#00CC99" variant="Bold" />
-              </View>
-              <View>
-                <DynamicText style={styles.gridTitle}>
-                  {contents.order.return_product || 'Trả hàng'}
-                </DynamicText>
-                <DynamicText style={styles.gridSubtitle}>
-                  {rootStore.orders?.processingOrders?.length || 0} đơn
-                </DynamicText>
-              </View>
-            </View>
-            <ArrowRight2
-              size={20}
-              color={color.accentColor.grayColor}
-              variant="Linear"
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.gridItem} 
-            onPress={() => navigateToOrderList('shipping')}
-          >
-            <View style={styles.gridItemContent}>
-              <View
-                style={[styles.iconContainer, {backgroundColor: '#F5E8FF'}]}>
-                <TruckFast
-                  size={scaledSize(24)}
-                  color="#9B51E0"
-                  variant="Bold"
-                />
-              </View>
-              <View>
-                <DynamicText style={styles.gridTitle}>
-                  {contents.order.ship || 'Vận chuyển'}
-                </DynamicText>
-                <DynamicText style={styles.gridSubtitle}>
-                  {rootStore.orders?.shippingOrders?.length || 0} đơn
+                  {rootStore.orders?.canceledOrders?.length || 0} đơn
                 </DynamicText>
               </View>
             </View>
