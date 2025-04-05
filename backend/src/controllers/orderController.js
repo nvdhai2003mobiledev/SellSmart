@@ -7,6 +7,7 @@ const Employee = require("../models/Employee");
 const DetailsVariant = require("../models/DetailsVariant");
 const Variant = require("../models/Variant");
 const User = require("../models/User");
+const Promotion = require("../models/Promotion");
 
 const createOrder = async (req, res) => {
   try {
@@ -16,11 +17,14 @@ const createOrder = async (req, res) => {
       totalAmount,
       paymentMethod,
       paymentStatus,
+      paidAmount,
+      paymentDetails,
       shippingAddress,
       notes,
       status,
       employeeID,
-      promotionID
+      promotionID,
+      originalAmount
     } = req.body;
 
     if (
@@ -47,20 +51,71 @@ const createOrder = async (req, res) => {
         .json({ success: false, message: "Phương thức thanh toán không hợp lệ" });
     }
 
-    const newOrder = new Order({
+    // Log thông tin thanh toán để debug
+    console.log('=== THÔNG TIN THANH TOÁN ===');
+    console.log(`Phương thức thanh toán: ${paymentMethod}`);
+    console.log(`Trạng thái thanh toán: ${paymentStatus}`);
+    console.log(`Số tiền đã thanh toán: ${paidAmount}`);
+    console.log(`Chi tiết thanh toán:`, JSON.stringify(paymentDetails));
+    
+    // Log thông tin khuyến mãi để debug
+    console.log('=== THÔNG TIN KHUYẾN MÃI ===');
+    console.log(`Promotion ID: ${promotionID || 'Không có'}`);
+    console.log(`Original Amount: ${originalAmount || 'Không có'}`);
+    console.log(`Total Amount: ${totalAmount}`);
+    
+    // Tính giá gốc từ danh sách sản phẩm nếu không có originalAmount
+    const calculatedTotal = products.reduce(
+      (sum, product) => sum + product.price * product.quantity,
+      0
+    );
+    
+    const finalOriginalAmount = originalAmount || calculatedTotal;
+    
+    console.log(`Calculated Total: ${calculatedTotal}`);
+    console.log(`Final Original Amount: ${finalOriginalAmount}`);
+    
+    // Tính số tiền giảm giá
+    const discountAmount = finalOriginalAmount - totalAmount;
+    console.log(`Discount Amount: ${discountAmount}`);
+    
+    const orderObj = {
       orderID: `ORD-${Date.now()}`,
       customerID,
       products,
       totalAmount,
+      originalAmount: finalOriginalAmount,
       paymentMethod: finalPaymentMethod,
       paymentStatus: paymentStatus || 'unpaid',
       status: status || 'pending',
       shippingAddress,
       employeeID,
       notes,
-      promotionID
-    });
+      paidAmount: paidAmount || 0,
+      paymentDetails: paymentDetails || [],
+    };
+    
+    // Thêm thông tin khuyến mãi nếu có
+    if (promotionID) {
+      orderObj.promotionID = promotionID;
+      
+      // Tìm thông tin khuyến mãi để lưu chi tiết
+      try {
+        const promotion = await Promotion.findById(promotionID);
+        if (promotion) {
+          orderObj.promotionDetails = {
+            name: promotion.name,
+            discount: promotion.discount,
+            discountAmount: discountAmount > 0 ? discountAmount : 0
+          };
+          console.log(`Đã tìm thấy thông tin khuyến mãi: ${promotion.name}, ${promotion.discount}%, giảm ${discountAmount}`);
+        }
+      } catch (err) {
+        console.error('Lỗi khi tìm thông tin khuyến mãi:', err);
+      }
+    }
 
+    const newOrder = new Order(orderObj);
     await newOrder.save();
 
     // Nếu trạng thái đơn hàng là "processing" hoặc đã thanh toán, cập nhật tồn kho
@@ -105,8 +160,16 @@ const updateInventoryForOrder = async (order) => {
       console.log(`ID Sản phẩm: ${productID}`);
       console.log(`Số lượng: ${quantity}`);
       
-      // Kiểm tra nếu có variantID
-      const variantID = orderProduct.variantID?._id || orderProduct.variantID || null;
+      // Sửa phần xác định ID biến thể
+      let variantID = null;
+      if (orderProduct.variantID) {
+        if (typeof orderProduct.variantID === 'object') {
+          variantID = orderProduct.variantID._id ? orderProduct.variantID._id.toString() : null;
+        } else {
+          variantID = orderProduct.variantID.toString();
+        }
+      }
+      console.log(`Biến thể ID (đã xử lý): ${variantID}`);
       
       if (variantID) {
         console.log(`Biến thể ID: ${variantID}`);
@@ -550,6 +613,13 @@ const processOrderStatusChange = async (orderId, newStatus) => {
     
     // Cập nhật trạng thái
     order.status = newStatus;
+    
+    // Nếu đơn hàng bị hủy, đặt tổng tiền về 0
+    if (newStatus === 'canceled') {
+      console.log(`Đơn hàng ${orderId} bị hủy, đặt tổng tiền về 0`);
+      order.totalAmount = 0;
+    }
+    
     await order.save();
     
     // Kiểm tra và cập nhật tồn kho
@@ -570,6 +640,30 @@ const processOrderStatusChange = async (orderId, newStatus) => {
       await updateInventoryForOrder(orderObj);
       
       return true;
+    } else if (newStatus === 'canceled') {
+      console.log(`Đơn hàng ${orderId} chuyển sang trạng thái canceled, sẽ kiểm tra để hoàn trả tồn kho`);
+      
+      // Chỉ hoàn trả tồn kho nếu đơn hàng đã thanh toán
+      if (order.paymentStatus === 'paid') {
+        console.log(`Đơn hàng đã thanh toán, sẽ hoàn trả tồn kho`);
+        
+        // In thông tin sản phẩm
+        order.products.forEach((product, idx) => {
+          console.log(`Sản phẩm #${idx+1}: ${product.name}, SL cần hoàn trả: ${product.quantity}`);
+          if (product.variantID) {
+            console.log(`  - Có biến thể: ${product.variantID}`);
+          }
+        });
+        
+        // Tạo đối tượng để hoàn trả tồn kho
+        const orderObj = order.toObject();
+        await restoreInventoryForOrder(orderObj);
+        
+        return true;
+      } else {
+        console.log(`Đơn hàng chưa thanh toán (${order.paymentStatus}), không cần hoàn trả tồn kho`);
+        return false;
+      }
     } else {
       console.log(`Không cần cập nhật tồn kho cho trạng thái ${newStatus}`);
       return false;
@@ -587,8 +681,12 @@ const updateOrderStatus = async (req, res) => {
   try {
     const orderId = req.params.id;
     const newStatus = req.body.status;
+    const cancelReason = req.body.cancelReason;
     
     console.log(`Nhận yêu cầu thay đổi trạng thái đơn hàng ${orderId} thành ${newStatus}`);
+    if (cancelReason) {
+      console.log(`Lý do hủy đơn hàng: ${cancelReason}`);
+    }
     
     if (!mongoose.Types.ObjectId.isValid(orderId)) {
       return res.status(400).json({ message: "ID đơn hàng không hợp lệ" });
@@ -596,6 +694,19 @@ const updateOrderStatus = async (req, res) => {
     
     if (!newStatus) {
       return res.status(400).json({ message: "Trạng thái đơn hàng không được để trống" });
+    }
+    
+    // Lấy đơn hàng để cập nhật
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ message: "Không tìm thấy đơn hàng" });
+    }
+    
+    // Lưu lý do hủy đơn hàng nếu có
+    if (newStatus === 'canceled' && cancelReason) {
+      order.cancelReason = cancelReason;
+      await order.save();
+      console.log(`Đã lưu lý do hủy đơn hàng: ${cancelReason}`);
     }
     
     await processOrderStatusChange(orderId, newStatus);
@@ -615,82 +726,115 @@ const updateOrderStatus = async (req, res) => {
 };
 
 const updateOrderPayment = async (req, res) => {
+  const orderId = req.params.id;
+  const { paymentMethod, paymentStatus, amount } = req.body;
+
+  console.log(`===== REQUEST: Cập nhật thanh toán đơn hàng ${orderId} =====`);
+  console.log(`Dữ liệu nhận được:`, req.body);
+
   try {
-    console.log("\n===== BẮT ĐẦU CẬP NHẬT THANH TOÁN =====");
-    const { paymentMethod, paymentStatus } = req.body;
-    console.log(`Đơn hàng ID: ${req.params.id}, PT thanh toán: ${paymentMethod}, Trạng thái: ${paymentStatus}`);
-
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "ID đơn hàng không hợp lệ" 
-      });
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+      console.error(`OrderID không hợp lệ: ${orderId}`);
+      return res.status(400).json({ success: false, message: 'ID đơn hàng không hợp lệ!' });
     }
 
-    // Tìm đơn hàng đầy đủ thông tin để cập nhật tồn kho
-    const order = await Order.findById(req.params.id)
-      .populate('products.productID')
-      .populate('products.variantID');
-      
+    // Tìm đơn hàng cần cập nhật
+    const order = await Order.findById(orderId);
+
     if (!order) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "Không tìm thấy đơn hàng" 
+      console.error(`Không tìm thấy đơn hàng với ID: ${orderId}`);
+      return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng!' });
+    }
+
+    console.log(`Tìm thấy đơn hàng:`, {
+      id: order._id,
+      orderID: order.orderID,
+      totalAmount: order.totalAmount,
+      currentPaymentStatus: order.paymentStatus,
+      currentPaidAmount: order.paidAmount || 0
+    });
+
+    // Chi tiết thanh toán hiện tại hoặc mảng rỗng nếu chưa có
+    const paymentDetails = order.paymentDetails || [];
+    
+    // Tính toán số tiền đã thanh toán
+    let currentPaidAmount = order.paidAmount || 0;
+    
+    // Thêm thông tin thanh toán mới
+    if (amount) {
+      currentPaidAmount += amount;
+      paymentDetails.push({
+        method: paymentMethod,
+        amount: amount,
+        date: new Date()
       });
     }
-
-    // Trạng thái thanh toán cũ để so sánh
-    const oldPaymentStatus = order.paymentStatus;
-    console.log(`Trạng thái thanh toán hiện tại: ${oldPaymentStatus}`);
-
-    // Validate payment method (required if updating to paid status)
-    if (paymentStatus === 'paid' && !paymentMethod) {
-      return res.status(400).json({
-        success: false,
-        message: "Phương thức thanh toán là bắt buộc khi đánh dấu đã thanh toán"
-      });
-    }
-
-    // Cập nhật trực tiếp vào đối tượng order
-    order.paymentStatus = paymentStatus || 'paid'; // Default to paid if not specified
-    if (paymentMethod) {
-      order.paymentMethod = paymentMethod;
-    }
-
-    // Set status to 'processing' khi chuyển từ 'unpaid' sang 'paid'
-    if (oldPaymentStatus === 'unpaid' && paymentStatus === 'paid') {
-      order.status = 'processing';
+    
+    console.log(`Số tiền đã thanh toán sau khi cập nhật: ${currentPaidAmount}/${order.totalAmount}`);
+    
+    // Xác định trạng thái thanh toán sau khi cập nhật
+    let updatedPaymentStatus = paymentStatus;
+    let updatedOrderStatus = order.status;
+    
+    // Tự động chuyển sang trạng thái đã thanh toán đủ nếu số tiền đã thanh toán bằng hoặc vượt quá tổng tiền đơn hàng
+    if (currentPaidAmount >= order.totalAmount) {
+      updatedPaymentStatus = 'paid';
+      console.log(`Đơn hàng đã được thanh toán đủ, chuyển trạng thái thành "paid"`);
       
-      // In thông tin về các sản phẩm sẽ cập nhật tồn kho
-      console.log(`===> CẬP NHẬT TỒN KHO KHI THAY ĐỔI THANH TOÁN <===`);
-      console.log(`Số sản phẩm cần cập nhật: ${order.products.length}`);
-      
-      try {
-        // Tạo bản sao của order để cập nhật tồn kho
-        const orderForInventory = order.toObject();
-        await updateInventoryForOrder(orderForInventory);
-        console.log("Đã hoàn thành cập nhật tồn kho sau khi thanh toán");
-      } catch (inventoryError) {
-        console.error("Lỗi khi cập nhật tồn kho:", inventoryError);
+      // Nếu đơn hàng ở trạng thái 'pending' và đã thanh toán đủ, cập nhật thành 'processing'
+      if (order.status === 'pending') {
+        updatedOrderStatus = 'processing';
+        console.log(`Đơn hàng đã thanh toán đủ, nâng cấp trạng thái từ 'pending' thành 'processing'`);
       }
+    } else if (currentPaidAmount > 0) {
+      updatedPaymentStatus = 'partpaid';
+      console.log(`Đơn hàng thanh toán một phần, trạng thái là "partpaid"`);
+    }
+    
+    // Cập nhật đơn hàng với thông tin mới
+    const updatedOrder = await Order.findByIdAndUpdate(
+      orderId,
+      {
+        paymentMethod,
+        paymentStatus: updatedPaymentStatus,
+        paidAmount: currentPaidAmount,
+        paymentDetails: paymentDetails,
+        status: updatedOrderStatus
+      },
+      { new: true }
+    );
+
+    console.log('Đơn hàng đã được cập nhật thành công:', {
+      id: updatedOrder._id,
+      orderID: updatedOrder.orderID,
+      paymentStatus: updatedOrder.paymentStatus,
+      status: updatedOrder.status,
+      paidAmount: updatedOrder.paidAmount,
+      paymentDetails: updatedOrder.paymentDetails
+    });
+
+    // Thêm đoạn code này: Nếu đơn hàng vừa được chuyển sang trạng thái processing và đã thanh toán đủ, cập nhật tồn kho
+    if (updatedOrderStatus === 'processing' && updatedPaymentStatus === 'paid' && order.status !== 'processing') {
+      console.log('Đơn hàng vừa chuyển sang trạng thái processing và đã thanh toán đủ, đang cập nhật tồn kho...');
+      await updateInventoryForOrder(updatedOrder);
     }
 
-    // Lưu thay đổi vào DB
-    await order.save();
-    console.log("===== HOÀN THÀNH CẬP NHẬT THANH TOÁN =====\n");
-
-    res.json({
+    return res.status(200).json({
       success: true,
-      message: "Cập nhật thông tin thanh toán thành công",
-      data: order
+      message: 'Cập nhật thanh toán thành công!',
+      order: {
+        _id: updatedOrder._id,
+        orderID: updatedOrder.orderID,
+        paymentStatus: updatedOrder.paymentStatus,
+        status: updatedOrder.status,
+        paidAmount: updatedOrder.paidAmount,
+        totalAmount: updatedOrder.totalAmount,
+        paymentMethod: updatedOrder.paymentMethod
+      }
     });
   } catch (error) {
-    console.error("Lỗi khi cập nhật thông tin thanh toán:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Lỗi server khi cập nhật thông tin thanh toán",
-      error: error.message
-    });
+    console.error(`Lỗi khi cập nhật thanh toán đơn hàng ${orderId}:`, error);
+    return res.status(500).json({ success: false, message: `Lỗi: ${error.message}` });
   }
 };
 
@@ -1072,6 +1216,90 @@ const getDailyRevenue = async (req, res) => {
             message: 'Failed to fetch daily revenue data'
         });
     }
+
+/**
+ * Hoàn trả tồn kho khi hủy đơn hàng
+ * @param {Object} order - Đơn hàng đã được hủy
+ */
+const restoreInventoryForOrder = async (order) => {
+  try {
+    console.log(`===== BẮT ĐẦU HOÀN TRẢ TỒN KHO =====`);
+    console.log(`Đơn hàng: ${order._id}, Trạng thái: ${order.status}, Thanh toán: ${order.paymentStatus}`);
+    
+    // Chỉ hoàn trả tồn kho nếu đơn hàng đã thanh toán
+    if (order.paymentStatus !== 'paid') {
+      console.log(`Đơn hàng chưa thanh toán (${order.paymentStatus}), không cần hoàn trả tồn kho`);
+      return;
+    }
+    
+    if (!order.products || order.products.length === 0) {
+      console.log('Không có sản phẩm nào để hoàn trả tồn kho');
+      return;
+    }
+    
+    console.log(`Đơn hàng có ${order.products.length} sản phẩm cần hoàn trả tồn kho`);
+    
+    // Xử lý từng sản phẩm trong đơn hàng
+    for (const orderProduct of order.products) {
+      console.log(`\n------ Xử lý hoàn trả sản phẩm: ${orderProduct.name} ------`);
+      
+      const productID = orderProduct.productID._id || orderProduct.productID.toString();
+      const quantity = orderProduct.quantity || 1;
+      
+      console.log(`ID Sản phẩm: ${productID}`);
+      console.log(`Số lượng cần hoàn trả: ${quantity}`);
+      
+      // Kiểm tra nếu có variantID
+      const variantID = orderProduct.variantID?._id || orderProduct.variantID || null;
+      
+      if (variantID) {
+        console.log(`Biến thể ID: ${variantID}`);
+        
+        // Tìm kiếm biến thể và hoàn trả
+        const variant = await DetailsVariant.findById(variantID);
+        
+        if (variant) {
+          console.log(`Tìm thấy biến thể: ${variant._id}`);
+          console.log(`Tồn kho biến thể hiện tại: ${variant.inventory}`);
+          
+          // Cập nhật tồn kho: CỘNG số lượng để hoàn trả
+          const oldInventory = variant.inventory;
+          variant.inventory += quantity;
+          
+          // Lưu thay đổi
+          await variant.save();
+          
+          console.log(`Đã hoàn trả tồn kho biến thể: ${oldInventory} -> ${variant.inventory}`);
+        } else {
+          console.log(`Không tìm thấy biến thể với ID: ${variantID}`);
+        }
+      } else {
+        // Nếu không có biến thể, hoàn trả tồn kho sản phẩm chính
+        const product = await Product.findById(productID);
+        
+        if (product) {
+          console.log(`Tìm thấy sản phẩm: ${product.name}`);
+          console.log(`Tồn kho sản phẩm hiện tại: ${product.inventory}`);
+          
+          // Cập nhật tồn kho: CỘNG số lượng để hoàn trả
+          const oldInventory = product.inventory;
+          product.inventory += quantity;
+          
+          // Lưu thay đổi
+          await product.save();
+          
+          console.log(`Đã hoàn trả tồn kho sản phẩm: ${oldInventory} -> ${product.inventory}`);
+        } else {
+          console.log(`Không tìm thấy sản phẩm với ID: ${productID}`);
+        }
+      }
+    }
+    
+    console.log(`===== HOÀN THÀNH HOÀN TRẢ TỒN KHO =====`);
+  } catch (error) {
+    console.error(`LỖI HOÀN TRẢ TỒN KHO: ${error.message}`);
+    console.error(error.stack);
+  }
 };
 
 module.exports = {

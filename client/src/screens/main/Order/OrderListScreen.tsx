@@ -48,7 +48,13 @@ const OrderListScreen = observer(() => {
       
       // Apply filter if exists
       let processedOrders = sortedOrders;
-      if (route.params?.filter) {
+      
+      // Check for status parameter (for canceled orders)
+      if (route.params?.status) {
+        processedOrders = sortedOrders.filter(order => order.status === route.params?.status);
+      }
+      // Apply full filter if exists
+      else if (route.params?.filter) {
         processedOrders = applyFilter(sortedOrders, route.params.filter);
       }
       

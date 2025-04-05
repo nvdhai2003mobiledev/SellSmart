@@ -24,12 +24,22 @@ const OrderSchema = new mongoose.Schema({
   totalAmount: { type: Number, required: true, min: 0 },
   status: { type: String, enum: ['pending', 'processing', 'canceled'], default: 'pending' },
   paymentMethod: { type: String, enum: ['cash', 'credit card', 'debit card', 'e-wallet', null], required: function() {
-    return this.paymentStatus === 'paid'; // Only required if payment status is 'paid'
+    return this.paymentStatus === 'paid' || this.paymentStatus === 'partpaid'; // Required if payment status is 'paid' or 'partpaid'
   } },
-  paymentStatus: { type: String, enum: ['paid', 'unpaid', 'refunded'], default: 'unpaid' },
+  paymentStatus: { type: String, enum: ['paid', 'unpaid', 'refunded', 'partpaid'], default: 'unpaid' },
+  // Add field to track how much has been paid for partial payments
+  paidAmount: { type: Number, default: 0, min: 0 },
+  // Add field to track payment details for multiple payment methods
+  paymentDetails: [{
+    method: { type: String, enum: ['cash', 'credit card', 'debit card', 'e-wallet'] },
+    amount: { type: Number, min: 0 },
+    date: { type: Date, default: Date.now }
+  }],
   shippingAddress: { type: String, default:'Nhận hàng tại cửa hàng' },
   employeeID: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee' },
   notes: { type: String },
+  // Thêm trường mới để lưu lý do hủy đơn hàng
+  cancelReason: { type: String, default: null },
   // Add this new field to store promotion reference
   promotionID: { type: mongoose.Schema.Types.ObjectId, ref: 'Promotion' },
   // Add fields to store promotion information when the order was created

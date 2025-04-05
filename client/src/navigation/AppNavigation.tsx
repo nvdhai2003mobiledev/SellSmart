@@ -36,6 +36,10 @@ import {
   AddPromotionScreen,
 } from '../screens';
 
+// Trực tiếp import các màn hình không được export từ index
+import OrderCancelScreen from '../screens/main/Order/OrderCancelScreen';
+import PaymentMethods from '../screens/main/Order/PaymentMethods';
+
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const screenOptions: NativeStackNavigationOptions = {
   animation: 'slide_from_right',
@@ -109,6 +113,14 @@ export const AppNavigation = observer(() => {
         <RootStack.Screen name={Screen.ORDERLIST} component={OrderListScreen}/>
         <RootStack.Screen name={Screen.FILTERORDER} component={FilterOrderScreen}   options={{ presentation: 'modal' }}  />
         <RootStack.Screen name={Screen.ORDER_DETAIL} component={OrderDetailScreen} />
+        <RootStack.Screen
+          name={Screen.ORDER_CANCEL}
+          component={OrderCancelScreen}
+        />
+      <RootStack.Screen
+        name={Screen.PAYMENT_METHODS}
+        component={PaymentMethods}
+      />
       <RootStack.Screen name={Screen.CUSTOMERS} component={CustomerScreen} />
       <RootStack.Screen name={Screen.PROMOTION_LIST} component={PromotionListScreen} />
       <RootStack.Screen name={Screen.ADD_PROMOTION} component={AddPromotionScreen} />

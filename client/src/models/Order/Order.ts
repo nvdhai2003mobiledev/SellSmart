@@ -37,7 +37,18 @@ export const Order = types.model({
   totalAmount: types.number,
   status: types.enumeration(['pending', 'processing', 'shipping', 'delivered', 'canceled']),
   paymentMethod: types.maybeNull(types.enumeration(['cash', 'credit card', 'debit card', 'e-wallet'])),
-  paymentStatus: types.enumeration(['paid', 'unpaid', 'refunded']),
+  paymentStatus: types.enumeration(['paid', 'unpaid', 'refunded', 'partpaid']),
+  paidAmount: types.optional(types.number, 0),
+  paymentDetails: types.optional(
+    types.array(
+      types.model({
+        method: types.enumeration(['cash', 'credit card', 'debit card', 'e-wallet']),
+        amount: types.number,
+        date: types.string
+      })
+    ),
+    []
+  ),
   shippingAddress: types.optional(types.string, ''),
   employeeID: types.maybeNull(
     types.model({
@@ -47,6 +58,7 @@ export const Order = types.model({
     })
   ),
   notes: types.optional(types.string, ''),
+  cancelReason: types.optional(types.maybeNull(types.string), null),
   promotionID: types.maybeNull(types.string),
   promotionDetails: types.maybeNull(
     types.model({
@@ -111,14 +123,26 @@ export const OrderStore = types
         if (Array.isArray(ordersData)) {
           // Process orders to ensure they match our model
           const processedOrders = ordersData.map(order => {
+            // Kiểm tra lý do hủy đơn
+            if (order.status === 'canceled') {
+              console.log(`Đơn hàng hủy ${order._id}:`, order.orderID);
+              console.log(`Lý do hủy: ${order.cancelReason || 'Không có'}`);
+            }
+            
             // Ensure all required fields are present with defaults if needed
             return {
               ...order,
               products: order.products || [],
               paymentMethod: order.paymentMethod || null,
               paymentStatus: order.paymentStatus || 'unpaid',
+              paidAmount: order.paidAmount || 0,
+              paymentDetails: Array.isArray(order.paymentDetails) ? order.paymentDetails.map((payment: any) => ({
+                ...payment,
+                date: payment.date ? new Date(payment.date).toISOString() : new Date().toISOString()
+              })) : [],
               shippingAddress: order.shippingAddress || '',
               notes: order.notes || '',
+              cancelReason: order.cancelReason || null,
               promotionID: order.promotionID || null,
               promotionDetails: order.promotionDetails ? {
                 name: order.promotionDetails.name || '',
@@ -139,8 +163,14 @@ export const OrderStore = types
               products: order.products || [],
               paymentMethod: order.paymentMethod || null,
               paymentStatus: order.paymentStatus || 'unpaid',
+              paidAmount: order.paidAmount || 0,
+              paymentDetails: Array.isArray(order.paymentDetails) ? order.paymentDetails.map((payment: any) => ({
+                ...payment,
+                date: payment.date ? new Date(payment.date).toISOString() : new Date().toISOString()
+              })) : [],
               shippingAddress: order.shippingAddress || '',
               notes: order.notes || '',
+              cancelReason: order.cancelReason || null,
               promotionID: order.promotionID || null,
               promotionDetails: order.promotionDetails ? {
                 name: order.promotionDetails.name || '',

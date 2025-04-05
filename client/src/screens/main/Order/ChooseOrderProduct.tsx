@@ -74,6 +74,11 @@ const ChooseOrderProduct = () => {
           if (product.hasVariants && product.detailsVariants && product.detailsVariants.length > 0) {
             // For products with variants, create a separate item for each variant
             product.detailsVariants.forEach(variant => {
+              // Kiểm tra và bỏ qua nếu số lượng tồn kho = 0
+              if (variant.inventory <= 0) {
+                return;
+              }
+              
               // Format variant attributes for display
               const attributes = variant.variantDetails.map(detail => ({
                 name: '', // Will be populated when we fetch variant info
@@ -95,6 +100,11 @@ const ChooseOrderProduct = () => {
             });
           } else {
             // For products without variants
+            // Kiểm tra và bỏ qua nếu số lượng tồn kho = 0
+            if (product.inventory <= 0) {
+              return;
+            }
+            
             processedProducts.push({
               _id: product._id,
               name: product.name,
@@ -108,6 +118,7 @@ const ChooseOrderProduct = () => {
           }
         });
         
+        console.log(`Đã lọc ${products.length - processedProducts.length} sản phẩm hết hàng`);
         setAllProducts(processedProducts);
         setFilteredProducts(processedProducts);
       } else {
