@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     width: '100%',
-    height: scaleHeight(50),
+    height: scaleHeight(60),
     borderRadius: moderateScale(14),
     borderWidth: 0.5,
     backgroundColor: color.inputColor,
@@ -161,8 +161,12 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontSize: scaledSize(14),
+    fontSize: scaledSize(20),
     fontFamily: Fonts.Inter_Regular,
+    paddingVertical: scaleHeight(8),
+    textAlignVertical: 'center',
+    includeFontPadding: false,
+    padding: 0,
   },
   multilineInput: {
     height: 'auto',

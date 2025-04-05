@@ -15,6 +15,7 @@ import {
   Profile,
   Profile2User,
   Setting2,
+  Box,
 } from 'iconsax-react-native';
 import {observer} from 'mobx-react-lite';
 import {rootStore} from '../../../models/root-store';
@@ -90,6 +91,10 @@ const MenuScreen = observer(() => {
     navigation.navigate(Screen.CONFIG);
   };
 
+  const navigateToProviders = () => {
+    navigation.navigate(Screen.PROVIDER);
+  };
+
   return (
     <BaseLayout>
       <Header title={contents.menu.title} />
@@ -152,6 +157,12 @@ const MenuScreen = observer(() => {
           Icon={Profile2User}
           title={contents.menu.sections.customer}
           onPress={navigateToCustomers}
+        />
+        <View style={styles.separator} />
+        <MenuItem
+          Icon={Box}
+          title="Nhà cung cấp"
+          onPress={navigateToProviders}
         />
         <View style={styles.separator} />
         <MenuItem

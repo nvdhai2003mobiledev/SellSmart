@@ -32,6 +32,9 @@ import {
   ChooseOrderProduct,
   CustomerSelection,
   OrderDetailScreen,
+  ProviderScreen,
+  DetailProviderScreen,
+  AddProviderScreen,
 } from '../screens';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
@@ -81,6 +84,15 @@ export const AppNavigation = observer(() => {
       <RootStack.Screen
         name={Screen.CREATEORDER}
         component={CreateOrderScreen}
+      />
+      <RootStack.Screen name={Screen.PROVIDER} component={ProviderScreen} />
+      <RootStack.Screen
+        name={Screen.DETAIL_PROVIDER}
+        component={DetailProviderScreen}
+      />
+      <RootStack.Screen
+        name={Screen.ADD_PROVIDER}
+        component={AddProviderScreen}
       />
       <RootStack.Screen
         name={Screen.CHOOSE_ORDER_PRODUCT}
