@@ -11,6 +11,7 @@ const getMobileOrders = async () => {
       .populate('customerID', 'fullName phoneNumber email address')
       .populate('employeeID', 'fullName position')
       .populate('products.productID', 'name price')
+      .populate('promotionID', 'name discount maxDiscount')
       .sort({ createdAt: -1 });
 
     const transformedOrders = orders.map(order => ({
@@ -42,16 +43,34 @@ const getMobileOrders = async () => {
         position: order.employeeID.position
       } : null,
       notes: order.notes || '',
-      promotionID: order.promotionID ? order.promotionID.toString() : null,
+      paidAmount: order.paidAmount || 0,
+      paymentDetails: order.paymentDetails || [],
+      promotionID: order.promotionID ? order.promotionID._id.toString() : null,
       promotionDetails: order.promotionDetails ? {
-        name: order.promotionDetails.name || '',
-        discount: order.promotionDetails.discount || 0,
-        discountAmount: order.promotionDetails.discountAmount || 0
+        name: order.promotionDetails.name || (order.promotionID ? order.promotionID.name : ''),
+        discount: order.promotionDetails.discount || (order.promotionID ? order.promotionID.discount : 0),
+        discountAmount: getDiscountAmount(order)
       } : null,
-      originalAmount: order.originalAmount || null,
+      originalAmount: order.originalAmount || calculateOriginalAmount(order),
       createdAt: order.createdAt.toISOString(),
       updatedAt: order.updatedAt.toISOString()
     }));
+
+    console.log('Transforming orders for mobile, example first order:');
+    if (transformedOrders.length > 0) {
+      console.log('ID:', transformedOrders[0]._id);
+      console.log('Total Amount:', transformedOrders[0].totalAmount);
+      console.log('Original Amount:', transformedOrders[0].originalAmount);
+      console.log('Payment Status:', transformedOrders[0].paymentStatus);
+      console.log('Paid Amount:', transformedOrders[0].paidAmount);
+      console.log('Has Payment Details:', transformedOrders[0].paymentDetails.length > 0);
+      
+      if (transformedOrders[0].promotionDetails) {
+        console.log('Promotion Details:', JSON.stringify(transformedOrders[0].promotionDetails));
+      } else {
+        console.log('No promotion details available');
+      }
+    }
 
     return transformedOrders;
   } catch (error) {
@@ -59,6 +78,40 @@ const getMobileOrders = async () => {
     throw error;
   }
 };
+
+// Hàm tính toán giá trị giảm giá từ thông tin đơn hàng
+function getDiscountAmount(order) {
+  if (order.promotionDetails && order.promotionDetails.discountAmount > 0) {
+    return order.promotionDetails.discountAmount;
+  }
+  
+  if (order.originalAmount && order.totalAmount) {
+    return order.originalAmount - order.totalAmount;
+  }
+  
+  const productsTotal = order.products.reduce((sum, item) => 
+    sum + (item.price || 0) * (item.quantity || 1), 0);
+  
+  if (productsTotal > order.totalAmount) {
+    return productsTotal - order.totalAmount;
+  }
+  
+  return 0;
+}
+
+// Hàm tính toán giá gốc nếu không có sẵn
+function calculateOriginalAmount(order) {
+  if (order.originalAmount) {
+    return order.originalAmount;
+  }
+  
+  if (order.promotionDetails && order.promotionDetails.discountAmount) {
+    return order.totalAmount + order.promotionDetails.discountAmount;
+  }
+  
+  return order.products.reduce((sum, item) => 
+    sum + (item.price || 0) * (item.quantity || 1), 0);
+}
 
 // Lấy tất cả đơn hàng
 const getAllOrders = async () => {
@@ -201,18 +254,28 @@ const createOrder = async (orderData) => {
       0
     );
 
+    // Log thông tin thanh toán để debug
+    console.log('=== SERVICE - THÔNG TIN THANH TOÁN ===');
+    console.log(`Phương thức thanh toán: ${orderData.paymentMethod}`);
+    console.log(`Trạng thái thanh toán: ${orderData.paymentStatus}`);
+    console.log(`Số tiền đã thanh toán: ${orderData.paidAmount}`);
+    console.log(`Chi tiết thanh toán:`, JSON.stringify(orderData.paymentDetails));
+
     // Create order object with original amount
     const orderObj = {
       customerID: customer._id,
       products: validatedProducts,
       originalAmount: calculatedTotal, // Store original amount before any discounts
       totalAmount: orderData.totalAmount, // This may include discount
-      status: "pending",
+      status: orderData.status || "pending",
       paymentMethod: orderData.paymentMethod,
-      paymentStatus: "paid",
+      paymentStatus: orderData.paymentStatus || "unpaid",
       shippingAddress: orderData.shippingAddress,
       employeeID: orderData.employeeID || null,
       notes: orderData.notes || "",
+      // Thêm thông tin thanh toán
+      paidAmount: orderData.paidAmount || 0,
+      paymentDetails: orderData.paymentDetails || []
     };
 
     // Handle promotion if provided

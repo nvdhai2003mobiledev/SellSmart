@@ -51,7 +51,7 @@ const CreateOrderScreen = observer(() => {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [notes, setNotes] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('cash');
-  const [paymentStatus, setPaymentStatus] = useState<'paid' | 'unpaid'>('paid');
+  const [paymentStatus, setPaymentStatus] = useState<'paid' | 'unpaid' | 'partpaid'>('paid');
   
   // Promotion related state
   const [promotions, setPromotions] = useState<IPromotion[]>([]);
@@ -59,6 +59,9 @@ const CreateOrderScreen = observer(() => {
   const [showPromotionModal, setShowPromotionModal] = useState(false);
   const [promotionError, setPromotionError] = useState('');
   const [isLoadingPromotions, setIsLoadingPromotions] = useState(false);
+
+  // Payment details related state
+  const [paymentDetails, setPaymentDetails] = useState<{ method: PaymentMethodType; amount: number; isPartial: boolean } | null>(null);
 
   // Calculate totals
   const calculateTotal = () => {
@@ -229,6 +232,37 @@ const CreateOrderScreen = observer(() => {
     }
 
     try {
+      // Tính toán tổng tiền đơn hàng
+      const total = selectedPromotion
+        ? calculateTotal() - calculateDiscount()
+        : calculateTotal();
+        
+      // Xác định thông tin thanh toán
+      const paidAmount = paymentDetails ? paymentDetails.amount : 0;
+      const isFullyPaid = paidAmount >= total;
+      
+      // Xác định trạng thái thanh toán
+      const paymentStatus = 
+        !paymentDetails ? 'unpaid' : 
+        isFullyPaid ? 'paid' : 'partpaid';
+        
+      // Trạng thái đơn hàng dựa trên thanh toán
+      const orderStatus = isFullyPaid ? 'processing' : 'pending';
+      
+      // Log thông tin thanh toán để debug
+      console.log('=== THÔNG TIN THANH TOÁN TRƯỚC KHI TẠO ĐƠN HÀNG ===');
+      console.log(`Số tiền đơn hàng: ${total}`);
+      console.log(`Số tiền đã thanh toán: ${paidAmount}`);
+      console.log(`Đã thanh toán đủ: ${isFullyPaid ? 'Có' : 'Không'}`);
+      console.log(`Phương thức thanh toán: ${paymentDetails ? paymentDetails.method : 'Chưa thanh toán'}`);
+      console.log(`Trạng thái thanh toán: ${paymentStatus}`);
+      console.log(`Trạng thái đơn hàng: ${orderStatus}`);
+      
+      if (paymentDetails) {
+        console.log('Chi tiết thanh toán:', JSON.stringify(paymentDetails, null, 2));
+      }
+      
+      // Chuẩn bị dữ liệu đơn hàng
       const orderData = {
         customerID: selectedCustomer._id,
         products: selectedProducts.map(product => ({
@@ -240,12 +274,18 @@ const CreateOrderScreen = observer(() => {
           attributes: product.attributes || [],
           variantID: product.variantId || undefined
         })),
-        totalAmount: selectedPromotion
-          ? calculateTotal() - calculateDiscount()
-          : calculateTotal(),
-        paymentMethod: paymentStatus === 'paid' ? paymentMethod : null,
-        paymentStatus,
-        status: paymentStatus === 'paid' ? 'processing' : 'pending',
+        totalAmount: total,
+        paymentMethod: paymentDetails ? paymentDetails.method : null,
+        paymentStatus: paymentStatus,
+        // Thêm số tiền đã thanh toán
+        paidAmount: paidAmount,
+        // Thêm chi tiết thanh toán nếu có
+        paymentDetails: paymentDetails ? [{
+          method: paymentDetails.method,
+          amount: paymentDetails.amount,
+          date: new Date()
+        }] : [],
+        status: orderStatus,
         shippingAddress: selectedCustomer.address || 'Nhận hàng tại cửa hàng',
         employeeID: rootStore.auth.userId,
         notes,
@@ -263,6 +303,8 @@ const CreateOrderScreen = observer(() => {
       const response = await createOrder(orderData);
 
       if (response.ok) {
+        console.log('Phản hồi API tạo đơn hàng:', JSON.stringify(response.data, null, 2));
+        
         // Lấy ID đơn hàng từ response
         // Kiểm tra cả hai định dạng phản hồi có thể có từ API
         let orderId = null;
@@ -274,12 +316,15 @@ const CreateOrderScreen = observer(() => {
           if (responseData.order && responseData.order._id) {
             // Định dạng: { success: true, message: '...', order: { _id: '...' } }
             orderId = responseData.order._id;
+            console.log('Order data from response:', JSON.stringify(responseData.order, null, 2));
           } else if (responseData.data && responseData.data._id) {
             // Định dạng: { data: { _id: '...' } }
             orderId = responseData.data._id;
+            console.log('Order data from response.data:', JSON.stringify(responseData.data, null, 2));
           } else if (responseData._id) {
             // Định dạng: { _id: '...' }
             orderId = responseData._id;
+            console.log('Order data from direct response:', JSON.stringify(responseData, null, 2));
           }
         }
         
@@ -468,7 +513,32 @@ const CreateOrderScreen = observer(() => {
                   styles.paymentStatusOption,
                   paymentStatus === 'paid' && styles.selectedPaymentStatusOption
                 ]}
-                onPress={() => setPaymentStatus('paid')}
+                onPress={() => {
+                  // Chuyển tới màn hình thanh toán
+                  if (selectedProducts.length === 0) {
+                    Alert.alert('Thông báo', 'Vui lòng chọn sản phẩm trước khi thanh toán');
+                    return;
+                  }
+                  
+                  const total = calculateTotal() - calculateDiscount();
+                  
+                  navigation.navigate(Screen.PAYMENT_METHODS, {
+                    orderId: 'new',  // Đánh dấu đây là đơn hàng mới
+                    orderNumber: 'tạm thời',
+                    totalAmount: total,
+                    isNewOrder: true,
+                    onPaymentComplete: (method, amount) => {
+                      setPaymentStatus('paid');
+                      setPaymentMethod(method);
+                      // Lưu thông tin thanh toán để hiển thị và sử dụng khi tạo đơn hàng
+                      setPaymentDetails({
+                        method: method,
+                        amount: amount,
+                        isPartial: amount < total
+                      });
+                    }
+                  });
+                }}
               >
                 <DynamicText
                   style={[
@@ -485,7 +555,10 @@ const CreateOrderScreen = observer(() => {
                   styles.paymentStatusOption,
                   paymentStatus === 'unpaid' && styles.selectedPaymentStatusOption
                 ]}
-                onPress={() => setPaymentStatus('unpaid')}
+                onPress={() => {
+                  setPaymentStatus('unpaid');
+                  setPaymentDetails(null);
+                }}
               >
                 <DynamicText
                   style={[
@@ -500,62 +573,67 @@ const CreateOrderScreen = observer(() => {
           </View>
           
           {/* Only show payment methods if status is 'paid' */}
-          {paymentStatus === 'paid' && (
-            <View style={styles.paymentMethodsContainer}>
-              <DynamicText style={styles.paymentMethodsLabel}>Phương thức thanh toán:</DynamicText>
-              
-              <View style={styles.paymentMethodsOptions}>
-                <TouchableOpacity
-                  style={[
-                    styles.paymentMethodOption,
-                    paymentMethod === 'cash' && styles.selectedPaymentMethod
-                  ]}
-                  onPress={() => setPaymentMethod('cash')}
-                >
-                  <DynamicText
-                    style={[
-                      styles.paymentMethodText,
-                      paymentMethod === 'cash' && styles.selectedPaymentMethodText
-                    ]}
-                  >
-                    Tiền mặt
-                  </DynamicText>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={[
-                    styles.paymentMethodOption,
-                    paymentMethod === 'credit card' && styles.selectedPaymentMethod
-                  ]}
-                  onPress={() => setPaymentMethod('credit card')}
-                >
-                  <DynamicText
-                    style={[
-                      styles.paymentMethodText,
-                      paymentMethod === 'credit card' && styles.selectedPaymentMethodText
-                    ]}
-                  >
-                    Chuyển khoản
-                  </DynamicText>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={[
-                    styles.paymentMethodOption,
-                    paymentMethod === 'e-wallet' && styles.selectedPaymentMethod
-                  ]}
-                  onPress={() => setPaymentMethod('e-wallet')}
-                >
-                  <DynamicText
-                    style={[
-                      styles.paymentMethodText,
-                      paymentMethod === 'e-wallet' && styles.selectedPaymentMethodText
-                    ]}
-                  >
-                    Ví điện tử
-                  </DynamicText>
-                </TouchableOpacity>
+          {paymentStatus === 'paid' && paymentDetails && (
+            <View style={styles.paymentDetailsContainer}>
+              <View style={styles.paymentMethodsContainer}>
+                <DynamicText style={styles.paymentMethodsLabel}>
+                  Phương thức thanh toán:
+                </DynamicText>
+                <DynamicText style={styles.paymentMethodValue}>
+                  {paymentDetails.method === 'cash' ? 'Tiền mặt' : 
+                   paymentDetails.method === 'credit card' ? 'Chuyển khoản' : 
+                   paymentDetails.method === 'e-wallet' ? 'Ví điện tử' :
+                   paymentDetails.method === 'debit card' ? 'Thanh toán thẻ' : 
+                   paymentDetails.method}
+                </DynamicText>
               </View>
+              
+              <View style={styles.paymentAmountContainer}>
+                <DynamicText style={styles.paymentAmountLabel}>
+                  Số tiền đã thanh toán:
+                </DynamicText>
+                <DynamicText style={styles.paymentAmountValue}>
+                  {formatCurrency(paymentDetails.amount)}
+                </DynamicText>
+              </View>
+              
+              {paymentDetails.isPartial && (
+                <View style={styles.partialPaymentNote}>
+                  <Icon name="information-circle-outline" size={16} color="#FFA500" />
+                  <DynamicText style={styles.partialPaymentText}>
+                    Thanh toán một phần. Số tiền còn lại sẽ được thu sau.
+                  </DynamicText>
+                </View>
+              )}
+              
+              <TouchableOpacity
+                style={styles.changePaymentButton}
+                onPress={() => {
+                  const total = calculateTotal() - calculateDiscount();
+                  
+                  navigation.navigate(Screen.PAYMENT_METHODS, {
+                    orderId: 'new',
+                    orderNumber: 'tạm thời',
+                    totalAmount: total,
+                    remainingAmount: paymentDetails.isPartial ? total - paymentDetails.amount : undefined,
+                    isPartialPayment: paymentDetails.isPartial,
+                    isNewOrder: true,
+                    onPaymentComplete: (method, amount) => {
+                      setPaymentStatus('paid');
+                      setPaymentMethod(method);
+                      setPaymentDetails({
+                        method: method,
+                        amount: amount,
+                        isPartial: amount < total
+                      });
+                    }
+                  });
+                }}
+              >
+                <DynamicText style={styles.changePaymentText}>
+                  Thay đổi thanh toán
+                </DynamicText>
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -1095,35 +1173,55 @@ const styles = StyleSheet.create({
   selectedPaymentStatusText: {
     color: '#fff',
   },
-  paymentMethodsContainer: {
+  paymentDetailsContainer: {
     marginTop: moderateScale(8),
+  },
+  paymentMethodsContainer: {
+    marginBottom: moderateScale(8),
   },
   paymentMethodsLabel: {
     fontSize: moderateScale(14),
     color: '#000',
     marginBottom: moderateScale(4),
   },
-  paymentMethodsOptions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  paymentMethodOption: {
-    padding: moderateScale(8),
-    borderWidth: 1,
-    borderColor: '#007AFF',
-    borderRadius: moderateScale(8),
-  },
-  selectedPaymentMethod: {
-    backgroundColor: '#007AFF',
-  },
-  paymentMethodText: {
+  paymentMethodValue: {
     fontSize: moderateScale(14),
     color: '#000',
     fontWeight: 'bold',
   },
-  selectedPaymentMethodText: {
-    color: '#fff',
+  paymentAmountContainer: {
+    marginBottom: moderateScale(8),
+  },
+  paymentAmountLabel: {
+    fontSize: moderateScale(14),
+    color: '#000',
+    marginBottom: moderateScale(4),
+  },
+  paymentAmountValue: {
+    fontSize: moderateScale(14),
+    color: '#000',
+    fontWeight: 'bold',
+  },
+  partialPaymentNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: moderateScale(8),
+  },
+  partialPaymentText: {
+    fontSize: moderateScale(14),
+    color: '#666',
+    marginLeft: moderateScale(8),
+  },
+  changePaymentButton: {
+    padding: moderateScale(8),
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    borderRadius: moderateScale(8),
+    alignItems: 'center',
+  },
+  changePaymentText: {
+    fontSize: moderateScale(14),
+    color: '#007AFF',
   },
   notesInput: {
     marginTop: moderateScale(8),

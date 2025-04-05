@@ -38,6 +38,7 @@ import {
 
 // Trực tiếp import các màn hình không được export từ index
 import OrderCancelScreen from '../screens/main/Order/OrderCancelScreen';
+import PaymentMethods from '../screens/main/Order/PaymentMethods';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const screenOptions: NativeStackNavigationOptions = {
@@ -116,6 +117,10 @@ export const AppNavigation = observer(() => {
           name={Screen.ORDER_CANCEL}
           component={OrderCancelScreen}
         />
+      <RootStack.Screen
+        name={Screen.PAYMENT_METHODS}
+        component={PaymentMethods}
+      />
       <RootStack.Screen name={Screen.CUSTOMERS} component={CustomerScreen} />
       <RootStack.Screen name={Screen.PROMOTION_LIST} component={PromotionListScreen} />
       <RootStack.Screen name={Screen.ADD_PROMOTION} component={AddPromotionScreen} />
