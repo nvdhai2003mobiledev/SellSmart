@@ -123,6 +123,12 @@ export const OrderStore = types
         if (Array.isArray(ordersData)) {
           // Process orders to ensure they match our model
           const processedOrders = ordersData.map(order => {
+            // Kiểm tra lý do hủy đơn
+            if (order.status === 'canceled') {
+              console.log(`Đơn hàng hủy ${order._id}:`, order.orderID);
+              console.log(`Lý do hủy: ${order.cancelReason || 'Không có'}`);
+            }
+            
             // Ensure all required fields are present with defaults if needed
             return {
               ...order,

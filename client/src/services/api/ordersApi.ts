@@ -191,6 +191,7 @@ export const updateOrderStatus = async (id: string, status: string, cancelReason
         console.log(`- Tổng tiền hiện tại: ${orderData.totalAmount !== undefined ? orderData.totalAmount : 'Không có thông tin'}`);
         console.log(`- Trạng thái: ${orderData.status || 'Không có thông tin'}`);
         console.log(`- Lý do hủy: ${orderData.cancelReason || 'Không có'}`);
+        console.log(`- Full response data: ${JSON.stringify(response.data)}`);
       }
     }
     

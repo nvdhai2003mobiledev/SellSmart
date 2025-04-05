@@ -65,6 +65,12 @@ export type RootStackParamList = {
   [Screen.ORDERSCREEN]: undefined;
   [Screen.ORDERLIST]: {
     status?: string;
+    filter?: {
+      orderStatus?: string;
+      paymentStatus?: string;
+      startDate?: string;
+      endDate?: string;
+    };
   };
   [Screen.FILTERORDER]: undefined;
   [Screen.PROFILE]: undefined;
