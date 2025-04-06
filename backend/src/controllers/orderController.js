@@ -6,7 +6,6 @@ const Product = require("../models/Product");
 const Employee = require("../models/Employee");
 const DetailsVariant = require("../models/DetailsVariant");
 const Variant = require("../models/Variant");
-const User = require("../models/User");
 const Promotion = require("../models/Promotion");
 
 const createOrder = async (req, res) => {
@@ -1156,151 +1155,152 @@ const getEmployeePerformance = async (req, res) => {
 };
 
 const getDailyRevenue = async (req, res) => {
-    try {
-        console.log('Fetching daily revenue data...');
-        
-        // Get today's start and end time
-        const today = new Date();
-        today.setHours(8, 0, 0, 0); // Start from 8:00
-        const endTime = new Date(today);
-        endTime.setHours(22, 59, 59, 999); // End at 22:59:59.999
-
-        // Query for completed orders within today's business hours
-        const orders = await Order.find({
-            createdAt: {
-                $gte: today,
-                $lte: endTime
-            },
-            status: 'processing', // Only count completed orders
-            paymentStatus: 'paid' // Only count paid orders
-        }).sort('createdAt');
-
-        console.log(`Found ${orders.length} orders for today's business hours`);
-
-        // Initialize arrays for business hours (8-22)
-        const labels = Array.from({length: 15}, (_, i) => `${i + 8}h`);
-        const revenue = Array(15).fill(0);
-
-        // Process orders
-        orders.forEach(order => {
-            const hour = order.createdAt.getHours();
-            if (hour >= 8 && hour <= 22) {
-                revenue[hour - 8] += order.totalAmount;
-            }
-        });
-
-        // Calculate total revenue and orders
-        const totalRevenue = revenue.reduce((sum, val) => sum + val, 0);
-        const totalOrders = orders.length;
-
-        console.log('Processed revenue data:', {
-            totalRevenue,
-            totalOrders,
-            hourlyRevenue: revenue
-        });
-
-        res.json({
-            status: 'Ok',
-            data: {
-                labels,
-                revenue,
-                totalRevenue,
-                totalOrders,
-                averageOrderValue: totalOrders > 0 ? totalRevenue / totalOrders : 0
-            }
-        });
-    } catch (error) {
-        console.error('Error in getDailyRevenue:', error);
-        res.status(500).json({
-            status: 'Error',
-            message: 'Failed to fetch daily revenue data'
-        });
-    }
-
-/**
- * Hoàn trả tồn kho khi hủy đơn hàng
- * @param {Object} order - Đơn hàng đã được hủy
- */
-const restoreInventoryForOrder = async (order) => {
   try {
-    console.log(`===== BẮT ĐẦU HOÀN TRẢ TỒN KHO =====`);
-    console.log(`Đơn hàng: ${order._id}, Trạng thái: ${order.status}, Thanh toán: ${order.paymentStatus}`);
-    
-    // Chỉ hoàn trả tồn kho nếu đơn hàng đã thanh toán
-    if (order.paymentStatus !== 'paid') {
-      console.log(`Đơn hàng chưa thanh toán (${order.paymentStatus}), không cần hoàn trả tồn kho`);
-      return;
-    }
-    
-    if (!order.products || order.products.length === 0) {
-      console.log('Không có sản phẩm nào để hoàn trả tồn kho');
-      return;
-    }
-    
-    console.log(`Đơn hàng có ${order.products.length} sản phẩm cần hoàn trả tồn kho`);
-    
-    // Xử lý từng sản phẩm trong đơn hàng
-    for (const orderProduct of order.products) {
-      console.log(`\n------ Xử lý hoàn trả sản phẩm: ${orderProduct.name} ------`);
-      
-      const productID = orderProduct.productID._id || orderProduct.productID.toString();
-      const quantity = orderProduct.quantity || 1;
-      
-      console.log(`ID Sản phẩm: ${productID}`);
-      console.log(`Số lượng cần hoàn trả: ${quantity}`);
-      
-      // Kiểm tra nếu có variantID
-      const variantID = orderProduct.variantID?._id || orderProduct.variantID || null;
-      
-      if (variantID) {
-        console.log(`Biến thể ID: ${variantID}`);
+    console.log('Fetching daily revenue data...');
         
-        // Tìm kiếm biến thể và hoàn trả
-        const variant = await DetailsVariant.findById(variantID);
+    // Get today's start and end time
+    const today = new Date();
+    today.setHours(8, 0, 0, 0); // Start from 8:00
+    const endTime = new Date(today);
+    endTime.setHours(22, 59, 59, 999); // End at 22:59:59.999
+
+    // Query for completed orders within today's business hours
+    const orders = await Order.find({
+      createdAt: {
+        $gte: today,
+        $lte: endTime
+      },
+      status: 'processing', // Only count completed orders
+      paymentStatus: 'paid' // Only count paid orders
+    }).sort('createdAt');
+
+    console.log(`Found ${orders.length} orders for today's business hours`);
+
+    // Initialize arrays for business hours (8-22)
+    const labels = Array.from({ length: 15 }, (_, i) => `${i + 8}h`);
+    const revenue = Array(15).fill(0);
+
+    // Process orders
+    orders.forEach(order => {
+      const hour = order.createdAt.getHours();
+      if (hour >= 8 && hour <= 22) {
+        revenue[hour - 8] += order.totalAmount;
+      }
+    });
+
+    // Calculate total revenue and orders
+    const totalRevenue = revenue.reduce((sum, val) => sum + val, 0);
+    const totalOrders = orders.length;
+
+    console.log('Processed revenue data:', {
+      totalRevenue,
+      totalOrders,
+      hourlyRevenue: revenue
+    });
+
+    res.json({
+      status: 'Ok',
+      data: {
+        labels,
+        revenue,
+        totalRevenue,
+        totalOrders,
+        averageOrderValue: totalOrders > 0 ? totalRevenue / totalOrders : 0
+      }
+    });
+  } catch (error) {
+    console.error('Error in getDailyRevenue:', error);
+    res.status(500).json({
+      status: 'Error',
+      message: 'Failed to fetch daily revenue data'
+    });
+  }
+
+  /**
+   * Hoàn trả tồn kho khi hủy đơn hàng
+   * @param {Object} order - Đơn hàng đã được hủy
+   */
+  const restoreInventoryForOrder = async (order) => {
+    try {
+      console.log(`===== BẮT ĐẦU HOÀN TRẢ TỒN KHO =====`);
+      console.log(`Đơn hàng: ${order._id}, Trạng thái: ${order.status}, Thanh toán: ${order.paymentStatus}`);
+    
+      // Chỉ hoàn trả tồn kho nếu đơn hàng đã thanh toán
+      if (order.paymentStatus !== 'paid') {
+        console.log(`Đơn hàng chưa thanh toán (${order.paymentStatus}), không cần hoàn trả tồn kho`);
+        return;
+      }
+    
+      if (!order.products || order.products.length === 0) {
+        console.log('Không có sản phẩm nào để hoàn trả tồn kho');
+        return;
+      }
+    
+      console.log(`Đơn hàng có ${order.products.length} sản phẩm cần hoàn trả tồn kho`);
+    
+      // Xử lý từng sản phẩm trong đơn hàng
+      for (const orderProduct of order.products) {
+        console.log(`\n------ Xử lý hoàn trả sản phẩm: ${orderProduct.name} ------`);
+      
+        const productID = orderProduct.productID._id || orderProduct.productID.toString();
+        const quantity = orderProduct.quantity || 1;
+      
+        console.log(`ID Sản phẩm: ${productID}`);
+        console.log(`Số lượng cần hoàn trả: ${quantity}`);
+      
+        // Kiểm tra nếu có variantID
+        const variantID = orderProduct.variantID?._id || orderProduct.variantID || null;
+      
+        if (variantID) {
+          console.log(`Biến thể ID: ${variantID}`);
         
-        if (variant) {
-          console.log(`Tìm thấy biến thể: ${variant._id}`);
-          console.log(`Tồn kho biến thể hiện tại: ${variant.inventory}`);
+          // Tìm kiếm biến thể và hoàn trả
+          const variant = await DetailsVariant.findById(variantID);
+        
+          if (variant) {
+            console.log(`Tìm thấy biến thể: ${variant._id}`);
+            console.log(`Tồn kho biến thể hiện tại: ${variant.inventory}`);
           
-          // Cập nhật tồn kho: CỘNG số lượng để hoàn trả
-          const oldInventory = variant.inventory;
-          variant.inventory += quantity;
+            // Cập nhật tồn kho: CỘNG số lượng để hoàn trả
+            const oldInventory = variant.inventory;
+            variant.inventory += quantity;
           
-          // Lưu thay đổi
-          await variant.save();
+            // Lưu thay đổi
+            await variant.save();
           
-          console.log(`Đã hoàn trả tồn kho biến thể: ${oldInventory} -> ${variant.inventory}`);
+            console.log(`Đã hoàn trả tồn kho biến thể: ${oldInventory} -> ${variant.inventory}`);
+          } else {
+            console.log(`Không tìm thấy biến thể với ID: ${variantID}`);
+          }
         } else {
-          console.log(`Không tìm thấy biến thể với ID: ${variantID}`);
-        }
-      } else {
-        // Nếu không có biến thể, hoàn trả tồn kho sản phẩm chính
-        const product = await Product.findById(productID);
+          // Nếu không có biến thể, hoàn trả tồn kho sản phẩm chính
+          const product = await Product.findById(productID);
         
-        if (product) {
-          console.log(`Tìm thấy sản phẩm: ${product.name}`);
-          console.log(`Tồn kho sản phẩm hiện tại: ${product.inventory}`);
+          if (product) {
+            console.log(`Tìm thấy sản phẩm: ${product.name}`);
+            console.log(`Tồn kho sản phẩm hiện tại: ${product.inventory}`);
           
-          // Cập nhật tồn kho: CỘNG số lượng để hoàn trả
-          const oldInventory = product.inventory;
-          product.inventory += quantity;
+            // Cập nhật tồn kho: CỘNG số lượng để hoàn trả
+            const oldInventory = product.inventory;
+            product.inventory += quantity;
           
-          // Lưu thay đổi
-          await product.save();
+            // Lưu thay đổi
+            await product.save();
           
-          console.log(`Đã hoàn trả tồn kho sản phẩm: ${oldInventory} -> ${product.inventory}`);
-        } else {
-          console.log(`Không tìm thấy sản phẩm với ID: ${productID}`);
+            console.log(`Đã hoàn trả tồn kho sản phẩm: ${oldInventory} -> ${product.inventory}`);
+          } else {
+            console.log(`Không tìm thấy sản phẩm với ID: ${productID}`);
+          }
         }
       }
-    }
     
-    console.log(`===== HOÀN THÀNH HOÀN TRẢ TỒN KHO =====`);
-  } catch (error) {
-    console.error(`LỖI HOÀN TRẢ TỒN KHO: ${error.message}`);
-    console.error(error.stack);
+      console.log(`===== HOÀN THÀNH HOÀN TRẢ TỒN KHO =====`);
+    } catch (error) {
+      console.error(`LỖI HOÀN TRẢ TỒN KHO: ${error.message}`);
+      console.error(error.stack);
+    }
   }
-};
+  };
 
 module.exports = {
   createOrder,

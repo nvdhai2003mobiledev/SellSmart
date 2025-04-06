@@ -210,7 +210,7 @@ if (!fs.existsSync(uploadDir)) {
 
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        const uploadPath = 'public/uploads/products';
+        const uploadPath = path.join(__dirname, '../public/uploads/products');
         if (!fs.existsSync(uploadPath)) {
             fs.mkdirSync(uploadPath, { recursive: true });
         }

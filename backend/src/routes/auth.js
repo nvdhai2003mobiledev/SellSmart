@@ -9,6 +9,7 @@ router.get("/logout", AuthController.logout);
 
 // Routes cho mobile app
 router.post("/mobile/login", AuthController.mobileLogin);
+router.post("/mobile/logout", AuthController.mobileLogout);
 router.post("/refresh-token", refreshToken);
 
 module.exports = router;

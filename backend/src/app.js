@@ -37,6 +37,7 @@ app.set("view engine", "ejs");
 app.use(bodyParser.json());
 app.use(express.urlencoded({ extended: false })); // Hỗ trợ xử lý form
 app.use(express.static(path.join(__dirname, "public"))); // Tài nguyên tĩnh
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads'))); // Tạo đường dẫn trực tiếp đến thư mục uploads
 app.use(cookieParser());
 app.use(methodOverride("_method"));
 

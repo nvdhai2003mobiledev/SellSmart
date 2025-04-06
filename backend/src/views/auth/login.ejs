@@ -140,12 +140,12 @@
 
             <form action="/login" method="POST">
                 <div class="mb-3">
-                    <label for="email" class="form-label">Email</label>
+                    <label for="email" class="form-label">Email hoặc tên đăng nhập</label>
                     <div class="input-group">
                         <span class="input-group-text"><i class="fas fa-user"></i></span>
                         <input type="text" class="form-control" id="email" name="email" required
                                value="<%= typeof email !== 'undefined' ? email : '' %>"
-                               placeholder="Nhập email hoặc username">
+                               placeholder="Nhập email hoặc tên đăng nhập">
                     </div>
                 </div>
                 <div class="mb-4">

@@ -1,5 +1,6 @@
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
+const AuthService = require("../services/AuthService");
 
 // Render trang đăng nhập
 exports.getLogin = (req, res) => {
@@ -13,15 +14,22 @@ exports.login = async (req, res) => {
     if (!email || !password) {
       return res.status(400).render("auth/login", {
         title: "Đăng nhập",
-        error: "Vui lòng cung cấp username và password",
+        error: "Vui lòng cung cấp username/email và password",
       });
     }
 
-    const user = await User.findOne({ email });
+    // Tìm user theo email hoặc username
+    const user = await User.findOne({ 
+      $or: [
+        { email: email },
+        { username: email }
+      ]
+    });
+    
     if (!user) {
       return res.status(401).render("auth/login", {
         title: "Đăng nhập",
-        error: "Email không tồn tại",
+        error: "Tài khoản không tồn tại",
       });
     }
 
@@ -79,71 +87,54 @@ exports.login = async (req, res) => {
 // Xử lý đăng nhập cho mobile app (cho phép cả admin và employee)
 exports.mobileLogin = async (req, res) => {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: "Vui lòng cung cấp email và mật khẩu",
-      });
-    }
+    const { usernameOrEmail, password } = req.body;
+    const user = await AuthService.mobileLogin(usernameOrEmail, password);
 
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: "Email không tồn tại",
-      });
-    }
+    // Chuyển đổi TOKEN_EXPIRY từ string thành number
+    const tokenExpiry = parseInt(process.env.TOKEN_EXPIRY);
+    const refreshTokenExpiry = parseInt(process.env.REFRESH_TOKEN_EXPIRY);
 
-    const isMatch = await user.matchPassword(password);
-    if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: "Mật khẩu không đúng",
-      });
-    }
-
-    // Generate access token
     const token = jwt.sign(
-      { id: user._id, role: user.role },
+      { id: user._id, email: user.email, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: "1h" }
+      { expiresIn: tokenExpiry }
     );
 
-    // Generate refresh token
     const refreshToken = jwt.sign(
-      { id: user._id },
+      { id: user._id, email: user.email, role: user.role },
       process.env.JWT_REFRESH_SECRET,
-      { expiresIn: "7d" }
+      { expiresIn: refreshTokenExpiry }
     );
 
-    // Save refresh token to user
-    user.refreshToken = refreshToken;
-    await user.save();
-
-    res.json({
-      success: true,
-      data: {
-        accessToken: token,
-        tokenType: "Bearer",
-        refreshToken: refreshToken,
-        expiresIn: 3600, // 1 hour in seconds
-        userId: user._id,
-        role: user.role,
-        fullName: user.fullName,
-        email: user.email,
-        avatar: user.avatar || null,
-        phoneNumber: user.phoneNumber || null,
-        address: user.address || null,
-        gender: user.gender || null,
-        dob: user.dob ? user.dob.toISOString() : null,
-      },
+    return res.json({
+      status: true,
+      message: "Đăng nhập thành công",
+      data: user,
+      token,
+      refreshToken,
+      expiresIn: tokenExpiry,
     });
   } catch (error) {
-    console.error("Lỗi đăng nhập:", error.message);
-    res.status(500).json({
-      success: false,
-      message: "Đã xảy ra lỗi khi đăng nhập",
+    console.log(error);
+    return res.status(400).json({
+      status: false,
+      message: error.message || "Đăng nhập không thành công",
+    });
+  }
+};
+
+exports.mobileLogout = async (req, res) => {
+  try {
+    // Token blacklisting could be implemented here for enhanced security
+    return res.json({
+      status: true,
+      message: "Đăng xuất thành công",
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      status: false,
+      message: error.message || "Đăng xuất không thành công",
     });
   }
 };
