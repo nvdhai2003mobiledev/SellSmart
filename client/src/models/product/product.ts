@@ -113,6 +113,7 @@ export const ProductStore = types
         self.error = '';
 
         try {
+          console.log('Bắt đầu tải danh sách sản phẩm...');
           const productsData: unknown = yield fetchProducts();
 
           console.log('Received products data:', productsData);
@@ -148,7 +149,11 @@ export const ProductStore = types
           }
         } catch (error: unknown) {
           console.error('Exception in fetchProducts:', error);
-          self.error = error instanceof Error ? error.message : 'An unexpected error occurred';
+          if (error instanceof Error) {
+            self.error = error.message;
+          } else {
+            self.error = 'Không thể kết nối tới server, vui lòng kiểm tra kết nối mạng';
+          }
         } finally {
           self.isLoading = false;
         }

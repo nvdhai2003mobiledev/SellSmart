@@ -22,7 +22,12 @@ export type BaseLayoutProps = React.PropsWithChildren & {
 };
 
 export const BaseLayout = React.memo(
-  ({children, style, scrollable = false}: BaseLayoutProps) => {
+  ({
+    children,
+    style,
+    scrollable = false,
+    contentContainerStyle,
+  }: BaseLayoutProps) => {
     const colorScheme = useColorScheme();
     const backgroundColor = useThemeColor();
     const statusBarStyle =
@@ -39,7 +44,8 @@ export const BaseLayout = React.memo(
           style={{flex: 1}}>
           {scrollable ? (
             <ScrollView
-              style={styles.contentContainer}
+              style={[styles.contentContainer, contentContainerStyle]}
+              showsVerticalScrollIndicator={false}
               scrollEnabled={scrollable}>
               <View>{children}</View>
             </ScrollView>

@@ -3,7 +3,7 @@ import {StyleSheet, TouchableOpacity, View} from 'react-native';
 import {createMaterialTopTabNavigator} from '@react-navigation/material-top-tabs';
 import {Screen} from './navigation.type';
 import {DayScreen, WeekScreen, MonthScreen} from '../screens';
-import {color, moderateScale, scaleWidth} from '../utils';
+import {color, moderateScale, scaleHeight, scaleWidth} from '../utils';
 import {contents} from '../context';
 import {DynamicText, Header} from '../components';
 import {Notification} from 'iconsax-react-native';
@@ -120,18 +120,19 @@ const styles = StyleSheet.create({
   },
   tabBar: {
     borderRadius: moderateScale(12),
-    height: moderateScale(45),
+    height: scaleHeight(90),
     backgroundColor: '#EBEBEC',
     flexDirection: 'row',
     marginHorizontal: moderateScale(16),
     paddingHorizontal: moderateScale(5),
     paddingVertical: moderateScale(3),
+    marginBottom: scaleHeight(30),
   },
   tabItem: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: moderateScale(12),
+    borderRadius: moderateScale(10),
   },
   tabItemActive: {
     backgroundColor: '#fff',

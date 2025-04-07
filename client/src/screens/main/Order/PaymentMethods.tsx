@@ -1,16 +1,26 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Alert, TextInput, ScrollView, TouchableOpacity, Modal, Dimensions, SafeAreaView } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import { observer } from 'mobx-react-lite';
+import React, {useState, useEffect} from 'react';
+import {
+  View,
+  StyleSheet,
+  Alert,
+  TextInput,
+  ScrollView,
+  TouchableOpacity,
+  Modal,
+  Dimensions,
+  SafeAreaView,
+} from 'react-native';
+import {useNavigation, useRoute} from '@react-navigation/native';
+import {observer} from 'mobx-react-lite';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { Screen } from '../../../navigation/navigation.type';
-import { Header, DynamicText } from '../../../components';
-import { color, moderateScale } from '../../../utils';
-import { updateOrderPayment } from '../../../services/api/ordersApi';
-import { rootStore } from '../../../models/root-store';
+import {Screen} from '../../../navigation/navigation.type';
+import {Header, DynamicText} from '../../../components';
+import {color, moderateScale} from '../../../utils';
+import {updateOrderPayment} from '../../../services/api/ordersApi';
+import {rootStore} from '../../../models/root-store';
 
 // Lấy kích thước màn hình để điều chỉnh style phù hợp
-const { width } = Dimensions.get('window');
+const {width} = Dimensions.get('window');
 const isTablet = width >= 768; // Giả định tablet có width >= 768
 
 interface PaymentScreenProps {
@@ -26,23 +36,25 @@ interface PaymentScreenProps {
 const PaymentMethods = observer(() => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  
+
   // Extract parameters from route
-  const { 
-    orderId, 
+  const {
+    orderId,
     orderNumber,
-    totalAmount, 
+    totalAmount,
     remainingAmount,
     isPartialPayment = false,
     isNewOrder = false,
-    onPaymentComplete
+    onPaymentComplete,
   } = route.params as PaymentScreenProps;
 
   // Lấy số tiền cần thanh toán (tổng hóa đơn hoặc số tiền còn lại nếu thanh toán 1 phần)
   const amountToPay = remainingAmount || totalAmount;
-  
+
   const [selectedMethod, setSelectedMethod] = useState<string>('cash');
-  const [paymentAmount, setPaymentAmount] = useState<string>(amountToPay.toString());
+  const [paymentAmount, setPaymentAmount] = useState<string>(
+    amountToPay.toString(),
+  );
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [showConfirmation, setShowConfirmation] = useState<boolean>(false);
   const [paymentNote, setPaymentNote] = useState<string>('');
@@ -58,15 +70,15 @@ const PaymentMethods = observer(() => {
   const formatCurrency = (amount: number | string) => {
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
     if (isNaN(numAmount)) return '0đ';
-    return numAmount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + 'đ';
+    return numAmount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',') + 'đ';
   };
 
   // Payment methods available
   const paymentMethods = [
-    { id: 'cash', label: 'Tiền mặt', icon: 'cash-outline' },
-    { id: 'credit card', label: 'Chuyển khoản', icon: 'card-outline' },
-    { id: 'e-wallet', label: 'Ví điện tử', icon: 'wallet-outline' },
-    { id: 'debit card', label: 'Thanh toán thẻ', icon: 'card-outline' },
+    {id: 'cash', label: 'Tiền mặt', icon: 'cash-outline'},
+    {id: 'credit card', label: 'Chuyển khoản', icon: 'card-outline'},
+    {id: 'e-wallet', label: 'Ví điện tử', icon: 'wallet-outline'},
+    {id: 'debit card', label: 'Thanh toán thẻ', icon: 'card-outline'},
   ];
 
   // Handle payment amount change
@@ -79,17 +91,20 @@ const PaymentMethods = observer(() => {
   // Validate payment
   const validatePayment = () => {
     const amount = parseInt(paymentAmount, 10);
-    
+
     if (isNaN(amount) || amount <= 0) {
       Alert.alert('Lỗi', 'Vui lòng nhập số tiền hợp lệ');
       return false;
     }
-    
+
     if (amount > amountToPay) {
-      Alert.alert('Lỗi', 'Số tiền thanh toán không được vượt quá số tiền cần thanh toán');
+      Alert.alert(
+        'Lỗi',
+        'Số tiền thanh toán không được vượt quá số tiền cần thanh toán',
+      );
       return false;
     }
-    
+
     return true;
   };
 
@@ -98,50 +113,51 @@ const PaymentMethods = observer(() => {
     if (!validatePayment()) return;
     setShowConfirmation(true);
   };
-  
+
   // Process payment after confirmation
   const processPayment = async () => {
     setShowConfirmation(false);
     setIsSubmitting(true);
-    
+
     try {
       const amount = parseInt(paymentAmount, 10);
       const isPartialPay = amount < amountToPay;
-      
+
       // Đối với đơn hàng mới, gọi callback để truyền thông tin ngược lại
       if (isNewOrder && onPaymentComplete) {
         onPaymentComplete(selectedMethod, amount);
         navigation.goBack();
         return;
       }
-      
+
       // Đối với đơn hàng đã tồn tại, gọi API để cập nhật thanh toán
       console.log(`Đang xử lý thanh toán cho đơn hàng ${orderId}`);
-      console.log(`Phương thức: ${selectedMethod}, Số tiền: ${amount}, Thanh toán một phần: ${isPartialPay}`);
-      
-      const response = await updateOrderPayment(orderId, selectedMethod, amount, isPartialPay);
-      
+      console.log(
+        `Phương thức: ${selectedMethod}, Số tiền: ${amount}, Thanh toán một phần: ${isPartialPay}`,
+      );
+
+      const response = await updateOrderPayment(
+        orderId,
+        selectedMethod,
+        amount,
+        isPartialPay,
+      );
+
       if (response.ok) {
         // Refresh order data in store
         await rootStore.orders.fetchOrders();
-        
+
         // Hiển thị thông báo thành công với chi tiết thanh toán
-        Alert.alert(
-          'Thành công', 
-          `Đã thanh toán ${formatCurrency(amount)} qua ${getMethodLabel(selectedMethod)}`,
-          [
-            { 
-              text: 'OK', 
-              onPress: () => {
-                // Navigate back to order detail screen
-                navigation.navigate(Screen.ORDER_DETAIL, { orderId });
-              }
-            }
-          ]
-        );
+        Alert.alert('Thành công', 'Thanh toán đã được ghi nhận thành công', [
+          {
+            text: 'Xem chi tiết đơn hàng',
+            onPress: () => navigation.navigate('ORDER_DETAIL', {orderId}),
+          },
+        ]);
       } else {
-        const errorData = response.data as { message?: string } | undefined;
-        const errorMessage = errorData?.message || 'Không thể cập nhật thanh toán';
+        const errorData = response.data as {message?: string} | undefined;
+        const errorMessage =
+          errorData?.message || 'Không thể cập nhật thanh toán';
         Alert.alert('Lỗi', errorMessage);
       }
     } catch (error) {
@@ -151,7 +167,7 @@ const PaymentMethods = observer(() => {
       setIsSubmitting(false);
     }
   };
-  
+
   // Get payment method label
   const getMethodLabel = (methodId: string): string => {
     const method = paymentMethods.find(m => m.id === methodId);
@@ -174,11 +190,11 @@ const PaymentMethods = observer(() => {
   // Hiển thị tiêu đề phù hợp dựa trên loại thanh toán
   const getPaymentTitle = () => {
     if (isNewOrder) {
-      return "Thanh toán đơn hàng mới";
+      return 'Thanh toán đơn hàng mới';
     } else if (remainingAmount && isPartialPayment) {
-      return "Thanh toán phần còn lại";
+      return 'Thanh toán phần còn lại';
     } else {
-      return "Thanh toán";
+      return 'Thanh toán';
     }
   };
 
@@ -189,24 +205,34 @@ const PaymentMethods = observer(() => {
         showBackIcon
         onPressBack={() => navigation.goBack()}
         showRightIcon
-        RightIcon={<Icon name="checkmark" size={24} color={color.primaryColor} />}
+        RightIcon={
+          <Icon name="checkmark" size={24} color={color.primaryColor} />
+        }
         onPressRight={handlePayment}
       />
-      
+
       <View style={styles.mainContainer}>
-        <ScrollView 
-          style={styles.scrollView} 
+        <ScrollView
+          style={styles.scrollView}
           contentContainerStyle={[
             styles.scrollViewContent,
-            isTablet && styles.tabletScrollViewContent
-          ]}
-        >
+            isTablet && styles.tabletScrollViewContent,
+          ]}>
           {/* Phần hiển thị số tiền thanh toán */}
-          <View style={[styles.amountContainer, isTablet && styles.tabletAmountContainer]}>
-            <DynamicText style={styles.amountLabel}>Số tiền thanh toán</DynamicText>
+          <View
+            style={[
+              styles.amountContainer,
+              isTablet && styles.tabletAmountContainer,
+            ]}>
+            <DynamicText style={styles.amountLabel}>
+              Số tiền thanh toán
+            </DynamicText>
             <View style={styles.amountInputWrapper}>
               <TextInput
-                style={[styles.amountInput, isTablet && styles.tabletAmountInput]}
+                style={[
+                  styles.amountInput,
+                  isTablet && styles.tabletAmountInput,
+                ]}
                 keyboardType="numeric"
                 value={paymentAmount}
                 onChangeText={handleAmountChange}
@@ -214,7 +240,7 @@ const PaymentMethods = observer(() => {
                 placeholderTextColor="#999"
               />
             </View>
-            
+
             {remainingAmount !== undefined && (
               <View style={styles.remainingAmountContainer}>
                 <DynamicText style={styles.remainingText}>
@@ -222,13 +248,14 @@ const PaymentMethods = observer(() => {
                 </DynamicText>
                 {totalAmount !== remainingAmount && (
                   <DynamicText style={styles.previousPaymentText}>
-                    Đã thanh toán trước đó: {formatCurrency(totalAmount - remainingAmount)}
+                    Đã thanh toán trước đó:{' '}
+                    {formatCurrency(totalAmount - remainingAmount)}
                   </DynamicText>
                 )}
               </View>
             )}
           </View>
-          
+
           {/* Phần nhập tham chiếu */}
           <View style={[styles.noteSection, isTablet && styles.tabletSection]}>
             <DynamicText style={styles.sectionTitle}>Tham chiếu</DynamicText>
@@ -241,22 +268,26 @@ const PaymentMethods = observer(() => {
           </View>
 
           {/* Phần chọn phương thức thanh toán */}
-          <View style={[styles.methodsSection, isTablet && styles.tabletSection]}>
-            <DynamicText style={styles.sectionTitle}>Phương thức thanh toán</DynamicText>
-            
-            {paymentMethods.map((method) => (
+          <View
+            style={[styles.methodsSection, isTablet && styles.tabletSection]}>
+            <DynamicText style={styles.sectionTitle}>
+              Phương thức thanh toán
+            </DynamicText>
+
+            {paymentMethods.map(method => (
               <TouchableOpacity
                 key={method.id}
                 style={styles.methodItem}
-                onPress={() => setSelectedMethod(method.id)}
-              >
+                onPress={() => setSelectedMethod(method.id)}>
                 <View style={styles.methodItemLeft}>
                   <View style={styles.methodIconContainer}>
                     <Icon name={method.icon} size={24} color="#4CAF50" />
                   </View>
-                  <DynamicText style={styles.methodLabel}>{method.label}</DynamicText>
+                  <DynamicText style={styles.methodLabel}>
+                    {method.label}
+                  </DynamicText>
                 </View>
-                
+
                 <View style={styles.radioButton}>
                   {selectedMethod === method.id && (
                     <View style={styles.radioButtonInner} />
@@ -266,54 +297,63 @@ const PaymentMethods = observer(() => {
             ))}
           </View>
         </ScrollView>
-        
-        <TouchableOpacity 
-          style={[styles.completeButton, isTablet && styles.tabletCompleteButton]}
+
+        <TouchableOpacity
+          style={[
+            styles.completeButton,
+            isTablet && styles.tabletCompleteButton,
+          ]}
           onPress={handlePayment}
-          disabled={isSubmitting}
-        >
+          disabled={isSubmitting}>
           <DynamicText style={styles.completeButtonText}>
             {isSubmitting ? 'Đang xử lý...' : 'Hoàn tất'}
           </DynamicText>
         </TouchableOpacity>
       </View>
-      
+
       {/* Confirmation Modal */}
       <Modal
         visible={showConfirmation}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowConfirmation(false)}
-      >
+        onRequestClose={() => setShowConfirmation(false)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContainer, isTablet && styles.tabletModalContainer]}>
-            <DynamicText style={styles.modalTitle}>Xác nhận thanh toán</DynamicText>
-            
+          <View
+            style={[
+              styles.modalContainer,
+              isTablet && styles.tabletModalContainer,
+            ]}>
+            <DynamicText style={styles.modalTitle}>
+              Xác nhận thanh toán
+            </DynamicText>
+
             <View style={styles.modalContent}>
               <DynamicText style={styles.confirmationText}>
-                Xác nhận thanh toán {formatCurrency(paymentAmount)} qua {getMethodLabel(selectedMethod)}?
+                Xác nhận thanh toán {formatCurrency(paymentAmount)} qua{' '}
+                {getMethodLabel(selectedMethod)}?
               </DynamicText>
-              
+
               {isPartialPaymentNow() && (
                 <DynamicText style={styles.confirmationPartial}>
-                  Đây là thanh toán một phần ({calculatePaymentPercentage()}%). Đơn hàng sẽ được đánh dấu là "Thanh toán một phần".
+                  Đây là thanh toán một phần ({calculatePaymentPercentage()}%).
+                  Đơn hàng sẽ được đánh dấu là "Thanh toán một phần".
                 </DynamicText>
               )}
             </View>
-            
+
             <View style={styles.modalButtons}>
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.cancelButton]} 
-                onPress={() => setShowConfirmation(false)}
-              >
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowConfirmation(false)}>
                 <DynamicText style={styles.cancelButtonText}>Hủy</DynamicText>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={[styles.modalButton, styles.confirmButton]}
-                onPress={processPayment}
-              >
-                <DynamicText style={styles.confirmButtonText}>Xác nhận</DynamicText>
+                onPress={processPayment}>
+                <DynamicText style={styles.confirmButtonText}>
+                  Xác nhận
+                </DynamicText>
               </TouchableOpacity>
             </View>
           </View>

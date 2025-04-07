@@ -1,13 +1,14 @@
 export const ApiEndpoint = {
-  LOGIN: '/login',
-  MOBILE_LOGIN: '/mobile/login',
-  LOGOUT: '/logout',
   REFRESH_TOKEN: '/refresh-token',
+  LOGIN: '/mobile/login',
+  LOGOUT: '/mobile/logout',
+  MOBILE_LOGIN: '/mobile/login',
   PRODUCTS: '/products/json',
-  CUSTOMERS: '/customers', 
+  CUSTOMERS: '/customers',
   EMPLOYEES: '/api/employees',
   ORDERS_API: '/api/orders',
   ORDERS: '/orders',
   CUSTOMERS_PUBLIC: '/customers/json',
   PROMOTIONS: '/promotions/api/json',
+  PROVIDERS: '/providers',
 };

@@ -24,7 +24,7 @@ import {
 import {contents} from '../../../context';
 import {NavigationProp, useNavigation} from '@react-navigation/native';
 import {RootStackParamList, Screen} from '../../../navigation/navigation.type';
-import { rootStore } from '../../../models/root-store';
+import {rootStore} from '../../../models/root-store';
 
 const OrderScreen = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
@@ -70,7 +70,7 @@ const OrderScreen = () => {
   // Function to navigate to OrderListScreen with filter
   const navigateToOrderList = (status?: string) => {
     // @ts-ignore - Bỏ qua TypeScript error vì chúng ta biết Screen.ORDERLIST là hợp lệ
-    navigation.navigate(Screen.ORDERLIST, { status });
+    navigation.navigate(Screen.ORDERLIST, {status});
   };
 
   return (
@@ -101,10 +101,9 @@ const OrderScreen = () => {
 
         <View style={styles.grid}>
           {/* Tất cả đơn hàng */}
-          <TouchableOpacity 
-            style={styles.gridItem} 
-            onPress={() => navigateToOrderList()}
-          >
+          <TouchableOpacity
+            style={styles.gridItem}
+            onPress={() => navigateToOrderList()}>
             <View style={styles.gridItemContent}>
               <View
                 style={[styles.iconContainer, {backgroundColor: '#E8F5FF'}]}>
@@ -115,9 +114,7 @@ const OrderScreen = () => {
                 />
               </View>
               <View>
-                <DynamicText style={styles.gridTitle}>
-                  Đơn hàng
-                </DynamicText>
+                <DynamicText style={styles.gridTitle}>Đơn hàng</DynamicText>
                 <DynamicText style={styles.gridSubtitle}>
                   {rootStore.orders?.orders?.length || 0} đơn
                 </DynamicText>
@@ -131,10 +128,9 @@ const OrderScreen = () => {
           </TouchableOpacity>
 
           {/* Đơn hàng đã hủy */}
-          <TouchableOpacity 
-            style={styles.gridItem} 
-            onPress={() => navigateToOrderList('canceled')}
-          >
+          <TouchableOpacity
+            style={styles.gridItem}
+            onPress={() => navigateToOrderList('canceled')}>
             <View style={styles.gridItemContent}>
               <View
                 style={[styles.iconContainer, {backgroundColor: '#FFF0F0'}]}>
@@ -145,9 +141,7 @@ const OrderScreen = () => {
                 />
               </View>
               <View>
-                <DynamicText style={styles.gridTitle}>
-                  Đơn hủy
-                </DynamicText>
+                <DynamicText style={styles.gridTitle}>Đơn hủy</DynamicText>
                 <DynamicText style={styles.gridSubtitle}>
                   {rootStore.orders?.canceledOrders?.length || 0} đơn
                 </DynamicText>
@@ -237,6 +231,5 @@ const styles = StyleSheet.create({
     height: moderateScale(100),
   },
 });
-
 
 export default OrderScreen;

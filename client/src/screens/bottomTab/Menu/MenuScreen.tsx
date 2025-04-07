@@ -32,19 +32,21 @@ const MenuScreen = observer(() => {
 
   const handleLogout = async () => {
     try {
-      // Gọi API đăng xuất
-      await Api.post(ApiEndpoint.LOGOUT);
-
-      // Xóa trạng thái đăng nhập
-      rootStore.reset();
+      // Gọi phương thức logout từ rootStore
+      await rootStore.logout();
 
       // Chuyển về màn hình đăng nhập
       navigation.reset({
         index: 0,
-        routes: [{name: Screen.LOGIN}],
+        routes: [{name: 'Login'}],
       });
     } catch (error) {
       console.error('Logout error:', error);
+      // Nếu có lỗi, vẫn cố gắng chuyển đến màn hình đăng nhập
+      navigation.reset({
+        index: 0,
+        routes: [{name: 'Login'}],
+      });
     }
   };
 

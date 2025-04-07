@@ -108,33 +108,17 @@ export const AuthStore = types
         }
 
         try {
-          console.log('Đang refresh token...', { 
-            refreshTokenLength: self.refreshToken.length, 
-            tokenExpiryTime: self.tokenExpiryTime ? new Date(self.tokenExpiryTime).toISOString() : null,
-            currentTime: new Date().toISOString()
+          console.log('Refreshing token...');
+          
+          const response = yield Api.post(ApiEndpoint.REFRESH_TOKEN, { 
+            refreshToken: self.refreshToken 
           });
           
-          // Gọi trực tiếp API refresh token để tránh middleware
-          const directApi = create({
-            baseURL: 'http://10.0.2.2:5000/', // Sử dụng địa chỉ dành cho máy ảo Android với port 5000
-            headers: {'Content-Type': 'application/json'},
-            timeout: 10000,
-          });
-          
-          console.log('Calling refresh token API directly');
-          const response = yield directApi.post('/refresh-token', { refreshToken: self.refreshToken });
-          
-          console.log('Kết quả refresh token:', {
-            status: response.status,
-            ok: response.ok,
-            data: response.data
-          });
-
-          if (response.ok && response.data?.success) {
-            console.log('Refresh token thành công');
-            const { accessToken, refreshToken, expiresIn } = response.data.data;
+          if (response.ok && response.data?.status) {
+            const { token: accessToken, refreshToken, expiresIn } = response.data;
+            
             if (!accessToken) {
-              console.error('Thiếu accessToken trong response');
+              console.error('Missing accessToken in response');
               return false;
             }
             
@@ -142,16 +126,10 @@ export const AuthStore = types
             if (refreshToken) {
               self.refreshToken = refreshToken;
             }
-            self.expiresIn = expiresIn || 3600; // Mặc định 1 giờ nếu không có
+            self.expiresIn = expiresIn || 3600; // Default 1 hour if not provided
             self.tokenExpiryTime = Date.now() + (self.expiresIn * 1000);
 
-            console.log('Token mới được cập nhật', {
-              accessTokenLength: accessToken.length,
-              newExpiryTime: new Date(self.tokenExpiryTime).toISOString(),
-              expiresIn: self.expiresIn
-            });
-
-            // Cập nhật vào storage
+            // Update storage
             const authData = {
               isAuthenticated: self.isAuthenticated,
               user: self.user,
@@ -163,31 +141,20 @@ export const AuthStore = types
             yield saveAuthToStorage(authData);
             return true;
           } else {
-            // Log chi tiết để debug response
-            console.error('Không thể refresh token:', {
-              message: response.data?.message || 'Không có message',
-              status: response.status || 'Không có status',
-              problem: response.problem || 'Không có problem',
-              data: response.data || 'Không có data',
-              statusText: response.statusText || 'Không có statusText'
-            });
-            
-            // Check trường hợp {status: null} hoặc connection issue
-            if (!response.status || response.problem === 'NETWORK_ERROR' || response.problem === 'TIMEOUT_ERROR') {
-              console.log('Lỗi kết nối mạng, giữ nguyên token hiện tại');
-              // Giữ nguyên token hiện tại nếu chỉ là lỗi mạng tạm thời
+            // Handle error cases
+            if (response.problem === 'NETWORK_ERROR' || response.problem === 'TIMEOUT_ERROR') {
+              console.log('Network issue, keeping current token');
               return false;
             }
             
-            // Nếu là lỗi 401 hoặc 403, đăng xuất
             if (response.status === 401 || response.status === 403) {
-              console.log('Token không hợp lệ (401/403), đăng xuất');
-              self.clearAuth();
+              console.log('Invalid token (401/403), logging out');
+              yield self.clearAuth();
             }
             return false;
           }
         } catch (error) {
-          console.error('Lỗi khi refresh token:', error);
+          console.error('Error refreshing token:', error);
           return false;
         }
       }),

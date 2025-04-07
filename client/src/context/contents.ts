@@ -20,12 +20,12 @@ export const contents = {
   login: {
     username: 'username',
     password: 'password',
-    username_required: 'Tài khoản không được để trống',
+    username_required: 'Tài khoản hoặc email không được để trống',
     password_required: 'Mật khẩu không được để trống',
     password_min_length: 'Mật khẩu phải có ít nhất 6 ký tự',
     password_pattern:
       'Mật khẩu phải chứa chữ hoa, chữ thường, số và ký tự đặc biệt',
-    username_placeholder: 'Tài khoản',
+    username_placeholder: 'Tên đăng nhập hoặc Email',
     password_placeholder: 'Mật khẩu',
     password_placeholder1: 'Nhập mật khẩu mới ',
     password_placeholder2: 'Nhập lại mật khẩu mới',

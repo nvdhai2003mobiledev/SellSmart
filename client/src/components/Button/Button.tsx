@@ -106,8 +106,8 @@ const styles = StyleSheet.create({
   buttonContainer: {
     alignItems: 'center',
     backgroundColor: color.primaryColor,
-    borderRadius: moderateScale(14),
-    height: scaleHeight(50),
+    borderRadius: moderateScale(10),
+    height: scaleHeight(80),
     width: '100%',
   },
   titleContainer: {
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
   },
   titleStyle: {
     fontFamily: Fonts.Inter_SemiBold,
-    fontSize: scaledSize(16),
+    fontSize: scaledSize(24),
     color: color.accentColor.whiteColor,
   },
 });

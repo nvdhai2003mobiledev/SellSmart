@@ -34,7 +34,9 @@ const SplashScreen = observer(() => {
   }, []);
 
   useEffect(() => {
-    if (!isReady) {return;}
+    if (!isReady) {
+      return;
+    }
 
     if (isAuthenticated) {
       navigation.reset({
@@ -71,8 +73,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   logo: {
-    width: scaledSize(330),
-    height: scaledSize(130),
+    width: scaledSize(350),
+    height: scaledSize(150),
     resizeMode: 'contain',
   },
 });

@@ -41,7 +41,10 @@ export enum Screen {
   PROMOTION_LIST = 'PROMOTION_LIST',
   PROMOTION_DETAIL = 'PROMOTION_DETAIL',
   ADD_PROMOTION = 'ADD_PROMOTION',
-  UPDATE_PROMOTION = 'UPDATE_PROMOTION'
+  UPDATE_PROMOTION = 'UPDATE_PROMOTION',
+  PROVIDER = 'PROVIDER',
+  DETAIL_PROVIDER = 'DETAIL_PROVIDER',
+  ADD_PROVIDER = 'ADD_PROVIDER',
 }
 
 export type RootStackParamList = {
@@ -113,6 +116,11 @@ export type RootStackParamList = {
   [Screen.UPDATE_PROMOTION]: {
     id: string;
   };
+  [Screen.PROVIDER]: undefined;
+  [Screen.DETAIL_PROVIDER]: {
+    provider: Provider;
+  };
+  [Screen.ADD_PROVIDER]: undefined;
 };
 
 export type BottomRootStackParamList = {

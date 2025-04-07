@@ -80,95 +80,23 @@ Api.addRequestTransform(async request => {
     const {auth} = rootStore || {};
     
     if (!auth) {
-      console.log('rootStore or auth is not initialized yet');
       return;
     }
     
-    // Kiểm tra nếu có tokenExpiryTime và token sắp hết hạn
-    if (auth.tokenExpiryTime && Date.now() > auth.tokenExpiryTime - 300000) { // 5 phút
-      console.log('Token sắp hết hạn, tiến hành refresh', {
-        tokenExpiryTime: new Date(auth.tokenExpiryTime).toISOString(),
-        currentTime: new Date().toISOString(),
-        timeLeft: (auth.tokenExpiryTime - Date.now()) / 1000,
-        requestUrl: request.url,
-      });
-      
-      // Thử refresh token, nếu không thành công và token đã hết hạn thì clear auth
-      if (auth.refreshToken) {
-        try {
-          const refreshApi = create({
-            baseURL: BASE_URL,
-            headers: {'Content-Type': 'application/json'},
-            timeout: 15000, // Tăng timeout cho refresh token
-          });
-          
-          console.log('Gửi request refresh token');
-          const response = await refreshApi.post('/refresh-token', {
-            refreshToken: auth.refreshToken,
-          });
-          
-          console.log('Nhận phản hồi refresh token:', {
-            status: response.status,
-            ok: response.ok,
-            problem: response.problem || 'No problem',
-            data: response.data,
-          });
-          
-          // Kiểm tra lỗi kết nối
-          if (!response.status || response.problem === 'NETWORK_ERROR' || response.problem === 'TIMEOUT_ERROR') {
-            console.log('Lỗi kết nối khi refresh token, tiếp tục sử dụng token hiện tại');
-            // Vẫn để tiếp tục request với token hiện tại
-            return;
-          }
-          
-          const data = response.data as GeneralApiResponse;
-          if (response.ok && data?.success) {
-            console.log('Refresh token thành công, cập nhật token mới');
-            const accessToken = data.data?.accessToken;
-            const refreshToken = data.data?.refreshToken;
-            const expiresIn = data.data?.expiresIn || 3600;
-            
-            if (accessToken) {
-              const tokenExpiryTime = Date.now() + (expiresIn * 1000);
-              auth.updateAccessToken(accessToken, tokenExpiryTime);
-              
-              if (refreshToken) {
-                // Nếu có refresh token mới, cập nhật luôn
-                auth.refreshToken = refreshToken;
-              }
-            }
-          } else {
-            console.log('Refresh token thất bại, đăng xuất', {
-              status: response.status,
-              message: data?.message,
-            });
-            auth.clearAuth();
-          }
-        } catch (error) {
-          console.error('Lỗi khi refresh token:', error);
-          // Nếu token đã hết hạn, clear auth
-          if (Date.now() > auth.tokenExpiryTime) {
-            console.log('Token đã hết hạn, đăng xuất người dùng');
-            auth.clearAuth();
-          }
-        }
-      } else if (Date.now() > auth.tokenExpiryTime) {
-        console.log('Token đã hết hạn và không có refresh token, đăng xuất');
-        auth.clearAuth();
-      }
+    // Nếu endpoint là refresh-token hoặc login, không cần thêm token
+    if (request.url === ApiEndpoint.REFRESH_TOKEN || request.url === ApiEndpoint.LOGIN) {
+      return;
+    }
+    
+    // Kiểm tra nếu token sắp hết hạn thì refresh trước
+    if (auth.shouldRefreshToken && auth.refreshToken) {
+      await auth.refreshAccessToken();
     }
     
     const token = auth.accessToken;
     
-    console.log('=== API REQUEST ===');
-    console.log('URL:', request.url);
-    console.log('Token:', token ? `${token.substring(0, 15)}...` : 'NO TOKEN');
-    
     if (token && request.headers) {
       request.headers['Authorization'] = `Bearer ${token}`;
-      console.log('Added token to request headers');
-    } else {
-      console.log('No token available or headers undefined');
     }
   } catch (error) {
     console.error('Error in request transform:', error);

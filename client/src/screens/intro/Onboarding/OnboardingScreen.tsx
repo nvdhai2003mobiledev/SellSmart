@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
-import {color, scaledSize, scaleHeight} from '../../../utils';
+import {color, scaledSize, scaleHeight, scaleWidth} from '../../../utils';
 import {BaseLayout, Button, DynamicText} from '../../../components';
 import {Screen} from '../../../navigation/navigation.type.ts';
 import {Fonts, Images} from '../../../assets';
@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
     padding: scaledSize(8),
   },
   skipText: {
-    fontSize: scaledSize(16),
+    fontSize: scaledSize(26),
     color: color.accentColor.darkColor,
     fontFamily: Fonts.Inter_SemiBold,
   },
@@ -141,8 +141,8 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   imageContainer: {
-    width: scaledSize(350),
-    height: scaledSize(350),
+    width: scaledSize(500),
+    height: scaledSize(450),
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: scaledSize(20),
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
   },
   title: {
-    fontSize: scaledSize(22),
+    fontSize: scaledSize(30),
     fontWeight: 'bold',
     color: color.accentColor.darkColor,
     marginBottom: scaledSize(15),
@@ -161,11 +161,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: scaledSize(20),
   },
   description: {
-    fontSize: scaledSize(16),
+    fontSize: scaledSize(26),
     color: color.accentColor.grayColor,
     textAlign: 'center',
     lineHeight: scaledSize(24),
-    marginBottom: scaledSize(20),
+    marginBottom: scaledSize(30),
     paddingHorizontal: scaledSize(30),
   },
   paginationContainer: {
@@ -186,10 +186,13 @@ const styles = StyleSheet.create({
     marginHorizontal: scaledSize(3),
   },
   buttonContainer: {
+    maxWidth: scaleWidth(600),
+    alignSelf: 'center',
+    marginBottom: scaleHeight(80),
+    paddingHorizontal: scaledSize(20),
     width: '100%',
     alignItems: 'center',
-    marginBottom: scaleHeight(50),
-    paddingHorizontal: scaledSize(20),
+    justifyContent: 'center',
   },
 });
 

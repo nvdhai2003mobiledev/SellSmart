@@ -18,7 +18,14 @@ import {
   scaleWidth,
 } from '../../utils';
 import {Fonts} from '../../assets';
-import {CloseCircle, Eye, EyeSlash} from 'iconsax-react-native';
+import {
+  CloseCircle,
+  Eye,
+  EyeSlash,
+  User,
+  Message,
+  Lock,
+} from 'iconsax-react-native';
 import {DynamicText} from '../DynamicText/DynamicText.tsx';
 
 interface InputProps {
@@ -30,6 +37,8 @@ interface InputProps {
   autoFocus?: boolean;
   keyboardType?: KeyboardType;
   EndIcon?: React.ReactNode;
+  StartIcon?: React.ReactNode;
+  inputType?: 'default' | 'username' | 'email' | 'password';
   onIconPress?: () => void;
   showClearIcon?: boolean;
   showPasswordIcon?: boolean;
@@ -52,6 +61,8 @@ export const Input = React.memo((props: InputProps) => {
     autoFocus,
     keyboardType,
     EndIcon,
+    StartIcon,
+    inputType = 'default',
     onIconPress,
     showClearIcon = false,
     showPasswordIcon = false,
@@ -70,6 +81,42 @@ export const Input = React.memo((props: InputProps) => {
     onChangeText?.('');
   };
 
+  // Render icon theo inputType
+  const renderStartIcon = () => {
+    if (StartIcon) return StartIcon;
+
+    switch (inputType) {
+      case 'username':
+        return (
+          <User
+            size={scaledSize(24)}
+            color={color.accentColor.grayColor}
+            variant="Linear"
+          />
+        );
+      case 'email':
+        return (
+          <Message
+            size={scaledSize(24)}
+            color={color.accentColor.grayColor}
+            variant="Linear"
+          />
+        );
+      case 'password':
+        return (
+          <Lock
+            size={scaledSize(24)}
+            color={color.accentColor.grayColor}
+            variant="Linear"
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
+  const startIcon = renderStartIcon();
+
   return (
     <View>
       <View
@@ -79,12 +126,16 @@ export const Input = React.memo((props: InputProps) => {
           !editable && styles.inputContainerDisabled,
           inputContainerStyle,
         ]}>
+        {startIcon && (
+          <View style={styles.startIconContainer}>{startIcon}</View>
+        )}
         <TextInput
           style={[
             styles.input,
             {color: textColor},
             multiline && styles.multilineInput,
             multiline && textAlignVertical && {textAlignVertical},
+            startIcon && styles.inputWithStartIcon,
             inputStyle,
           ]}
           placeholder={placeholderText}
@@ -104,7 +155,7 @@ export const Input = React.memo((props: InputProps) => {
             <TouchableOpacity onPress={clearInput}>
               <CloseCircle
                 color={color.accentColor.closeColor}
-                size={scaledSize(18)}
+                size={scaledSize(24)}
                 variant="Bulk"
               />
             </TouchableOpacity>
@@ -115,13 +166,13 @@ export const Input = React.memo((props: InputProps) => {
               {secureTextEntry ? (
                 <Eye
                   color={color.accentColor.grayColor}
-                  size={scaledSize(18)}
+                  size={scaledSize(24)}
                   variant="Linear"
                 />
               ) : (
                 <EyeSlash
                   color={color.accentColor.grayColor}
-                  size={scaledSize(18)}
+                  size={scaledSize(24)}
                   variant="Linear"
                 />
               )}
@@ -142,8 +193,8 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     width: '100%',
-    height: scaleHeight(60),
-    borderRadius: moderateScale(14),
+    height: scaleHeight(80),
+    borderRadius: moderateScale(10),
     borderWidth: 0.5,
     backgroundColor: color.inputColor,
     borderColor: 'rgba(0, 0, 0, 0.2)',
@@ -161,12 +212,15 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontSize: scaledSize(20),
+    fontSize: scaledSize(22),
     fontFamily: Fonts.Inter_Regular,
     paddingVertical: scaleHeight(8),
     textAlignVertical: 'center',
     includeFontPadding: false,
     padding: 0,
+  },
+  inputWithStartIcon: {
+    marginLeft: scaleWidth(10),
   },
   multilineInput: {
     height: 'auto',
@@ -179,9 +233,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
+  startIconContainer: {
+    marginRight: scaleWidth(8),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   errorText: {
     color: color.accentColor.errorColor,
-    fontSize: scaledSize(12),
+    fontSize: scaledSize(18),
     marginHorizontal: scaleWidth(6),
     marginTop: scaleHeight(4),
   },

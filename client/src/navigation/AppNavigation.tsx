@@ -39,6 +39,9 @@ import {
 // Trực tiếp import các màn hình không được export từ index
 import OrderCancelScreen from '../screens/main/Order/OrderCancelScreen';
 import PaymentMethods from '../screens/main/Order/PaymentMethods';
+import AddProviderScreen from '../screens/main/Provider/AddProviderScreen';
+import DetailProviderScreen from '../screens/main/Provider/DetailProviderScreen';
+import ProviderScreen from '../screens/main/Provider/ProviderScreen';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const screenOptions: NativeStackNavigationOptions = {
@@ -56,7 +59,7 @@ export const AppNavigation = observer(() => {
   // Nếu chưa đăng nhập, chỉ hiển thị các màn hình auth
   if (!isAuthenticated) {
     return (
-      <RootStack.Navigator   screenOptions={screenOptions} >
+      <RootStack.Navigator screenOptions={screenOptions}>
         <RootStack.Screen name={Screen.SPLASH} component={SplashScreen} />
         <RootStack.Screen
           name={Screen.ONBOARDING}
@@ -72,8 +75,10 @@ export const AppNavigation = observer(() => {
           name={Screen.CREATE_PASSWORD}
           component={CreatePasswordScreen}
         />
-<RootStack.Screen name={Screen.BOTTOM_TAB} component={BottomNavigation} />
-
+        <RootStack.Screen
+          name={Screen.BOTTOM_TAB}
+          component={BottomNavigation}
+        />
       </RootStack.Navigator>
     );
   }
@@ -118,21 +123,35 @@ export const AppNavigation = observer(() => {
         name={Screen.ADD_CUSTOMER}
         component={AddCustomerScreen}
       />
-          <RootStack.Screen name={Screen.ORDERSCREEN} component={OrderScreen} />
-        <RootStack.Screen name={Screen.ORDERLIST} component={OrderListScreen}/>
-        <RootStack.Screen name={Screen.FILTERORDER} component={FilterOrderScreen}   options={{ presentation: 'modal' }}  />
-        <RootStack.Screen name={Screen.ORDER_DETAIL} component={OrderDetailScreen} />
-        <RootStack.Screen
-          name={Screen.ORDER_CANCEL}
-          component={OrderCancelScreen}
-        />
+      <RootStack.Screen name={Screen.ORDERSCREEN} component={OrderScreen} />
+      <RootStack.Screen name={Screen.ORDERLIST} component={OrderListScreen} />
+      <RootStack.Screen
+        name={Screen.FILTERORDER}
+        component={FilterOrderScreen}
+        options={{presentation: 'modal'}}
+      />
+      <RootStack.Screen
+        name={Screen.ORDER_DETAIL}
+        component={OrderDetailScreen}
+      />
+      <RootStack.Screen
+        name={Screen.ORDER_CANCEL}
+        component={OrderCancelScreen}
+      />
       <RootStack.Screen
         name={Screen.PAYMENT_METHODS}
         component={PaymentMethods}
       />
       <RootStack.Screen name={Screen.CUSTOMERS} component={CustomerScreen} />
-      <RootStack.Screen name={Screen.PROMOTION_LIST} component={PromotionListScreen} />
-      <RootStack.Screen name={Screen.ADD_PROMOTION} component={AddPromotionScreen} />
+      <RootStack.Screen
+        name={Screen.PROMOTION_LIST}
+        component={PromotionListScreen}
+      />
+      <RootStack.Screen
+        name={Screen.ADD_PROMOTION}
+        component={AddPromotionScreen}
+      />
+
       {/* Chỉ admin mới thấy được các màn hình quản lý nhân viên */}
       {isAdmin && (
         <>

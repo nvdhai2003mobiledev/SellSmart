@@ -140,7 +140,7 @@ const AnimatedIcon = ({
         <Animated.View style={iconStyle}>
           <IconComponent
             variant={variant}
-            size={scaledSize(28)}
+            size={scaledSize(40)}
             color={colors}
           />
         </Animated.View>
@@ -188,12 +188,7 @@ export const BottomNavigation = () => {
         },
         tabBarShowLabel: false,
         tabBarStyle: {
-          height: scaleHeight(65),
-          borderRadius: moderateScale(20),
-          position: 'absolute',
-          bottom: scaleHeight(30),
-          marginHorizontal: scaleWidth(30),
-          paddingHorizontal: scaleHeight(20),
+          height: scaleHeight(120),
           shadowColor: color.accentColor.darkColor,
           shadowOffset: {width: 0, height: 10},
           shadowOpacity: 0.2,
@@ -225,9 +220,9 @@ const styles = StyleSheet.create({
   },
   bubble: {
     position: 'absolute',
-    width: scaledSize(48),
-    height: scaledSize(48),
-    borderRadius: moderateScale(16),
+    width: scaledSize(64),
+    height: scaledSize(64),
+    borderRadius: moderateScale(10),
   },
   ring: {
     position: 'absolute',

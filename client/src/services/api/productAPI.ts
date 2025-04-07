@@ -39,17 +39,65 @@ export const fetchProducts = async () => {
   try {
     console.log('Đang lấy danh sách sản phẩm...');
 
+    // Tạo timestamp để tránh cache
+    const timestamp = Date.now();
+
     // Tạo instance API mới không yêu cầu token
     const publicApi = create({
       baseURL: "http://10.0.2.2:5000/",
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-      }
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'X-Request-Time': timestamp.toString()
+      },
+      timeout: 15000 // Tăng timeout lên 15 giây
     });
 
-    // Sử dụng đường dẫn API chính xác từ ApiEndpoint mà không cần xác thực
-    const response = await publicApi.get<ApiResponse<Product[]>>(ApiEndpoint.PRODUCTS);
+    // Kiểm tra kết nối trước khi lấy dữ liệu
+    let connectionRetries = 3; // Tăng số lần thử
+    let connected = false;
+    let response;
+    
+    while (connectionRetries > 0 && !connected) {
+      try {
+        // Thử ping server với timeout ngắn để kiểm tra kết nối
+        console.log(`Thử kết nối lần ${4 - connectionRetries}...`);
+        const pingResponse = await publicApi.get('ping', {}, { timeout: 5000 });
+        if (pingResponse.ok) {
+          connected = true;
+          console.log('Kết nối thành công, tiếp tục lấy dữ liệu...');
+        } else {
+          console.log(`Không thể kết nối tới server, thử lại (còn ${connectionRetries - 1} lần)`);
+          connectionRetries--;
+          // Đợi 2 giây trước khi thử lại
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      } catch (pingError) {
+        console.log(`Lỗi kết nối: ${pingError}`);
+        connectionRetries--;
+        if (connectionRetries > 0) {
+          console.log(`Thử lại sau 2 giây (còn ${connectionRetries} lần)...`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
+    }
+    
+    if (!connected) {
+      console.error('Không thể kết nối tới server sau nhiều lần thử');
+      throw new Error('Không thể kết nối tới server, vui lòng kiểm tra kết nối mạng');
+    }
+
+    try {
+      // Sử dụng đường dẫn API chính xác từ ApiEndpoint với tham số timestamp để tránh cache
+      response = await publicApi.get<ApiResponse<Product[]>>(`${ApiEndpoint.PRODUCTS}?_=${timestamp}`);
+    } catch (fetchError) {
+      console.error('Lỗi trong quá trình lấy dữ liệu:', fetchError);
+      throw new Error('Không thể kết nối tới server, vui lòng kiểm tra kết nối mạng');
+    }
+    
     console.log('Response từ API sản phẩm:', {
       status: response.status,
       ok: response.ok
@@ -66,13 +114,27 @@ export const fetchProducts = async () => {
       // API trả về theo format status: 'Ok'
       console.log('Lấy sản phẩm thành công (format Ok)');
       return response.data.data || [];
+    } else if (response.ok && Array.isArray(response.data)) {
+      // API trả về mảng trực tiếp
+      console.log('Lấy sản phẩm thành công (format array direct)');
+      return response.data || [];
     } else {
-      console.error('Không thể lấy danh sách sản phẩm:', response.problem);
-      throw new Error(response.data?.message || 'Không thể lấy danh sách sản phẩm');
+      console.error('Không thể lấy danh sách sản phẩm:', response.problem, response.data);
+      if (response.problem === 'NETWORK_ERROR') {
+        throw new Error('Không thể kết nối tới server, vui lòng kiểm tra kết nối mạng');
+      } else if (response.problem === 'TIMEOUT_ERROR') {
+        throw new Error('Máy chủ phản hồi quá chậm, vui lòng thử lại sau');
+      } else if (response.problem === 'SERVER_ERROR') {
+        throw new Error('Máy chủ gặp sự cố, vui lòng thử lại sau');
+      } else {
+        throw new Error(response.data?.message || 'Không thể lấy danh sách sản phẩm');
+      }
     }
   } catch (error) {
     console.error('Lỗi trong fetchProducts:', error);
-    throw error;
+    throw error instanceof Error
+      ? new Error(`Exception in fetchProducts: ${error.message}`)
+      : new Error('Không thể kết nối tới server, vui lòng kiểm tra kết nối mạng');
   }
 };
 
@@ -117,7 +179,32 @@ export const addProduct = async (productData: any) => {
   }
 };
 
+// Hàm lấy danh sách danh mục sản phẩm
+export const fetchCategories = async () => {
+  try {
+    console.log('Đang lấy danh sách danh mục sản phẩm...');
+    
+    // Tạo timestamp để tránh cache
+    const timestamp = Date.now();
+    
+    // Sử dụng đường dẫn API chính xác 
+    const response = await Api.get(`/typeproduct?_=${timestamp}`);
+    
+    if (response.ok && response.data) {
+      console.log('Lấy danh mục thành công');
+      return response.data.data || [];
+    } else {
+      console.error('Không thể lấy danh sách danh mục:', response.problem);
+      throw new Error('Không thể lấy danh sách danh mục sản phẩm');
+    }
+  } catch (error) {
+    console.error('Lỗi trong fetchCategories:', error);
+    throw error;
+  }
+};
+
 export default {
   fetchProducts,
   addProduct,
+  fetchCategories,
 };

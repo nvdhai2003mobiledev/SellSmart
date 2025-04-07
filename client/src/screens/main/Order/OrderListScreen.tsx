@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   View,
   Text,
@@ -10,13 +10,13 @@ import {
   Keyboard,
 } from 'react-native';
 import {RootStackParamList, Screen} from '../../../navigation/navigation.type';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import { observer } from 'mobx-react-lite';
+import {useNavigation, useRoute} from '@react-navigation/native';
+import {observer} from 'mobx-react-lite';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { BaseLayout, Header, DynamicText } from '../../../components';
-import { rootStore } from '../../../models/root-store';
-import { color, moderateScale, scaledSize } from '../../../utils';
-import { Order } from '../../../models/Order/Order';
+import {BaseLayout, Header, DynamicText} from '../../../components';
+import {rootStore} from '../../../models/root-store';
+import {color, moderateScale, scaledSize} from '../../../utils';
+import {Order} from '../../../models/Order/Order';
 
 const OrderListScreen = observer(() => {
   const navigation = useNavigation();
@@ -33,31 +33,34 @@ const OrderListScreen = observer(() => {
     if (filterFromParams) {
       setCurrentFilter(filterFromParams);
     }
-    
+
     fetchOrders();
   }, [route.params?.filter]);
 
   const fetchOrders = async () => {
     try {
       await rootStore.orders.fetchOrders();
-      
+
       // Sort orders by creation date in descending order (newest first)
-      const sortedOrders = [...rootStore.orders.orders].sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      const sortedOrders = [...rootStore.orders.orders].sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       );
-      
+
       // Apply filter if exists
       let processedOrders = sortedOrders;
-      
+
       // Check for status parameter (for canceled orders)
       if (route.params?.status) {
-        processedOrders = sortedOrders.filter(order => order.status === route.params?.status);
+        processedOrders = sortedOrders.filter(
+          order => order.status === route.params?.status,
+        );
       }
       // Apply full filter if exists
       else if (route.params?.filter) {
         processedOrders = applyFilter(sortedOrders, route.params.filter);
       }
-      
+
       setOrders(sortedOrders);
       setFilteredOrders(processedOrders);
       setIsLoading(false);
@@ -71,7 +74,10 @@ const OrderListScreen = observer(() => {
   const applyFilter = (orderList: Order[], filter: any) => {
     return orderList.filter(order => {
       // Payment Status Filter
-      if (filter.paymentStatus && order.paymentStatus !== filter.paymentStatus) {
+      if (
+        filter.paymentStatus &&
+        order.paymentStatus !== filter.paymentStatus
+      ) {
         return false;
       }
 
@@ -102,9 +108,7 @@ const OrderListScreen = observer(() => {
     // If search query is empty, show filtered orders
     if (!searchQuery.trim()) {
       setFilteredOrders(
-        currentFilter 
-          ? applyFilter(orders, currentFilter) 
-          : orders
+        currentFilter ? applyFilter(orders, currentFilter) : orders,
       );
       return;
     }
@@ -113,88 +117,100 @@ const OrderListScreen = observer(() => {
     const query = searchQuery.trim().toLowerCase();
 
     // Filter orders based on various criteria
-    const searchResult = orders.filter(order => 
-      // Search by last 4 digits of orderID
-      order.orderID.slice(-4).includes(query) ||
-      
-      // Search by customer name (case-insensitive)
-      order.customerID.fullName.toLowerCase().includes(query) ||
-      
-      // Search by customer phone number
-      order.customerID.phoneNumber.includes(query)
+    const searchResult = orders.filter(
+      order =>
+        // Search by last 4 digits of orderID
+        order.orderID.slice(-4).includes(query) ||
+        // Search by customer name (case-insensitive)
+        order.customerID.fullName.toLowerCase().includes(query) ||
+        // Search by customer phone number
+        order.customerID.phoneNumber.includes(query),
     );
 
     // Apply additional filter if exists
-    const finalFilteredOrders = currentFilter 
+    const finalFilteredOrders = currentFilter
       ? applyFilter(searchResult, currentFilter)
       : searchResult;
 
     setFilteredOrders(finalFilteredOrders);
   };
 
-    const navigateToOrderScreen = (status?: string) => {
-      navigation.navigate(Screen.BOTTOM_TAB, { status });
-    };
+  const navigateToOrderScreen = (status?: string) => {
+    navigation.navigate(Screen.BOTTOM_TAB, {status});
+  };
   // Navigate to Filter Screen
   const navigateToFilterScreen = () => {
-    navigation.navigate(Screen.FILTERORDER, { 
-      existingFilter: currentFilter 
+    navigation.navigate(Screen.FILTERORDER, {
+      existingFilter: currentFilter,
     });
   };
 
-  const renderOrderItem = ({ item }: { item: Order }) => {
+  const renderOrderItem = ({item}: {item: Order}) => {
     const truncatedOrderId = item.orderID.slice(-4);
-    return(
-    <TouchableOpacity 
-      style={styles.orderItem}
-      onPress={() => navigation.navigate(Screen.ORDER_DETAIL, { orderId: item._id })}
-    >
-      <View style={styles.orderHeader}>
-        <DynamicText style={styles.orderNumber}>
-          #{truncatedOrderId}
-        </DynamicText>
-        <DynamicText style={styles.orderAmount}>
-          {item.totalAmount.toLocaleString()}đ
-        </DynamicText>
-      </View>
-      <View style={styles.orderDetails}>
-        <DynamicText style={styles.customerName}>
-          {item.customerID.fullName}
-        </DynamicText>
-        <DynamicText style={styles.orderDate}>
-          {new Date(item.createdAt).toLocaleDateString()}
-        </DynamicText>
-      </View><View style={styles.orderStatus}>
-        <DynamicText 
-          style={[
-            styles.statusText, 
-            {
-              color: 
-                item.status === 'pending' ? color.primaryColor :
-                item.status === 'processing' ? '#FFA500' :
-                item.status === 'shipping' ? '#4169E1' :
-                item.status === 'delivered' ? 'green' :
-                item.status === 'canceled' ? 'red' : color.accentColor.grayColor
-            }
-          ]}
-        >
-          {item.status === 'pending' ? 'Chưa xử lý' :
-           item.status === 'processing' ? 'Đã xử lý' :
-           item.status === 'canceled' ? 'Đã hủy' : item.status}
-        </DynamicText>
-      </View>
-    </TouchableOpacity>
-  )};
+    return (
+      <TouchableOpacity
+        style={styles.orderItem}
+        onPress={() =>
+          navigation.navigate('ORDER_DETAIL', {orderId: item._id})
+        }>
+        <View style={styles.orderHeader}>
+          <DynamicText style={styles.orderNumber}>
+            #{truncatedOrderId}
+          </DynamicText>
+          <DynamicText style={styles.orderAmount}>
+            {item.totalAmount.toLocaleString()}đ
+          </DynamicText>
+        </View>
+        <View style={styles.orderDetails}>
+          <DynamicText style={styles.customerName}>
+            {item.customerID.fullName}
+          </DynamicText>
+          <DynamicText style={styles.orderDate}>
+            {new Date(item.createdAt).toLocaleDateString()}
+          </DynamicText>
+        </View>
+        <View style={styles.orderStatus}>
+          <DynamicText
+            style={[
+              styles.statusText,
+              {
+                color:
+                  item.status === 'pending'
+                    ? color.primaryColor
+                    : item.status === 'processing'
+                    ? '#FFA500'
+                    : item.status === 'shipping'
+                    ? '#4169E1'
+                    : item.status === 'delivered'
+                    ? 'green'
+                    : item.status === 'canceled'
+                    ? 'red'
+                    : color.accentColor.grayColor,
+              },
+            ]}>
+            {item.status === 'pending'
+              ? 'Chưa xử lý'
+              : item.status === 'processing'
+              ? 'Đã xử lý'
+              : item.status === 'canceled'
+              ? 'Đã hủy'
+              : item.status}
+          </DynamicText>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   if (isLoading) {
     return (
       <BaseLayout>
-        <Header title="Danh sách đơn hàng" showBackIcon onPressBack={()=>  navigateToOrderScreen()} />
+        <Header
+          title="Danh sách đơn hàng"
+          showBackIcon
+          onPressBack={() => navigateToOrderScreen()}
+        />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator 
-            size="large" 
-            color={color.primaryColor} 
-          />
+          <ActivityIndicator size="large" color={color.primaryColor} />
         </View>
       </BaseLayout>
     );
@@ -202,8 +218,12 @@ const OrderListScreen = observer(() => {
 
   return (
     <BaseLayout>
-      <Header title="Danh sách đơn hàng" showBackIcon onPressBack={()=>  navigateToOrderScreen()} />
-      
+      <Header
+        title="Danh sách đơn hàng"
+        showBackIcon
+        onPressBack={() => navigateToOrderScreen()}
+      />
+
       {/* Search Input with Filter Icon */}
       <View style={styles.searchContainer}>
         <View style={styles.searchInputWrapper}>
@@ -216,18 +236,17 @@ const OrderListScreen = observer(() => {
             returnKeyType="search"
             clearButtonMode="while-editing"
           />
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.filterIconContainer}
-            onPress={navigateToFilterScreen}
-          >
-            <Ionicons 
-              name="filter" 
-              size={moderateScale(10)} 
-              color={currentFilter ? color.primaryColor : color.accentColor.grayColor} 
+            onPress={navigateToFilterScreen}>
+            <Ionicons
+              name="filter"
+              size={moderateScale(10)}
+              color={
+                currentFilter ? color.primaryColor : color.accentColor.grayColor
+              }
             />
-            {currentFilter && (
-              <View style={styles.filterActiveIndicator} />
-            )}
+            {currentFilter && <View style={styles.filterActiveIndicator} />}
           </TouchableOpacity>
         </View>
       </View>
@@ -235,12 +254,12 @@ const OrderListScreen = observer(() => {
       <FlatList
         data={filteredOrders}
         renderItem={renderOrderItem}
-        keyExtractor={(item) => item._id}
+        keyExtractor={item => item._id}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <DynamicText style={styles.emptyText}>
-              {searchQuery.trim() || currentFilter 
-                ? 'Không tìm thấy đơn hàng phù hợp' 
+              {searchQuery.trim() || currentFilter
+                ? 'Không tìm thấy đơn hàng phù hợp'
                 : 'Không có đơn hàng nào'}
             </DynamicText>
           </View>
@@ -274,7 +293,7 @@ const styles = StyleSheet.create({
     fontSize: moderateScale(10),
     marginRight: moderateScale(8),
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
@@ -298,7 +317,7 @@ const styles = StyleSheet.create({
     padding: moderateScale(16),
     marginBottom: moderateScale(12),
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,

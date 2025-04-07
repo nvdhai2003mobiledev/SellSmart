@@ -1,22 +1,40 @@
-import React, { useEffect, useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   View,
-  Text,
   FlatList,
   TouchableOpacity,
-  Image,
   StyleSheet,
-  TextInput,
   ActivityIndicator,
   Alert,
+  TextStyle,
 } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { BaseLayout, Header } from '../../../components';
-import Icon from 'react-native-vector-icons/Ionicons';
-import { Screen } from '../../../navigation/navigation.type';
-import { observer } from 'mobx-react-lite';
-import { rootStore } from '../../../models/root-store';
-import { ApiService } from '../../../services/api/customerAPI';
+import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
+import {
+  BaseLayout,
+  Header,
+  DynamicText,
+  Input,
+  Button,
+} from '../../../components';
+import {
+  SearchNormal1,
+  AddCircle,
+  ArrowRight2,
+  Profile2User,
+} from 'iconsax-react-native';
+import {Screen} from '../../../navigation/navigation.type';
+import {observer} from 'mobx-react-lite';
+import {rootStore} from '../../../models/root-store';
+import {ApiService} from '../../../services/api/customerAPI';
+import {
+  color,
+  scaledSize,
+  scaleHeight,
+  scaleWidth,
+  moderateScale,
+} from '../../../utils';
+import {Fonts} from '../../../assets';
+import AsyncImage from '../../bottomTab/Product/AsyncImage';
 
 // Define a type that captures essential customer properties
 interface CustomerLike {
@@ -34,11 +52,13 @@ interface RouteParams {
 }
 
 const CustomerSelection = observer(() => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<Record<string, RouteParams>, string>>();
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
-  const [localSearchResults, setLocalSearchResults] = useState<CustomerLike[]>([]);
+  const [localSearchResults, setLocalSearchResults] = useState<CustomerLike[]>(
+    [],
+  );
   const [isSearchMode, setIsSearchMode] = useState(false);
 
   // Get customers from the store
@@ -51,23 +71,24 @@ const CustomerSelection = observer(() => {
     } else {
       setIsSearchMode(true);
       const query = searchQuery.toLowerCase().trim();
-      const filtered = customers.filter(customer =>
-        customer.fullName.toLowerCase().includes(query) || 
-        customer.phoneNumber.includes(query) || 
-        (customer.email && customer.email.toLowerCase().includes(query))
+      const filtered = customers.filter(
+        (customer: any) =>
+          customer.fullName.toLowerCase().includes(query) ||
+          customer.phoneNumber.includes(query) ||
+          (customer.email && customer.email.toLowerCase().includes(query)),
       );
-      
+
       // Convert to plain objects to avoid MobX state tree mutations
-      const plainResults = filtered.map(customer => ({
+      const plainResults = filtered.map((customer: any) => ({
         _id: customer._id,
         fullName: customer.fullName,
         phoneNumber: customer.phoneNumber,
         email: customer.email,
         birthDate: customer.birthDate,
         address: customer.address,
-        avatar: customer.avatar
+        avatar: customer.avatar,
       }));
-      
+
       setLocalSearchResults(plainResults);
     }
   }, [searchQuery, customers]);
@@ -82,10 +103,13 @@ const CustomerSelection = observer(() => {
     try {
       // Sử dụng rootStore để fetch customers
       await rootStore.customers.fetchCustomers();
-      
+
       if (rootStore.customers.error) {
         console.error('Failed to fetch customers:', rootStore.customers.error);
-        Alert.alert('Error', `Không thể tải danh sách khách hàng: ${rootStore.customers.error}`);
+        Alert.alert(
+          'Error',
+          `Không thể tải danh sách khách hàng: ${rootStore.customers.error}`,
+        );
       }
     } catch (error) {
       console.error('Error fetching customers:', error);
@@ -101,15 +125,22 @@ const CustomerSelection = observer(() => {
     try {
       // Sử dụng customerAPI trực tiếp
       const result = await ApiService.getCustomers();
-      
-      if (result.kind === 'ok' && 'customers' in result && Array.isArray(result.customers)) {
+
+      if (
+        result.kind === 'ok' &&
+        'customers' in result &&
+        Array.isArray(result.customers)
+      ) {
         // Cập nhật trực tiếp vào store
         rootStore.customers.setLoading(false);
         rootStore.customers.setError(null);
         rootStore.customers.customers.replace(result.customers);
       } else {
         console.error('Failed to fetch customers directly:', result);
-        Alert.alert('Error', 'Không thể tải danh sách khách hàng. Vui lòng thử lại.');
+        Alert.alert(
+          'Error',
+          'Không thể tải danh sách khách hàng. Vui lòng thử lại.',
+        );
       }
     } catch (error) {
       console.error('Error directly fetching customers:', error);
@@ -130,37 +161,38 @@ const CustomerSelection = observer(() => {
     }
   };
 
-  const renderCustomerItem = ({ item }: { item: CustomerLike }) => (
+  const renderCustomerItem = ({item}: {item: CustomerLike}) => (
     <TouchableOpacity
       style={styles.customerItem}
-      onPress={() => handleSelectCustomer(item)}
-    >
-      <Image
-        source={{ uri: item.avatar || 'https://via.placeholder.com/50' }}
+      onPress={() => handleSelectCustomer(item)}>
+      <AsyncImage
+        source={{uri: item.avatar || 'https://via.placeholder.com/50'}}
         style={styles.customerAvatar}
       />
-      
+
       <View style={styles.customerDetails}>
-        <Text style={styles.customerName}>{item.fullName}</Text>
-        <Text style={styles.customerPhone}>{item.phoneNumber}</Text>
-        {item.email && <Text style={styles.customerEmail}>{item.email}</Text>}
+        <DynamicText style={styles.customerName}>{item.fullName}</DynamicText>
+        <DynamicText style={styles.customerPhone}>
+          {item.phoneNumber}
+        </DynamicText>
+        {item.email && (
+          <DynamicText style={styles.customerEmail}>{item.email}</DynamicText>
+        )}
       </View>
-      
-      <Icon name="chevron-forward" size={20} color="#ccc" />
+
+      <ArrowRight2 size={20} color="#ccc" variant="Linear" />
     </TouchableOpacity>
   );
 
   const handleCreateNewCustomer = () => {
     // Navigate to customer creation screen
-    // @ts-ignore - Bypass type checking for navigation
-    navigation.navigate(Screen.ADD_CUSTOMER, { 
+    navigation.navigate(Screen.ADD_CUSTOMER, {
       onCustomerCreated: (newCustomer: CustomerLike) => {
         if (route.params?.onSelect) {
           route.params.onSelect(newCustomer);
         }
-        // @ts-ignore - Bypass type checking for navigation
-        navigation.navigate(Screen.CREATEORDER, { customer: newCustomer });
-      }
+        navigation.navigate(Screen.CREATEORDER, {customer: newCustomer});
+      },
     });
   };
 
@@ -183,62 +215,68 @@ const CustomerSelection = observer(() => {
         showBackIcon
         onPressBack={() => navigation.goBack()}
       />
-      
+
       {/* Search Bar */}
       <View style={styles.searchContainer}>
-        <View style={styles.searchBar}>
-          <Icon name="search-outline" size={20} color="#999" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Tìm kiếm theo tên, số điện thoại..."
+        <View style={styles.searchBarWrapper}>
+          <Input
+            inputType="default"
+            placeholderText="Tìm kiếm theo tên, số điện thoại..."
             value={searchQuery}
             onChangeText={setSearchQuery}
+            showClearIcon={true}
+            StartIcon={
+              <SearchNormal1 size={20} color={color.accentColor.grayColor} />
+            }
+            inputContainerStyle={styles.searchInputContainer}
+            inputStyle={styles.searchInputStyle as TextStyle}
           />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Icon name="close-circle" size={20} color="#999" />
-            </TouchableOpacity>
-          )}
         </View>
       </View>
-      
+
       {/* New Customer Button */}
-      <TouchableOpacity style={styles.newCustomerButton} onPress={handleCreateNewCustomer}>
-        <Icon name="add-circle" size={24} color="#007AFF" />
-        <Text style={styles.newCustomerText}>Thêm khách hàng mới</Text>
+      <TouchableOpacity
+        style={styles.newCustomerButton}
+        onPress={handleCreateNewCustomer}>
+        <AddCircle size={24} color={color.primaryColor} variant="Bold" />
+        <DynamicText style={styles.newCustomerText}>
+          Thêm khách hàng mới
+        </DynamicText>
       </TouchableOpacity>
-      
+
       {/* Customer List */}
       {isLoading ? (
         <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loaderText}>Đang tải danh sách khách hàng...</Text>
+          <ActivityIndicator size="large" color={color.primaryColor} />
+          <DynamicText style={styles.loaderText}>
+            Đang tải danh sách khách hàng...
+          </DynamicText>
         </View>
       ) : (
         <FlatList
           data={displayedCustomers as CustomerLike[]}
           renderItem={renderCustomerItem}
-          keyExtractor={(item) => item._id}
+          keyExtractor={item => item._id}
           contentContainerStyle={[
             styles.customerList,
-            isCustomersEmpty && styles.emptyListContainer
+            isCustomersEmpty && styles.emptyListContainer,
           ]}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Icon name="people-outline" size={60} color="#ddd" />
-              <Text style={styles.emptyText}>
-                {isSearchMode 
+              <Profile2User size={60} color="#ddd" variant="Bold" />
+              <DynamicText style={styles.emptyText}>
+                {isSearchMode
                   ? 'Không tìm thấy khách hàng phù hợp'
                   : 'Chưa có khách hàng nào'}
-              </Text>
+              </DynamicText>
               {!isSearchMode && customers.length === 0 && (
-                <TouchableOpacity 
-                  style={styles.retryButton}
+                <Button
+                  buttonContainerStyle={styles.retryButton}
+                  title="Thử lại"
+                  titleStyle={styles.retryText}
                   onPress={fetchCustomers}
-                >
-                  <Text style={styles.retryText}>Thử lại</Text>
-                </TouchableOpacity>
+                />
               )}
             </View>
           }
@@ -250,37 +288,31 @@ const CustomerSelection = observer(() => {
 
 const styles = StyleSheet.create({
   searchContainer: {
-    padding: 16,
+    padding: scaleWidth(16),
   },
-  searchBar: {
-    flexDirection: 'row',
-    backgroundColor: '#f0f0f0',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    alignItems: 'center',
-    height: 40,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
+  searchBarWrapper: {
     flex: 1,
-    fontSize: 14,
-    color: '#333',
+  },
+  searchInputContainer: {
+    height: scaleHeight(50),
+    backgroundColor: '#f0f0f0',
+  },
+  searchInputStyle: {
+    fontSize: scaledSize(16),
   },
   newCustomerButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f0f9ff',
-    padding: 16,
+    padding: scaleWidth(16),
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
   newCustomerText: {
-    marginLeft: 12,
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#007AFF',
+    marginLeft: scaleWidth(12),
+    fontSize: scaledSize(16),
+    fontFamily: Fonts.Inter_SemiBold,
+    color: color.primaryColor,
   },
   customerList: {
     padding: 0,
@@ -292,34 +324,36 @@ const styles = StyleSheet.create({
   customerItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 16,
+    backgroundColor: color.accentColor.whiteColor,
+    padding: scaleWidth(16),
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
   customerAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 16,
+    width: scaleWidth(50),
+    height: scaleWidth(50),
+    borderRadius: moderateScale(25),
+    marginRight: scaleWidth(16),
   },
   customerDetails: {
     flex: 1,
   },
   customerName: {
-    fontSize: 15,
-    fontWeight: 'bold',
+    fontSize: scaledSize(18),
+    fontFamily: Fonts.Inter_SemiBold,
     color: '#000',
-    marginBottom: 4,
+    marginBottom: scaleHeight(4),
   },
   customerPhone: {
-    fontSize: 13,
+    fontSize: scaledSize(16),
+    fontFamily: Fonts.Inter_Regular,
     color: '#666',
   },
   customerEmail: {
-    fontSize: 12,
+    fontSize: scaledSize(14),
+    fontFamily: Fonts.Inter_Regular,
     color: '#999',
-    marginTop: 2,
+    marginTop: scaleHeight(2),
   },
   loaderContainer: {
     flex: 1,
@@ -327,33 +361,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loaderText: {
-    marginTop: 12,
-    fontSize: 14,
+    marginTop: scaleHeight(12),
+    fontSize: scaledSize(16),
+    fontFamily: Fonts.Inter_Regular,
     color: '#666',
   },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 60,
+    marginTop: scaleHeight(60),
   },
   emptyText: {
-    fontSize: 14,
+    fontSize: scaledSize(16),
+    fontFamily: Fonts.Inter_Regular,
     color: '#999',
-    marginTop: 12,
-    marginBottom: 12,
+    marginTop: scaleHeight(12),
+    marginBottom: scaleHeight(12),
   },
   retryButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    marginTop: 12,
+    paddingHorizontal: scaleWidth(20),
+    paddingVertical: scaleHeight(10),
+    height: 'auto',
+    marginTop: scaleHeight(12),
   },
   retryText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: scaledSize(16),
   },
 });
 
-export default CustomerSelection; 
+export default CustomerSelection;
