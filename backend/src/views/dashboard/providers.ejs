@@ -1,90 +1,147 @@
 <%- include('../layouts/main.ejs') %>
 <div class="main-content">
-    <h1 class="text-center mb-4">Danh sách nhà cung cấp</h1>
-
-    <!-- Form thêm nhà cung cấp -->
-    <div class="mb-4">
-        <h3>Thêm nhà cung cấp mới</h3>
-        <form id="addProviderForm">
-            <input type="text" id="providerName" placeholder="Tên nhà cung cấp" required class="form-control mb-2">
-            <input type="text" id="providerEmail" placeholder="Email" required class="form-control mb-2">
-            <input type="text" id="providerPhone" placeholder="Số điện thoại" required class="form-control mb-2">
-            <input type="text" id="providerAddress" placeholder="Địa chỉ" required class="form-control mb-2">
-            <select id="providerStatus" class="form-control mb-2">
-                <option value="cung cấp">Đang cung cấp</option>
-                <option value="dừng cung cấp">Dừng cung cấp</option>
-            </select>
-            <button type="submit" class="btn btn-primary">Thêm</button>
-        </form>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">Danh sách nhà cung cấp</h1>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addProviderModal">
+            <i class="fas fa-plus-circle me-2"></i>Thêm nhà cung cấp mới
+        </button>
     </div>
-    <div class="mb-3">
-        <input type="text" id="searchPhone" class="form-control" placeholder="Nhập số điện thoại..."
-               onkeyup="searchProvider()">
+
+    <!-- Filter options -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form id="filterForm" class="row g-3">
+                <div class="col-md-4">
+                    <label for="statusFilter" class="form-label">Trạng thái</label>
+                    <select class="form-select" id="statusFilter">
+                        <option value="">Tất cả trạng thái</option>
+                        <option value="cung cấp">Đang cung cấp</option>
+                        <option value="dừng cung cấp">Dừng cung cấp</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="searchInput" class="form-label">Tìm kiếm</label>
+                    <input type="text" class="form-control" id="searchInput" 
+                           placeholder="Tìm theo tên, email, số điện thoại...">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="button" class="btn btn-outline-primary w-100" id="applyFilter">
+                        <i class="fas fa-filter me-2"></i>Lọc
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <!-- Danh sách nhà cung cấp -->
-    <table class="table table-bordered">
-        <thead>
-        <tr>
-            <th>Tên</th>
-            <th>Email</th>
-            <th>Số điện thoại</th>
-            <th>Địa chỉ</th>
-            <th>Trạng thái</th>
-            <th>Hành động</th>
-        </tr>
-        </thead>
-        <tbody id="providerTableBody">
-        <% providers.forEach(provider => { %>
-            <tr id="row-<%= provider._id %>">
-                <td><%= provider.fullName %></td>
-                <td><%= provider.email %></td>
-                <td><%= provider.phoneNumber %></td>
-                <td><%= provider.address %></td>
-                <td>
-                        <span class="badge bg-<%= provider.status === 'cung cấp' ? 'success' : 'secondary' %>">
-                            <%= provider.status === 'cung cấp' ? 'Đang cung cấp' : 'Dừng cung cấp' %>
-                        </span>
-                </td>
-                <td>
-                    <button class="btn btn-warning btn-sm" onclick="editProvider('<%= provider._id %>')">Sửa</button>
-                    <!-- <button class="btn btn-danger btn-sm" onclick="deleteProvider('<%= provider._id %>')">Xóa</button> -->
-                </td>
-            </tr>
-        <% }); %>
-        </tbody>
-    </table>
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="py-3 px-4">Tên</th>
+                            <th class="py-3 px-4">Email</th>
+                            <th class="py-3 px-4">Số điện thoại</th>
+                            <th class="py-3 px-4">Địa chỉ</th>
+                            <th class="py-3 px-4">Trạng thái</th>
+                            <th class="py-3 px-4 text-center">Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody id="providerTableBody">
+                    <% providers.forEach(provider => { %>
+                        <tr id="row-<%= provider._id %>">
+                            <td class="py-3 px-4"><div class="fw-semibold"><%= provider.fullName %></div></td>
+                            <td class="py-3 px-4"><a href="mailto:<%= provider.email %>" class="text-decoration-none"><%= provider.email %></a></td>
+                            <td class="py-3 px-4"><a href="tel:<%= provider.phoneNumber %>" class="text-decoration-none"><%= provider.phoneNumber %></a></td>
+                            <td class="py-3 px-4"><%= provider.address %></td>
+                            <td class="py-3 px-4">
+                                <span class="badge bg-<%= provider.status === 'cung cấp' ? 'success' : 'secondary' %>">
+                                    <%= provider.status === 'cung cấp' ? 'Đang cung cấp' : 'Dừng cung cấp' %>
+                                </span>
+                            </td>
+                            <td class="py-3 px-4 text-center">
+                                <button class="btn btn-sm btn-info edit-btn" 
+                                        data-id="<%= provider._id %>">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-sm btn-danger delete-btn" 
+                                        data-id="<%= provider._id %>">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    <% }); %>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            <div class="d-flex justify-content-between align-items-center p-3 border-top">
+                <div class="d-flex align-items-center">
+                    <label class="text-muted me-2">Hiển thị:</label>
+                    <select class="form-select form-select-sm" id="itemsPerPage" style="width: auto;">
+                        <option value="5">5</option>
+                        <option value="10" selected>10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                    </select>
+                    <span class="text-muted ms-2">nhà cung cấp</span>
+                </div>
+                <nav aria-label="Provider navigation">
+                    <ul class="pagination pagination-sm mb-0">
+                        <li class="page-item" id="prevPage">
+                            <a class="page-link" href="#" aria-label="Previous">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <span class="page-link" id="currentPage">1</span>
+                        </li>
+                        <li class="page-item" id="nextPage">
+                            <a class="page-link" href="#" aria-label="Next">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+                <div class="text-muted">
+                    Tổng số: <span class="fw-semibold" id="totalItems">0</span> nhà cung cấp
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
-<!-- Modal chỉnh sửa nhà cung cấp -->
-<div id="editProviderModal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="editProviderModalLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
+
+<!-- Modal thêm nhà cung cấp -->
+<div class="modal fade" id="addProviderModal" tabindex="-1" aria-labelledby="addProviderModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="editProviderModalLabel">Chỉnh sửa nhà cung cấp</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="addProviderModalLabel"><i class="fas fa-building me-2"></i>Thêm nhà cung cấp mới</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form id="editProviderForm">
-                    <input type="hidden" id="editProviderId">
-                    <div class="form-group mb-3">
-                        <label for="editFullName" class="form-label">Tên nhà cung cấp</label>
-                        <input type="text" id="editFullName" class="form-control">
+                <form id="addProviderForm">
+                    <div class="mb-3">
+                        <label for="providerName" class="form-label">Tên nhà cung cấp <span class="text-danger">*</span></label>
+                        <input type="text" id="providerName" class="form-control" required>
                     </div>
-                    <div class="form-group mb-3">
-                        <label for="editEmail" class="form-label">Email</label>
-                        <input type="email" id="editEmail" class="form-control">
+                    <div class="mb-3">
+                        <label for="providerEmail" class="form-label">Email <span class="text-danger">*</span></label>
+                        <input type="email" id="providerEmail" class="form-control" required>
                     </div>
-                    <div class="form-group mb-3">
-                        <label for="editPhoneNumber" class="form-label">Số điện thoại</label>
-                        <input type="text" id="editPhoneNumber" class="form-control">
+                    <div class="mb-3">
+                        <label for="providerPhone" class="form-label">Số điện thoại <span class="text-danger">*</span></label>
+                        <input type="text" id="providerPhone" class="form-control" required>
                     </div>
-                    <div class="form-group mb-3">
-                        <label for="editAddress" class="form-label">Địa chỉ</label>
-                        <input type="text" id="editAddress" class="form-control">
+                    <div class="mb-3">
+                        <label for="providerAddress" class="form-label">Địa chỉ <span class="text-danger">*</span></label>
+                        <input type="text" id="providerAddress" class="form-control" required>
                     </div>
-                    <div class="form-group mb-3">
-                        <label for="editStatus" class="form-label">Trạng thái</label>
-                        <select id="editStatus" class="form-control">
+                    <div class="mb-3">
+                        <label for="providerStatus" class="form-label">Trạng thái</label>
+                        <select id="providerStatus" class="form-select">
                             <option value="cung cấp">Đang cung cấp</option>
                             <option value="dừng cung cấp">Dừng cung cấp</option>
                         </select>
@@ -92,201 +149,362 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
-                <button type="button" class="btn btn-primary" id="saveEditBtn">Lưu thay đổi</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" id="saveProviderBtn">Lưu nhà cung cấp</button>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Modal chỉnh sửa nhà cung cấp -->
+<div class="modal fade" id="editProviderModal" tabindex="-1" aria-labelledby="editProviderModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="editProviderModalLabel"><i class="fas fa-edit me-2"></i>Chỉnh sửa nhà cung cấp</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editProviderForm">
+                    <input type="hidden" id="editProviderId">
+                    <div class="mb-3">
+                        <label for="editFullName" class="form-label">Tên nhà cung cấp <span class="text-danger">*</span></label>
+                        <input type="text" id="editFullName" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editEmail" class="form-label">Email <span class="text-danger">*</span></label>
+                        <input type="email" id="editEmail" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editPhoneNumber" class="form-label">Số điện thoại <span class="text-danger">*</span></label>
+                        <input type="text" id="editPhoneNumber" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editAddress" class="form-label">Địa chỉ <span class="text-danger">*</span></label>
+                        <input type="text" id="editAddress" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editStatus" class="form-label">Trạng thái</label>
+                        <select id="editStatus" class="form-select">
+                            <option value="cung cấp">Đang cung cấp</option>
+                            <option value="dừng cung cấp">Dừng cung cấp</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-info" id="saveEditBtn">Lưu thay đổi</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirm Delete Modal -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="fas fa-exclamation-triangle me-2"></i>Xác nhận xóa</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Bạn có chắc chắn muốn xóa nhà cung cấp này không?
+                <input type="hidden" id="deleteProviderId">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Xác nhận xóa</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap and other scripts -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
-
-  $(document).ready(() => {
-    $('#addProviderForm').submit(function (event) {
-      event.preventDefault();
-
-      const data = {
-        fullName: $('#providerName').val().trim(),
-        email: $('#providerEmail').val().trim(),
-        phoneNumber: $('#providerPhone').val().trim(),
-        address: $('#providerAddress').val().trim(),
-        status: $('#providerStatus').val()
-      };
-
-      // Gửi dữ liệu lên server
-      $.ajax({
-        url: '/providers',
-        type: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify(data),
-        success: function (response) {
-          alert("✅ Thêm nhà cung cấp thành công!");
-          location.reload(); // Load lại trang sau khi thêm thành công
-        },
-        error: function (error) {
-          console.error("❌ Lỗi khi thêm nhà cung cấp:", error);
-          alert("❌ Lỗi khi thêm nhà cung cấp! Hãy thử lại.");
-        }
-      });
+    // Pagination variables
+    let currentPageIndex = 1;
+    let itemsPerPage = 10;
+    let filteredProviders = [];
+    
+    $(document).ready(() => {
+        // Save Provider (Add New)
+        $('#saveProviderBtn').click(function() {
+            const data = {
+                fullName: $('#providerName').val().trim(),
+                email: $('#providerEmail').val().trim(),
+                phoneNumber: $('#providerPhone').val().trim(),
+                address: $('#providerAddress').val().trim(),
+                status: $('#providerStatus').val()
+            };
+            
+            if (!validateProviderData(data.fullName, data.email, data.phoneNumber)) return;
+            
+            // Gửi dữ liệu lên server
+            $.ajax({
+                url: '/providers',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(data),
+                success: function (response) {
+                    alert("✅ Thêm nhà cung cấp thành công!");
+                    // Close modal
+                    $('#addProviderModal').modal('hide');
+                    location.reload();
+                },
+                error: function (error) {
+                    console.error("❌ Lỗi khi thêm nhà cung cấp:", error);
+                    alert("❌ Lỗi khi thêm nhà cung cấp! Hãy thử lại.");
+                }
+            });
+        });
+        
+        // Edit Provider - Open modal
+        $(document).on('click', '.edit-btn', function() {
+            const id = $(this).data('id');
+            editProvider(id);
+        });
+        
+        // Delete Provider - Open confirm modal
+        $(document).on('click', '.delete-btn', function() {
+            const id = $(this).data('id');
+            $('#deleteProviderId').val(id);
+            new bootstrap.Modal(document.getElementById('deleteConfirmModal')).show();
+        });
+        
+        // Confirm Delete
+        $('#confirmDeleteBtn').click(function() {
+            const id = $('#deleteProviderId').val();
+            if (!id) return;
+            
+            deleteProvider(id);
+        });
+        
+        // Save Edit Provider
+        $('#saveEditBtn').click(function() {
+            saveEditProvider();
+        });
+        
+        // Filter functionality
+        $('#applyFilter').click(function() {
+            const status = $('#statusFilter').val();
+            const search = $('#searchInput').val().toLowerCase();
+            
+            $('#providerTableBody tr').each(function() {
+                const row = $(this);
+                let statusMatch = true;
+                let searchMatch = true;
+                
+                if (status) {
+                    const rowStatus = row.find('td:nth-child(5) .badge').text().toLowerCase();
+                    statusMatch = rowStatus.includes(status === 'cung cấp' ? 'đang cung cấp' : 'dừng cung cấp');
+                }
+                
+                if (search) {
+                    const rowText = row.text().toLowerCase();
+                    searchMatch = rowText.includes(search);
+                }
+                
+                if (statusMatch && searchMatch) {
+                    row.show();
+                } else {
+                    row.hide();
+                }
+            });
+            
+            // Reset to page 1 after filtering
+            currentPageIndex = 1;
+            updateProviderDisplay();
+        });
+        
+        // Search on input change (optional)
+        $('#searchInput').on('input', function() {
+            if (this.value.length >= 3 || this.value.length === 0) {
+                $('#applyFilter').click();
+            }
+        });
+        
+        // Handle items per page change
+        $('#itemsPerPage').change(function() {
+            itemsPerPage = parseInt($(this).val());
+            currentPageIndex = 1;
+            updateProviderDisplay();
+        });
+        
+        // Handle pagination navigation
+        $('#prevPage').click(function(e) {
+            e.preventDefault();
+            if (currentPageIndex > 1) {
+                currentPageIndex--;
+                updateProviderDisplay();
+            }
+        });
+        
+        $('#nextPage').click(function(e) {
+            e.preventDefault();
+            const totalPages = Math.ceil(filteredProviders.length / itemsPerPage);
+            if (currentPageIndex < totalPages) {
+                currentPageIndex++;
+                updateProviderDisplay();
+            }
+        });
+        
+        // Initialize pagination on page load
+        // Initial count of providers
+        const totalProviders = $('#providerTableBody tr').length;
+        $('#totalItems').text(totalProviders);
+        updateProviderDisplay();
     });
-  });
-
-  // Mở modal chỉnh sửa và điền dữ liệu
-
-  function searchProvider() {
-  const phone = document.getElementById("searchPhone").value.trim();
-  if (phone.length === 0) {
-    location.reload();
-    return;
-  }
   
-  fetch(`/providers/search/phone?phone=${phone}`)
-    .then(res => res.json())
-    .then(data => {
-      const tableBody = document.getElementById("providerTableBody");
-      tableBody.innerHTML = "";
+    // Function to update provider display based on pagination
+    function updateProviderDisplay() {
+        // Get all visible provider rows
+        const rows = $('#providerTableBody tr');
+        filteredProviders = [];
+        
+        // Filter the providers based on current filters
+        rows.each(function() {
+            const row = $(this);
+            if (row.css('display') !== 'none') {
+                filteredProviders.push(row);
+            }
+        });
+        
+        // Update total count
+        $('#totalItems').text(filteredProviders.length);
+        
+        // Calculate total pages
+        const totalPages = Math.ceil(filteredProviders.length / itemsPerPage);
+        
+        // Hide all rows initially
+        rows.hide();
+        
+        // Show only rows for current page
+        const start = (currentPageIndex - 1) * itemsPerPage;
+        const end = Math.min(start + itemsPerPage, filteredProviders.length);
+        
+        for (let i = start; i < end; i++) {
+            $(filteredProviders[i]).show();
+        }
+        
+        // Update pagination buttons state
+        $('#prevPage').toggleClass('disabled', currentPageIndex === 1);
+        $('#nextPage').toggleClass('disabled', currentPageIndex === totalPages || totalPages === 0);
+        $('#currentPage').text(currentPageIndex);
+    }
 
-      // Kiểm tra dữ liệu trả về
-      if (!data || !Array.isArray(data.data)) {
-        console.error("Dữ liệu không hợp lệ:", data);
-        tableBody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Không tìm thấy nhà cung cấp</td></tr>`;
-        return;
-      }
+    // Edit Provider function
+    function editProvider(id) {
+        fetch(`/providers/${id}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.data) {
+                    const provider = data.data;
+                    document.getElementById("editProviderId").value = provider._id;
+                    document.getElementById("editFullName").value = provider.fullName;
+                    document.getElementById("editEmail").value = provider.email;
+                    document.getElementById("editPhoneNumber").value = provider.phoneNumber;
+                    document.getElementById("editAddress").value = provider.address;
+                    document.getElementById("editStatus").value = provider.status;
+                    
+                    // Show modal
+                    new bootstrap.Modal(document.getElementById('editProviderModal')).show();
+                } else {
+                    console.error("Dữ liệu nhà cung cấp không hợp lệ:", data);
+                    alert("Không thể lấy thông tin nhà cung cấp");
+                }
+            })
+            .catch(err => {
+                console.error("Lỗi khi lấy dữ liệu nhà cung cấp:", err);
+                alert("Không thể lấy thông tin nhà cung cấp. Vui lòng thử lại sau.");
+            });
+    }
 
-      // Lặp qua mảng trong `data.data`
-      data.data.forEach(provider => {
-        const row = `
-          <tr>
-            <td>${provider._id}</td>
-            <td>${provider.fullName}</td>
-            <td>${provider.email}</td>
-            <td>${provider.phoneNumber}</td>
-            <td>${provider.address}</td>
-            <td><span class="badge bg-${provider.status === 'cung cấp' ? 'success' : 'secondary'}">${provider.status === 'cung cấp' ? 'Đang cung cấp' : 'Dừng cung cấp'}</span></td>
-            <td>
-              <button class="btn btn-warning btn-sm" onclick="editProvider('${provider._id}')">Sửa</button>
-              <button class="btn btn-danger btn-sm" onclick="deleteProvider('${provider._id}')">Xóa</button>
-            </td>
-          </tr>
-        `;
-        tableBody.innerHTML += row;
-      });
-    })
-    .catch(err => console.error("Lỗi khi tìm kiếm!", err));
-}
+    // Save Edit Provider function
+    function saveEditProvider() {
+        const id = document.getElementById("editProviderId").value;
+        const fullName = document.getElementById("editFullName").value.trim();
+        const email = document.getElementById("editEmail").value.trim();
+        const phoneNumber = document.getElementById("editPhoneNumber").value.trim();
+        const address = document.getElementById("editAddress").value.trim();
+        const status = document.getElementById("editStatus").value;
+        
+        if (!validateProviderData(fullName, email, phoneNumber)) return;
+        
+        // Show loading state
+        $('#saveEditBtn').text('Đang lưu...').attr('disabled', true);
+        
+        fetch(`/providers/${id}`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({fullName, email, phoneNumber, address, status})
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === "Ok") {
+                    // Close modal
+                    bootstrap.Modal.getInstance(document.getElementById('editProviderModal')).hide();
+                    
+                    alert("✅ Cập nhật nhà cung cấp thành công!");
+                    location.reload();
+                } else {
+                    alert(`❌ Lỗi: ${data.message || 'Không thể cập nhật nhà cung cấp'}`);
+                }
+            })
+            .catch(err => {
+                console.error("Lỗi khi cập nhật:", err);
+                alert("❌ Lỗi khi cập nhật nhà cung cấp! Vui lòng thử lại.");
+            })
+            .finally(() => {
+                // Restore button
+                $('#saveEditBtn').text('Lưu thay đổi').attr('disabled', false);
+            });
+    }
 
+    // Delete Provider function
+    function deleteProvider(id) {
+        $.ajax({
+            url: `/providers/${id}`, 
+            type: 'DELETE',
+            success: function() {
+                alert("✅ Xóa nhà cung cấp thành công!");
+                // Close modal
+                bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal')).hide();
+                location.reload();
+            },
+            error: function(error) {
+                console.error("Lỗi khi xóa:", error);
+                alert("❌ Lỗi khi xóa nhà cung cấp! Vui lòng thử lại.");
+            }
+        });
+    }
 
-  function editProvider(id) {
-    fetch(`/providers/${id}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data && data.data) {
-          const provider = data.data;
-          document.getElementById("editProviderId").value = provider._id;
-          document.getElementById("editFullName").value = provider.fullName;
-          document.getElementById("editEmail").value = provider.email;
-          document.getElementById("editPhoneNumber").value = provider.phoneNumber;
-          document.getElementById("editAddress").value = provider.address;
-          document.getElementById("editStatus").value = provider.status;
-        } else {
-          console.error("Dữ liệu nhà cung cấp không hợp lệ:", data);
+    // Validate Provider Data function
+    function validateProviderData(name, email, phone) {
+        if (name.length < 3) {
+            alert("Tên phải có ít nhất 3 ký tự!");
+            return false;
         }
 
-        // Hiển thị modal sử dụng Bootstrap 5
-        const editModal = new bootstrap.Modal(document.getElementById('editProviderModal'));
-        editModal.show();
-      })
-      .catch(err => {
-        console.error("Lỗi khi lấy dữ liệu nhà cung cấp:", err);
-        alert("Không thể lấy thông tin nhà cung cấp. Vui lòng thử lại sau.");
-      });
-  }
-
-  // Lưu thông tin cập nhật
-  $(document).ready(function() {
-    $('#saveEditBtn').click(function() {
-      saveEditProvider();
-    });
-    
-    // Thêm xử lý khi submit form edit để tránh reload trang
-    $('#editProviderForm').submit(function(e) {
-      e.preventDefault();
-      saveEditProvider();
-    });
-  });
-
-  function saveEditProvider() {
-    const id = document.getElementById("editProviderId").value;
-    const fullName = document.getElementById("editFullName").value.trim();
-    const email = document.getElementById("editEmail").value.trim();
-    const phoneNumber = document.getElementById("editPhoneNumber").value.trim();
-    const address = document.getElementById("editAddress").value.trim();
-    const status = document.getElementById("editStatus").value;
-    
-    if (!validateProviderData(fullName, email, phoneNumber)) return;
-    
-    // Hiển thị loading
-    $('#saveEditBtn').text('Đang lưu...').attr('disabled', true);
-    
-    fetch(`/providers/${id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({fullName, email, phoneNumber, address, status})
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.status === "Ok") {
-          // Đóng modal
-          const editModal = bootstrap.Modal.getInstance(document.getElementById('editProviderModal'));
-          editModal.hide();
-          
-          alert("✅ Cập nhật nhà cung cấp thành công!");
-          location.reload();
-        } else {
-          alert(`❌ Lỗi: ${data.message || 'Không thể cập nhật nhà cung cấp'}`);
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        if (!emailRegex.test(email)) {
+            alert("Email không hợp lệ!");
+            return false;
         }
-      })
-      .catch(err => {
-        console.error("Lỗi khi cập nhật:", err);
-        alert("❌ Lỗi khi cập nhật nhà cung cấp! Vui lòng thử lại.");
-      })
-      .finally(() => {
-        // Khôi phục nút lưu
-        $('#saveEditBtn').text('Lưu thay đổi').attr('disabled', false);
-      });
-  }
 
-  function deleteProvider(id) {
-    if (confirm('Bạn có chắc chắn muốn xóa nhà cung cấp này?')) {
-      $.ajax({url: `/providers/${id}`, type: 'DELETE', success: () => location.reload()});
+        const phoneRegex = /^[0-9]{10,11}$/;
+        if (!phoneRegex.test(phone)) {
+            alert("Số điện thoại phải có 10-11 chữ số!");
+            return false;
+        }
 
+        return true;
     }
-  }
-
-  const validateProviderData = (name, email, phone) => {
-    if (name.length < 3) {
-      alert("Tên phải có ít nhất 3 ký tự!");
-      return false;
-    }
-
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    if (!emailRegex.test(email)) {
-      alert("Email không hợp lệ!");
-      return false;
-    }
-
-    const phoneRegex = /^[0-9]{10,11}$/;
-    if (!phoneRegex.test(phone)) {
-      alert("Số điện thoại phải có 10-11 chữ số!");
-      return false;
-    }
-
-    return true;
-  };
-
 </script>
 
 

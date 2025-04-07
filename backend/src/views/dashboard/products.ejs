@@ -1,423 +1,534 @@
 <%- include('../layouts/main.ejs') %>
 <div class="main-content p-4">
-    <div>
-        <h1 class="text-center mb-4 fw-bold" style="color: #343a40;">Danh sách sản phẩm</h1>
-
-        <!-- Nút thêm sản phẩm -->
-        <div class="mb-4 text-end">
-            <button class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#addProductModal">
-                <i class="fas fa-plus me-2"></i>Thêm sản phẩm mới
-            </button>
+    <!-- Header Section -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800">Quản lý sản phẩm</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb bg-transparent p-0">
+                    <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Sản phẩm</li>
+                </ol>
+            </nav>
         </div>
+        <button class="btn btn-primary d-flex align-items-center shadow-sm" data-bs-toggle="modal" data-bs-target="#addProductModal">
+            <i class="fas fa-plus-circle me-2"></i>Thêm sản phẩm mới
+        </button>
+    </div>
 
-        <!-- Filter options -->
-        <div class="card mb-4 shadow-sm">
-            <div class="card-body">
-                <form id="filterForm" class="row g-3">
-                    <div class="col-md-3">
-                        <label for="providerFilter" class="form-label">Nhà cung cấp</label>
-                        <select class="form-select" id="providerFilter">
+    <!-- Filter Card -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form id="filterForm" class="row g-3">
+                <div class="col-md-3">
+                    <label for="providerFilter" class="form-label text-muted small">Nhà cung cấp</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0">
+                            <i class="fas fa-building text-muted"></i>
+                        </span>
+                        <select class="form-select border-start-0" id="providerFilter">
                             <option value="">Tất cả nhà cung cấp</option>
                             <% providers.forEach(provider => { %>
                                 <option value="<%= provider._id %>"><%= provider.fullName %></option>
                             <% }); %>
                         </select>
                     </div>
-                    <div class="col-md-3">
-                        <label for="categoryFilter" class="form-label">Danh mục</label>
-                        <select class="form-select" id="categoryFilter">
+                </div>
+                <div class="col-md-3">
+                    <label for="categoryFilter" class="form-label text-muted small">Danh mục</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0">
+                            <i class="fas fa-tags text-muted"></i>
+                        </span>
+                        <select class="form-select border-start-0" id="categoryFilter">
                             <option value="">Tất cả danh mục</option>
                             <% categories.forEach(category => { %>
                                 <option value="<%= category._id %>"><%= category.name %></option>
                             <% }); %>
                         </select>
                     </div>
-                    <div class="col-md-3">
-                        <label for="statusFilter" class="form-label">Trạng thái</label>
-                        <select class="form-select" id="statusFilter">
+                </div>
+                <div class="col-md-3">
+                    <label for="statusFilter" class="form-label text-muted small">Trạng thái</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0">
+                            <i class="fas fa-toggle-on text-muted"></i>
+                        </span>
+                        <select class="form-select border-start-0" id="statusFilter">
                             <option value="">Tất cả trạng thái</option>
                             <option value="available">Có sẵn</option>
                             <option value="unavailable">Hết hàng</option>
                         </select>
                     </div>
-                    <div class="col-md-3">
-                        <label for="searchInput" class="form-label">Tìm kiếm</label>
-                        <input type="text" class="form-control" id="searchInput" placeholder="Tìm theo tên sản phẩm...">
+                </div>
+                <div class="col-md-3">
+                    <label for="searchInput" class="form-label text-muted small">Tìm kiếm</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0">
+                            <i class="fas fa-search text-muted"></i>
+                        </span>
+                        <input type="text" class="form-control border-start-0" id="searchInput" placeholder="Tìm theo tên sản phẩm...">
                     </div>
-                    <div class="col-12 text-end">
-                        <button type="button" class="btn btn-outline-primary" id="applyFilter">
-                            <i class="fas fa-filter me-2"></i>Lọc
-                        </button>
-                        <button type="button" class="btn btn-outline-secondary ms-2" id="resetFilter">
-                            <i class="fas fa-undo me-2"></i>Đặt lại
-                        </button>
-                    </div>
-                </form>
-            </div>
+                </div>
+                <div class="col-12 text-end">
+                    <button type="button" class="btn btn-light me-2" id="resetFilter">
+                        <i class="fas fa-undo me-2"></i>Đặt lại
+                    </button>
+                    <button type="button" class="btn btn-primary" id="applyFilter">
+                        <i class="fas fa-filter me-2"></i>Lọc
+                    </button>
+                </div>
+            </form>
         </div>
+    </div>
 
-        <!-- Danh sách sản phẩm -->
-        <div class="card shadow-sm">
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="bg-light">
-                            <tr>
-                                <th class="fw-bold text-dark">Tên sản phẩm</th>
-                                <th class="fw-bold text-dark">Hình ảnh</th>
-                                <th class="fw-bold text-dark">Danh mục</th>
-                                <th class="fw-bold text-dark text-center">Trạng thái</th>
-                                <th class="fw-bold text-dark">Giá (VNĐ)</th>
-                                <th class="fw-bold text-dark">Tồn kho</th>
-                                <th class="fw-bold text-dark">Nhà cung cấp</th>
-                                <th class="fw-bold text-dark">Bảo hành</th>
-                                <th class="fw-bold text-dark">Thuộc tính</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <% products.forEach(product => { %>
-                                <% if (product._id) { %>
-                                    <tr id="product-row-<%= product._id %>" style="cursor: pointer;" onclick="showProductDetails('<%= product._id %>')">
-                                        <td>
-                                            <%= product.name || 'N/A' %>
-                                        </td>
-                                        <td>
-                                            <img src="<%= product.thumbnail || 'https://via.placeholder.com/100' %>" 
-                                                 alt="<%= product.name || 'Sản phẩm' %>" 
-                                                 class="rounded" 
-                                                 style="width: 80px; height: 80px; object-fit: cover;">
-                                        </td>
-                                        <td data-category-id="<%= product.category?._id || '' %>">
+    <!-- Products Table Card -->
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="py-3 px-4 text-uppercase text-muted small fw-semibold">Tên sản phẩm</th>
+                            <th class="py-3 px-4 text-uppercase text-muted small fw-semibold">Hình ảnh</th>
+                            <th class="py-3 px-4 text-uppercase text-muted small fw-semibold">Danh mục</th>
+                            <th class="py-3 px-4 text-uppercase text-muted small fw-semibold text-center">Trạng thái</th>
+                            <th class="py-3 px-4 text-uppercase text-muted small fw-semibold">Giá (VNĐ)</th>
+                            <th class="py-3 px-4 text-uppercase text-muted small fw-semibold">Tồn kho</th>
+                            <th class="py-3 px-4 text-uppercase text-muted small fw-semibold">Nhà cung cấp</th>
+                            <th class="py-3 px-4 text-uppercase text-muted small fw-semibold">Bảo hành</th>
+                            <th class="py-3 px-4 text-uppercase text-muted small fw-semibold">Thuộc tính</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% products.forEach(product => { %>
+                            <% if (product._id) { %>
+                                <tr id="product-row-<%= product._id %>" class="product-row" onclick="showProductDetails('<%= product._id %>')">
+                                    <td class="py-3 px-4">
+                                        <div class="fw-semibold text-dark"><%= product.name || 'N/A' %></div>
+                                    </td>
+                                    <td class="py-3 px-4">
+                                        <img src="<%= product.thumbnail || 'https://via.placeholder.com/100' %>" 
+                                             alt="<%= product.name || 'Sản phẩm' %>" 
+                                             class="rounded shadow-sm" 
+                                             style="width: 60px; height: 60px; object-fit: cover;">
+                                    </td>
+                                    <td class="py-3 px-4" data-category-id="<%= product.category?._id || '' %>">
+                                        <span class="badge bg-info bg-opacity-10 text-info">
                                             <%= product.category?.name || 'Chưa có' %>
-                                        </td>
-                                        <td class="text-center">
-                                            <% if (product.status === 'available') { %>
-                                                <i class="fas fa-check-circle text-success me-1"></i>Có sẵn
-                                            <% } else { %>
-                                                <i class="fas fa-times-circle text-danger me-1"></i>Hết hàng
-                                            <% } %>
-                                        </td>
-                                        <td>
-                                            <% if (product.hasVariants && product.detailsVariants?.length > 0) { %>
-                                                <% 
-                                                    const prices = product.detailsVariants.map(v => v.price).filter(p => p !== undefined);
-                                                    const minPrice = Math.min(...prices);
-                                                    const maxPrice = Math.max(...prices);
-                                                %>
-                                                <% if (minPrice === maxPrice) { %>
-                                                    <span class="text-success fw-bold"><%= minPrice.toLocaleString() %></span>
-                                                <% } else { %>
-                                                    <span class="text-success fw-bold"><%= minPrice.toLocaleString() %></span>
-                                                    <i class="fas fa-arrow-right mx-1"></i>
-                                                    <span class="text-danger fw-bold"><%= maxPrice.toLocaleString() %></span>
-                                                <% } %>
-                                            <% } else { %>
-                                                <span class="text-success fw-bold"><%= product.price?.toLocaleString() || 'N/A' %></span>
-                                            <% } %>
-                                        </td>
-                                        <td>
-                                            <% if (product.hasVariants && product.detailsVariants?.length > 0) { %>
-                                                <% 
-                                                    const inventories = product.detailsVariants.map(v => v.inventory).filter(i => i !== undefined);
-                                                    const totalInventory = inventories.reduce((sum, curr) => sum + curr, 0);
-                                                    const minInventory = Math.min(...inventories);
-                                                    const maxInventory = Math.max(...inventories);
-                                                %>
-                                                <span class="fw-bold"><%= totalInventory %></span>
-                                                <br>
-                                                <small>
-                                                    (<span class="text-success fw-bold"><%= minInventory %></span>
-                                                    <i class="fas fa-arrow-right mx-1"></i>
-                                                    <span class="text-danger fw-bold"><%= maxInventory %></span>
-                                                    / biến thể)
-                                                </small>
-                                            <% } else { %>
-                                                <span class="fw-bold"><%= product.inventory ?? 'N/A' %></span>
-                                            <% } %>
-                                        </td>
-                                        <td data-provider-id="<%= product.providerId?._id || '' %>">
-                                            <%= product.providerId?.fullName || 'Chưa có' %>
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-warning text-dark">
-                                                <i class="fas fa-shield-alt me-1"></i>
-                                                <%= product.warrantyPeriod || 12 %> tháng
+                                        </span>
+                                    </td>
+                                    <td class="py-3 px-4 text-center">
+                                        <% if (product.status === 'available') { %>
+                                            <span class="badge bg-success-subtle text-success">
+                                                <i class="fas fa-check-circle me-1"></i>Có sẵn
                                             </span>
-                                        </td>
-                                        <td>
-                                            <% if (product.hasVariants && product.detailsVariants?.length > 0) { %>
-                                                <span class="badge bg-info">
-                                                    <%= product.detailsVariants.length %> biến thể
-                                                </span>
+                                        <% } else { %>
+                                            <span class="badge bg-danger-subtle text-danger">
+                                                <i class="fas fa-times-circle me-1"></i>Hết hàng
+                                            </span>
+                                        <% } %>
+                                    </td>
+                                    <td class="py-3 px-4">
+                                        <% if (product.hasVariants && product.detailsVariants?.length > 0) { %>
+                                            <% 
+                                                const prices = product.detailsVariants.map(v => v.price).filter(p => p !== undefined);
+                                                const minPrice = Math.min(...prices);
+                                                const maxPrice = Math.max(...prices);
+                                            %>
+                                            <% if (minPrice === maxPrice) { %>
+                                                <span class="text-success fw-semibold"><%= minPrice.toLocaleString() %></span>
                                             <% } else { %>
-                                                <span class="text-muted">Không có thuộc tính</span>
+                                                <div class="d-flex align-items-center">
+                                                    <span class="text-success fw-semibold"><%= minPrice.toLocaleString() %></span>
+                                                    <i class="fas fa-arrow-right mx-2 text-muted small"></i>
+                                                    <span class="text-danger fw-semibold"><%= maxPrice.toLocaleString() %></span>
+                                                </div>
                                             <% } %>
-                                        </td>
-                                    </tr>
-                                <% } %>
-                            <% }); %>
-                        </tbody>
-                    </table>
+                                        <% } else { %>
+                                            <span class="text-success fw-semibold"><%= product.price?.toLocaleString() || 'N/A' %></span>
+                                        <% } %>
+                                    </td>
+                                    <td class="py-3 px-4">
+                                        <% if (product.hasVariants && product.detailsVariants?.length > 0) { %>
+                                            <% 
+                                                const inventories = product.detailsVariants.map(v => v.inventory).filter(i => i !== undefined);
+                                                const totalInventory = inventories.reduce((sum, curr) => sum + curr, 0);
+                                                const minInventory = Math.min(...inventories);
+                                                const maxInventory = Math.max(...inventories);
+                                            %>
+                                            <div>
+                                                <span class="fw-semibold"><%= totalInventory %></span>
+                                                <div class="small text-muted">
+                                                    (<span class="text-success"><%= minInventory %></span>
+                                                    <i class="fas fa-arrow-right mx-1"></i>
+                                                    <span class="text-danger"><%= maxInventory %></span>
+                                                    / biến thể)
+                                                </div>
+                                            </div>
+                                        <% } else { %>
+                                            <span class="fw-semibold"><%= product.inventory ?? 'N/A' %></span>
+                                        <% } %>
+                                    </td>
+                                    <td class="py-3 px-4" data-provider-id="<%= product.providerId?._id || '' %>">
+                                        <span class="badge bg-primary bg-opacity-10 text-primary">
+                                            <%= product.providerId?.fullName || 'Chưa có' %>
+                                        </span>
+                                    </td>
+                                    <td class="py-3 px-4">
+                                        <span class="badge bg-warning bg-opacity-10 text-warning">
+                                            <i class="fas fa-shield-alt me-1"></i>
+                                            <%= product.warrantyPeriod || 12 %> tháng
+                                        </span>
+                                    </td>
+                                    <td class="py-3 px-4">
+                                        <% if (product.hasVariants && product.detailsVariants?.length > 0) { %>
+                                            <span class="badge bg-info">
+                                                <%= product.detailsVariants.length %> biến thể
+                                            </span>
+                                        <% } else { %>
+                                            <span class="text-muted small">Không có thuộc tính</span>
+                                        <% } %>
+                                    </td>
+                                </tr>
+                            <% } %>
+                        <% }); %>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            <div class="d-flex justify-content-between align-items-center p-3 border-top">
+                <div class="d-flex align-items-center">
+                    <label class="text-muted me-2">Hiển thị:</label>
+                    <select class="form-select form-select-sm" id="itemsPerPage" style="width: auto;">
+                        <option value="5">5</option>
+                        <option value="10" selected>10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                    </select>
+                    <span class="text-muted ms-2">sản phẩm</span>
+                </div>
+                <nav aria-label="Product navigation">
+                    <ul class="pagination pagination-sm mb-0">
+                        <li class="page-item" id="prevPage">
+                            <a class="page-link" href="#" aria-label="Previous">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <span class="page-link" id="currentPage">1</span>
+                        </li>
+                        <li class="page-item" id="nextPage">
+                            <a class="page-link" href="#" aria-label="Next">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+                <div class="text-muted">
+                    Tổng số: <span class="fw-semibold" id="totalItems">0</span> sản phẩm
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Modal thêm sản phẩm -->
-        <div class="modal fade" id="addProductModal" tabindex="-1" aria-labelledby="addProductModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header bg-primary text-white">
-                        <h5 class="modal-title" id="addProductModalLabel">Thêm sản phẩm mới</h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <form id="addProductForm" enctype="multipart/form-data">
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="name" class="form-label fw-bold">Tên sản phẩm</label>
-                                    <input type="text" class="form-control" id="name" name="name" placeholder="Nhập tên sản phẩm" required>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="thumbnail" class="form-label fw-bold">Chọn ảnh</label>
-                                    <input type="file" class="form-control" id="thumbnail" name="thumbnail" accept="image/*">
-                                    <img id="thumbnailPreview" src="#" alt="Xem trước ảnh" style="display: none; width: 100px; height: 100px; object-fit: cover; margin-top: 10px;">
-                                </div>
+    <!-- Modal thêm sản phẩm -->
+    <div class="modal fade" id="addProductModal" tabindex="-1" aria-labelledby="addProductModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="addProductModalLabel">Thêm sản phẩm mới</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addProductForm" enctype="multipart/form-data">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="name" class="form-label fw-bold">Tên sản phẩm</label>
+                                <input type="text" class="form-control" id="name" name="name" placeholder="Nhập tên sản phẩm" required>
                             </div>
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="category" class="form-label fw-bold">Danh mục</label>
-                                    <select class="form-control" id="category" name="category" required>
-                                        <option value="">Chọn danh mục</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="providerId" class="form-label fw-bold">Nhà cung cấp</label>
-                                    <select class="form-control" id="providerId" name="providerId" required>
-                                        <option value="">Chọn nhà cung cấp</option>
-                                    </select>
-                                </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="thumbnail" class="form-label fw-bold">Chọn ảnh</label>
+                                <input type="file" class="form-control" id="thumbnail" name="thumbnail" accept="image/*">
+                                <img id="thumbnailPreview" src="#" alt="Xem trước ảnh" style="display: none; width: 100px; height: 100px; object-fit: cover; margin-top: 10px;">
                             </div>
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="status" class="form-label fw-bold">Trạng thái</label>
-                                    <select class="form-control" id="status" name="status" required>
-                                        <option value="available">Có sẵn</option>
-                                        <option value="unavailable">Hết hàng</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="warrantyPeriod" class="form-label fw-bold">Thời gian bảo hành (tháng)</label>
-                                    <input type="number" class="form-control" id="warrantyPeriod" name="warrantyPeriod" 
-                                           value="12" min="1" required>
-                                    <small class="text-muted">Mặc định là 12 tháng nếu không nhập</small>
-                                </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="category" class="form-label fw-bold">Danh mục</label>
+                                <select class="form-control" id="category" name="category" required>
+                                    <option value="">Chọn danh mục</option>
+                                </select>
                             </div>
-                            <div class="row">
-                                <div class="col-md-12 mb-3" id="priceInventoryFields">
-                                    <label for="price" class="form-label fw-bold">Giá (VNĐ)</label>
-                                    <input type="number" class="form-control" id="price" name="price" min="0" placeholder="Nhập giá" required>
-                                    <label for="inventory" class="form-label fw-bold mt-2">Tồn kho</label>
-                                    <input type="number" class="form-control" id="inventory" name="inventory" min="0" placeholder="Nhập số lượng" required>
-                                </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="providerId" class="form-label fw-bold">Nhà cung cấp</label>
+                                <select class="form-control" id="providerId" name="providerId" required>
+                                    <option value="">Chọn nhà cung cấp</option>
+                                </select>
                             </div>
-                            <div class="row">
-                                <div class="col-md-12 mb-3">
-                                    <label class="form-label fw-bold">Thuộc tính</label>
-                                    <input type="hidden" id="variantDetails" name="variantDetails">
-                                    <button type="button" class="btn btn-outline-secondary w-100" onclick="event.stopPropagation(); openVariantsPage(false)">
-                                        <i class="fas fa-list me-2"></i>Chọn thuộc tính
-                                    </button>
-                                    <div id="selectedVariantDisplay" class="mt-2 text-muted" style="display: none;"></div>
-                                </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="status" class="form-label fw-bold">Trạng thái</label>
+                                <select class="form-control" id="status" name="status" required>
+                                    <option value="available">Có sẵn</option>
+                                    <option value="unavailable">Hết hàng</option>
+                                </select>
                             </div>
-                            <button type="submit" class="btn btn-primary w-100 mt-3 shadow-sm">Thêm sản phẩm</button>
-                        </form>
-                    </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="warrantyPeriod" class="form-label fw-bold">Thời gian bảo hành (tháng)</label>
+                                <input type="number" class="form-control" id="warrantyPeriod" name="warrantyPeriod" 
+                                       value="12" min="1" required>
+                                <small class="text-muted">Mặc định là 12 tháng nếu không nhập</small>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-12 mb-3" id="priceInventoryFields">
+                                <label for="price" class="form-label fw-bold">Giá (VNĐ)</label>
+                                <input type="number" class="form-control" id="price" name="price" min="0" placeholder="Nhập giá" required>
+                                <label for="inventory" class="form-label fw-bold mt-2">Tồn kho</label>
+                                <input type="number" class="form-control" id="inventory" name="inventory" min="0" placeholder="Nhập số lượng" required>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label fw-bold">Thuộc tính</label>
+                                <input type="hidden" id="variantDetails" name="variantDetails">
+                                <button type="button" class="btn btn-outline-secondary w-100" onclick="event.stopPropagation(); openVariantsPage(false)">
+                                    <i class="fas fa-list me-2"></i>Chọn thuộc tính
+                                </button>
+                                <div id="selectedVariantDisplay" class="mt-2 text-muted" style="display: none;"></div>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 mt-3 shadow-sm">Thêm sản phẩm</button>
+                    </form>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Modal chỉnh sửa sản phẩm -->
-        <div class="modal fade" id="editProductModal" tabindex="-1" aria-labelledby="editProductModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header bg-warning text-dark">
-                        <h5 class="modal-title" id="editProductModalLabel">Sửa sản phẩm</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <form id="editProductForm" enctype="multipart/form-data">
-                            <input type="hidden" id="editProductId" name="id">
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="editName" class="form-label fw-bold">Tên sản phẩm</label>
-                                    <input type="text" class="form-control" id="editName" name="name" required>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="editThumbnail" class="form-label fw-bold">Chọn ảnh</label>
-                                    <input type="file" class="form-control" id="editThumbnail" name="thumbnail" accept="image/*">
-                                    <img id="editThumbnailPreview" src="#" alt="Xem trước ảnh" style="display: none; width: 100px; height: 100px; object-fit: cover; margin-top: 10px;">
-                                </div>
+    <!-- Modal chỉnh sửa sản phẩm -->
+    <div class="modal fade" id="editProductModal" tabindex="-1" aria-labelledby="editProductModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title" id="editProductModalLabel">Sửa sản phẩm</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editProductForm" enctype="multipart/form-data">
+                        <input type="hidden" id="editProductId" name="id">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="editName" class="form-label fw-bold">Tên sản phẩm</label>
+                                <input type="text" class="form-control" id="editName" name="name" required>
                             </div>
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="editCategory" class="form-label fw-bold">Danh mục</label>
-                                    <select class="form-control" id="editCategory" name="category" required>
-                                        <option value="">Chọn danh mục</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="editProviderId" class="form-label fw-bold">Nhà cung cấp</label>
-                                    <select class="form-control" id="editProviderId" name="providerId" required>
-                                        <option value="">Chọn nhà cung cấp</option>
-                                    </select>
-                                </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="editThumbnail" class="form-label fw-bold">Chọn ảnh</label>
+                                <input type="file" class="form-control" id="editThumbnail" name="thumbnail" accept="image/*">
+                                <img id="editThumbnailPreview" src="#" alt="Xem trước ảnh" style="display: none; width: 100px; height: 100px; object-fit: cover; margin-top: 10px;">
                             </div>
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="editStatus" class="form-label fw-bold">Trạng thái</label>
-                                    <select class="form-control" id="editStatus" name="status" required>
-                                        <option value="available">Có sẵn</option>
-                                        <option value="unavailable">Hết hàng</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="editWarrantyPeriod" class="form-label fw-bold">Thời gian bảo hành (tháng)</label>
-                                    <input type="number" class="form-control" id="editWarrantyPeriod" name="warrantyPeriod" 
-                                           min="1" required>
-                                    <small class="text-muted">Mặc định là 12 tháng nếu không nhập</small>
-                                </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="editCategory" class="form-label fw-bold">Danh mục</label>
+                                <select class="form-control" id="editCategory" name="category" required>
+                                    <option value="">Chọn danh mục</option>
+                                </select>
                             </div>
-                            <div class="row">
-                                <div class="col-md-12 mb-3" id="editPriceInventoryFields">
-                                    <label for="editPrice" class="form-label fw-bold">Giá (VNĐ)</label>
-                                    <input type="number" class="form-control" id="editPrice" name="price" min="0" placeholder="Nhập giá">
-                                    <label for="editInventory" class="form-label fw-bold mt-2">Tồn kho</label>
-                                    <input type="number" class="form-control" id="editInventory" name="inventory" min="0" placeholder="Nhập số lượng">
-                                </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="editProviderId" class="form-label fw-bold">Nhà cung cấp</label>
+                                <select class="form-control" id="editProviderId" name="providerId" required>
+                                    <option value="">Chọn nhà cung cấp</option>
+                                </select>
                             </div>
-                            <div class="row">
-                                <div class="col-md-12 mb-3">
-                                    <label class="form-label fw-bold">Thuộc tính</label>
-                                    <input type="hidden" id="editVariantDetails" name="variantDetails">
-                                    <button type="button" class="btn btn-outline-secondary w-100" onclick="event.stopPropagation(); openVariantsPage(true)">
-                                        <i class="fas fa-list me-2"></i>Chọn thuộc tính
-                                    </button>
-                                    <div id="editSelectedVariantDisplay" class="mt-2 text-muted" style="display: none;"></div>
-                                </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="editStatus" class="form-label fw-bold">Trạng thái</label>
+                                <select class="form-control" id="editStatus" name="status" required>
+                                    <option value="available">Có sẵn</option>
+                                    <option value="unavailable">Hết hàng</option>
+                                </select>
                             </div>
-                            <button type="submit" class="btn btn-warning w-100 mt-3 shadow-sm">Lưu thay đổi</button>
-                        </form>
-                    </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="editWarrantyPeriod" class="form-label fw-bold">Thời gian bảo hành (tháng)</label>
+                                <input type="number" class="form-control" id="editWarrantyPeriod" name="warrantyPeriod" 
+                                       min="1" required>
+                                <small class="text-muted">Mặc định là 12 tháng nếu không nhập</small>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-12 mb-3" id="editPriceInventoryFields">
+                                <label for="editPrice" class="form-label fw-bold">Giá (VNĐ)</label>
+                                <input type="number" class="form-control" id="editPrice" name="price" min="0" placeholder="Nhập giá">
+                                <label for="editInventory" class="form-label fw-bold mt-2">Tồn kho</label>
+                                <input type="number" class="form-control" id="editInventory" name="inventory" min="0" placeholder="Nhập số lượng">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label fw-bold">Thuộc tính</label>
+                                <input type="hidden" id="editVariantDetails" name="variantDetails">
+                                <button type="button" class="btn btn-outline-secondary w-100" onclick="event.stopPropagation(); openVariantsPage(true)">
+                                    <i class="fas fa-list me-2"></i>Chọn thuộc tính
+                                </button>
+                                <div id="editSelectedVariantDisplay" class="mt-2 text-muted" style="display: none;"></div>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-warning w-100 mt-3 shadow-sm">Lưu thay đổi</button>
+                    </form>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Modal nhập giá và tồn kho -->
-        <div class="modal fade" id="variantPriceModal" tabindex="-1" aria-labelledby="variantPriceModalLabel" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header bg-info text-white">
-                        <h5 class="modal-title" id="variantPriceModalLabel">Nhập giá và tồn kho</h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <form id="variantPriceForm">
-                            <div id="variantPriceRows"></div>
-                            <button type="submit" class="btn btn-info w-100 mt-3">Xác nhận</button>
-                        </form>
-                    </div>
+    <!-- Modal nhập giá và tồn kho -->
+    <div class="modal fade" id="variantPriceModal" tabindex="-1" aria-labelledby="variantPriceModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title" id="variantPriceModalLabel">Nhập giá và tồn kho</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="variantPriceForm">
+                        <div id="variantPriceRows"></div>
+                        <button type="submit" class="btn btn-info w-100 mt-3">Xác nhận</button>
+                    </form>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Modal hiển thị chi tiết sản phẩm -->
-        <div class="modal fade" id="productDetailsModal" tabindex="-1" aria-labelledby="productDetailsModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header bg-info text-white">
-                        <h5 class="modal-title" id="productDetailsModalLabel">Chi tiết sản phẩm</h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="row mb-4">
-                            <div class="col-md-4">
-                                <img id="productImage" src="#" alt="Hình ảnh sản phẩm" class="img-fluid rounded shadow" style="width: 100%; height: auto; object-fit: cover;">
+    <!-- Modal hiển thị chi tiết sản phẩm -->
+    <div class="modal fade" id="productDetailsModal" tabindex="-1" aria-labelledby="productDetailsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title" id="productDetailsModalLabel"><i class="fas fa-info-circle me-2"></i>Chi tiết sản phẩm</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="row mb-4">
+                        <div class="col-md-4 text-center">
+                            <div class="position-relative mb-3">
+                                <img id="productImage" src="#" alt="Hình ảnh sản phẩm" class="img-fluid rounded shadow-sm border" style="width: 100%; max-height: 250px; object-fit: contain;">
+                                <div id="productStatusBadge" class="position-absolute end-0 top-0 m-2"></div>
                             </div>
-                            <div class="col-md-8">
-                                <h4 id="productName" class="fw-bold mb-3"></h4>
-                                <div class="row mb-1">
-                                    <div class="col-md-4 fw-bold">Danh mục:</div>
-                                    <div class="col-md-8" id="productCategory"></div>
-                                </div>
-                                <div class="row mb-1">
-                                    <div class="col-md-4 fw-bold">Nhà cung cấp:</div>
-                                    <div class="col-md-8" id="productProvider"></div>
-                                </div>
-                                <div class="row mb-1">
-                                    <div class="col-md-4 fw-bold">Trạng thái:</div>
-                                    <div class="col-md-8" id="productStatus"></div>
-                                </div>
-                                <div class="row mb-1">
-                                    <div class="col-md-4 fw-bold">Bảo hành:</div>
-                                    <div class="col-md-8">
-                                        <span class="badge bg-warning text-dark" id="productWarranty"></span>
+                        </div>
+                        <div class="col-md-8">
+                            <h3 id="productName" class="fw-bold mb-3 border-bottom pb-2"></h3>
+                            <div class="row g-4">
+                                <div class="col-md-6">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="bg-light rounded-circle p-2 me-3 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                                            <i class="fas fa-tags text-info fa-lg"></i>
+                                        </div>
+                                        <div>
+                                            <div class="text-muted small">Danh mục</div>
+                                            <div id="productCategory" class="mt-1"></div>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="bg-light rounded-circle p-2 me-3 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                                            <i class="fas fa-building text-primary fa-lg"></i>
+                                        </div>
+                                        <div>
+                                            <div class="text-muted small">Nhà cung cấp</div>
+                                            <div id="productProvider" class="mt-1"></div>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="bg-light rounded-circle p-2 me-3 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                                            <i class="fas fa-shield-alt text-warning fa-lg"></i>
+                                        </div>
+                                        <div>
+                                            <div class="text-muted small">Bảo hành</div>
+                                            <div id="productWarranty" class="mt-1"></div>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="row mb-1" id="productBasicPriceRow">
-                                    <div class="col-md-4 fw-bold">Giá cơ bản:</div>
-                                    <div class="col-md-8" id="productPrice"></div>
-                                </div>
-                                <div class="row mb-1" id="productBasicInventoryRow">
-                                    <div class="col-md-4 fw-bold">Tồn kho:</div>
-                                    <div class="col-md-8" id="productInventory"></div>
+                                <div class="col-md-6">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="bg-light rounded-circle p-2 me-3 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                                            <i class="fas fa-dollar-sign text-success fa-lg"></i>
+                                        </div>
+                                        <div>
+                                            <div class="text-muted small">Giá</div>
+                                            <div id="productPrice" class="fw-semibold text-success mt-1"></div>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="bg-light rounded-circle p-2 me-3 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                                            <i class="fas fa-boxes text-dark fa-lg"></i>
+                                        </div>
+                                        <div>
+                                            <div class="text-muted small">Tồn kho</div>
+                                            <div id="productInventory" class="fw-semibold mt-1"></div>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="bg-light rounded-circle p-2 me-3 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                                            <i class="fas fa-toggle-on text-info fa-lg"></i>
+                                        </div>
+                                        <div>
+                                            <div class="text-muted small">Trạng thái</div>
+                                            <div id="productStatus" class="mt-1"></div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        
-                        <div id="productVariantsSection">
-                            <h5 class="fw-bold mb-3 border-bottom pb-2">Thuộc tính sản phẩm</h5>
-                            <div class="table-responsive">
-                                <table class="table table-striped table-hover">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th class="fw-bold">Tổ hợp thuộc tính</th>
-                                            <th class="fw-bold text-end">Giá (VNĐ)</th>
-                                            <th class="fw-bold text-center">Tồn kho</th>
-                                            <th class="fw-bold text-center">Trạng thái</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="productVariantsBody"></tbody>
-                                </table>
-                            </div>
+                    </div>
+                    
+                    <div id="productVariantsSection" class="mt-5">
+                        <h5 class="fw-bold mb-3 border-bottom pb-2">
+                            <i class="fas fa-cubes me-2"></i>Thuộc tính sản phẩm
+                        </h5>
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover border">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="fw-bold" style="width: 40%">Tổ hợp thuộc tính</th>
+                                        <th class="fw-bold text-end" style="width: 25%">Giá (VNĐ)</th>
+                                        <th class="fw-bold text-center" style="width: 15%">Tồn kho</th>
+                                        <th class="fw-bold text-center" style="width: 20%">Trạng thái</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="productVariantsBody"></tbody>
+                            </table>
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
-                        <button type="button" class="btn btn-warning" id="btnEditProductDetail">
-                            <i class="fas fa-edit me-1"></i> Sửa sản phẩm
-                        </button>
-                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary btn-lg" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>Đóng
+                    </button>
+                    <button type="button" class="btn btn-warning btn-lg" id="btnEditProductDetail">
+                        <i class="fas fa-edit me-1"></i>Sửa sản phẩm
+                    </button>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Toast thông báo -->
-        <div class="toast-container position-fixed bottom-0 end-0 p-3">
-            <div id="successToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
-                <div class="toast-header bg-success text-white">
-                    <strong class="me-auto">Thành công</strong>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
-                </div>
-                <div class="toast-body"></div>
+    <!-- Toast thông báo -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div id="successToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header bg-success text-white">
+                <strong class="me-auto">Thành công</strong>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
             </div>
-            <div id="errorToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
-                <div class="toast-header bg-danger text-white">
-                    <strong class="me-auto">Lỗi</strong>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
-                </div>
-                <div class="toast-body"></div>
+            <div class="toast-body"></div>
+        </div>
+        <div id="errorToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header bg-danger text-white">
+                <strong class="me-auto">Lỗi</strong>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
             </div>
+            <div class="toast-body"></div>
         </div>
     </div>
 </div>
@@ -428,6 +539,11 @@
 <script>
     let selectedVariantsData = [];
     let isEditMode = false;
+
+    // Thêm biến cho phân trang
+    let currentPageIndex = 1;
+    let itemsPerPage = 10;
+    let filteredProducts = [];
 
     // Tải danh sách dữ liệu cho select
     function loadData(url, selectElementId, fieldName, errorMessage) {
@@ -506,6 +622,7 @@
         previewImage('#thumbnail', '#thumbnailPreview');
         previewImage('#editThumbnail', '#editThumbnailPreview');
         console.log('Trang sản phẩm đã tải xong');
+        updateProductDisplay();
     });
 
     // Mở trang biến thể
@@ -531,115 +648,183 @@
     // Hiển thị chi tiết sản phẩm
     function showProductDetails(productId) {
         if (!productId || !/^[0-9a-fA-F]{24}$/.test(productId)) {
-            console.log('ID sản phẩm không hợp lệ:', productId);
             showToast('error', 'ID sản phẩm không hợp lệ!');
             return;
         }
         
-        console.log('Gọi chi tiết sản phẩm với ID:', productId);
-        
         $.ajax({
             url: `/products/${productId}`,
             type: 'GET',
-            dataType: 'json',
             success: function(response) {
                 if (response.status === 'Ok') {
                     const product = response.data;
-                    console.log('Dữ liệu sản phẩm nhận được:', product);
                     
                     // Cập nhật thông tin cơ bản
                     $('#productImage').attr('src', product.thumbnail || 'https://via.placeholder.com/100');
                     $('#productName').text(product.name || 'N/A');
-                    $('#productCategory').text(product.category?.name || 'Chưa có');
-                    $('#productProvider').text(product.providerId?.fullName || 'Chưa có');
+                    
+                    // Hiển thị danh mục
+                    $('#productCategory').html(`
+                        <span class="badge bg-info bg-opacity-10 text-info px-3 py-2 rounded-pill">
+                            <i class="fas fa-tag me-1"></i>${product.category?.name || 'Chưa có'}
+                        </span>
+                    `);
+                    
+                    // Hiển thị nhà cung cấp
+                    $('#productProvider').html(`
+                        <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill">
+                            <i class="fas fa-industry me-1"></i>${product.providerId?.fullName || 'Chưa có'}
+                        </span>
+                    `);
                     
                     // Cập nhật thông tin bảo hành
                     const warrantyPeriod = product.warrantyPeriod || 12;
                     $('#productWarranty').html(`
-                        <i class="fas fa-shield-alt me-1"></i>
-                        ${warrantyPeriod} tháng
+                        <span class="badge bg-warning bg-opacity-10 text-warning px-3 py-2 rounded-pill">
+                            <i class="fas fa-shield-alt me-1"></i>${warrantyPeriod} tháng
+                        </span>
                     `);
                     
-                    // Cập nhật trạng thái với icon và màu sắc
-                    if (product.status === 'available') {
-                        $('#productStatus').html('<span class="badge bg-success rounded-pill"><i class="fas fa-check-circle me-1"></i> Có sẵn</span>');
+                    // Cập nhật trạng thái
+                    const isAvailable = product.status === 'available';
+                    const statusClass = isAvailable ? 'success' : 'danger';
+                    const statusIcon = isAvailable ? 'check-circle' : 'times-circle';
+                    const statusText = isAvailable ? 'Có sẵn' : 'Hết hàng';
+                    
+                    // Badge nhỏ trên ảnh sản phẩm
+                    $('#productStatusBadge').html(`
+                        <span class="badge bg-${statusClass} rounded-pill shadow-sm">
+                            <i class="fas fa-${statusIcon} me-1"></i>${statusText}
+                        </span>
+                    `);
+                    
+                    // Badge lớn trong phần thông tin
+                    $('#productStatus').html(`
+                        <span class="badge bg-${statusClass}-subtle text-${statusClass} px-3 py-2 rounded-pill">
+                            <i class="fas fa-${statusIcon} me-1"></i>${statusText}
+                        </span>
+                    `);
+                    
+                    // Hiển thị giá và tồn kho
+                    if (product.hasVariants && product.detailsVariants?.length > 0) {
+                        // Tính giá từ biến thể
+                        const prices = product.detailsVariants.map(v => v.price).filter(p => p !== undefined);
+                        
+                        if (prices.length > 0) {
+                            const minPrice = Math.min(...prices);
+                            const maxPrice = Math.max(...prices);
+                            
+                            if (minPrice === maxPrice) {
+                                $('#productPrice').html(`
+                                    <span class="badge bg-success bg-opacity-10 text-success px-3 py-2 rounded-pill">
+                                        <i class="fas fa-tag me-1"></i>${minPrice.toLocaleString()} VNĐ
+                                    </span>
+                                `);
+                            } else {
+                                $('#productPrice').html(`
+                                    <div class="d-flex align-items-center">
+                                        <span class="badge bg-success bg-opacity-10 text-success px-3 py-2 rounded-pill">
+                                            <i class="fas fa-tag me-1"></i>${minPrice.toLocaleString()} VNĐ
+                                        </span>
+                                        <i class="fas fa-arrow-right mx-2 text-muted"></i>
+                                        <span class="badge bg-danger bg-opacity-10 text-danger px-3 py-2 rounded-pill">
+                                            <i class="fas fa-tag me-1"></i>${maxPrice.toLocaleString()} VNĐ
+                                        </span>
+                                    </div>
+                                `);
+                            }
+                        } else {
+                            $('#productPrice').html(`
+                                <span class="badge bg-secondary bg-opacity-10 text-secondary px-3 py-2 rounded-pill">
+                                    <i class="fas fa-tag me-1"></i>0 VNĐ
+                                </span>
+                            `);
+                        }
+                        
+                        // Tính tồn kho từ biến thể
+                        const inventories = product.detailsVariants.map(v => v.inventory).filter(i => i !== undefined);
+                        const totalInventory = inventories.length > 0 ? inventories.reduce((sum, curr) => sum + curr, 0) : 0;
+                        
+                        $('#productInventory').html(`
+                            <span class="badge bg-dark bg-opacity-10 text-dark px-3 py-2 rounded-pill">
+                                <i class="fas fa-boxes me-1"></i>${totalInventory} <small class="text-muted">(tổng ${inventories.length} biến thể)</small>
+                            </span>
+                        `);
                     } else {
-                        $('#productStatus').html('<span class="badge bg-danger rounded-pill"><i class="fas fa-times-circle me-1"></i> Hết hàng</span>');
+                        // Hiển thị giá và tồn kho cơ bản
+                        const price = product.price || 0;
+                        $('#productPrice').html(`
+                            <span class="badge bg-success bg-opacity-10 text-success px-3 py-2 rounded-pill">
+                                <i class="fas fa-tag me-1"></i>${price.toLocaleString()} VNĐ
+                            </span>
+                        `);
+                        
+                        const inventory = product.inventory || 0;
+                        $('#productInventory').html(`
+                            <span class="badge bg-dark bg-opacity-10 text-dark px-3 py-2 rounded-pill">
+                                <i class="fas fa-boxes me-1"></i>${inventory}
+                            </span>
+                        `);
                     }
                     
                     // Xử lý hiển thị biến thể
-                    const variants = product.detailsVariants || [];
-                    const hasVariants = product.hasVariants && variants.length > 0;
-                    
-                    // Hiển thị/ẩn giá và tồn kho cơ bản
-                    $('#productBasicPriceRow, #productBasicInventoryRow').toggle(!hasVariants);
+                    const hasVariants = product.hasVariants && product.detailsVariants?.length > 0;
                     $('#productVariantsSection').toggle(hasVariants);
                     
-                    if (!hasVariants) {
-                        $('#productPrice').text(`${(product.price || 0).toLocaleString()} VNĐ`);
-                        $('#productInventory').text(product.inventory ?? 'N/A');
-                    }
-                    
-                    if (hasVariants) {
-                        // Kiểm tra cấu trúc dữ liệu detailsVariants
-                        console.log('Chi tiết biến thể:', variants);
-                        
+                    if (hasVariants && product.detailsVariants) {
                         $('#productVariantsBody').empty();
                         
-                        variants.forEach(variant => {
-                            try {
-                                // Kiểm tra xem variant có variantDetails không
-                                if (!variant.variantDetails || !Array.isArray(variant.variantDetails)) {
-                                    console.warn('Variant không có variantDetails hợp lệ:', variant);
-                                    return;
-                                }
-                                
-                                const variantDetailsContent = [];
-                                
-                                // Xử lý hiển thị từng chi tiết biến thể
-                                variant.variantDetails.forEach(detail => {
-                                    let variantName = '';
-                                    let variantValue = '';
-                                    
-                                    if (detail.variantId && typeof detail.variantId === 'object') {
-                                        variantName = detail.variantId.name || 'N/A';
-                                    } else {
-                                        variantName = 'N/A';
-                                    }
-                                    
-                                    variantValue = detail.value || 'N/A';
-                                    
-                                    variantDetailsContent.push(`<strong>${variantName}:</strong> ${variantValue}`);
-                                });
-                                
-                                const variantText = variantDetailsContent.join(', ');
-                                const inventoryStatus = variant.inventory > 0 
-                                    ? `<span class="badge bg-success rounded-pill">Còn hàng</span>` 
-                                    : `<span class="badge bg-danger rounded-pill">Hết hàng</span>`;
-                                
+                        product.detailsVariants.forEach(variant => {
+                            if (!variant.variantDetails) return;
+                            
+                            const variantDetails = variant.variantDetails.map(detail => {
+                                const variantName = detail.variantId?.name || '';
+                                const variantValue = detail.value || '';
+                                return `<strong>${variantName}:</strong> ${variantValue}`;
+                            }).filter(detail => detail.trim() !== '<strong>:</strong> ' && detail.trim() !== '').join(', ');
+                            
+                            const hasInventory = variant.inventory > 0;
+                            const inventoryStatus = hasInventory
+                                ? `<span class="badge bg-success-subtle text-success px-2 py-1 rounded-pill">
+                                    <i class="fas fa-check-circle me-1"></i>Còn hàng
+                                  </span>`
+                                : `<span class="badge bg-danger-subtle text-danger px-2 py-1 rounded-pill">
+                                    <i class="fas fa-times-circle me-1"></i>Hết hàng
+                                  </span>`;
+                            
+                            // Chỉ hiển thị biến thể nếu có thông tin hợp lệ
+                            if (variantDetails) {
                                 const row = `
                                     <tr>
-                                        <td>${variantText}</td>
-                                        <td class="text-end fw-bold">${(variant.price || 0).toLocaleString()} VNĐ</td>
-                                        <td class="text-center">${variant.inventory ?? 0}</td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <i class="fas fa-cube text-primary me-2"></i>
+                                                ${variantDetails}
+                                            </div>
+                                        </td>
+                                        <td class="text-end fw-semibold text-success">${(variant.price || 0).toLocaleString()} VNĐ</td>
+                                        <td class="text-center fw-semibold">${variant.inventory ?? 0}</td>
                                         <td class="text-center">${inventoryStatus}</td>
-                                    </tr>`;
-                                    
+                                    </tr>
+                                `;
+                                
                                 $('#productVariantsBody').append(row);
-                            } catch (error) {
-                                console.error('Lỗi khi hiển thị biến thể:', error, variant);
                             }
                         });
                         
-                        // Nếu không có dữ liệu hiển thị
                         if ($('#productVariantsBody').children().length === 0) {
-                            $('#productVariantsBody').html('<tr><td colspan="4" class="text-center">Không có dữ liệu biến thể</td></tr>');
+                            $('#productVariantsBody').html(`
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-4">
+                                        <i class="fas fa-info-circle fa-2x mb-2 d-block"></i>
+                                        Không có dữ liệu biến thể
+                                    </td>
+                                </tr>
+                            `);
                         }
-                    } else {
-                        $('#productVariantsBody').html('<tr><td colspan="4" class="text-center">Sản phẩm không có biến thể</td></tr>');
                     }
                     
-                    // Khi nhấn nút sửa
+                    // Xử lý nút sửa sản phẩm
                     $('#btnEditProductDetail').off('click').on('click', function() {
                         $('#productDetailsModal').modal('hide');
                         editProduct(productId);
@@ -652,7 +837,6 @@
                 }
             },
             error: function(xhr) {
-                console.error('Lỗi khi gọi API:', xhr);
                 showToast('error', `Lỗi khi lấy chi tiết sản phẩm: ${xhr.responseJSON?.message || 'Vui lòng thử lại!'}`);
             }
         });
@@ -808,7 +992,70 @@
         }
     });
 
-    // Filter functionality
+    // Hàm cập nhật danh sách sản phẩm hiển thị
+    function updateProductDisplay() {
+        // Lấy tất cả các hàng sản phẩm
+        const rows = $('tbody tr');
+        filteredProducts = [];
+        
+        // Lọc các sản phẩm dựa trên bộ lọc hiện tại
+        rows.each(function() {
+            const row = $(this);
+            const isVisible = row.css('display') !== 'none';
+            if (isVisible) {
+                filteredProducts.push(row);
+            }
+        });
+
+        // Cập nhật tổng số sản phẩm
+        $('#totalItems').text(filteredProducts.length);
+
+        // Tính toán số trang
+        const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+        
+        // Ẩn tất cả các hàng
+        rows.hide();
+        
+        // Hiển thị các hàng của trang hiện tại
+        const start = (currentPageIndex - 1) * itemsPerPage;
+        const end = Math.min(start + itemsPerPage, filteredProducts.length);
+        
+        for (let i = start; i < end; i++) {
+            $(filteredProducts[i]).show();
+        }
+
+        // Cập nhật trạng thái nút phân trang
+        $('#prevPage').toggleClass('disabled', currentPageIndex === 1);
+        $('#nextPage').toggleClass('disabled', currentPageIndex === totalPages || totalPages === 0);
+        $('#currentPage').text(currentPageIndex);
+    }
+
+    // Xử lý sự kiện thay đổi số sản phẩm trên trang
+    $('#itemsPerPage').change(function() {
+        itemsPerPage = parseInt($(this).val());
+        currentPageIndex = 1;
+        updateProductDisplay();
+    });
+
+    // Xử lý sự kiện chuyển trang
+    $('#prevPage').click(function(e) {
+        e.preventDefault();
+        if (currentPageIndex > 1) {
+            currentPageIndex--;
+            updateProductDisplay();
+        }
+    });
+
+    $('#nextPage').click(function(e) {
+        e.preventDefault();
+        const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+        if (currentPageIndex < totalPages) {
+            currentPageIndex++;
+            updateProductDisplay();
+        }
+    });
+
+    // Cập nhật hàm applyFilter để tích hợp với phân trang
     $('#applyFilter').click(function () {
         const providerId = $('#providerFilter').val();
         const categoryId = $('#categoryFilter').val();
@@ -835,24 +1082,111 @@
                 row.hide();
             }
         });
+
+        // Reset về trang đầu tiên sau khi lọc
+        currentPageIndex = 1;
+        updateProductDisplay();
     });
 
-    // Reset filter functionality
+    // Cập nhật hàm resetFilter để tích hợp với phân trang
     $('#resetFilter').click(function () {
         $('#providerFilter').val('');
         $('#categoryFilter').val('');
         $('#statusFilter').val('');
         $('#searchInput').val('');
         $('tbody tr').show();
+        currentPageIndex = 1;
+        updateProductDisplay();
     });
 
-    // Apply filter on search input change
+    // Cập nhật khi tìm kiếm
     $('#searchInput').on('input', function() {
         $('#applyFilter').click();
     });
 
-    // Apply filter on select change
+    // Cập nhật khi thay đổi bộ lọc
     $('#providerFilter, #categoryFilter, #statusFilter').change(function() {
         $('#applyFilter').click();
     });
 </script>
+
+<style>
+.form-control:focus, .form-select:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.1);
+}
+
+.input-group-text {
+    border-right: none;
+}
+
+.input-group .form-control:focus + .input-group-text,
+.input-group .form-select:focus + .input-group-text {
+    border-color: #86b7fe;
+}
+
+.btn {
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+}
+
+.breadcrumb-item + .breadcrumb-item::before {
+    content: "›";
+}
+
+.card {
+    border: none;
+    border-radius: 10px;
+}
+
+.product-row {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.product-row:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+    transform: translateY(-1px);
+}
+
+.badge {
+    font-weight: 500;
+    padding: 0.5em 0.75em;
+}
+
+.table > :not(caption) > * > * {
+    padding: 1rem;
+}
+
+.pagination .page-link {
+    border-radius: 4px;
+    margin: 0 2px;
+}
+
+.pagination .page-link:focus {
+    box-shadow: none;
+}
+
+.table thead th {
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+}
+
+.bg-success-subtle {
+    background-color: rgba(25, 135, 84, 0.1) !important;
+}
+
+.bg-danger-subtle {
+    background-color: rgba(220, 53, 69, 0.1) !important;
+}
+
+.bg-warning-subtle {
+    background-color: rgba(255, 193, 7, 0.1) !important;
+}
+
+.bg-info-subtle {
+    background-color: rgba(13, 202, 240, 0.1) !important;
+}
+</style>
