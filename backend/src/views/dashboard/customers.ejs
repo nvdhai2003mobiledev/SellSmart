@@ -1,6 +1,11 @@
 <%- include('../layouts/main.ejs') %>
 <div class="main-content">
-    <h1 class="text-center mb-4">Danh sách khách hàng</h1>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">Danh sách khách hàng</h1>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
+            <i class="fas fa-plus-circle me-2"></i>Thêm khách hàng mới
+        </button>
+    </div>
 
     <style>
         .card {
@@ -21,128 +26,190 @@
         }
     </style>
     
-
-
-
-
-    <!-- Thêm khách hàng -->
-    <div class="mb-4">
-        <h3>Thêm khách hàng mới</h3>
-        <form id="addCustomerForm" action="/customers" method="POST">
-
-            <div class="mb-3">
-                <label class="form-label">Họ tên</label>
-                <input type="text" class="form-control" name="fullName" required>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Số điện thoại</label>
-                <input type="text" class="form-control" name="phoneNumber" required>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Email</label>
-                <input type="email" class="form-control" name="email" required>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Địa chỉ</label>
-                <input type="text" class="form-control" name="address">
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Ngày sinh</label>
-                <input type="date" class="form-control" name="birthDate">
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Avatar (URL)</label>
-                <input type="text" class="form-control" name="avatar">
-            </div>
-            <button type="submit" class="btn btn-primary">Thêm khách hàng</button>
-        </form>
+    <!-- Tìm kiếm khách hàng -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form id="searchForm" class="row g-3">
+                <div class="col-md-10">
+                    <label for="phoneSearch" class="form-label text-muted small">Tìm kiếm</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0">
+                            <i class="fas fa-search text-muted"></i>
+                        </span>
+                        <input type="text" id="phoneSearch" class="form-control border-start-0" placeholder="Tìm kiếm theo số điện thoại, tên, email...">
+                    </div>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="button" class="btn btn-primary w-100" id="applyFilter">
+                        <i class="fas fa-filter me-2"></i>Lọc
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
-
-<!-- Tìm kiếm khách hàng -->
-<div class="container mt-4">
-    <input type="text" id="phoneSearch" class="form-control mb-4" placeholder="Tìm kiếm theo số điện thoại"
-    style="border-radius: 8px; border: 2px solid #ccc; padding: 10px; font-size: 16px;">
-    <div id="searchResults"></div>
-</div>
 
     <!-- Danh sách khách hàng -->
-    <div>
-        <table class="table table-bordered">
-            <thead>
-            <tr>
-                <th>ID</th>
-                <th>Họ Tên</th>
-                <th>Số Điện Thoại</th>
-                <th>Email</th>
-                <th>Địa Chỉ</th>
-                <th>Ngày Sinh</th>
-                <th>Avatar</th>
-                <th>Hành động</th>
-            </tr>
-            </thead>
-            <tbody id="customerTableBody">
-            <% customers.forEach(function(customer) { %>
-                <tr>
-                    <td><%= customer._id %></td>
-                    <td><%= customer.fullName %></td>
-                    <td><%= customer.phoneNumber %></td>
-                    <td><%= customer.email %></td>
-                    <td><%= customer.address %></td>
-                            <td>
-                <% if (customer.birthDate && customer.birthDate.getTime() > 0) { %>
-                    <%= new Date(customer.birthDate).toLocaleDateString() %>
-                <% } else { %>
-                    Chưa cập nhật
-                <% } %>
-                </td>
-                    <td>
-                        <% if (customer.avatar) { %>
-                            <img src="<%= customer.avatar %>" alt="Avatar" width="50">
-                        <% } else { %>
-                            Chưa có
-                        <% } %>
-                    </td>
-
-                    <td>
-                        <button class="btn btn-warning btn-sm"
-                                onclick="editCustomer('<%= customer._id %>', '<%= customer.fullName %>', '<%= customer.phoneNumber %>', '<%= customer.email %>', '<%= customer.address %>', '<%= customer.birthDate ? (typeof customer.birthDate.toISOString === 'function' ? customer.birthDate.toISOString().split('T')[0] : customer.birthDate) : '' %>', '<%= customer.avatar %>')">
-                            Sửa
-                        </button>
-                        <button onclick="deleteCustomer('<%= customer._id %>')" class="btn btn-danger btn-sm">Xóa
-                        </button>
-                    </td>
-                </tr>
-            <% }); %>
-            </tbody>
-        </table>
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="py-3 px-4">Họ Tên</th>
+                            <th class="py-3 px-4">Số Điện Thoại</th>
+                            <th class="py-3 px-4">Email</th>
+                            <th class="py-3 px-4">Địa Chỉ</th>
+                            <th class="py-3 px-4">Ngày Sinh</th>
+                            <th class="py-3 px-4">Avatar</th>
+                            <th class="py-3 px-4 text-center">Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody id="customerTableBody">
+                    <% customers.forEach(function(customer) { %>
+                        <tr>
+                            <td class="py-3 px-4"><div class="fw-semibold text-dark"><%= customer.fullName %></div></td>
+                            <td class="py-3 px-4"><%= customer.phoneNumber %></td>
+                            <td class="py-3 px-4"><%= customer.email %></td>
+                            <td class="py-3 px-4"><%= customer.address %></td>
+                            <td class="py-3 px-4">
+                                <% if (customer.birthDate && customer.birthDate.getTime() > 0) { %>
+                                    <%= new Date(customer.birthDate).toLocaleDateString() %>
+                                <% } else { %>
+                                    Chưa cập nhật
+                                <% } %>
+                            </td>
+                            <td class="py-3 px-4">
+                                <% if (customer.avatar) { %>
+                                    <img src="<%= customer.avatar %>" alt="Avatar" width="40" height="40" class="rounded-circle">
+                                <% } else { %>
+                                    <div class="avatar-sm bg-light d-flex align-items-center justify-content-center rounded-circle" style="width: 40px; height: 40px;">
+                                        <i class="fas fa-user text-secondary"></i>
+                                    </div>
+                                <% } %>
+                            </td>
+                            <td class="py-3 px-4 text-center">
+                                <button class="btn btn-sm btn-info me-2 edit-customer-btn" 
+                                        data-id="<%= customer._id %>"
+                                        data-fullname="<%= customer.fullName %>"
+                                        data-phone="<%= customer.phoneNumber %>"
+                                        data-email="<%= customer.email %>"
+                                        data-address="<%= customer.address || '' %>"
+                                        data-birthdate="<%= customer.birthDate ? (typeof customer.birthDate.toISOString === 'function' ? customer.birthDate.toISOString().split('T')[0] : customer.birthDate) : '' %>"
+                                        data-avatar="<%= customer.avatar || '' %>">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-sm btn-danger delete-customer-btn" data-id="<%= customer._id %>">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    <% }); %>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            <div class="d-flex justify-content-between align-items-center p-3 border-top">
+                <div class="d-flex align-items-center">
+                    <label class="text-muted me-2">Hiển thị:</label>
+                    <select class="form-select form-select-sm" id="itemsPerPage" style="width: auto;">
+                        <option value="5">5</option>
+                        <option value="10" selected>10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                    </select>
+                    <span class="text-muted ms-2">khách hàng</span>
+                </div>
+                <nav aria-label="Customer navigation">
+                    <ul class="pagination pagination-sm mb-0">
+                        <li class="page-item" id="prevPage">
+                            <a class="page-link" href="#" aria-label="Previous">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <span class="page-link" id="currentPage">1</span>
+                        </li>
+                        <li class="page-item" id="nextPage">
+                            <a class="page-link" href="#" aria-label="Next">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+                <div class="text-muted">
+                    Tổng số: <span class="fw-semibold" id="totalItems">0</span> khách hàng
+                </div>
+            </div>
+        </div>
     </div>
-
 </div>
 
+<!-- Modal thêm khách hàng -->
+<div class="modal fade" id="addCustomerModal" tabindex="-1" aria-labelledby="addCustomerModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="addCustomerModalLabel"><i class="fas fa-user-plus me-2"></i>Thêm khách hàng mới</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addCustomerForm" action="/customers" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label">Họ tên <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="fullName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Số điện thoại <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="phoneNumber" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email <span class="text-danger">*</span></label>
+                        <input type="email" class="form-control" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Địa chỉ</label>
+                        <input type="text" class="form-control" name="address">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ngày sinh</label>
+                        <input type="date" class="form-control" name="birthDate">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Avatar (URL)</label>
+                        <input type="text" class="form-control" name="avatar">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" id="saveCustomer">Lưu khách hàng</button>
+            </div>
+        </div>
+    </div>
+</div>
 
-
-
-<!-- Form chỉnh sửa khách hàng (ẩn ban đầu) -->
+<!-- Form chỉnh sửa khách hàng -->
 <div id="editCustomerModal" class="modal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Chỉnh sửa khách hàng</h5>
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title"><i class="fas fa-user-edit me-2"></i>Chỉnh sửa khách hàng</h5>
                 <button type="button" class="btn-close" onclick="closeEditModal()"></button>
             </div>
             <div class="modal-body">
                 <form id="editCustomerForm">
                     <input type="hidden" id="editCustomerId">
                     <div class="mb-3">
-                        <label class="form-label">Họ tên</label>
+                        <label class="form-label">Họ tên <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="editFullName" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Số điện thoại</label>
+                        <label class="form-label">Số điện thoại <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="editPhoneNumber" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Email</label>
+                        <label class="form-label">Email <span class="text-danger">*</span></label>
                         <input type="email" class="form-control" id="editEmail" required>
                     </div>
                     <div class="mb-3">
@@ -157,70 +224,91 @@
                         <label class="form-label">Avatar (URL)</label>
                         <input type="text" class="form-control" id="editAvatar">
                     </div>
-                    <button type="button" class="btn btn-primary" onclick="updateCustomer()">Lưu</button>
                 </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Hủy</button>
+                <button type="button" class="btn btn-warning" onclick="updateCustomer()">Lưu thay đổi</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- JavaScript Validation -->
+<!-- Confirm Delete Modal -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="fas fa-exclamation-triangle me-2"></i>Xác nhận xóa</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Bạn có chắc chắn muốn xóa khách hàng này không?
+                <input type="hidden" id="deleteCustomerId">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Xác nhận xóa</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
- document.getElementById("addCustomerForm").addEventListener("submit", async function (event) {
-    event.preventDefault(); // Ngăn chặn submit mặc định
+    // Pagination variables
+    let currentPageIndex = 1;
+    let itemsPerPage = 10;
+    let filteredCustomers = [];
+    
+    // Save customer (from modal)
+    document.getElementById("saveCustomer").addEventListener("click", async function () {
+        const form = document.getElementById("addCustomerForm");
+        
+        let fullName = form.querySelector("input[name='fullName']").value.trim();
+        let phoneNumber = form.querySelector("input[name='phoneNumber']").value.trim();
+        let email = form.querySelector("input[name='email']").value.trim();
+        let birthDate = form.querySelector("input[name='birthDate']").value.trim();
+        let address = form.querySelector("input[name='address']").value.trim();
+        let avatar = form.querySelector("input[name='avatar']").value.trim();
 
-    let fullName = document.querySelector("input[name='fullName']").value.trim();
-    let phoneNumber = document.querySelector("input[name='phoneNumber']").value.trim();
-    let email = document.querySelector("input[name='email']").value.trim();
-    let birthDate = document.querySelector("input[name='birthDate']").value.trim();
-    let address = document.querySelector("input[name='address']").value.trim();
-    let avatar = document.querySelector("input[name='avatar']").value.trim();
+        let phoneRegex = /^[0-9]{10}$/;
+        let emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        let urlRegex = /^(https?:\/\/.*\.(?:png|jpg|jpeg|gif|webp))$/i;
 
-    let phoneRegex = /^[0-9]{10}$/;
-    let emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    let dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    let urlRegex = /^(https?:\/\/.*\.(?:png|jpg|jpeg|gif|webp))$/i;
+        if (!fullName || fullName.length < 3) {
+            alert("Họ tên phải có ít nhất 3 ký tự!");
+            return;
+        }
 
-    if (!fullName || fullName.length < 3) {
-        alert("Họ tên phải có ít nhất 3 ký tự!");
-        return;
-    }
+        if (!phoneRegex.test(phoneNumber)) {
+            alert("Số điện thoại không hợp lệ! Phải có đúng 10 chữ số.");
+            return;
+        }
 
-    if (!phoneRegex.test(phoneNumber)) {
-        alert("Số điện thoại không hợp lệ! Phải có đúng 10 chữ số.");
-        return;
-    }
+        if (!emailRegex.test(email)) {
+            alert("Email không hợp lệ!");
+            return;
+        }
 
-    if (!emailRegex.test(email)) {
-        alert("Email không hợp lệ!");
-        return;
-    }
+        // Kiểm tra email trùng
+        let isDuplicate = await checkDuplicateEmail(email);
+        if (isDuplicate) {
+            alert("Email đã tồn tại! Vui lòng nhập email khác.");
+            return;
+        }
 
-    // Kiểm tra email trùng
-    let isDuplicate = await checkDuplicateEmail(email);
-    if (isDuplicate) {
-        alert("Email đã tồn tại! Vui lòng nhập email khác.");
-        return;
-    }
+        if (avatar && !urlRegex.test(avatar)) {
+            alert("Avatar phải là một URL hợp lệ (png, jpg, jpeg, gif, webp)!");
+            return;
+        }
 
-
-if (!birthDate || birthDate.trim() === '') {
-        document.querySelector("input[name='birthDate']").disabled = true;
-    }
-
-
-    if (!address || address.length < 5) {
-        alert("Địa chỉ phải có ít nhất 5 ký tự!");
-        return;
-    }
-
-    if (avatar && !urlRegex.test(avatar)) {
-        alert("Avatar phải là một URL hợp lệ (png, jpg, jpeg, gif, webp)!");
-        return;
-    }
-
-    event.target.submit(); // Nếu hợp lệ, gửi form
-});
+        // Nếu hợp lệ, gửi form
+        form.submit();
+    });
 
     // Hàm kiểm tra email đã tồn tại hay chưa
     async function checkDuplicateEmail(email) {
@@ -235,7 +323,14 @@ if (!birthDate || birthDate.trim() === '') {
     }
 
     function deleteCustomer(id) {
-    if (confirm("Bạn có chắc chắn muốn xóa khách hàng này không?")) {
+        document.getElementById('deleteCustomerId').value = id;
+        new bootstrap.Modal(document.getElementById('deleteConfirmModal')).show();
+    }
+    
+    document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+        const id = document.getElementById('deleteCustomerId').value;
+        if (!id) return;
+        
         fetch(`/customers/customers/${id}`, {method: "DELETE"})
             .then(response => {
                 if (!response.ok) {
@@ -255,9 +350,9 @@ if (!birthDate || birthDate.trim() === '') {
                 console.error("Lỗi khi xóa:", error);
                 alert("Có lỗi xảy ra khi xóa khách hàng!");
             });
-    }
-}
-
+            
+        bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal')).hide();
+    });
 
     function editCustomer(id, fullName, phoneNumber, email, address, birthDate, avatar) {
         document.getElementById("editCustomerId").value = id;
@@ -291,190 +386,184 @@ if (!birthDate || birthDate.trim() === '') {
         }
     }
 
-
     function updateCustomer() {
-    // Get ID from form
-    const id = document.getElementById("editCustomerId").value;
-    
-    // Prepare update data
-    const customerData = {
-        fullName: document.getElementById("editFullName").value.trim(),
-        phoneNumber: document.getElementById("editPhoneNumber").value.trim(),
-        email: document.getElementById("editEmail").value.trim(),
-        address: document.getElementById("editAddress").value.trim(),
-        birthDate: document.getElementById("editBirthDate").value.trim(),
-        avatar: document.getElementById("editAvatar").value.trim()
-    };
+        // Get ID from form
+        const id = document.getElementById("editCustomerId").value;
+        
+        // Prepare update data
+        const customerData = {
+            fullName: document.getElementById("editFullName").value.trim(),
+            phoneNumber: document.getElementById("editPhoneNumber").value.trim(),
+            email: document.getElementById("editEmail").value.trim(),
+            address: document.getElementById("editAddress").value.trim(),
+            birthDate: document.getElementById("editBirthDate").value.trim(),
+            avatar: document.getElementById("editAvatar").value.trim()
+        };
 
-    // Validate data
-    let phoneRegex = /^[0-9]{10}$/;
-    let emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    let urlRegex = /^(https?:\/\/.*\.(?:png|jpg|jpeg|gif|webp))$/i;
+        // Validate data
+        let phoneRegex = /^[0-9]{10}$/;
+        let emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        let urlRegex = /^(https?:\/\/.*\.(?:png|jpg|jpeg|gif|webp))$/i;
 
-    if (!customerData.fullName || customerData.fullName.length < 3) {
-        alert("Họ tên phải có ít nhất 3 ký tự!");
-        return;
-    }
-
-    if (!phoneRegex.test(customerData.phoneNumber)) {
-        alert("Số điện thoại không hợp lệ! Phải có đúng 10 chữ số.");
-        return;
-    }
-
-    if (!emailRegex.test(customerData.email)) {
-        alert("Email không hợp lệ!");
-        return;
-    }
-
-    if (!customerData.address || customerData.address.length < 5) {
-        alert("Địa chỉ phải có ít nhất 5 ký tự!");
-        return;
-    }
-
-    if (customerData.avatar && !urlRegex.test(customerData.avatar)) {
-        alert("Avatar phải là một URL hợp lệ (png, jpg, jpeg, gif, webp)!");
-        return;
-    }
-
-    // Send update request
-    fetch(`/customers/customers/${id}`, {
-    method: 'PUT',
-    headers: {
-        'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(customerData)
-})
-    .then(response => {
-        if (response.ok) {
-            return response.json();
-        } else {
-            throw new Error(`Cập nhật không thành công. Mã lỗi: ${response.status}`);
+        if (!customerData.fullName || customerData.fullName.length < 3) {
+            alert("Họ tên phải có ít nhất 3 ký tự!");
+            return;
         }
-    })
-    .then(data => {
-        alert("Cập nhật khách hàng thành công!");
-        closeEditModal();
-        // Reload the page to show updated information
-        location.reload();
-    })
-    .catch(error => {
-        console.error("Error:", error);
-        alert(error.message || "Cập nhật thất bại");
+
+        if (!phoneRegex.test(customerData.phoneNumber)) {
+            alert("Số điện thoại không hợp lệ! Phải có đúng 10 chữ số.");
+            return;
+        }
+
+        if (!emailRegex.test(customerData.email)) {
+            alert("Email không hợp lệ!");
+            return;
+        }
+
+        if (customerData.avatar && !urlRegex.test(customerData.avatar)) {
+            alert("Avatar phải là một URL hợp lệ (png, jpg, jpeg, gif, webp)!");
+            return;
+        }
+
+        // Send update request
+        fetch(`/customers/customers/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(customerData)
+        })
+            .then(response => {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    throw new Error(`Cập nhật không thành công. Mã lỗi: ${response.status}`);
+                }
+            })
+            .then(data => {
+                alert("Cập nhật khách hàng thành công!");
+                closeEditModal();
+                // Reload the page to show updated information
+                location.reload();
+            })
+            .catch(error => {
+                console.error("Error:", error);
+                alert(error.message || "Cập nhật thất bại");
+            });
+    }
+    
+    // Function to update customer display based on pagination
+    function updateCustomerDisplay() {
+        // Get all visible customer rows
+        const rows = $('#customerTableBody tr');
+        filteredCustomers = [];
+        
+        // Filter the customers based on current filters
+        rows.each(function() {
+            const row = $(this);
+            if (row.css('display') !== 'none') {
+                filteredCustomers.push(row);
+            }
+        });
+        
+        // Update total count
+        $('#totalItems').text(filteredCustomers.length);
+        
+        // Calculate total pages
+        const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage);
+        
+        // Hide all rows initially
+        rows.hide();
+        
+        // Show only rows for current page
+        const start = (currentPageIndex - 1) * itemsPerPage;
+        const end = Math.min(start + itemsPerPage, filteredCustomers.length);
+        
+        for (let i = start; i < end; i++) {
+            $(filteredCustomers[i]).show();
+        }
+        
+        // Update pagination buttons state
+        $('#prevPage').toggleClass('disabled', currentPageIndex === 1);
+        $('#nextPage').toggleClass('disabled', currentPageIndex === totalPages || totalPages === 0);
+        $('#currentPage').text(currentPageIndex);
+    }
+    
+    // Handle items per page change
+    $('#itemsPerPage').change(function() {
+        itemsPerPage = parseInt($(this).val());
+        currentPageIndex = 1;
+        updateCustomerDisplay();
     });
-}
+    
+    // Handle pagination navigation
+    $('#prevPage').click(function(e) {
+        e.preventDefault();
+        if (currentPageIndex > 1) {
+            currentPageIndex--;
+            updateCustomerDisplay();
+        }
+    });
+    
+    $('#nextPage').click(function(e) {
+        e.preventDefault();
+        const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage);
+        if (currentPageIndex < totalPages) {
+            currentPageIndex++;
+            updateCustomerDisplay();
+        }
+    });
+    
+    // Search functionality
+    $('#applyFilter').click(function() {
+        const searchText = $('#phoneSearch').val().toLowerCase();
+        
+        $('#customerTableBody tr').each(function() {
+            const row = $(this);
+            const rowText = row.text().toLowerCase();
+            
+            if (rowText.includes(searchText)) {
+                row.show();
+            } else {
+                row.hide();
+            }
+        });
+        
+        // Reset to page 1 after filtering
+        currentPageIndex = 1;
+        updateCustomerDisplay();
+    });
+    
+    // Search on input change (optional: for more responsive search)
+    $('#phoneSearch').on('input', function() {
+        if (this.value.length >= 3 || this.value.length === 0) {
+            $('#applyFilter').click();
+        }
+    });
+    
+    // Initialize pagination on page load
+    $(document).ready(function() {
+        // Initial count of customers
+        const totalCustomers = $('#customerTableBody tr').length;
+        $('#totalItems').text(totalCustomers);
+        updateCustomerDisplay();
+    });
 
+    // Use data attributes for edit and delete buttons
+    $(document).on('click', '.edit-customer-btn', function() {
+        const btn = $(this);
+        editCustomer(
+            btn.data('id'),
+            btn.data('fullname'),
+            btn.data('phone'),
+            btn.data('email'),
+            btn.data('address'),
+            btn.data('birthdate'),
+            btn.data('avatar')
+        );
+    });
 
-
-// //tìm phone
-// // Tìm kiếm theo số điện thoại
-// document.getElementById('phoneSearch').addEventListener('input', debounce(function() {
-//     const phoneNumber = this.value.trim();
-//     const searchResults = document.getElementById('searchResults');
-//     const customerTableBody = document.getElementById('customerTableBody');
-
-//     // Reset trạng thái khi input rỗng
-//     if (phoneNumber.length === 0) {
-//         resetTableAndResults(customerTableBody, searchResults);
-//         return;
-//     }
-
-//     // Chỉ tìm kiếm khi nhập ít nhất 3 ký tự
-//     if (phoneNumber.length >= 3) {
-//         searchResults.innerHTML = '<div class="alert alert-info">Đang tìm kiếm...</div>';
-
-//         fetch(`/customers/search?phoneNumber=${encodeURIComponent(phoneNumber)}`, {
-//             method: 'GET',
-//             headers: {
-//                 'Content-Type': 'application/json',
-//             }
-//         })
-//         .then(response => {
-//             if (!response.ok) {
-//                 return response.json().then(err => {
-//                     throw new Error(err.message || 'Lỗi không xác định từ server');
-//                 });
-//             }
-//             return response.json();
-//         })
-//         .then(data => {
-//             if (data.customers && data.customers.length > 0) {
-//                 renderSearchResults(data.customers, searchResults, customerTableBody);
-//             } else {
-//                 searchResults.innerHTML = '<div class="alert alert-info">Không tìm thấy khách hàng nào phù hợp.</div>';
-//                 resetTable(customerTableBody);
-//             }
-//         })
-//         .catch(error => {
-//             console.error('Lỗi tìm kiếm:', error);
-//             searchResults.innerHTML = `<div class="alert alert-danger">Lỗi: ${error.message}</div>`;
-//             resetTable(customerTableBody);
-//         });
-//     } else {
-//         searchResults.innerHTML = '';
-//         resetTable(customerTableBody);
-//     }
-// }, 300)); // Debounce 300ms
-
-// // Hàm reset bảng và kết quả tìm kiếm
-// function resetTableAndResults(tableBody, searchResults) {
-//     const customerRows = tableBody.querySelectorAll('tr');
-//     customerRows.forEach(row => row.style.display = '');
-//     searchResults.innerHTML = '';
-// }
-
-// // Hàm reset bảng
-// function resetTable(tableBody) {
-//     const customerRows = tableBody.querySelectorAll('tr');
-//     customerRows.forEach(row => row.style.display = '');
-// }
-
-// // Hàm hiển thị kết quả tìm kiếm
-// function renderSearchResults(customers, searchResults, tableBody) {
-//     const resultsHtml = customers.map(customer => `
-//         <div class="card mb-2 search-result-card" data-phone="${customer.phoneNumber}">
-//             <div class="card-body">
-//                 <h5 class="card-title">${customer.fullName}</h5>
-//                 <p class="card-text">
-//                     Số điện thoại: ${customer.phoneNumber}<br>
-//                     Email: ${customer.email}<br>
-//                     Địa chỉ: ${customer.address || 'Chưa cập nhật'}
-//                 </p>
-//             </div>
-//         </div>
-//     `).join('');
-//     searchResults.innerHTML = resultsHtml;
-
-//     // Thêm sự kiện click cho các card
-//     document.querySelectorAll('.search-result-card').forEach(card => {
-//         card.addEventListener('click', function() {
-//             const phoneToFilter = this.dataset.phone;
-//             filterCustomerTable(phoneToFilter, tableBody);
-//         });
-//     });
-// }
-
-// // Hàm lọc bảng khách hàng
-// function filterCustomerTable(phoneNumber, tableBody) {
-//     const customerRows = tableBody.querySelectorAll('tr');
-//     customerRows.forEach(row => {
-//         const phoneCellText = row.querySelector('td:nth-child(3)').textContent.trim();
-//         row.style.display = phoneCellText === phoneNumber ? '' : 'none';
-//     });
-// }
-
-// // Hàm debounce để giảm tần suất gọi API
-// function debounce(func, wait) {
-//     let timeout;
-//     return function executedFunction(...args) {
-//         const later = () => {
-//             clearTimeout(timeout);
-//             func.apply(this, args);
-//         };
-//         clearTimeout(timeout);
-//         timeout = setTimeout(later, wait);
-//     };
-// }
-
-
-
+    $(document).on('click', '.delete-customer-btn', function() {
+        deleteCustomer($(this).data('id'));
+    });
 </script>
