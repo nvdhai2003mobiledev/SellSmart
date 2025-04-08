@@ -15,18 +15,7 @@
     <div class="card mb-4">
         <div class="card-body">
             <form id="filterForm" class="row g-3">
-                <div class="col-md-3">
-                    <label for="departmentFilter" class="form-label">Phòng ban</label>
-                    <select class="form-select" id="departmentFilter">
-                        <option value="">Tất cả phòng ban</option>
-                        <option value="Kỹ thuật">Kỹ thuật</option>
-                        <option value="Nhân sự">Nhân sự</option>
-                        <option value="Kế toán">Kế toán</option>
-                        <option value="Kinh doanh">Kinh doanh</option>
-                        <option value="Marketing">Marketing</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label for="statusFilter" class="form-label">Trạng thái</label>
                     <select class="form-select" id="statusFilter">
                         <option value="">Tất cả trạng thái</option>
@@ -35,7 +24,7 @@
                         <option value="leave">Nghỉ phép</option>
                     </select>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-6">
                     <label for="searchInput" class="form-label">Tìm kiếm</label>
                     <input type="text" class="form-control" id="searchInput"
                            placeholder="Tìm theo tên, mã nhân viên, email...">
@@ -59,7 +48,6 @@
                         <th scope="col">STT</th>
                         <th scope="col">Mã NV</th>
                         <th scope="col">Thông tin</th>
-                        <th scope="col">Phòng ban</th>
                         <th scope="col">Chức vụ</th>
                         <th scope="col">Lương</th>
                         <th scope="col">Ngày vào làm</th>
@@ -94,7 +82,6 @@
                                         </div>
                                     </div>
                                 </td>
-                                <td><%= employee.department %></td>
                                 <td><%= employee.position %></td>
                                 <td><%= employee.salary.toLocaleString() %> VNĐ</td>
                                 <td><%= new Date(employee.hireDate).toLocaleDateString('vi-VN') %></td>
@@ -117,10 +104,7 @@
                                             data-id="<%= employee.employeeId %>">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <button class="btn btn-sm btn-danger delete-btn"
-                                            data-id="<%= employee.employeeId %>">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
+                                    
                                 </td>
                             </tr>
                         <% }); %>
@@ -135,6 +119,40 @@
                     <% } %>
                     </tbody>
                 </table>
+            </div>
+            
+            <!-- Pagination -->
+            <div class="d-flex justify-content-between align-items-center p-3 border-top">
+                <div class="d-flex align-items-center">
+                    <label class="text-muted me-2">Hiển thị:</label>
+                    <select class="form-select form-select-sm" id="itemsPerPage" style="width: auto;">
+                        <option value="5">5</option>
+                        <option value="10" selected>10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                    </select>
+                    <span class="text-muted ms-2">nhân viên</span>
+                </div>
+                <nav aria-label="Employee navigation">
+                    <ul class="pagination pagination-sm mb-0">
+                        <li class="page-item" id="prevPage">
+                            <a class="page-link" href="#" aria-label="Previous">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <span class="page-link" id="currentPage">1</span>
+                        </li>
+                        <li class="page-item" id="nextPage">
+                            <a class="page-link" href="#" aria-label="Next">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+                <div class="text-muted">
+                    Tổng số: <span class="fw-semibold" id="totalItems">0</span> nhân viên
+                </div>
             </div>
         </div>
     </div>
@@ -231,40 +249,21 @@
 
                     <div class="row mb-3">
                         <div class="col-md-6">
-                            <label for="department" class="form-label">Phòng ban <span
-                                        class="text-danger">*</span></label>
-                            <select class="form-select" id="department" name="department" required>
-                                <option value="">Chọn phòng ban</option>
-                                <option value="Kỹ thuật">Kỹ thuật</option>
-                                <option value="Nhân sự">Nhân sự</option>
-                                <option value="Kế toán">Kế toán</option>
-                                <option value="Kinh doanh">Kinh doanh</option>
-                                <option value="Marketing">Marketing</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
                             <label for="position" class="form-label">Chức vụ <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="position" name="position" required>
                         </div>
-                    </div>
-
-                    <div class="row mb-3">
                         <div class="col-md-6">
                             <label for="salary" class="form-label">Lương (VNĐ) <span
                                         class="text-danger">*</span></label>
                             <input type="number" class="form-control" id="salary" name="salary" required>
                         </div>
-                        <div class="col-md-6">
-                            <label for="hireDate" class="form-label">Ngày vào làm <span
-                                        class="text-danger">*</span></label>
-                            <input type="date" class="form-control" id="hireDate" name="hireDate" required>
-                        </div>
                     </div>
 
                     <div class="row mb-3">
                         <div class="col-md-6">
-                            <label for="bankAccount" class="form-label">Số tài khoản ngân hàng</label>
-                            <input type="text" class="form-control" id="bankAccount" name="bankAccount">
+                            <label for="hireDate" class="form-label">Ngày vào làm <span
+                                        class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="hireDate" name="hireDate" required>
                         </div>
                         <div class="col-md-6">
                             <label for="workStatus" class="form-label">Trạng thái làm việc <span
@@ -274,6 +273,13 @@
                                 <option value="inactive">Đã nghỉ việc</option>
                                 <option value="leave">Nghỉ phép</option>
                             </select>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="bankAccount" class="form-label">Số tài khoản ngân hàng</label>
+                            <input type="text" class="form-control" id="bankAccount" name="bankAccount">
                         </div>
                     </div>
 
@@ -395,39 +401,25 @@
 
                     <div class="row mb-3">
                         <div class="col-md-6">
-                            <label for="editDepartment" class="form-label">Phòng ban <span class="text-danger">*</span></label>
-                            <select class="form-select" id="editDepartment" name="department" required>
-                                <option value="">Chọn phòng ban</option>
-                                <option value="Kỹ thuật">Kỹ thuật</option>
-                                <option value="Nhân sự">Nhân sự</option>
-                                <option value="Kế toán">Kế toán</option>
-                                <option value="Kinh doanh">Kinh doanh</option>
-                                <option value="Marketing">Marketing</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
                             <label for="editPosition" class="form-label">Chức vụ <span
                                         class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="editPosition" name="position" required>
                         </div>
-                    </div>
-
-                    <div class="row mb-3">
                         <div class="col-md-6">
                             <label for="editSalary" class="form-label">Lương (VNĐ) <span
                                         class="text-danger">*</span></label>
                             <input type="number" class="form-control" id="editSalary" name="salary" required>
                         </div>
-                        <div class="col-md-6">
-                            <label for="editBankAccount" class="form-label">Số tài khoản ngân hàng</label>
-                            <input type="text" class="form-control" id="editBankAccount" name="bankAccount">
-                        </div>
                     </div>
 
                     <div class="row mb-3">
                         <div class="col-md-6">
+                            <label for="editBankAccount" class="form-label">Số tài khoản ngân hàng</label>
+                            <input type="text" class="form-control" id="editBankAccount" name="bankAccount">
+                        </div>
+                        <div class="col-md-6">
                             <label for="editWorkStatus" class="form-label">Trạng thái làm việc <span
-                                        class="text-danger">*</span></label>
+                                    class="text-danger">*</span></label>
                             <select class="form-select" id="editWorkStatus" name="workStatus" required>
                                 <option value="active">Đang làm việc</option>
                                 <option value="inactive">Đã nghỉ việc</option>
@@ -505,10 +497,6 @@
                                 <h6 class="mb-0"><i class="fas fa-briefcase me-2"></i>Thông tin công việc</h6>
                             </div>
                             <div class="card-body">
-                                <div class="mb-2">
-                                    <small class="text-muted d-block">Phòng ban:</small>
-                                    <span id="viewEmployeeDepartment"></span>
-                                </div>
                                 <div class="mb-2">
                                     <small class="text-muted d-block">Lương:</small>
                                     <span id="viewEmployeeSalary"></span>
@@ -600,7 +588,6 @@
         password: $('#password').val(),
         role: 'employee',
         employeeId: $('#employeeId').val(),
-        department: $('#department').val(),
         position: $('#position').val(),
         salary: parseFloat($('#salary').val()),
         hireDate: $('#hireDate').val(),
@@ -648,7 +635,6 @@
             $('#editGender').val(user.gender || 'male');
             $('#editDob').val(user.dob ? new Date(user.dob).toISOString().split('T')[0] : '');
             $('#editAddress').val(user.address || '');
-            $('#editDepartment').val(employee.department);
             $('#editPosition').val(employee.position);
             $('#editSalary').val(employee.salary);
             $('#editBankAccount').val(employee.bankAccount || '');
@@ -677,7 +663,6 @@
           dob: $('#editDob').val(),
           address: $('#editAddress').val(),
         },
-        department: $('#editDepartment').val(),
         position: $('#editPosition').val(),
         salary: parseFloat($('#editSalary').val()),
         bankAccount: $('#editBankAccount').val(),
@@ -732,7 +717,6 @@
             $('#viewEmployeeGender').text(user.gender === 'male' ? 'Nam' : user.gender === 'female' ? 'Nữ' : 'Khác');
             $('#viewEmployeeDob').text(user.dob ? new Date(user.dob).toLocaleDateString('vi-VN') : 'N/A');
             $('#viewEmployeeAddress').text(user.address || 'N/A');
-            $('#viewEmployeeDepartment').text(employee.department);
             $('#viewEmployeeSalary').text(employee.salary.toLocaleString('vi-VN') + ' VNĐ');
             $('#viewEmployeeHireDate').text(new Date(employee.hireDate).toLocaleDateString('vi-VN'));
             $('#viewEmployeeStatus').html(
@@ -805,28 +789,104 @@
 
     // Filter functionality
     $('#applyFilter').click(function () {
-      const department = $('#departmentFilter').val();
       const status = $('#statusFilter').val();
       const search = $('#searchInput').val().toLowerCase();
 
       $('tbody tr').each(function () {
         const row = $(this);
-        const rowDepartment = row.find('td:eq(2)').text();
-        const rowStatus = row.find('td:eq(6) .badge').text().toLowerCase();
+        const rowStatus = row.find('td:eq(5) .badge').text().toLowerCase();
         const rowSearchText = row.text().toLowerCase();
 
-        const departmentMatch = !department || rowDepartment === department;
         const statusMatch = !status || (status === 'active' && rowStatus.includes('đang làm việc')) ||
           (status === 'inactive' && rowStatus.includes('đã nghỉ việc')) ||
           (status === 'leave' && rowStatus.includes('nghỉ phép'));
         const searchMatch = !search || rowSearchText.includes(search);
 
-        if (departmentMatch && statusMatch && searchMatch) {
+        if (statusMatch && searchMatch) {
           row.show();
         } else {
           row.hide();
         }
       });
+      
+      // Reset to page 1 after filtering
+      currentPageIndex = 1;
+      updateEmployeeDisplay();
+    });
+    
+    // Pagination variables
+    let currentPageIndex = 1;
+    let itemsPerPage = 10;
+    let filteredEmployees = [];
+    
+    // Function to update employee display based on pagination
+    function updateEmployeeDisplay() {
+        // Get all visible employee rows
+        const rows = $('tbody tr');
+        filteredEmployees = [];
+        
+        // Filter the employees based on current filters
+        rows.each(function() {
+            const row = $(this);
+            if (row.css('display') !== 'none') {
+                filteredEmployees.push(row);
+            }
+        });
+        
+        // Update total count
+        $('#totalItems').text(filteredEmployees.length);
+        
+        // Calculate total pages
+        const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
+        
+        // Hide all rows initially
+        rows.hide();
+        
+        // Show only rows for current page
+        const start = (currentPageIndex - 1) * itemsPerPage;
+        const end = Math.min(start + itemsPerPage, filteredEmployees.length);
+        
+        for (let i = start; i < end; i++) {
+            $(filteredEmployees[i]).show();
+        }
+        
+        // Update pagination buttons state
+        $('#prevPage').toggleClass('disabled', currentPageIndex === 1);
+        $('#nextPage').toggleClass('disabled', currentPageIndex === totalPages || totalPages === 0);
+        $('#currentPage').text(currentPageIndex);
+    }
+    
+    // Handle items per page change
+    $('#itemsPerPage').change(function() {
+        itemsPerPage = parseInt($(this).val());
+        currentPageIndex = 1;
+        updateEmployeeDisplay();
+    });
+    
+    // Handle pagination navigation
+    $('#prevPage').click(function(e) {
+        e.preventDefault();
+        if (currentPageIndex > 1) {
+            currentPageIndex--;
+            updateEmployeeDisplay();
+        }
+    });
+    
+    $('#nextPage').click(function(e) {
+        e.preventDefault();
+        const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
+        if (currentPageIndex < totalPages) {
+            currentPageIndex++;
+            updateEmployeeDisplay();
+        }
+    });
+    
+    // Initialize pagination on page load
+    $(document).ready(function() {
+        // Initial count of employees
+        const totalEmployees = $('tbody tr').length;
+        $('#totalItems').text(totalEmployees);
+        updateEmployeeDisplay();
     });
   });
 </script>

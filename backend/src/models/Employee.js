@@ -17,7 +17,6 @@ const Employee = new Schema(
     },
     department: {
       type: String,
-      required: true,
       trim: true,
     },
     position: {

@@ -55,7 +55,6 @@ exports.createEmployee = async (req, res) => {
       password,
       role,
       employeeId,
-      department,
       position,
       salary,
       hireDate,
@@ -100,7 +99,6 @@ exports.createEmployee = async (req, res) => {
     const employee = new Employee({
       userId: user._id,
       employeeId,
-      department,
       position,
       salary,
       hireDate: hireDate || new Date(),
@@ -183,11 +181,10 @@ exports.updateEmployee = async (req, res) => {
   session.startTransaction();
 
   try {
-    const { department, position, salary, workStatus, bankAccount, userInfo } =
+    const { position, salary, workStatus, bankAccount, userInfo } =
       req.body;
 
     const employeeUpdateData = {
-      department,
       position,
       salary,
       workStatus,
