@@ -20,6 +20,32 @@ exports.getPublicDocuments = async (req, res) => {
   }
 };
 
+exports.getProductDocuments = async (req, res) => {
+  try {
+    const productId = req.params.id;
+    
+    // Lấy thông tin sản phẩm
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).send('Sản phẩm không tồn tại');
+    }
+
+    // Lấy danh sách tài liệu của sản phẩm
+    const documents = await Document.find({ product_id: productId })
+      .populate('product_id', 'name thumbnail')
+      .select('title description media date');
+
+    res.render('productDocuments', { 
+      product,
+      documents,
+      title: `Tài liệu sản phẩm - ${product.name}`
+    });
+  } catch (error) {
+    console.error('Lỗi khi lấy tài liệu sản phẩm:', error);
+    res.status(500).send('Lỗi server');
+  }
+};
+
 exports.getProductDetails = async (req, res) => {
   try {
     const productId = req.params.id;

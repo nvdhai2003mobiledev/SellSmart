@@ -5,6 +5,7 @@ const Product = require('../models/Product');
 const User = require('../models/User');
 const { protect } = require('../middleware/auth');
 const documentController = require('../controllers/DocumentController');
+const PublicDocumentController = require('../controllers/PublicDocumentController');
 
 // Trang quản lý tài liệu
 router.get('/', protect, documentController.getAllDocuments);
@@ -35,142 +36,15 @@ router.get('/edit/:id', protect, async (req, res) => {
 });
 
 // Cập nhật tài liệu
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 router.put('/edit/:id', protect, documentController.updateDocument);
 
 // Xóa tài liệu
 router.delete('/delete/:id', protect, documentController.deleteDocument);
+
+// Route cho trang danh sách tài liệu công khai
+router.get('/public', PublicDocumentController.getPublicDocuments);
+
+// Route cho trang chi tiết tài liệu của sản phẩm
+router.get('/product/:id', PublicDocumentController.getProductDocuments);
 
 module.exports = router;
