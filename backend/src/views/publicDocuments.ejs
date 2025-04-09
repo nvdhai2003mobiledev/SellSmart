@@ -243,6 +243,61 @@
         height: 60px;
       }
     }
+
+    .floating-contacts {
+      position: fixed;
+      bottom: 100px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: flex-end;
+      z-index: 998;
+    }
+    
+    .contact-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 50px;
+      height: 50px;
+      border-radius: 25px;
+      text-decoration: none;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .contact-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+    }
+
+    .contact-button.zalo {
+      background: #0068ff;
+      padding: 8px;
+      z-index: 997;
+    }
+
+    .contact-button.phone {
+      background: #28a745;
+      color: white;
+      z-index: 997;
+    }
+
+    .contact-button img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .contact-button i {
+      font-size: 24px;
+      color: white;
+    }
+
+    #chatling-iframe-wrapper {
+      z-index: 999 !important;
+    }
   </style>
 </head>
 <body>
@@ -335,5 +390,17 @@
       </div>
     <% } %>
   </div>
+
+  <div class="floating-contacts">
+    <a href="tel:0777006786" class="contact-button phone">
+      <i class="fas fa-phone"></i>
+    </a>
+    <a href="https://zalo.me/0777006786" target="_blank" class="contact-button zalo">
+      <img src="https://stc-zaloprofile.zdn.vn/pc/v1/images/zalo_sharelogo.png" alt="Zalo">
+    </a>
+  </div>
+
+  <script> window.chtlConfig = { chatbotId: "4595193593" } </script>
+  <script async data-id="4595193593" id="chatling-embed-script" type="text/javascript" src="https://chatling.ai/js/embed.js"></script>
 </body>
 </html>
