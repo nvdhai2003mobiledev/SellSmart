@@ -6,12 +6,13 @@ import { colors, spacing } from '../../../theme';
 import { useNavigation } from '@react-navigation/native';
 import { AppStackScreenProps } from '../../../navigators';
 import { IconFontAwesome } from '../../../components/Icon/Icon';
+import { Screen as ScreenEnum } from '../../../navigation/navigation.type';
 
 export const HomeScreen = observer(function HomeScreen() {
   const navigation = useNavigation<AppStackScreenProps<any>['navigation']>();
 
   const navigateToProvider = () => {
-    navigation.navigate('Provider');
+    navigation.navigate(ScreenEnum.PROVIDER);
   };
 
   return (

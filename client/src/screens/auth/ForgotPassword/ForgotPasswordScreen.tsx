@@ -13,6 +13,7 @@ import {Button, DynamicText, Header, Input} from '../../../components';
 import {color, scaledSize, scaleHeight} from '../../../utils';
 import {useNavigation} from '@react-navigation/native'; // Import hook useNavigation
 import {contents} from '../../../context';
+import {Screen} from '../../../navigation/navigation.type';
 
 const countryCodes = [
   {code: '🇻🇳 Việt Nam', label: '+84'},
@@ -38,7 +39,7 @@ const ForgotPasswordScreen = () => {
       setError('Số điện thoại không chính xác. Kiểm tra lại!');
     } else {
       setError('');
-      navigation.navigate('XacMinh');
+      navigation.navigate(Screen.VERIFY);
     }
   };
 

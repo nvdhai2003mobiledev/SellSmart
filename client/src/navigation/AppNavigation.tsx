@@ -12,7 +12,6 @@ import {
   AddEmployeeScreen,
   ConfigScreen,
   CreatePasswordScreen,
-  CustomerScreen,
   DetailCustomerScreen,
   DetailEmployeeScreen,
   EmployeeScreen,
@@ -42,6 +41,8 @@ import PaymentMethods from '../screens/main/Order/PaymentMethods';
 import AddProviderScreen from '../screens/main/Provider/AddProviderScreen';
 import DetailProviderScreen from '../screens/main/Provider/DetailProviderScreen';
 import ProviderScreen from '../screens/main/Provider/ProviderScreen';
+import RevenueScreen from '../screens/bottomTab/Home/RevenueScreen';
+import DayRangeScreen from '../screens/bottomTab/Home/DayRangeScreen';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const screenOptions: NativeStackNavigationOptions = {
@@ -142,7 +143,6 @@ export const AppNavigation = observer(() => {
         name={Screen.PAYMENT_METHODS}
         component={PaymentMethods}
       />
-      <RootStack.Screen name={Screen.CUSTOMERS} component={CustomerScreen} />
       <RootStack.Screen
         name={Screen.PROMOTION_LIST}
         component={PromotionListScreen}
@@ -151,6 +151,8 @@ export const AppNavigation = observer(() => {
         name={Screen.ADD_PROMOTION}
         component={AddPromotionScreen}
       />
+      <RootStack.Screen name={Screen.REVENUE} component={RevenueScreen} />
+      <RootStack.Screen name={Screen.DAY_RANGE} component={DayRangeScreen} />
 
       {/* Chỉ admin mới thấy được các màn hình quản lý nhân viên */}
       {isAdmin && (
@@ -182,3 +184,5 @@ export const AppNavigation = observer(() => {
     </RootStack.Navigator>
   );
 });
+
+export default AppNavigation;

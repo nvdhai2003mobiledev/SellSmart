@@ -1216,11 +1216,13 @@ const getDailyRevenue = async (req, res) => {
     });
   }
 
-  /**
+ 
+  };
+   /**
    * Hoàn trả tồn kho khi hủy đơn hàng
    * @param {Object} order - Đơn hàng đã được hủy
    */
-  const restoreInventoryForOrder = async (order) => {
+   const restoreInventoryForOrder = async (order) => {
     try {
       console.log(`===== BẮT ĐẦU HOÀN TRẢ TỒN KHO =====`);
       console.log(`Đơn hàng: ${order._id}, Trạng thái: ${order.status}, Thanh toán: ${order.paymentStatus}`);
@@ -1299,7 +1301,6 @@ const getDailyRevenue = async (req, res) => {
       console.error(`LỖI HOÀN TRẢ TỒN KHO: ${error.message}`);
       console.error(error.stack);
     }
-  }
   };
 
 module.exports = {
@@ -1317,5 +1318,6 @@ module.exports = {
   getPaymentStats,
   getOrderDistribution,
   getEmployeePerformance,
-  getDailyRevenue
+  getDailyRevenue,
+  
 };

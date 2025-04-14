@@ -74,26 +74,30 @@ const OrderListScreen = observer(() => {
   const applyFilter = (orderList: Order[], filter: any) => {
     return orderList.filter(order => {
       // Payment Status Filter
-      if (
-        filter.paymentStatus &&
-        order.paymentStatus !== filter.paymentStatus
-      ) {
-        return false;
+      if (filter.paymentStatus) {
+        // Check if payment status matches exactly what we're looking for
+        if (order.paymentStatus !== filter.paymentStatus) {
+          return false;
+        }
       }
 
       // Order Status Filter
-      if (filter.orderStatus && order.status !== filter.orderStatus) {
-        return false;
+      if (filter.orderStatus) {
+        if (order.status !== filter.orderStatus) {
+          return false;
+        }
       }
 
       // Date Range Filter
       const orderDate = new Date(order.createdAt);
       if (filter.startDate) {
         const startDate = new Date(filter.startDate);
+        startDate.setHours(0, 0, 0, 0); // Set to start of day
         if (orderDate < startDate) return false;
       }
       if (filter.endDate) {
         const endDate = new Date(filter.endDate);
+        endDate.setHours(23, 59, 59, 999); // Set to end of day
         if (orderDate > endDate) return false;
       }
 
@@ -151,7 +155,7 @@ const OrderListScreen = observer(() => {
       <TouchableOpacity
         style={styles.orderItem}
         onPress={() =>
-          navigation.navigate('ORDER_DETAIL', {orderId: item._id})
+          navigation.navigate(Screen.ORDER_DETAIL, {orderId: item._id})
         }>
         <View style={styles.orderHeader}>
           <DynamicText style={styles.orderNumber}>

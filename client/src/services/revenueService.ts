@@ -37,9 +37,17 @@ const getStartOfMonth = (date: Date): Date => {
 
 // Filter orders by date range
 const filterOrdersByDateRange = (orders: OrderInstance[], startDate: Date, endDate: Date): OrderInstance[] => {
+  // Ensure startDate is at start of day
+  const start = new Date(startDate);
+  start.setHours(0, 0, 0, 0);
+  
+  // Ensure endDate is at end of day
+  const end = new Date(endDate);
+  end.setHours(23, 59, 59, 999);
+  
   return orders.filter(order => {
     const orderDate = new Date(order.createdAt);
-    return orderDate >= startDate && orderDate <= endDate;
+    return orderDate >= start && orderDate <= end;
   });
 };
 
@@ -95,6 +103,12 @@ export const getMonthlyRevenueStats = (): RevenueStats => {
   const now = new Date();
   const startOfMonth = getStartOfMonth(now);
   const filteredOrders = filterOrdersByDateRange(rootStore.orders.orders, startOfMonth, now);
+  return calculateRevenueStats(filteredOrders);
+};
+
+// Get revenue stats for a specific date range
+export const getRevenueStatsByDateRange = (startDate: Date, endDate: Date): RevenueStats => {
+  const filteredOrders = filterOrdersByDateRange(rootStore.orders.orders, startDate, endDate);
   return calculateRevenueStats(filteredOrders);
 };
 
