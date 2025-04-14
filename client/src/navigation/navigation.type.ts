@@ -45,6 +45,8 @@ export enum Screen {
   PROVIDER = 'PROVIDER',
   DETAIL_PROVIDER = 'DETAIL_PROVIDER',
   ADD_PROVIDER = 'ADD_PROVIDER',
+  REVENUE = 'REVENUE',
+  DAY_RANGE = 'DAY_RANGE',
 }
 
 export type RootStackParamList = {
@@ -56,7 +58,9 @@ export type RootStackParamList = {
   [Screen.OTP]: undefined;
   [Screen.VERIFY]: undefined;
   [Screen.CREATE_PASSWORD]: undefined;
-  [Screen.BOTTOM_TAB]: undefined;
+  [Screen.BOTTOM_TAB]: {
+    status?: string;
+  };
   [Screen.ADD_EMPLOYEE]: undefined;
   [Screen.DETAIL_EMPLOYEE]: {id: string};
   [Screen.UPDATE_EMPLOYEE]: {employeeId: string};
@@ -71,7 +75,9 @@ export type RootStackParamList = {
     selectedProducts?: any[];
     customer?: any;
   };
-  [Screen.ORDERSCREEN]: undefined;
+  [Screen.ORDERSCREEN]: {
+    filterStatus?: string;
+  };
   [Screen.ORDERLIST]: {
     status?: string;
     filter?: {
@@ -92,6 +98,7 @@ export type RootStackParamList = {
   };
   [Screen.ORDER_DETAIL]: {
     orderId: string;
+    fromScreen?: string;
   };
   [Screen.ORDER_CANCEL]: {
     orderId: string;
@@ -121,6 +128,11 @@ export type RootStackParamList = {
     provider: Provider;
   };
   [Screen.ADD_PROVIDER]: undefined;
+  [Screen.REVENUE]: {
+    startDate: Date;
+    endDate: Date;
+  };
+  [Screen.DAY_RANGE]: undefined;
 };
 
 export type BottomRootStackParamList = {

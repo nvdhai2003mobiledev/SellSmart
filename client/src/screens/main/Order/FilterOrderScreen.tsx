@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
@@ -12,13 +11,12 @@ import { Calendar } from 'react-native-calendars';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { Header, DynamicText, BaseLayout } from '../../../components';
 import { color, moderateScale } from '../../../utils';
-import {RootStackParamList, Screen} from '../../../navigation/navigation.type';
 
 // Payment status options
 const PAYMENT_STATUS_OPTIONS = [
   { label: 'Đã thanh toán', value: 'paid' },
   { label: 'Chưa thanh toán', value: 'unpaid' },
-  { label: 'Hoàn tiền', value: 'refunded' },
+  { label: 'Thanh toán một phần', value: 'partpaid' },
 ];
 
 // Order status options
@@ -28,12 +26,22 @@ const ORDER_STATUS_OPTIONS = [
   { label: 'Đã hủy', value: 'canceled' },
 ];
 
+interface FilterParams {
+  existingFilter?: {
+    paymentStatus?: string;
+    orderStatus?: string;
+    startDate?: string;
+    endDate?: string;
+  };
+}
+
 const FilterOrderScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const route = useRoute();
   
   // Get existing filter from previous screen if any
-  const existingFilter = route.params?.existingFilter || {};
+  const params = route.params as FilterParams;
+  const existingFilter = params?.existingFilter || {};
 
   // State for filters
   const [paymentStatus, setPaymentStatus] = useState(existingFilter.paymentStatus || null);
@@ -51,7 +59,7 @@ const FilterOrderScreen = () => {
   const renderSelectOption = (
     options: Array<{label: string, value: string}>, 
     selectedValue: string | null, 
-    onSelect: (value: string) => void,
+    onSelect: (value: string | null) => void,
     title: string
   ) => (
     <View style={styles.optionContainer}>
@@ -129,7 +137,7 @@ const FilterOrderScreen = () => {
     if (endDate) filter.endDate = endDate;
 
     // Navigate back to order list with filter
-    navigation.navigate(Screen.ORDERLIST, { 
+    navigation.navigate('ORDERLIST', { 
       filter: Object.keys(filter).length > 0 ? filter : null 
     });
   };

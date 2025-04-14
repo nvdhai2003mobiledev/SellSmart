@@ -1,8 +1,7 @@
-import React, {useState, useEffect, useRef} from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   StyleSheet,
   View,
-  ScrollView,
   TouchableOpacity,
   Modal,
 } from 'react-native';
@@ -26,13 +25,19 @@ import {
   Calendar,
   DocumentText,
   ShoppingBag,
-  Activity,
   Profile2User,
   PercentageSquare,
   Box,
   Add,
+  ArrowRight2,
+  CloseCircle,
+  MoneyRecive,
+  EmptyWallet,
 } from 'iconsax-react-native';
 import {Fonts} from '../../../assets';
+import {useNavigation} from '@react-navigation/native';
+import {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import {RootStackParamList, Screen} from '../../../navigation/navigation.type';
 
 // Interface cho dữ liệu ngày trong tuần
 interface DayData {
@@ -56,7 +61,10 @@ const formatYAxisValue = (value: number): string => {
   }
 };
 
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
 const WeekScreen = observer(() => {
+  const navigation = useNavigation<NavigationProp>();
   const [revenueStats, setRevenueStats] = useState<RevenueStats>({
     totalRevenue: 0,
     averageOrderValue: 0,
@@ -67,7 +75,12 @@ const WeekScreen = observer(() => {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedDay, setSelectedDay] = useState<DayData | null>(null);
   const [maxRevenue, setMaxRevenue] = useState(0);
-  const scrollViewRef = useRef<ScrollView>(null);
+  const [orderCounts, setOrderCounts] = useState({
+    total: 0,
+    unpaid: 0,
+    partlyPaid: 0,
+    canceled: 0,
+  });
 
   // Format date range for display (Monday to Today)
   const getWeekDateRange = (): string => {
@@ -184,6 +197,66 @@ const WeekScreen = observer(() => {
     }).length;
   };
 
+  // Calculate order counts for the week
+  const getWeekOrderCounts = () => {
+    try {
+      const now = new Date();
+      const day = now.getDay();
+      const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Sunday
+      
+      // Get start of week (Monday)
+      const monday = new Date(now);
+      monday.setDate(diff);
+      monday.setHours(0, 0, 0, 0);
+      
+      // Get end of week (Sunday)
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      sunday.setHours(23, 59, 59, 999);
+
+      // Filter orders for the current week
+      const weekOrders = rootStore.orders.orders.filter((order: any) => {
+        try {
+          const orderDate = new Date(order.createdAt);
+          return orderDate >= monday && orderDate <= sunday;
+        } catch (error) {
+          console.error('Error parsing order date:', error);
+          return false;
+        }
+      });
+
+      // Unpaid orders
+      const unpaidOrders = weekOrders.filter(
+        (order: any) => order.paymentStatus === 'unpaid' && order.status !== 'canceled',
+      );
+
+      // Partially paid orders
+      const partlyPaidOrders = weekOrders.filter(
+        (order: any) => order.paymentStatus === 'partpaid' && order.status !== 'canceled',
+      );
+
+      // Canceled orders
+      const canceledOrders = weekOrders.filter(
+        (order: any) => order.status === 'canceled',
+      );
+
+      return {
+        total: weekOrders.length,
+        unpaid: unpaidOrders.length,
+        partlyPaid: partlyPaidOrders.length,
+        canceled: canceledOrders.length,
+      };
+    } catch (error) {
+      console.error('Error in getWeekOrderCounts:', error);
+      return {
+        total: 0,
+        unpaid: 0,
+        partlyPaid: 0,
+        canceled: 0,
+      };
+    }
+  };
+
   useEffect(() => {
     // Fetch orders if not already loaded
     if (rootStore.orders.orders.length === 0) {
@@ -195,6 +268,7 @@ const WeekScreen = observer(() => {
       const stats = getWeeklyRevenueStats();
       setRevenueStats(stats);
       setWeekDays(generateWeekDays());
+      setOrderCounts(getWeekOrderCounts());
     };
 
     // Initial update
@@ -251,7 +325,20 @@ const WeekScreen = observer(() => {
       {/* Row for revenue and stats */}
       <View style={styles.statsRow}>
         {/* Main revenue card - 65% width */}
-        <View style={styles.mainCard}>
+        <TouchableOpacity
+          style={styles.mainCard}
+          onPress={() => {
+            const now = new Date();
+            const day = now.getDay();
+            const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+            const monday = new Date(now);
+            monday.setDate(diff);
+            
+            navigation.navigate(Screen.REVENUE, {
+              startDate: monday,
+              endDate: now,
+            });
+          }}>
           <View style={styles.mainCardHeader}>
             <Calendar size={20} color="#FFFFFF" variant="Bold" />
             <DynamicText style={styles.mainCardTitle}>
@@ -269,7 +356,7 @@ const WeekScreen = observer(() => {
               {revenueStats.orderCount} đơn hàng
             </DynamicText>
           </View>
-        </View>
+        </TouchableOpacity>
 
         {/* Right column for smaller stats - 35% width */}
         <View style={styles.statsColumn}>
@@ -441,6 +528,170 @@ const WeekScreen = observer(() => {
             />
           </View>
         </View>
+      </View>
+
+      {/* Order Summary Section */}
+      <View style={styles.resultContainer}>
+        <DynamicText style={styles.resultTitle}>Tóm tắt đơn hàng</DynamicText>
+
+        <TouchableOpacity 
+          style={styles.resultItem}
+          onPress={() => {
+            // Get date range for current week
+            const now = new Date();
+            const day = now.getDay();
+            const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+            
+            const startOfWeek = new Date(now);
+            startOfWeek.setDate(diff);
+            startOfWeek.setHours(0, 0, 0, 0);
+            
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(startOfWeek.getDate() + 6);
+            endOfWeek.setHours(23, 59, 59, 999);
+            
+            // Navigate to all orders for this week
+            navigation.navigate(Screen.ORDERLIST, {
+              filter: {
+                startDate: startOfWeek.toISOString(),
+                endDate: endOfWeek.toISOString()
+              }
+            });
+          }}>
+          <View style={styles.resultItemContent}>
+            <View style={[styles.iconContainer, styles.primaryIconBg]}>
+              <DocumentText size={20} color="#FFFFFF" variant="Bold" />
+            </View>
+            <View style={styles.resultLeft}>
+              <DynamicText style={styles.resultItemTitle}>Tổng đơn hàng</DynamicText>
+              <DynamicText style={styles.resultItemValue}>
+                {orderCounts.total}
+              </DynamicText>
+            </View>
+          </View>
+          <ArrowRight2 size={18} color={color.accentColor.grayColor} />
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.resultItem}
+          onPress={() => {
+            // Get date range for current week
+            const now = new Date();
+            const day = now.getDay();
+            const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+            
+            const startOfWeek = new Date(now);
+            startOfWeek.setDate(diff);
+            startOfWeek.setHours(0, 0, 0, 0);
+            
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(startOfWeek.getDate() + 6);
+            endOfWeek.setHours(23, 59, 59, 999);
+            
+            // Navigate to unpaid orders for this week
+            navigation.navigate(Screen.ORDERLIST, {
+              filter: {
+                startDate: startOfWeek.toISOString(),
+                endDate: endOfWeek.toISOString(),
+                paymentStatus: "unpaid"
+              }
+            });
+          }}>
+          <View style={styles.resultItemContent}>
+            <View style={[styles.iconContainer, {backgroundColor: '#FF9500'}]}>
+              <EmptyWallet size={20} color="#FFFFFF" variant="Bold" />
+            </View>
+            <View style={styles.resultLeft}>
+              <DynamicText style={styles.resultItemTitle}>
+                Đơn chưa thanh toán
+              </DynamicText>
+              <DynamicText style={styles.resultItemValue}>
+                {orderCounts.unpaid}
+              </DynamicText>
+            </View>
+          </View>
+          <ArrowRight2 size={18} color={color.accentColor.grayColor} />
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.resultItem}
+          onPress={() => {
+            // Get date range for current week
+            const now = new Date();
+            const day = now.getDay();
+            const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+            
+            const startOfWeek = new Date(now);
+            startOfWeek.setDate(diff);
+            startOfWeek.setHours(0, 0, 0, 0);
+            
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(startOfWeek.getDate() + 6);
+            endOfWeek.setHours(23, 59, 59, 999);
+            
+            // Navigate to partially paid orders for this week
+            navigation.navigate(Screen.ORDERLIST, {
+              filter: {
+                startDate: startOfWeek.toISOString(),
+                endDate: endOfWeek.toISOString(),
+                paymentStatus: "partpaid"
+              }
+            });
+          }}>
+          <View style={styles.resultItemContent}>
+            <View style={[styles.iconContainer, {backgroundColor: '#4A6FFF'}]}>
+              <MoneyRecive size={20} color="#FFFFFF" variant="Bold" />
+            </View>
+            <View style={styles.resultLeft}>
+              <DynamicText style={styles.resultItemTitle}>
+                Đơn thanh toán một phần
+              </DynamicText>
+              <DynamicText style={styles.resultItemValue}>
+                {orderCounts.partlyPaid}
+              </DynamicText>
+            </View>
+          </View>
+          <ArrowRight2 size={18} color={color.accentColor.grayColor} />
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.resultItem, styles.lastItem]}
+          onPress={() => {
+            // Get date range for current week
+            const now = new Date();
+            const day = now.getDay();
+            const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+            
+            const startOfWeek = new Date(now);
+            startOfWeek.setDate(diff);
+            startOfWeek.setHours(0, 0, 0, 0);
+            
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(startOfWeek.getDate() + 6);
+            endOfWeek.setHours(23, 59, 59, 999);
+            
+            // Navigate to canceled orders for this week
+            navigation.navigate(Screen.ORDERLIST, {
+              status: "canceled",
+              filter: {
+                startDate: startOfWeek.toISOString(),
+                endDate: endOfWeek.toISOString()
+              }
+            });
+          }}>
+          <View style={styles.resultItemContent}>
+            <View style={[styles.iconContainer, styles.dangerIconBg]}>
+              <CloseCircle size={20} color="#FFFFFF" variant="Bold" />
+            </View>
+            <View style={styles.resultLeft}>
+              <DynamicText style={styles.resultItemTitle}>Đơn hủy</DynamicText>
+              <DynamicText style={styles.resultItemValue}>
+                {orderCounts.canceled}
+              </DynamicText>
+            </View>
+          </View>
+          <ArrowRight2 size={18} color={color.accentColor.grayColor} />
+        </TouchableOpacity>
       </View>
 
       {/* Thêm padding bottom để không che phần cuối cùng khi cuộn */}
@@ -819,5 +1070,67 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.Inter_SemiBold,
     color: color.accentColor.whiteColor,
     textAlign: 'center',
+  },
+  resultContainer: {
+    backgroundColor: 'white',
+    borderRadius: moderateScale(12),
+    padding: moderateScale(16),
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+    marginBottom: moderateScale(16),
+  },
+  resultTitle: {
+    fontSize: moderateScale(14),
+    fontWeight: '600',
+    color: color.accentColor.darkColor,
+    marginBottom: moderateScale(12),
+  },
+  resultItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: moderateScale(10),
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  resultItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconContainer: {
+    width: moderateScale(32),
+    height: moderateScale(32),
+    borderRadius: moderateScale(8),
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: moderateScale(12),
+  },
+  primaryIconBg: {
+    backgroundColor: color.primaryColor,
+  },
+  secondaryIconBg: {
+    backgroundColor: '#4A6FFF',
+  },
+  dangerIconBg: {
+    backgroundColor: '#FF3B30',
+  },
+  resultLeft: {
+    flex: 1,
+  },
+  resultItemTitle: {
+    fontSize: moderateScale(13),
+    color: color.accentColor.darkColor,
+    marginBottom: moderateScale(2),
+  },
+  resultItemValue: {
+    fontSize: moderateScale(13),
+    color: color.accentColor.grayColor,
+    fontWeight: '500',
+  },
+  lastItem: {
+    borderBottomWidth: 0,
   },
 });
