@@ -1,0 +1,1408 @@
+<%- include('../layouts/main.ejs') %>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tạo Đơn Hàng</title>
+  
+    <script>
+     function validateOrderData() {
+    let customerID = document.getElementById("customerID").value;
+    let customerName = document.getElementById("customerName").value;
+    let customerPhone = document.getElementById("customerPhone").value;
+    let customerEmail = document.getElementById("customerEmail").value;
+    let customerAddress = document.getElementById("customerAddress").value;
+    let shippingNotes = document.getElementById("shippingNotes").value;
+
+    // Validation checks...
+    if (!customerID) {
+        alert("Vui lòng chọn khách hàng từ danh sách!");
+        return false;
+    }
+
+    if (!customerName || !customerPhone || !customerEmail || !customerAddress) {
+        alert("Vui lòng nhập đầy đủ thông tin khách hàng!");
+        return false;
+    }
+
+    if (selectedProducts.length === 0) {
+        alert("Bạn cần chọn ít nhất một sản phẩm!");
+        return false;
+    }
+
+    // Calculate final total amount (with or without promotion)
+    let totalAmount = parseFloat(document.getElementById("totalAmount").innerText.replace(/[^\d]/g, '')) || 0;
+
+    return {
+        customerID,
+        products: selectedProducts.map(p => ({
+            productID: p.productID,
+            name: p.name,
+            inventory: p.inventory,
+            price: p.price,
+            quantity: p.quantity,
+            attributes: Object.entries(p.attributes).map(([key, value]) => ({
+                name: key,
+                value: [value]
+            }))
+        })),
+        totalAmount: totalAmount,
+        paymentMethod: 'cash',
+        shippingAddress: "Nhận tại cửa hàng",
+        notes: shippingNotes || "",
+        promotionID: selectedPromotion ? selectedPromotion.id : null
+    };
+}
+
+
+function createOrder() {
+    let orderData = validateOrderData();
+    if (!orderData) return;
+
+    fetch("http://localhost:3000/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert("Đơn hàng đã được tạo thành công!");
+            window.location.href = "http://localhost:3000/orders"; // Chuyển về danh sách đơn hàng
+        } else {
+            alert("Có lỗi khi tạo đơn hàng: " + data.message);
+        }
+    })
+    .catch(error => console.error("Lỗi:", error));
+}
+
+let selectedProducts = [];
+let selectedAttributes = {}; // Lưu các thuộc tính đã chọn của sản phẩm
+
+function openProductDialog() {
+    // Reset trường tìm kiếm
+    const searchInput = document.getElementById('productSearchInput');
+    if (searchInput) {
+        searchInput.value = '';
+    }
+    
+    // Fetch detailed product information
+    fetch("/products/json")
+        .then(response => response.json())
+        .then(result => {
+            if (result.status === 'Ok') {
+                const productTableBody = document.getElementById('productTableBody');
+                productTableBody.innerHTML = ''; // Clear existing rows
+
+                result.data.forEach(product => {
+                    // Prepare variant display and attribute processing
+                    let processedAttributes = [];
+                    
+                    // Process variants if the product has variants
+                    if (product.hasVariants && product.variants && product.variants.length > 0) {
+                        // Create a map to store unique attributes
+                        const attributeGroups = {};
+                        
+                        // Iterate through variant details of the first variant
+                        product.variants[0].variantDetails.forEach(detail => {
+                            // Use the variant name directly from the variant ID
+                            const variantName = detail.variantId;
+                            
+                            // Collect unique values for each variant
+                            if (!attributeGroups[variantName]) {
+                                attributeGroups[variantName] = new Set();
+                            }
+                            attributeGroups[variantName].add(detail.value);
+                        });
+
+                        // Convert to the required format
+                        processedAttributes = Object.entries(attributeGroups).map(([name, values]) => ({
+                            name,
+                            values: Array.from(values)
+                        }));
+                    }
+
+                    // Determine price and inventory (using first variant if multiple exist)
+                    const price = product.variants && product.variants.length > 0 
+                        ? product.variants[0].price 
+                        : product.price;
+
+                    const inventory = product.variants && product.variants.length > 0 
+                        ? product.variants[0].inventory 
+                        : product.inventory;
+
+                    const row = `
+                        <tr class="product-row">
+                            <td><img src="${product.thumbnail || 'https://via.placeholder.com/50'}" width="50"></td>
+                            <td class="product-name">${product.name}</td>
+                            <td>
+                                <span id="selected-attributes-${product._id}">
+                                    ${product.hasVariants ? 'Chưa chọn' : 'Không có biến thể'}
+                                </span>
+                                ${product.hasVariants ? `
+                                    <button type="button" class="small-btn" 
+                                        onclick='openAttributeDialog("${product._id}", "${product.name}", ${JSON.stringify(processedAttributes)})'>
+                                        🛠️
+                                    </button>
+                                ` : ''}
+                            </td>
+                            <td>${(price || 0).toLocaleString()} VND</td>
+                            <td>${inventory || 0}</td>
+                            <td>
+                                <input type="checkbox" id="productCheckbox-${product._id}" 
+                                ${product.hasVariants ? 'disabled' : ''} 
+                                onchange="toggleProductSelection(this, '${product._id}', '${product.name}', '${price}', '${product.thumbnail}', '${inventory}', decodeURIComponent('${encodeURIComponent(JSON.stringify(processedAttributes))}'))">
+                            </td>
+                        </tr>
+                    `;
+                    productTableBody.innerHTML += row;
+                });
+
+                // Reset checkbox states and selections
+                selectedAttributes = {};
+                document.getElementById("productDialog").style.display = "block";
+            } else {
+                alert("Không thể tải danh sách sản phẩm!");
+            }
+        })
+        .catch(error => {
+            console.error("Lỗi khi tải sản phẩm:", error);
+            alert("Có lỗi xảy ra khi tải sản phẩm!");
+        });
+}
+
+function closeProductDialog() {
+    // Reset tất cả dữ liệu thuộc tính đã chọn khi đóng dialog chọn sản phẩm
+    selectedAttributes = {};
+    document.getElementById("productDialog").style.display = "none";
+
+    // Reset checkbox sản phẩm và disable lại
+    document.querySelectorAll("input[type=checkbox][id^=productCheckbox]").forEach(checkbox => {
+        checkbox.checked = false;
+        checkbox.disabled = true;
+    });
+
+    // Reset hiển thị thuộc tính
+    document.querySelectorAll("[id^=selected-attributes]").forEach(span => {
+        span.innerText = "Chưa chọn";
+    });
+}
+
+function openAttributeDialog(productID, productName, attributes) {
+    // Validate attributes
+    if (!Array.isArray(attributes) || attributes.length === 0) {
+        alert("Không có thuộc tính để chọn!");
+        return;
+    }
+
+    let attributeDiv = document.getElementById("attributeOptions");
+    attributeDiv.innerHTML = `<h4>Chọn thuộc tính cho <b>${productName}</b></h4>`;
+
+    document.getElementById("attributeDialog").dataset.productId = productID;
+    document.getElementById("attributeDialog").dataset.attributes = JSON.stringify(attributes);
+
+    // Create a container to track selected values for each attribute
+    let currentSelections = {};
+
+    attributes.forEach(attribute => {
+        // Get the variant name (attribute name)
+        const variantName = attribute.name;
+
+        // Create a section for this attribute
+        let attributeSection = document.createElement('div');
+        attributeSection.classList.add('attribute-group');
+        
+        // Add attribute name
+        let nameElement = document.createElement('h5');
+        nameElement.textContent = variantName;
+        attributeSection.appendChild(nameElement);
+
+        // Create a container for checkboxes
+        let checkboxContainer = document.createElement('div');
+        checkboxContainer.classList.add('checkbox-container');
+
+        // Create checkboxes for each variant value
+        attribute.values.forEach(value => {
+            let label = document.createElement('label');
+            label.classList.add('checkbox-label');
+
+            let checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.name = `attr-${productID}-${variantName}`;
+            checkbox.value = value;
+
+            // Add event listener to handle single selection per attribute
+            checkbox.addEventListener('change', function() {
+                // Uncheck other checkboxes in the same group
+                document.querySelectorAll(`input[name="${checkbox.name}"]`).forEach(cb => {
+                    if (cb !== checkbox) cb.checked = false;
+                });
+
+                // Update current selections
+                if (this.checked) {
+                    currentSelections[variantName] = this.value;
+                } else {
+                    delete currentSelections[variantName];
+                }
+
+                // Check if all attributes have a selection
+                const allAttributesSelected = attributes.every(attr => 
+                    currentSelections[attr.name]
+                );
+
+                // Enable/disable save button based on selections
+                document.getElementById('saveAttributesBtn').disabled = !allAttributesSelected;
+            });
+
+            label.appendChild(checkbox);
+            label.appendChild(document.createTextNode(value));
+            
+            checkboxContainer.appendChild(label);
+        });
+
+        attributeSection.appendChild(checkboxContainer);
+        attributeDiv.appendChild(attributeSection);
+    });
+
+    // Create save button with initial disabled state
+    let saveButton = document.createElement('button');
+    saveButton.id = 'saveAttributesBtn';
+    saveButton.textContent = 'Lưu thuộc tính';
+    saveButton.classList.add('btn', 'btn-primary');
+    saveButton.disabled = true;
+    saveButton.onclick = () => saveAttributeSelection();
+
+    attributeDiv.appendChild(saveButton);
+
+    // Show the dialog
+    document.getElementById("attributeDialog").style.display = "block";
+}
+
+function closeAttributeDialog() {
+    document.getElementById("attributeDialog").style.display = "none";
+}
+
+function updateAttributeSelection(productID, attributeName, value, checkbox) {
+    if (!selectedAttributes[productID]) {
+        selectedAttributes[productID] = {};
+    }
+
+    // Hủy chọn tất cả checkbox khác trong nhóm
+    document.querySelectorAll(`input[name="attr-${productID}-${attributeName}"]`).forEach(cb => {
+        if (cb !== checkbox) cb.checked = false;
+    });
+
+    selectedAttributes[productID][attributeName] = value;
+
+    // Kiểm tra nếu đã chọn đủ thuộc tính -> bật checkbox sản phẩm
+    checkAndEnableProductCheckbox(productID);
+}
+
+function checkAttributesSelected(productID, attributes) {
+    let selectedValues = selectedAttributes[productID] || {};
+    return attributes.every(attr => selectedValues[attr.name]);
+}
+
+function checkAndEnableProductCheckbox(productID) {
+    let attributes = JSON.parse(document.getElementById("attributeDialog").dataset.attributes);
+    let checkbox = document.getElementById(`productCheckbox-${productID}`);
+
+    if (checkAttributesSelected(productID, attributes)) {
+        checkbox.disabled = false; // Bật checkbox khi đã chọn đủ thuộc tính
+    } else {
+        checkbox.disabled = true; // Vô hiệu hóa nếu chưa chọn đủ
+    }
+}
+
+function findMatchingVariant(attributes, selectedAttributes) {
+    // Validate input parameters
+    if (!Array.isArray(attributes) || !selectedAttributes || typeof selectedAttributes !== 'object') {
+        console.error('Invalid input to findMatchingVariant', { attributes, selectedAttributes });
+        return null;
+    }
+
+    // Kiểm tra xem product có variants không
+    if (attributes.length === 0) {
+        return null;
+    }
+
+    // Find the first variant that matches all selected attributes
+    const matchingVariant = attributes[0]; // Lấy variant đầu tiên
+
+    // Kiểm tra nếu variant không có variantDetails
+    if (!matchingVariant.variantDetails || !Array.isArray(matchingVariant.variantDetails)) {
+        console.error('Invalid variant structure', matchingVariant);
+        return null;
+    }
+
+    // Kiểm tra xem tất cả các thuộc tính đã chọn có khớp với variant không
+    const isMatchingVariant = matchingVariant.variantDetails.every(detail => {
+        // Lấy tên thuộc tính từ variantDetails
+        const attributeName = detail.variantId ? detail.name || 'Thuộc tính' : 'Thuộc tính';
+        
+        // Kiểm tra xem thuộc tính đã được chọn chưa
+        const selectedValue = selectedAttributes[attributeName];
+        
+        // So sánh giá trị
+        return selectedValue === detail.value;
+    });
+
+    return isMatchingVariant ? matchingVariant : null;
+}
+function toggleProductSelection(checkbox, productID, name, price, thumbnail, inventory, attributesJSON) {
+    let attributes;
+    try {
+        // Kiểm tra và parse JSON
+        attributes = JSON.parse(decodeURIComponent(attributesJSON));
+        
+        // Validate attributes
+        if (!Array.isArray(attributes)) {
+            throw new Error('Attributes must be an array');
+        }
+    } catch (e) {
+        console.error("Lỗi parse JSON:", e);
+        alert("Có lỗi khi xử lý thuộc tính sản phẩm. Vui lòng thử lại.");
+        checkbox.checked = false;
+        return;
+    }
+
+    // Xử lý các sản phẩm có biến thể
+    if (attributes.length > 0) {
+        const selectedProductAttributes = selectedAttributes[productID];
+        
+        // Kiểm tra xem đã chọn đủ thuộc tính chưa
+        if (!selectedProductAttributes || 
+            Object.keys(selectedProductAttributes).length !== attributes.length) {
+            alert("Bạn cần chọn đầy đủ các thuộc tính trước khi chọn sản phẩm!");
+            checkbox.checked = false;
+            return;
+        }
+    }
+
+    let productIndex = selectedProducts.findIndex(p => p.productID === productID);
+    if (checkbox.checked) {
+        if (productIndex === -1) {
+            // Tìm variant phù hợp
+            const matchingVariant = findMatchingVariant(
+                attributes, 
+                selectedAttributes[productID]
+            );
+
+            // Chọn giá và số lượng
+            const selectedPrice = matchingVariant ? matchingVariant.price : Number(price);
+            const selectedInventory = matchingVariant ? matchingVariant.inventory : Number(inventory);
+
+            selectedProducts.push({
+                productID,
+                name,
+                price: selectedPrice,
+                thumbnail,
+                inventory: selectedInventory,
+                quantity: 1, 
+                attributes: selectedAttributes[productID] || {}
+            });
+        }
+    } else {
+        if (productIndex !== -1) {
+            selectedProducts.splice(productIndex, 1);
+        }
+    }
+}
+
+function saveSelectedProducts() {
+    updateSelectedProductsTable();
+    closeProductDialog();
+}
+
+function updateSelectedProductsTable() {
+    let productTable = document.getElementById("selectedProducts");
+    productTable.innerHTML = "";
+
+    let totalAmount = 0;
+
+    selectedProducts.forEach((product, index) => {
+        let totalPrice = product.price * product.quantity;
+        totalAmount += totalPrice;
+
+        let attributesText = Object.entries(product.attributes || {})
+            .map(([key, value]) => `${key}: ${value}`)
+            .join(', ') || "Chưa chọn";
+
+        productTable.innerHTML += `
+            <tr>
+                <td><img src="${product.thumbnail}" width="50"></td>
+                <td>${product.name}</td>
+                <td>${attributesText}</td>
+                <td>${product.inventory}</td>
+                <td>${product.price.toLocaleString()} VND</td>
+                <td>
+                    <input type="number" value="${product.quantity}" min="1" max="${product.inventory}" 
+                           onchange="updateQuantity(${index}, this.value)" style="width: 60px;">
+                </td>
+                <td>${totalPrice.toLocaleString()} VND</td>
+                <td><button class="delete-btn" onclick="removeProduct(${index}, '${product.productID}')">❌</button></td>
+            </tr>
+        `;
+    });
+
+    // Store original total before discount
+    originalTotalAmount = totalAmount;
+    
+    // If a promotion is selected, reapply it
+    if (selectedPromotion) {
+        // Check if order still meets minimum value
+        if (totalAmount < selectedPromotion.minOrderValue) {
+            alert(`Đơn hàng không còn đủ điều kiện để áp dụng khuyến mãi "${selectedPromotion.name}". Khuyến mãi đã bị gỡ bỏ.`);
+            removePromotion();
+        } else {
+            // Recalculate discount
+            let discountAmount = (totalAmount * selectedPromotion.discount) / 100;
+            
+            // Cap at maximum discount
+            if (discountAmount > selectedPromotion.maxDiscount) {
+                discountAmount = selectedPromotion.maxDiscount;
+            }
+            
+            // Update UI with discounted total
+            document.getElementById("discountAmount").innerText = discountAmount.toLocaleString() + " VND";
+            document.getElementById("totalAmount").innerText = (totalAmount - discountAmount).toLocaleString() + " VND";
+            return;
+        }
+    }
+    
+    // If no promotion or promotion was removed, show original total
+    document.getElementById("totalAmount").innerText = totalAmount.toLocaleString() + " VND";
+}
+
+function updateQuantity(index, quantity) {
+    selectedProducts[index].quantity = parseInt(quantity);
+    updateSelectedProductsTable();
+}
+
+function removeProduct(index, productID) {
+    selectedProducts.splice(index, 1);
+    delete selectedAttributes[productID]; // Xóa thuộc tính đã chọn của sản phẩm đó
+    updateSelectedProductsTable();
+
+    // Reset checkbox trong dialog chọn sản phẩm
+    let productCheckbox = document.getElementById(`productCheckbox-${productID}`);
+    if (productCheckbox) {
+        productCheckbox.checked = false;
+        productCheckbox.disabled = true;
+    }
+
+    // Reset hiển thị thuộc tính
+    let attributeSpan = document.getElementById(`selected-attributes-${productID}`);
+    if (attributeSpan) {
+        attributeSpan.innerText = "Chưa chọn";
+    }
+}
+
+function saveAttributeSelection() {
+    const productID = document.getElementById("attributeDialog").dataset.productId;
+    const attributes = JSON.parse(document.getElementById("attributeDialog").dataset.attributes);
+
+    // Collect selected values
+    let selectedValues = {};
+    let allAttributesSelected = true;
+
+    attributes.forEach(attribute => {
+        const attributeName = attribute.name;
+        const selectedValue = document.querySelector(`input[name="attr-${productID}-${attributeName}"]:checked`);
+
+        if (selectedValue) {
+            selectedValues[attributeName] = selectedValue.value;
+        } else {
+            allAttributesSelected = false;
+        }
+    });
+
+    // Validate all attributes are selected
+    if (!allAttributesSelected) {
+        alert("Vui lòng chọn đủ tất cả các thuộc tính!");
+        return;
+    }
+
+    // Update selected attributes display
+    const displaySpan = document.getElementById(`selected-attributes-${productID}`);
+    const displayText = Object.entries(selectedValues)
+        .map(([name, value]) => `${name}: ${value}`)
+        .join(', ');
+    
+    displaySpan.textContent = displayText;
+
+    // Enable product checkbox
+    const productCheckbox = document.getElementById(`productCheckbox-${productID}`);
+    productCheckbox.disabled = false;
+
+    // Store selected attributes
+    if (!selectedAttributes[productID]) {
+        selectedAttributes[productID] = {};
+    }
+    selectedAttributes[productID] = selectedValues;
+
+    // Close the dialog
+    document.getElementById("attributeDialog").style.display = "none";
+}
+
+function filterProducts() {
+    // Lấy giá trị tìm kiếm (và chuyển thành chữ thường để so sánh không phân biệt chữ hoa/thường)
+    const searchTerm = document.getElementById('productSearchInput').value.trim().toLowerCase();
+    
+    // Lấy tất cả các dòng sản phẩm
+    const productRows = document.querySelectorAll('.product-row');
+    
+    // Khởi tạo biến đếm sản phẩm hiển thị
+    let visibleProductCount = 0;
+    
+    // Lặp qua từng dòng để kiểm tra
+    productRows.forEach(row => {
+        // Lấy tên sản phẩm từ cột tên (phần tử có class 'product-name')
+        const productNameElement = row.querySelector('.product-name');
+        const productName = productNameElement ? productNameElement.textContent.toLowerCase() : '';
+        
+        // Kiểm tra xem tên sản phẩm có chứa chuỗi tìm kiếm không
+        if (productName.includes(searchTerm)) {
+            // Nếu có, hiển thị dòng
+            row.style.display = '';
+            visibleProductCount++;
+        } else {
+            // Nếu không, ẩn dòng
+            row.style.display = 'none';
+        }
+    });
+    
+    // Hiển thị thông báo nếu không có sản phẩm nào phù hợp
+    const noProductsMessage = document.getElementById('noProductsMessage');
+    if (visibleProductCount === 0) {
+        noProductsMessage.style.display = 'block';
+    } else {
+        noProductsMessage.style.display = 'none';
+    }
+}
+function openCustomerDialog() {
+    // Reset trường tìm kiếm
+    const searchInput = document.getElementById('customerSearchInput');
+    if (searchInput) {
+        searchInput.value = '';
+    }
+    
+    // Hiển thị lại tất cả các khách hàng
+    const customerRows = document.querySelectorAll('.customer-row');
+    customerRows.forEach(row => {
+        row.style.display = '';
+    });
+    
+    // Ẩn thông báo không tìm thấy khách hàng
+    const noCustomersMessage = document.getElementById('noCustomersMessage');
+    if (noCustomersMessage) {
+        noCustomersMessage.style.display = 'none';
+    }
+    
+    // Hiển thị dialog
+    document.getElementById("customerDialog").style.display = "block";
+}
+
+function closeCustomerDialog() {
+    document.getElementById("customerDialog").style.display = "none";
+}
+// Kiểm tra trạng thái dữ liệu khách hàng để bật/tắt nút thêm khách hàng
+function checkCustomerDataStatus() {
+    const customerID = document.getElementById('customerID').value;
+    const addCustomerBtn = document.getElementById('addCustomerBtn');
+    
+    // Nếu đã chọn khách hàng từ danh sách, vô hiệu hóa nút thêm khách hàng
+    if (customerID) {
+        addCustomerBtn.disabled = true;
+        addCustomerBtn.style.opacity = "0.5";
+        addCustomerBtn.style.cursor = "not-allowed";
+    } else {
+        addCustomerBtn.disabled = false;
+        addCustomerBtn.style.opacity = "1";
+        addCustomerBtn.style.cursor = "pointer";
+    }
+}
+
+// Thêm khách hàng mới
+function addNewCustomer() {
+    // Lấy thông tin từ form
+    const fullName = document.getElementById('customerName').value.trim();
+    const phoneNumber = document.getElementById('customerPhone').value.trim();
+    const email = document.getElementById('customerEmail').value.trim();
+    const address = document.getElementById('customerAddress').value.trim();
+    
+    // Kiểm tra dữ liệu đầu vào
+    if (!fullName || !phoneNumber || !email || !address) {
+        alert("Vui lòng nhập đầy đủ thông tin khách hàng!");
+        return;
+    }
+    
+    // Kiểm tra định dạng email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        alert("Email không hợp lệ!");
+        return;
+    }
+    
+    // Kiểm tra định dạng số điện thoại
+    const phoneRegex = /^(0[3|5|7|8|9])+([0-9]{8})$/;
+    if (!phoneRegex.test(phoneNumber)) {
+        alert("Số điện thoại không hợp lệ! Vui lòng nhập đúng định dạng.");
+        return;
+    }
+    
+    // Thực hiện gọi API để thêm khách hàng mới
+    fetch("/customers", {
+        method: "POST",
+        headers: { 
+            "Content-Type": "application/json" 
+        },
+        body: JSON.stringify({
+            fullName,
+            phoneNumber,
+            email,
+            address
+        })
+    })
+    .then(response => {
+        // Kiểm tra trạng thái của phản hồi
+        if (!response.ok) {
+            // Đọc thông báo lỗi từ response
+            return response.json().then(errorData => {
+                throw new Error(errorData.message || 'Có lỗi xảy ra');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Nếu thêm thành công, cập nhật ID của khách hàng vừa thêm
+            document.getElementById('customerID').value = data.customer._id;
+            
+            // Hiển thị thông báo thành công
+            alert("Thêm khách hàng thành công!");
+            
+            // Cập nhật trạng thái nút thêm khách hàng
+            checkCustomerDataStatus();
+            
+            // Cập nhật thông tin giao hàng
+            updateDeliveryInfo();
+        } else {
+            // Xử lý trường hợp không thành công nhưng không phải là lỗi server
+            alert(data.message || "Thêm khách hàng không thành công!");
+        }
+    })
+    .catch(error => {
+        console.error("Lỗi khi thêm khách hàng:", error);
+        alert(error.message || "Có lỗi xảy ra khi thêm khách hàng. Vui lòng thử lại!");
+    });
+}
+
+
+function updateDeliveryInfo() {
+    // Cập nhật thông tin giao hàng từ thông tin khách hàng
+    document.getElementById("shippingCustomerNameText").innerText = document.getElementById("customerName").value || "Chưa có";
+    document.getElementById("shippingCustomerPhoneText").innerText = document.getElementById("customerPhone").value || "Chưa có";
+    document.getElementById("shippingCustomerEmailText").innerText = document.getElementById("customerEmail").value || "Chưa có";
+    document.getElementById("shippingCustomerAddressText").innerText = document.getElementById("customerAddress").value || "Chưa có";
+}
+
+// Cập nhật hàm selectCustomer để kiểm tra trạng thái nút thêm khách hàng
+function selectCustomer(id, name, phone, email, address) {
+    // Cập nhật thông tin khách hàng
+    document.getElementById("customerID").value = id; 
+    document.getElementById("customerName").value = name;
+    document.getElementById("customerPhone").value = phone;
+    document.getElementById("customerEmail").value = email;
+    document.getElementById("customerAddress").value = address;
+
+    // Cập nhật thông tin giao hàng
+    updateDeliveryInfo();
+    
+    // Kiểm tra trạng thái nút thêm khách hàng
+    checkCustomerDataStatus();
+    
+    closeCustomerDialog();
+}
+
+// Hàm khởi tạo trạng thái ban đầu
+window.onload = function() {
+    // Gọi hàm kiểm tra trạng thái nút thêm khách hàng
+    checkCustomerDataStatus();
+    
+    // Các mã khởi tạo khác nếu có...
+}
+function filterCustomers() {
+    // Lấy giá trị tìm kiếm (và chuyển thành chữ thường để so sánh không phân biệt chữ hoa/thường)
+    const searchTerm = document.getElementById('customerSearchInput').value.trim().toLowerCase();
+    
+    // Lấy tất cả các dòng khách hàng
+    const customerRows = document.querySelectorAll('.customer-row');
+    
+    // Khởi tạo biến đếm khách hàng hiển thị
+    let visibleCustomerCount = 0;
+    
+    // Lặp qua từng dòng để kiểm tra
+    customerRows.forEach(row => {
+        // Lấy tên và số điện thoại khách hàng
+        const customerNameElement = row.querySelector('.customer-name');
+        const customerPhoneElement = row.querySelector('.customer-phone');
+        
+        const customerName = customerNameElement ? customerNameElement.textContent.toLowerCase() : '';
+        const customerPhone = customerPhoneElement ? customerPhoneElement.textContent.toLowerCase() : '';
+        
+        // Kiểm tra xem tên hoặc số điện thoại có chứa chuỗi tìm kiếm không
+        if (customerName.includes(searchTerm) || customerPhone.includes(searchTerm)) {
+            // Nếu có, hiển thị dòng
+            row.style.display = '';
+            visibleCustomerCount++;
+        } else {
+            // Nếu không, ẩn dòng
+            row.style.display = 'none';
+        }
+    });
+    
+    // Hiển thị thông báo nếu không có khách hàng nào phù hợp
+    const noCustomersMessage = document.getElementById('noCustomersMessage');
+    if (visibleCustomerCount === 0) {
+        noCustomersMessage.style.display = 'block';
+    } else {
+        noCustomersMessage.style.display = 'none';
+    }
+}
+let selectedPromotion = null;
+let originalTotalAmount = 0;
+
+// Function to open promotion dialog
+function openPromotionDialog() {
+    // Fetch current promotions from the server
+    fetch("/promotions/json")
+        .then(response => response.json())
+        .then(promotions => {
+            displayPromotions(promotions);
+            document.getElementById("promotionDialog").style.display = "block";
+        })
+        .catch(error => {
+            console.error("Lỗi khi lấy danh sách khuyến mãi:", error);
+            alert("Không thể tải danh sách khuyến mãi. Vui lòng thử lại sau.");
+        });
+}
+
+// Function to close promotion dialog
+function closePromotionDialog() {
+    document.getElementById("promotionDialog").style.display = "none";
+}
+
+// Function to display promotions in dialog
+function displayPromotions(promotions) {
+    const promotionTableBody = document.getElementById("promotionTableBody");
+    promotionTableBody.innerHTML = "";
+    
+    // Get current date for comparison
+    const currentDate = new Date();
+    currentDate.setHours(0, 0, 0, 0); // Reset time part for date comparison
+    
+    // Filter active promotions
+    const activePromotions = promotions.filter(promo => {
+        const startDate = new Date(promo.startDate);
+        const endDate = new Date(promo.endDate);
+        endDate.setHours(23, 59, 59, 999); // Include end date fully
+        
+        return (currentDate >= startDate && currentDate <= endDate) || 
+               promo.status === 'active';
+    });
+    
+    if (activePromotions.length === 0) {
+        promotionTableBody.innerHTML = `
+            <tr>
+                <td colspan="5" class="text-center">Không có khuyến mãi nào đang hoạt động</td>
+            </tr>
+        `;
+        return;
+    }
+    
+    activePromotions.forEach(promo => {
+        const row = document.createElement("tr");
+        
+        // Format dates for display
+        const startDateFormatted = new Date(promo.startDate).toLocaleDateString('vi-VN');
+        const endDateFormatted = new Date(promo.endDate).toLocaleDateString('vi-VN');
+        
+        // Calculate if promo is applicable to current order
+        const currentTotal = parseFloat(document.getElementById("totalAmount").innerText.replace(/[^\d]/g, '')) || 0;
+        const isApplicable = currentTotal >= promo.minOrderValue;
+        
+        row.innerHTML = `
+            <td>${promo.name}</td>
+            <td>${promo.discount}%</td>
+            <td>${promo.minOrderValue.toLocaleString()} VND</td>
+            <td>${promo.maxDiscount.toLocaleString()} VND</td>
+            <td>${startDateFormatted} - ${endDateFormatted}</td>
+            <td>
+                <button 
+                    class="btn ${isApplicable ? 'btn-primary' : 'btn-secondary'}" 
+                    onclick="selectPromotion('${promo._id}', '${promo.name}', ${promo.discount}, ${promo.minOrderValue}, ${promo.maxDiscount})"
+                    ${!isApplicable ? 'disabled' : ''}
+                >
+                    ${isApplicable ? 'Chọn' : 'Không đủ điều kiện'}
+                </button>
+            </td>
+        `;
+        
+        promotionTableBody.appendChild(row);
+    });
+}
+
+// Function to select a promotion
+function selectPromotion(id, name, discount, minOrderValue, maxDiscount) {
+    // Store current total without any discount
+    if (!originalTotalAmount) {
+        originalTotalAmount = parseFloat(document.getElementById("totalAmount").innerText.replace(/[^\d]/g, '')) || 0;
+    }
+    
+    // Check if order meets minimum value
+    if (originalTotalAmount < minOrderValue) {
+        alert(`Đơn hàng chưa đạt giá trị tối thiểu ${minOrderValue.toLocaleString()} VND để áp dụng khuyến mãi này.`);
+        return;
+    }
+    
+    // Store selected promotion
+    selectedPromotion = {
+        id: id,
+        name: name,
+        discount: discount,
+        minOrderValue: minOrderValue,
+        maxDiscount: maxDiscount
+    };
+    
+    // Calculate discount amount
+    let discountAmount = (originalTotalAmount * discount) / 100;
+    
+    // Cap at maximum discount if applicable
+    if (discountAmount > maxDiscount) {
+        discountAmount = maxDiscount;
+    }
+    
+    // Calculate new total
+    const newTotal = originalTotalAmount - discountAmount;
+    
+    // Update UI
+    document.getElementById("selectedPromotionName").innerText = name;
+    document.getElementById("discountAmount").innerText = discountAmount.toLocaleString() + " VND";
+    document.getElementById("totalAmount").innerText = newTotal.toLocaleString() + " VND";
+    document.getElementById("promotionApplied").style.display = "block";
+    document.getElementById("removePromotionBtn").style.display = "inline-block";
+    
+    // Close dialog
+    closePromotionDialog();
+}
+
+// Function to remove promotion
+function removePromotion() {
+    if (originalTotalAmount) {
+        // Restore original total
+        document.getElementById("totalAmount").innerText = originalTotalAmount.toLocaleString() + " VND";
+    }
+    
+    // Reset UI
+    document.getElementById("selectedPromotionName").innerText = "";
+    document.getElementById("discountAmount").innerText = "0 VND";
+    document.getElementById("promotionApplied").style.display = "none";
+    document.getElementById("removePromotionBtn").style.display = "none";
+    
+    // Reset selected promotion
+    selectedPromotion = null;
+}
+
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding-top: 40px;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: flex-end;
+            align-items: flex-start;
+        }
+        
+        .content-container {
+            width: 85%;
+            background-color: white;
+            padding: 20px;
+            margin-top: 20px;
+            margin-right: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+    
+        h1, h3 {
+            color: #333;
+            text-align: center;
+        }
+    
+        .container {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+        }
+    
+        .box {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            width: 48%;
+        }
+    
+        label {
+            font-weight: bold;
+            display: block;
+            margin-top: 10px;
+        }
+    
+        input, textarea {
+            width: 97%;
+            padding: 8px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+    
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+    
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+    
+        th {
+            background-color: #007bff;
+            color: white;
+        }
+    
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+    
+        button {
+            background-color: #28a745;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+    
+        button:hover {
+            background-color: #218838;
+        }
+    
+        .dialog {
+            display: none;
+            position: fixed;
+            top: 20%;
+            left: 30%;
+            width: 40%;
+            background: white;
+            padding: 20px;
+            border: 2px solid #333;
+            border-radius: 8px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.3);
+        }
+    
+        .close-btn {
+            background-color: red;
+            float: right;
+        }
+    
+        .total {
+            font-size: 18px;
+            font-weight: bold;
+            text-align: right;
+            margin-top: 10px;
+        }
+        
+        .box1 {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            margin-bottom: 30px;
+        }
+        
+        #attributeDialog {
+            display: none;
+            position: fixed;
+            top: 20%;
+            left: 30%;
+            width: 40%;
+            background: white;
+            align-content: center;
+            padding: 20px;
+            border: 2px solid #333;
+            border-radius: 8px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Nhóm thuộc tính */
+        .attribute-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        /* Mỗi item của thuộc tính */
+        .attribute-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background: #f9f9f9;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        /* Chỉnh sửa button chọn thuộc tính */
+        .small-btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 5px;
+        }
+        
+        .small-btn:hover {
+            background-color: #0056b3;
+        }
+        
+        /* Tổng tiền & Nút Tạo Đơn Hàng nổi cố định ở bottom */
+        .fixed-bottom-bar {
+    position: fixed;
+    bottom: 0;
+    left: 10;
+    width: calc(82%); /* Giảm chiều rộng đi 200px */
+    background: #ffffff;
+    padding: 15px 20px;
+    border-top: 2px solid #ddd;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0px -2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Điều chỉnh vị trí nút "Tạo Đơn Hàng" */
+.submit-btn {
+    background-color: #007bff;
+    color: white;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    margin-right: 0; /* Loại bỏ margin-right 60px */
+    font-weight: bold;
+}
+        
+        /* Tổng tiền */
+        .total-text {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        /* Nút Tạo Đơn Hàng */
+        .submit-btn {
+    background-color: #007bff;
+    color: white;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    margin-right: 0; /* Loại bỏ margin-right 60px */
+    font-weight: bold;
+}
+        
+        .submit-btn:hover {
+            background-color: #0056b3;
+        }
+        
+        /* Thông tin giao hàng */
+        .delivery-info {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+        
+        .delivery-info-column {
+            width: 48%;
+        }
+        
+        .delivery-info-field {
+            margin-bottom: 15px;
+        }
+        
+        .delivery-info-label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        .delivery-info-value {
+            padding: 5px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            min-height: 20px;
+        }
+        
+        .delete-btn {
+            background-color: #ff4d4d;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        
+        .delete-btn:hover {
+            background-color: #ff0000;
+        }
+    </style>
+    
+</head>
+<body>
+<div class="content-container">
+    <h1>Tạo Đơn Hàng</h1>
+
+    <div class="container">
+        <!-- Thông tin khách hàng -->
+<div class="box">
+    <h3>Thông tin khách hàng</h3>
+    <input type="hidden" id="customerID">
+    <label>Tên khách hàng:</label>
+    <input type="text" id="customerName" name="customerName" required onchange="updateDeliveryInfo(); checkCustomerDataStatus()">
+    
+    <label>Số điện thoại:</label>
+    <input type="text" id="customerPhone" name="customerPhone" required onchange="updateDeliveryInfo(); checkCustomerDataStatus()">
+    
+    <label>Email:</label>
+    <input type="email" id="customerEmail" name="customerEmail" required onchange="updateDeliveryInfo(); checkCustomerDataStatus()">
+    
+    <label>Địa chỉ:</label>
+    <input type="text" id="customerAddress" name="customerAddress" required onchange="updateDeliveryInfo(); checkCustomerDataStatus()">
+
+    <div style="display: flex; gap: 10px; margin-top: 10px;">
+        <button type="button" onclick="openCustomerDialog()">Chọn Khách Hàng</button>
+        <button type="button" id="addCustomerBtn" onclick="addNewCustomer()">Thêm Khách Hàng</button>
+    </div>
+</div>
+    
+        <!-- Thông tin sản phẩm -->
+        <div class="box">
+            <h3>Chọn Sản Phẩm</h3>
+            <button type="button" onclick="openProductDialog()" >Thêm Sản Phẩm</button>
+            <table>
+                <tr>
+                    <th>Ảnh</th>
+                    <th>Tên</th>
+                    <th>Thuộc tính</th>
+                    <th>Số lượng tồn</th>
+                    <th>Giá</th>
+                    <th>Số lượng</th>
+                    <th>Thành tiền</th>
+                </tr>
+                <tbody id="selectedProducts"></tbody>
+            </table>
+        </div>
+    </div>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin: 20px 0;">
+        <button type="button" class="btn btn-info" onclick="openPromotionDialog()">Chọn Khuyến Mãi</button>
+        <div id="promotionApplied" style="display: none; background-color: #e0f7fa; padding: 10px; border-radius: 5px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div>
+                    <strong>Khuyến mãi áp dụng:</strong> <span id="selectedPromotionName"></span>
+                </div>
+                <div>
+                    <strong>Số tiền giảm:</strong> <span id="discountAmount">0 VND</span>
+                </div>
+                <button id="removePromotionBtn" type="button" class="btn btn-sm btn-danger" 
+                        onclick="removePromotion()" style="display: none;">Hủy khuyến mãi</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Dialog chọn khuyến mãi -->
+    <div id="promotionDialog" style="display:none; position:fixed; top:20%; left:20%; width:60%; background:white; padding:20px; border:1px solid black; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); z-index: 1000; max-height: 60%; overflow-y: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="margin: 0;">Chọn Khuyến Mãi</h3>
+            <button onclick="closePromotionDialog()" style="background: red; color: white; border: none; border-radius: 4px; padding: 5px 10px;">Đóng</button>
+        </div>
+        
+        <div style="margin-bottom: 15px;">
+            <p>Chỉ hiển thị các khuyến mãi đang hoạt động và có thể áp dụng cho đơn hàng của bạn.</p>
+        </div>
+        
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background-color: #f2f2f2;">
+                    <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Tên khuyến mãi</th>
+                    <th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Giảm giá</th>
+                    <th style="padding: 10px; text-align: right; border: 1px solid #ddd;">Giá trị tối thiểu</th>
+                    <th style="padding: 10px; text-align: right; border: 1px solid #ddd;">Giảm tối đa</th>
+                    <th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Thời gian</th>
+                    <th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody id="promotionTableBody">
+                <!-- Promotions will be populated here by JavaScript -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Thông tin giao hàng (đã loại bỏ phần lựa chọn hình thức giao hàng) -->
+    <div style="margin-top: 30px; margin-bottom: 70px;">
+        <div class="box1">
+            <h3>Thông tin chi tiết</h3>
+            <div class="delivery-info">
+                <div class="delivery-info-column">
+                    <div class="delivery-info-field">
+                        <label class="delivery-info-label">Tên khách hàng:</label>
+                        <div id="shippingCustomerNameText" class="delivery-info-value">Chưa có</div>
+                    </div>
+                    <div class="delivery-info-field">
+                        <label class="delivery-info-label">Số điện thoại:</label>
+                        <div id="shippingCustomerPhoneText" class="delivery-info-value">Chưa có</div>
+                    </div>
+                </div>
+                <div class="delivery-info-column">
+                    <div class="delivery-info-field">
+                        <label class="delivery-info-label">Email:</label>
+                        <div id="shippingCustomerEmailText" class="delivery-info-value">Chưa có</div>
+                    </div>
+                    <div class="delivery-info-field">
+                        <label class="delivery-info-label">Địa chỉ :</label>
+                        <div id="shippingCustomerAddressText" class="delivery-info-value">Chưa có</div>
+                    </div>
+                </div>
+            </div>
+            <label>Ghi chú:</label>
+            <textarea id="shippingNotes" name="shippingNotes" rows="3" placeholder="Nhập ghi chú nếu cần..."></textarea>
+        </div>
+    </div>
+
+    <div class="fixed-bottom-bar">
+        <h3 class="total-text" style="margin-left: 20px;">Tổng tiền: <span id="totalAmount">0</span> VND</h3>
+        <button type="submit" class="submit-btn" onclick='createOrder()'>Tạo Đơn Hàng</button>
+    </div>
+
+    <!-- Dialog chọn sản phẩm -->
+<div id="productDialog" style="display:none; position:fixed; top:20%; left:30%; width:40%; background:white; padding:20px; border:1px solid black;">
+    <h3>Chọn Sản Phẩm</h3>
+    
+    <!-- Thêm trường tìm kiếm sản phẩm -->
+    <div style="margin-bottom: 15px;">
+        <label for="productSearchInput">Tìm kiếm sản phẩm:</label>
+        <input type="text" id="productSearchInput" placeholder="Nhập tên sản phẩm..." style="width: 100%; padding: 8px; margin-top: 5px;" 
+               onkeyup="filterProducts()">
+    </div>
+    
+    <table border="1">
+        <tr>
+            <th>Ảnh</th>
+            <th>Tên</th>
+            <th>Thuộc tính</th>
+            <th>Giá</th>
+            <th>Số lượng</th>
+            <th>Chọn</th>
+        </tr>
+        <tbody id="productTableBody">
+            <% products.forEach(product => { %>
+                <tr class="product-row">
+                    <td><img src="<%= product.thumbnail %>" width="50"></td>
+                    <td class="product-name"><%= product.name %></td>
+                    <td>
+                        <span id="selected-attributes-<%= product._id %>">Chưa chọn</span>
+                        <button type="button" class="small-btn" 
+                            onclick='openAttributeDialog("<%= product._id %>", "<%= product.name %>", <%- JSON.stringify(product.attributes) %>)'>
+                            🛠️
+                        </button>
+                    </td>
+                    <td><%= (product.price || 0).toLocaleString() %> VND</td>
+                    <td><%= product.inventory %></td>
+                    <td>
+                        <input type="checkbox" id="productCheckbox-<%= product._id %>" 
+                        disabled 
+                        onchange="toggleProductSelection(this, '<%= product._id %>', '<%= product.name %>', '<%= product.price %>', '<%= product.thumbnail %>', '<%= product.inventory %>', decodeURIComponent('<%= encodeURIComponent(JSON.stringify(product.attributes)) %>'))">
+                    </td>
+                </tr>
+            <% }) %>
+        </tbody>
+    </table>
+    <div id="noProductsMessage" style="display: none; text-align: center; padding: 15px; color: #555;">
+        Không tìm thấy sản phẩm nào phù hợp
+    </div>
+    <button onclick="saveSelectedProducts()">Lưu</button>
+    <button onclick="closeProductDialog()">Đóng</button>
+</div>
+
+    <!-- Dialog chọn thuộc tính -->
+    <div id="attributeDialog" class="dialog" style="display:none;">
+        <h3>Chọn Thuộc Tính</h3>
+        <div id="attributeOptions"></div>
+        <button onclick="saveAttributeSelection()">Lưu</button>
+        <button onclick="closeAttributeDialog()">Đóng</button>
+    </div>
+
+    <!-- Dialog chọn khách hàng -->
+<div id="customerDialog" style="display:none; position:fixed; top:20%; left:30%; width:40%; background:white; padding:20px; border:1px solid black;">
+    <h3>Chọn Khách Hàng</h3>
+    
+    <!-- Thêm trường tìm kiếm khách hàng -->
+    <div style="margin-bottom: 15px;">
+        <label for="customerSearchInput">Tìm kiếm khách hàng:</label>
+        <input type="text" id="customerSearchInput" placeholder="Nhập tên hoặc số điện thoại..." style="width: 100%; padding: 8px; margin-top: 5px;" 
+               onkeyup="filterCustomers()">
+    </div>
+    
+    <table border="1">
+        <tr>
+            <th>Tên</th>
+            <th>Điện thoại</th>
+            <th>Email</th>
+            <th>Địa chỉ</th>
+            <th>Chọn</th>
+        </tr>
+        <tbody id="customerTableBody">
+            <% customers.forEach(customer => { %>
+                <tr class="customer-row">
+                    <td class="customer-name"><%= customer.fullName %></td>
+                    <td class="customer-phone"><%= customer.phoneNumber %></td>
+                    <td><%= customer.email %></td>
+                    <td><%= customer.address %></td>
+                    <td><button type="button" onclick="selectCustomer('<%= customer.id %>', '<%= customer.fullName %>', '<%= customer.phoneNumber %>', '<%= customer.email %>', '<%= customer.address %>')">Chọn</button></td>
+                </tr>
+            <% }) %>
+        </tbody>
+    </table>
+    <div id="noCustomersMessage" style="display: none; text-align: center; padding: 15px; color: #555;">
+        Không tìm thấy khách hàng nào phù hợp
+    </div>
+    <button onclick="closeCustomerDialog()">Đóng</button>
+</div>
+</div>
+</body>
+</html>

@@ -13,11 +13,25 @@ import { More, CloseCircle, Timer, ReceiptItem } from 'iconsax-react-native';
 const OrderDetailScreen = observer(() => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { orderId } = route.params as { orderId: string };
-  const navigateToOrderList = (status?: string) => {
-    // @ts-ignore - ignore navigation type error
-    navigation.navigate(Screen.ORDERLIST, { status });
+  const { orderId, fromScreen } = route.params as { orderId: string; fromScreen?: string };
+  
+  const navigateBack = () => {
+    // If coming from RevenueScreen, go back to RevenueScreen
+    if (fromScreen === 'Revenue') {
+      navigation.goBack();
+    } else {
+      // Otherwise go to OrderList
+      // @ts-ignore - ignore navigation type error
+      navigation.navigate(Screen.ORDERLIST);
+    }
   };
+  
+  // Only using this for other functions in the component
+  const navigateToScreen = (screen: string, params?: any) => {
+    // @ts-ignore - ignore navigation type error
+    navigation.navigate(screen, params);
+  };
+  
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showActions, setShowActions] = useState(false);
@@ -138,8 +152,7 @@ const OrderDetailScreen = observer(() => {
     const isPartial = order.paymentStatus === 'partpaid';
 
     // Điều hướng đến màn hình thanh toán
-    // @ts-ignore - Bỏ qua lỗi TypeScript vì chúng ta biết đây là screen hợp lệ
-    navigation.navigate(Screen.PAYMENT_METHODS, {
+    navigateToScreen(Screen.PAYMENT_METHODS, {
       orderId: order._id,
       orderNumber: order.orderID.slice(-4),
       totalAmount: order.totalAmount,
@@ -215,8 +228,7 @@ const OrderDetailScreen = observer(() => {
       }
       
       // Điều hướng đến màn hình hủy đơn hàng với thông tin ID đơn hàng
-      // @ts-ignore - Bỏ qua lỗi TypeScript vì chúng ta biết đây là screen hợp lệ
-      navigation.navigate(Screen.ORDER_CANCEL, { 
+      navigateToScreen(Screen.ORDER_CANCEL, { 
         orderId: order?._id,
         orderNumber: order?.orderID.slice(-4) // Gửi mã đơn ngắn gọn để hiển thị
       });
@@ -235,7 +247,7 @@ const OrderDetailScreen = observer(() => {
         <Header
           title="Chi tiết đơn hàng"
           showBackIcon
-          onPressBack={() => navigateToOrderList()}
+          onPressBack={navigateBack}
           showRightIcon
           RightIcon={<More size={24} color={color.accentColor.darkColor} />}
           onPressRight={toggleActions}
@@ -253,7 +265,7 @@ const OrderDetailScreen = observer(() => {
         <Header
           title="Chi tiết đơn hàng"
           showBackIcon
-          onPressBack={() => navigateToOrderList()}
+          onPressBack={navigateBack}
           showRightIcon
           RightIcon={<More size={24} color={color.accentColor.darkColor} />}
           onPressRight={toggleActions}
@@ -278,7 +290,7 @@ const OrderDetailScreen = observer(() => {
       <Header
         title="Chi tiết đơn hàng"
         showBackIcon
-        onPressBack={() => navigateToOrderList()}
+        onPressBack={navigateBack}
         showRightIcon
         RightIcon={<More size={24} color={color.accentColor.darkColor} />}
         onPressRight={toggleActions}

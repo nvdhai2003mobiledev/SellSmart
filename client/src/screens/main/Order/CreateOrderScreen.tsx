@@ -400,7 +400,7 @@ const CreateOrderScreen = observer(() => {
 
         if (orderId) {
           // Điều hướng đến trang chi tiết đơn hàng với ID đơn hàng vừa tạo
-          navigation.navigate('ORDER_DETAIL', {orderId});
+          navigation.navigate(Screen.ORDER_DETAIL, {orderId});
         } else {
           // Fallback nếu không lấy được ID đơn hàng
           Alert.alert('Thành công', 'Đơn hàng đã được tạo thành công', [
