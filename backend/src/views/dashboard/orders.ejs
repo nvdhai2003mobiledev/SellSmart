@@ -30,8 +30,10 @@
         <label for="searchStatus">Trạng thái:</label>
         <select id="searchStatus" class="order-search-input">
           <option value="">Tất cả</option>
-          <option value="pending">Chưa xử lý</option>
-          <option value="processing">Đã xử lý</option>
+          <option value="pending">Đang chờ xử lý</option>
+          <option value="processing">Đang xử lý</option>
+          <option value="shipping">Đang giao hàng</option>
+          <option value="delivered">Đã giao hàng</option>
           <option value="canceled">Đã hủy</option>
         </select>
       </div>
@@ -123,8 +125,10 @@
         <td>
           <span class="order-status status-<%= order.status %>">
             <% const statusMap = {
-              'pending': 'Chưa xử lý',
-              'processing': 'Đã xử lý',
+              'pending': 'Đang chờ xử lý',
+              'processing': 'Đang xử lý',
+              'shipping': 'Đang giao hàng',
+              'delivered': 'Đã giao hàng',
               'canceled': 'Đã hủy'
             }; %>
             <%= statusMap[order.status] || order.status %>
@@ -323,8 +327,10 @@
 
     // Định nghĩa các trạng thái đơn hàng
     const statusMap = {
-      'pending': 'Chưa xử lý',
-      'processing': 'Đã xử lý',
+      'pending': 'Đang chờ xử lý',
+      'processing': 'Đang xử lý',
+      'shipping': 'Đang giao hàng',
+      'delivered': 'Đã giao hàng',
       'canceled': 'Đã hủy'
     };
     
@@ -483,8 +489,10 @@
     
     // Hiển thị trạng thái đơn hàng
     const statusMap = {
-      'pending': 'Chưa xử lý',
-      'processing': 'Đã xử lý',
+      'pending': 'Đang chờ xử lý',
+      'processing': 'Đang xử lý',
+      'shipping': 'Đang giao hàng',
+      'delivered': 'Đã giao hàng',
       'canceled': 'Đã hủy'
     };
     document.getElementById('orderDetailStatus').textContent = statusMap[order.status] || order.status;
