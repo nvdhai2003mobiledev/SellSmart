@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Danh sách tài liệu sản phẩm</title>
+  <title>Danh sách sản phẩm và tài liệu</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="/css/style.css">
@@ -69,116 +69,143 @@
       font-size: 1.1rem;
     }
 
-    .documents-grid {
+    .products-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-      gap: 2.5rem;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
       padding: 1rem 0;
     }
 
-    .document {
+    .product-card {
       background: var(--card-bg);
       border-radius: 1rem;
-      box-shadow: var(--card-shadow);
       overflow: hidden;
+      box-shadow: var(--card-shadow);
+      cursor: pointer;
       transition: all 0.3s ease;
       border: 1px solid var(--border-color);
     }
 
-    .document:hover {
-      transform: translateY(-8px);
+    .product-card:hover {
+      transform: translateY(-5px);
       box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
     }
 
-    .product-info {
-      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-      color: white;
-      padding: 1.25rem;
-      display: flex;
-      align-items: center;
-      gap: 1rem;
+    .product-image {
+      width: 100%;
+      height: 220px;
+      object-fit: contain;
+      background: #fff;
+      padding: 1rem;
     }
 
-    .product-info img {
-      width: 70px;
-      height: 70px;
-      object-fit: cover;
-      border-radius: 0.75rem;
-      border: 3px solid rgba(255, 255, 255, 0.5);
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    .product-info {
+      padding: 1.5rem;
+      border-top: 1px solid var(--border-color);
+      background: linear-gradient(to bottom, var(--card-bg), var(--background-color));
     }
 
     .product-name {
-      font-size: 1.2rem;
+      font-size: 1.25rem;
       font-weight: 600;
-      line-height: 1.4;
-    }
-
-    .document-content {
-      padding: 1.75rem;
-    }
-
-    .document-title {
       color: var(--text-color);
-      font-size: 1.5rem;
-      font-weight: 700;
-      margin-bottom: 1rem;
-      line-height: 1.3;
+      margin-bottom: 0.5rem;
     }
 
-    .document-description {
+    .product-docs {
       color: var(--text-muted);
-      margin-bottom: 1.5rem;
-      font-size: 1rem;
-      line-height: 1.6;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
     }
 
-    .media-container {
-      margin-top: 1.5rem;
-      border-radius: 0.75rem;
-      overflow: hidden;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    .product-docs i {
+      color: var(--primary-color);
     }
 
-    .video-container {
-      position: relative;
-      padding-bottom: 56.25%;
-      height: 0;
-      overflow: hidden;
-      border-radius: 0.75rem;
-      background: #000;
-    }
-
-    .video-container iframe {
-      position: absolute;
+    /* Modal styles */
+    .modal {
+      display: none;
+      position: fixed;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      border: none;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
     }
 
-    .document img:not(.product-info img) {
-      width: 100%;
-      height: auto;
+    .modal-content {
+      position: relative;
+      background: var(--card-bg);
+      width: 90%;
+      max-width: 800px;
+      margin: 2rem auto;
+      padding: 2rem;
+      border-radius: 1rem;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .close-modal {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: var(--text-muted);
+      width: 32px;
+      height: 32px;
+      background: var(--background-color);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .close-modal:hover {
+      background: var(--border-color);
+      color: var(--text-color);
+    }
+
+    .document {
+      margin-bottom: 2rem;
+      padding: 1.5rem;
+      background: var(--background-color);
       border-radius: 0.75rem;
-      object-fit: cover;
-      transition: transform 0.3s ease;
+      border: 1px solid var(--border-color);
     }
 
-    .document img:not(.product-info img):hover {
-      transform: scale(1.02);
+    .document-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: var(--text-color);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .document-title i {
+      color: var(--primary-color);
+    }
+
+    .document-description {
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+      font-size: 0.95rem;
     }
 
     .document-meta {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-top: 1.5rem;
-      padding-top: 1.5rem;
+      margin-top: 1rem;
+      padding-top: 1rem;
       border-top: 1px solid var(--border-color);
-      color: var(--text-muted);
       font-size: 0.9rem;
+      color: var(--text-muted);
     }
 
     .document-date {
@@ -193,35 +220,130 @@
       gap: 0.5rem;
     }
 
-    .empty-state {
-      text-align: center;
-      padding: 4rem 2rem;
-      background: var(--card-bg);
-      border-radius: 1rem;
-      box-shadow: var(--card-shadow);
-      max-width: 600px;
-      margin: 0 auto;
+    .document-media {
+      margin-top: 1rem;
+      border-radius: 0.5rem;
+      overflow: hidden;
     }
 
-    .empty-state i {
-      font-size: 4rem;
-      color: var(--accent-color);
-      margin-bottom: 1.5rem;
-      opacity: 0.8;
+    .document-media img {
+      width: 100%;
+      height: auto;
+      border-radius: 0.5rem;
     }
 
-    .empty-state-title {
-      font-size: 1.5rem;
-      font-weight: 600;
-      margin-bottom: 1rem;
-      color: var(--text-color);
+    .video-container {
+      position: relative;
+      padding-bottom: 56.25%;
+      height: 0;
+      overflow: hidden;
+      background: #000;
+      border-radius: 0.5rem;
     }
 
-    .empty-state-message {
-      font-size: 1.1rem;
-      color: var(--text-muted);
-      max-width: 400px;
-      margin: 0 auto;
+    .video-container iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    .facebook-container {
+      background: #fff;
+      border-radius: 0.5rem;
+      overflow: hidden;
+      margin: 1rem 0;
+    }
+
+    .tiktok-container {
+      display: flex;
+      justify-content: center;
+      margin: 1rem 0;
+      min-height: 600px;
+    }
+
+    .web-preview {
+      border: 1px solid var(--border-color);
+      border-radius: 0.5rem;
+      padding: 1rem;
+      margin-top: 1rem;
+      background: #fff;
+    }
+
+    .web-preview a {
+      color: var(--primary-color);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .web-preview a:hover {
+      text-decoration: underline;
+    }
+
+    .web-preview i {
+      font-size: 1.2rem;
+    }
+
+    /* Contact buttons styles */
+    .floating-contacts {
+      position: fixed;
+      bottom: 100px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: flex-end;
+      z-index: 997;
+    }
+
+    .contact-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 50px;
+      height: 50px;
+      border-radius: 25px;
+      text-decoration: none;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .contact-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+    }
+
+    .contact-button.phone {
+      background: #28a745;
+      color: white;
+      z-index: 997;
+    }
+
+    .contact-button.zalo {
+      background: #0068ff;
+      padding: 8px;
+      z-index: 997;
+    }
+
+    .contact-button img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .contact-button i {
+      font-size: 24px;
+      color: white;
+    }
+
+    /* Chatbot styles */
+    #chatling-iframe-wrapper {
+      z-index: 996 !important;
+      bottom: 20px !important;
     }
 
     @media (max-width: 768px) {
@@ -233,14 +355,29 @@
         font-size: 2.2rem;
       }
 
-      .documents-grid {
+      .products-grid {
         grid-template-columns: 1fr;
-        gap: 2rem;
       }
-      
-      .product-info img {
-        width: 60px;
-        height: 60px;
+
+      .modal-content {
+        width: 95%;
+        margin: 1rem auto;
+        padding: 1.5rem;
+      }
+
+      .tiktok-container {
+        min-height: 400px;
+      }
+
+      .floating-contacts {
+        bottom: 90px;
+        right: 15px;
+        gap: 10px;
+      }
+
+      .contact-button {
+        width: 45px;
+        height: 45px;
       }
     }
   </style>
@@ -248,92 +385,186 @@
 <body>
   <div class="container">
     <div class="page-header">
-      <h1>Tài liệu sản phẩm</h1>
+      <h1>Danh sách sản phẩm</h1>
       <span class="header-underline"></span>
-      <p class="header-description">Khám phá hướng dẫn sử dụng, thông tin kỹ thuật và video giới thiệu về sản phẩm của chúng tôi</p>
+      <p class="header-description">Chọn sản phẩm để xem tài liệu chi tiết</p>
     </div>
-    
-    <% if (documents.length > 0) { %>
-      <div class="documents-grid">
-        <% documents.forEach(function(doc) { %>
+
+    <div class="products-grid">
+      <% 
+      // Group documents by product
+      const productDocs = {};
+      documents.forEach(doc => {
+        const productId = doc.product_id._id || doc.product_id;
+        if (!productDocs[productId]) {
+          productDocs[productId] = {
+            name: doc.product_id.name || 'Sản phẩm không xác định',
+            image: doc.product_id.thumbnail || '/images/default-product.png',
+            documents: []
+          };
+        }
+        productDocs[productId].documents.push(doc);
+      });
+      %>
+
+      <% Object.entries(productDocs).forEach(([productId, product]) => { %>
+        <div class="product-card" onclick="showDocuments('<%= productId %>')">
+          <img src="<%= product.image %>" alt="<%= product.name %>" class="product-image">
+          <div class="product-info">
+            <h3 class="product-name"><%= product.name %></h3>
+            <p class="product-docs">
+              <i class="fas fa-file-alt"></i>
+              <%= product.documents.length %> tài liệu
+            </p>
+          </div>
+        </div>
+      <% }); %>
+    </div>
+  </div>
+
+  <!-- Modal for documents -->
+  <% Object.entries(productDocs).forEach(([productId, product]) => { %>
+    <div id="modal-<%= productId %>" class="modal">
+      <div class="modal-content">
+        <span class="close-modal" onclick="closeModal('<%= productId %>')">&times;</span>
+        <h2 style="margin-bottom: 2rem;"><%= product.name %></h2>
+        
+        <% product.documents.forEach(doc => { %>
           <div class="document">
-            <div class="product-info">
-              <% if (doc.product_id && doc.product_id.thumbnail) { %>
-                <img src="<%= doc.product_id.thumbnail %>" alt="Thumbnail">
-              <% } else { %>
-                <div style="width: 70px; height: 70px; background: rgba(255,255,255,0.2); border-radius: 0.75rem; display: flex; align-items: center; justify-content: center;">
-                  <i class="fas fa-box" style="font-size: 2rem;"></i>
-                </div>
-              <% } %>
-              <div class="product-name">
-                <%= doc.product_id ? doc.product_id.name : 'Sản phẩm chung' %>
-              </div>
-            </div>
+            <h3 class="document-title">
+              <i class="fas fa-file-alt"></i>
+              <%= doc.title %>
+            </h3>
+            <p class="document-description"><%= doc.description %></p>
             
-            <div class="document-content">
-              <h2 class="document-title"><%= doc.title %></h2>
-              <p class="document-description"><%= doc.description %></p>
-              
-              <% if (doc.media) { %>
-                <div class="media-container">
-                  <% 
+            <% if (doc.media) { %>
+              <div class="document-media">
+                <% 
+                  const url = doc.media;
+                  if (url.includes('youtube.com') || url.includes('youtu.be')) { 
                     let videoId = '';
-                    if (doc.media.includes('youtube.com') || doc.media.includes('youtu.be')) {
-                      if (doc.media.includes('youtube.com/watch?v=')) {
-                        videoId = doc.media.split('v=')[1];
-                      } else if (doc.media.includes('youtu.be/')) {
-                        videoId = doc.media.split('youtu.be/')[1];
-                      }
-                      if (videoId.includes('&')) {
-                        videoId = videoId.split('&')[0];
-                      }
-                  %>
-                    <div class="video-container">
-                      <iframe 
-                        src="https://www.youtube.com/embed/<%= videoId %>" 
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                        allowfullscreen>
-                      </iframe>
-                    </div>
-                  <% } else if (doc.media.includes('tiktok.com')) { 
-                      const tiktokUrl = new URL(doc.media);
-                      const tiktokPath = tiktokUrl.pathname;
-                  %>
+                    if (url.includes('youtube.com/watch?v=')) {
+                      videoId = url.split('v=')[1];
+                    } else if (url.includes('youtu.be/')) {
+                      videoId = url.split('youtu.be/')[1];
+                    }
+                    if (videoId.includes('&')) {
+                      videoId = videoId.split('&')[0];
+                    }
+                %>
+                  <div class="video-container">
+                    <iframe 
+                      src="https://www.youtube.com/embed/<%= videoId %>"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                      allowfullscreen>
+                    </iframe>
+                  </div>
+                <% } else if (url.includes('tiktok.com')) { %>
+                  <div class="tiktok-container">
                     <blockquote 
                       class="tiktok-embed" 
-                      cite="<%= doc.media %>" 
-                      data-video-id="<%= tiktokPath.split('/video/')[1] %>" 
-                      style="max-width: 605px;min-width: 325px;">
+                      cite="<%= url %>"
+                      data-video-id="<%= url.split('/video/')[1] %>"
+                      style="max-width: 605px; min-width: 325px;">
                       <section></section>
                     </blockquote>
                     <script async src="https://www.tiktok.com/embed.js"></script>
-                  <% } else { %>
-                    <img src="<%= doc.media %>" alt="Media">
-                  <% } %>
-                </div>
-              <% } %>
-              
-              <div class="document-meta">
-                <div class="document-date">
-                  <i class="far fa-calendar-alt"></i>
-                  <span><%= doc.createdAt ? new Date(doc.createdAt).toLocaleDateString('vi-VN') : 'Không có ngày' %></span>
-                </div>
-                <div class="document-author">
-                  <i class="far fa-user"></i>
-                  <span><%= doc.created_by ? doc.created_by.fullName : 'Admin' %></span>
-                </div>
+                  </div>
+                <% } else if (url.includes('facebook.com') || url.includes('fb.watch')) { %>
+                  <div class="facebook-container">
+                    <div id="fb-root"></div>
+                    <script async defer crossorigin="anonymous" 
+                      src="https://connect.facebook.net/vi_VN/sdk.js#xfbml=1&version=v18.0">
+                    </script>
+                    <div class="fb-post" 
+                      data-href="<%= url %>"
+                      data-width="100%"
+                      data-show-text="true">
+                    </div>
+                  </div>
+                <% } else if (url.match(/\.(jpeg|jpg|gif|png)$/i)) { %>
+                  <img src="<%= url %>" alt="<%= doc.title %>">
+                <% } else { %>
+                  <div class="web-preview">
+                    <a href="<%= url %>" target="_blank" rel="noopener noreferrer">
+                      <i class="fas fa-external-link-alt"></i>
+                      Xem tài liệu trên web
+                    </a>
+                  </div>
+                <% } %>
+              </div>
+            <% } %>
+
+            <div class="document-meta">
+              <div class="document-date">
+                <i class="far fa-calendar-alt"></i>
+                <%= new Date(doc.createdAt).toLocaleDateString('vi-VN') %>
+              </div>
+              <div class="document-author">
+                <i class="far fa-user"></i>
+                <%= doc.created_by ? doc.created_by.fullName : 'Admin' %>
               </div>
             </div>
           </div>
         <% }); %>
       </div>
-    <% } else { %>
-      <div class="empty-state">
-        <i class="fas fa-file-alt"></i>
-        <h3 class="empty-state-title">Chưa có tài liệu nào</h3>
-        <p class="empty-state-message">Hiện tại chưa có tài liệu sản phẩm nào được đăng tải. Vui lòng quay lại sau.</p>
-      </div>
-    <% } %>
+    </div>
+  <% }); %>
+
+  <!-- Floating Contact Buttons -->
+  <div class="floating-contacts">
+    <a href="tel:0777006786" class="contact-button phone">
+      <i class="fas fa-phone"></i>
+    </a>
+    <a href="https://zalo.me/0777006786" target="_blank" class="contact-button zalo">
+      <img src="https://stc-zaloprofile.zdn.vn/pc/v1/images/zalo_sharelogo.png" alt="Zalo">
+    </a>
   </div>
+
+  <!-- Chatbot -->
+  <script>
+    window.chtlConfig = { 
+      chatbotId: "4595193593",
+      position: "bottom-right"
+    }
+  </script>
+  <script 
+    async 
+    data-id="4595193593" 
+    id="chatling-embed-script" 
+    type="text/javascript" 
+    src="https://chatling.ai/js/embed.js">
+  </script>
+
+  <script>
+    function showDocuments(productId) {
+      document.getElementById(`modal-${productId}`).style.display = 'block';
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal(productId) {
+      document.getElementById(`modal-${productId}`).style.display = 'none';
+      document.body.style.overflow = 'auto';
+    }
+
+    // Close modal when clicking outside
+    window.onclick = function(event) {
+      if (event.target.classList.contains('modal')) {
+        event.target.style.display = 'none';
+        document.body.style.overflow = 'auto';
+      }
+    }
+
+    // Thêm script để điều chỉnh vị trí chatbot
+    window.addEventListener('load', function() {
+      setTimeout(function() {
+        const chatbotFrame = document.querySelector('#chatling-iframe-wrapper');
+        if (chatbotFrame) {
+          chatbotFrame.style.bottom = '20px';
+          chatbotFrame.style.zIndex = '996';
+        }
+      }, 1000);
+    });
+  </script>
 </body>
 </html>
