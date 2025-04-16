@@ -6,19 +6,12 @@ const customerRouter = require("./customer");
 const orderRouter = require("./order");
 const typeProductRouter = require("./typeproduct");
 const providerRouter = require("./provider");
-const documentRouter = require("./document");
+const documentRouter = require("./document"); // Giữ từ HEAD
 const promotionRouter = require("./promotion");
 const warrantyRouter = require("./warranty");
-
-// Thêm route ping để kiểm tra kết nối server
-const express = require("express");
-const pingRouter = express.Router();
-pingRouter.get('/ping', (req, res) => {
-  res.status(200).json({ status: 'success', message: 'Server is up and running' });
-});
+const inventoryRouter = require("./inventory");
 
 const routes = (app) => {
-  app.use(pingRouter);
   app.use("/", authRouter);
   app.use("/dashboard", dashboardRouter);
   app.use("/products", productRouter);
@@ -30,7 +23,7 @@ const routes = (app) => {
   app.use("/documents", documentRouter);
   app.use("/promotions", promotionRouter);
   app.use("/warranty", warrantyRouter);
+  app.use("/inventory",inventoryRouter);
   return app;
 };
-
 module.exports = routes;

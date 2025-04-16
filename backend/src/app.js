@@ -22,11 +22,6 @@ connectDB();
 // Khởi tạo ứng dụng
 const app = express();
 
-// Thêm route ping để kiểm tra kết nối
-app.get('/ping', (req, res) => {
-  res.json({ status: 'ok', message: 'Server is running' });
-});
-
 // Cấu hình CORS
 app.use(cors({
   origin: '*', // Cho phép tất cả các nguồn gốc truy cập API
