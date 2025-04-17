@@ -12,6 +12,7 @@ router.put("/:id/payment", orderController.updateOrderPayment);
 router.delete("/:id", orderController.deleteOrder);
 router.get("/create", protect, orderController.createOrderScreen);
 router.get("/:id/detail", protect, orderController.getOrderDetail);
+router.get("/:id/json", protect, orderController.getOrderDetailJson);
 router.get("/payment-stats", orderController.getPaymentStats);
 router.get("/order-distribution", orderController.getOrderDistribution);
 router.get("/employee-performance", orderController.getEmployeePerformance);

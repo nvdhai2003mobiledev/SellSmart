@@ -125,16 +125,14 @@ const getAllOrders = async () => {
       .populate({
         path: "products.productID",
         model: "Product",
-
         select: "name price inventory thumbnail attributes",
-
-
       })
       .populate({
         path: "employeeID",
         model: "Employee",
         select: "fullName position",
       })
+      .sort({ createdAt: -1 }) // Sắp xếp theo ngày tạo giảm dần (mới nhất đến cũ nhất)
       .lean();
 
     return orders;
@@ -151,7 +149,13 @@ const getOrderById = async (orderId) => {
       throw new Error("ID đơn hàng không hợp lệ!");
     }
 
-    const order = await Order.findById(orderId)
+    // Kiểm tra xem trường employeeID có tham chiếu đến Employee hay User
+    const order = await Order.findById(orderId);
+    
+    if (!order) throw new Error("Không tìm thấy đơn hàng!");
+    
+    // Tải đơn hàng với đầy đủ thông tin
+    const populatedOrder = await Order.findById(orderId)
       .populate({
         path: "customerID",
         select: "fullName phoneNumber email address",
@@ -159,15 +163,52 @@ const getOrderById = async (orderId) => {
       .populate({
         path: "products.productID",
         select: "name price inventory thumbnail attributes",
-      })
-      .populate({
-        path: "employeeID",
-        select: "fullName position",
-      })
-      .lean();
-
-    if (!order) throw new Error("Không tìm thấy đơn hàng!");
-    return order;
+      });
+    
+    // Nếu có employeeID, kiểm tra xem nó là ID của Employee hay User
+    if (order.employeeID) {
+      // Thử tải thông tin từ Employee trước
+      const isEmployee = await Employee.findById(order.employeeID).lean();
+      
+      if (isEmployee) {
+        // Nếu tìm thấy trong Employee, populate thông tin nhân viên bình thường
+        await populatedOrder.populate({
+          path: "employeeID",
+          model: "Employee",
+          select: "userId position",
+          populate: {
+            path: "userId",
+            model: "User",
+            select: "fullName username"
+          }
+        });
+      } else {
+        // Nếu không tìm thấy trong Employee, thử load từ User
+        await populatedOrder.populate({
+          path: "employeeID",
+          model: "User", 
+          select: "fullName username role"
+        });
+      }
+    }
+    
+    // Chuyển đổi sang đối tượng thường để dễ xử lý
+    let orderData = populatedOrder.toObject();
+    
+    // Định dạng lại thuộc tính employeeID
+    if (orderData.employeeID) {
+      if (orderData.employeeID.userId) {
+        // Nếu là Employee với userId
+        orderData.employeeID = {
+          _id: orderData.employeeID._id,
+          fullName: orderData.employeeID.userId.fullName,
+          position: orderData.employeeID.position
+        };
+      }
+      // Nếu là User thì đã có fullName rồi, giữ nguyên
+    }
+    
+    return orderData;
   } catch (error) {
     console.error(`Lỗi khi lấy đơn hàng ID ${orderId}:`, error);
     throw error;
