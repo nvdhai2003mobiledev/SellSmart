@@ -1,0 +1,115 @@
+<%- include('../layouts/main.ejs') %>
+<div class="main-content">
+    <h1 class="text-center mb-4">Danh Sách Bảo Hành</h1>
+
+    <style>
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .table th, .table td {
+            vertical-align: middle;
+        }
+        .badge-warranty {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+        }
+        .badge-active {
+            background-color: #28a745;
+            color: #fff;
+        }
+        .badge-expired {
+            background-color: #dc3545;
+            color: #fff;
+        }
+        .warranty-period {
+            color: #28a745;
+            font-weight: bold;
+        }
+    </style>
+
+    <!-- Tìm kiếm -->
+    <div class="container mt-2 mb-4">
+        <div class="row">
+            <div class="col-md-6">
+                <input type="text" id="searchInput" class="form-control" placeholder="Tìm kiếm theo tên khách hàng hoặc sản phẩm" style="border-radius: 8px; border: 2px solid #ccc; padding: 10px; font-size: 16px;">
+            </div>
+            <div class="col-md-6">
+                <select id="statusFilter" class="form-select" style="border-radius: 8px; border: 2px solid #ccc; padding: 10px; font-size: 16px;">
+                    <option value="">Tất cả trạng thái</option>
+                    <option value="active">Còn hiệu lực</option>
+                    <option value="expired">Hết hạn</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Danh sách bảo hành -->
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover">
+            <thead class="table-primary">
+                <tr>
+                    <th>Mã đơn hàng</th>
+                    <th>Khách hàng</th>
+                    <th>Sản phẩm</th>
+                    <th>Thời gian BH</th>
+                    <th>Ngày bắt đầu</th>
+                    <th>Ngày kết thúc</th>
+                    <th>Trạng thái</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% warranties.forEach(function(warranty) { %>
+                    <tr>
+                        <td>#<%= warranty.orderNumber %></td>
+                        <td>
+                            <%= warranty.customerName %><br>
+                            <small class="text-muted"><%= warranty.customerPhone %></small>
+                        </td>
+                        <td><%= warranty.productName %></td>
+                        <td class="text-center warranty-period"><%= warranty.warrantyPeriod %></td>
+                        <td><%= new Date(warranty.startDate).toLocaleDateString('vi-VN') %></td>
+                        <td><%= new Date(warranty.endDate).toLocaleDateString('vi-VN') %></td>
+                        <td>
+                            <span class="badge badge-warranty badge-<%= warranty.status === 'Còn hạn' ? 'active' : 'expired' %>">
+                                <%= warranty.status %>
+                            </span>
+                        </td>
+                    </tr>
+                <% }); %>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const statusFilter = document.getElementById('statusFilter');
+    const rows = document.querySelectorAll('tbody tr');
+
+    function filterTable() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const statusValue = statusFilter.value;
+
+        rows.forEach(row => {
+            const customerName = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+            const productName = row.querySelector('td:nth-child(3)').textContent.toLowerCase();
+            const status = row.querySelector('.badge-warranty').textContent.trim().toLowerCase();
+            
+            const matchesSearch = customerName.includes(searchTerm) || productName.includes(searchTerm);
+            const matchesStatus = !statusValue || 
+                                (statusValue === 'active' && status === 'còn hạn') ||
+                                (statusValue === 'expired' && status === 'hết hạn');
+
+            row.style.display = matchesSearch && matchesStatus ? '' : 'none';
+        });
+    }
+
+    searchInput.addEventListener('input', filterTable);
+    statusFilter.addEventListener('change', filterTable);
+});
+</script> 
