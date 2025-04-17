@@ -547,15 +547,30 @@ const getMobileOrdersList = async (req, res) => {
 };
 const renderOrdersPage = async (req, res) => {
   try {
-    const orders = await getAllOrders(); // Lấy danh sách đơn hàng
+    // Lấy danh sách đơn hàng từ database
+    const orders = await Order.find()
+      .populate({
+        path: "customerID",
+        select: "fullName phoneNumber email address",
+      })
+      .populate({
+        path: "products.productID",
+        select: "name price inventory thumbnail attributes",
+      })
+      .populate({
+        path: "employeeID",
+        select: "fullName position",
+      })
+      .sort({ createdAt: -1 }) // Sắp xếp theo createdAt giảm dần (mới nhất đến cũ)
+      .lean();
 
-    if (!orders || orders.length === 0) {
-      return res.render("orders", { orders: [] }); // Nếu không có dữ liệu, gửi mảng rỗng để tránh lỗi
-    }
-
-    res.render("orders", { orders });
+    res.render("dashboard/orders", { 
+      orders,
+      pageTitle: "Danh sách đơn hàng" 
+    });
   } catch (error) {
-    res.status(500).send("Lỗi server: " + error.message);
+    console.error("Lỗi khi render trang đơn hàng:", error);
+    res.status(500).send("Lỗi server khi hiển thị danh sách đơn hàng");
   }
 };
 
@@ -1303,6 +1318,32 @@ const getDailyRevenue = async (req, res) => {
     }
   };
 
+// Lấy chi tiết đơn hàng dạng JSON cho modal
+const getOrderDetailJson = async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const order = await orderService.getOrderById(orderId);
+    
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy đơn hàng!"
+      });
+    }
+    
+    return res.status(200).json({
+      success: true,
+      order
+    });
+  } catch (error) {
+    console.error("Lỗi khi lấy thông tin đơn hàng:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Có lỗi xảy ra khi lấy thông tin đơn hàng"
+    });
+  }
+};
+
 module.exports = {
   createOrder,
   getAllOrders,
@@ -1314,10 +1355,10 @@ module.exports = {
   getOrdersJson,
   getMobileOrdersList,
   getOrderDetail,
+  getOrderDetailJson,
   updateOrderPayment,
   getPaymentStats,
   getOrderDistribution,
   getEmployeePerformance,
-  getDailyRevenue,
-  
+  getDailyRevenue
 };
