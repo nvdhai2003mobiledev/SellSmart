@@ -25,4 +25,8 @@ router.put("/:warrantyId", warrantyController.updateWarranty);
 // 📌 Xóa bảo hành (DELETE)
 router.delete("/:warrantyId", warrantyController.deleteWarranty);
 
+// Quản lý danh sách bảo hành
+router.get("/list/active", warrantyController.getActiveWarranties);
+router.post("/activate/:orderId", warrantyController.activateWarranty);
+
 module.exports = router;
