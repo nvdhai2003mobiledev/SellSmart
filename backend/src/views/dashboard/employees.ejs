@@ -49,7 +49,6 @@
                         <th scope="col">Mã NV</th>
                         <th scope="col">Thông tin</th>
                         <th scope="col">Chức vụ</th>
-                        <th scope="col">Lương</th>
                         <th scope="col">Ngày vào làm</th>
                         <th scope="col">Trạng thái</th>
                         <th scope="col">Thao tác</th>
@@ -83,7 +82,6 @@
                                     </div>
                                 </td>
                                 <td><%= employee.position %></td>
-                                <td><%= employee.salary.toLocaleString() %> VNĐ</td>
                                 <td><%= new Date(employee.hireDate).toLocaleDateString('vi-VN') %></td>
                                 <td>
                                     <% if (employee.workStatus === 'active') { %>
@@ -193,7 +191,8 @@
                             <input type="email" class="form-control" id="email" name="email" required>
                         </div>
                         <div class="col-md-6">
-                            <label for="phoneNumber" class="form-label">Số điện thoại <span class="text-danger">*</span></label>
+                            <label for="phoneNumber" class="form-label">Số điện thoại <span
+                                        class="text-danger">*</span></label>
                             <input type="tel" class="form-control" id="phoneNumber" name="phoneNumber" required>
                         </div>
                     </div>
@@ -249,37 +248,24 @@
 
                     <div class="row mb-3">
                         <div class="col-md-6">
-                            <label for="position" class="form-label">Chức vụ <span class="text-danger">*</span></label>
+                            <label for="position" class="form-label">Chức vụ <span
+                                        class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="position" name="position" required>
                         </div>
                         <div class="col-md-6">
-                            <label for="salary" class="form-label">Lương (VNĐ) <span
-                                        class="text-danger">*</span></label>
-                            <input type="number" class="form-control" id="salary" name="salary" required>
+                            <label for="hireDate" class="form-label">Ngày vào làm <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="hireDate" name="hireDate" required>
                         </div>
                     </div>
 
                     <div class="row mb-3">
                         <div class="col-md-6">
-                            <label for="hireDate" class="form-label">Ngày vào làm <span
-                                        class="text-danger">*</span></label>
-                            <input type="date" class="form-control" id="hireDate" name="hireDate" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="workStatus" class="form-label">Trạng thái làm việc <span
-                                        class="text-danger">*</span></label>
+                            <label for="workStatus" class="form-label">Trạng thái làm việc <span class="text-danger">*</span></label>
                             <select class="form-select" id="workStatus" name="workStatus" required>
                                 <option value="active">Đang làm việc</option>
                                 <option value="inactive">Đã nghỉ việc</option>
                                 <option value="leave">Nghỉ phép</option>
                             </select>
-                        </div>
-                    </div>
-
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="bankAccount" class="form-label">Số tài khoản ngân hàng</label>
-                            <input type="text" class="form-control" id="bankAccount" name="bankAccount">
                         </div>
                     </div>
 
@@ -406,21 +392,9 @@
                             <input type="text" class="form-control" id="editPosition" name="position" required>
                         </div>
                         <div class="col-md-6">
-                            <label for="editSalary" class="form-label">Lương (VNĐ) <span
-                                        class="text-danger">*</span></label>
-                            <input type="number" class="form-control" id="editSalary" name="salary" required>
-                        </div>
-                    </div>
-
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="editBankAccount" class="form-label">Số tài khoản ngân hàng</label>
-                            <input type="text" class="form-control" id="editBankAccount" name="bankAccount">
-                        </div>
-                        <div class="col-md-6">
                             <label for="editWorkStatus" class="form-label">Trạng thái làm việc <span
                                     class="text-danger">*</span></label>
-                            <select class="form-select" id="editWorkStatus" name="workStatus" required>
+                            <select class="form-select" id="editWorkStatus" name="workStatus">
                                 <option value="active">Đang làm việc</option>
                                 <option value="inactive">Đã nghỉ việc</option>
                                 <option value="leave">Nghỉ phép</option>
@@ -589,10 +563,8 @@
         role: 'employee',
         employeeId: $('#employeeId').val(),
         position: $('#position').val(),
-        salary: parseFloat($('#salary').val()),
         hireDate: $('#hireDate').val(),
         workStatus: $('#workStatus').val(),
-        bankAccount: $('#bankAccount').val(),
       };
 
       $.ajax({
@@ -636,8 +608,6 @@
             $('#editDob').val(user.dob ? new Date(user.dob).toISOString().split('T')[0] : '');
             $('#editAddress').val(user.address || '');
             $('#editPosition').val(employee.position);
-            $('#editSalary').val(employee.salary);
-            $('#editBankAccount').val(employee.bankAccount || '');
             $('#editWorkStatus').val(employee.workStatus);
 
             $('#editEmployeeModal').modal('show');
@@ -664,8 +634,6 @@
           address: $('#editAddress').val(),
         },
         position: $('#editPosition').val(),
-        salary: parseFloat($('#editSalary').val()),
-        bankAccount: $('#editBankAccount').val(),
         workStatus: $('#editWorkStatus').val(),
       };
 
