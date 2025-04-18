@@ -352,12 +352,6 @@
                                     <option value="unavailable">Hết hàng</option>
                                 </select>
                             </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="editWarrantyPeriod" class="form-label fw-bold">Thời gian bảo hành (tháng)</label>
-                                <input type="number" class="form-control" id="editWarrantyPeriod" name="warrantyPeriod" 
-                                       min="1" required>
-                                <small class="text-muted">Mặc định là 12 tháng nếu không nhập</small>
-                            </div>
                         </div>
                         <div class="row">
                             <div class="col-md-12 mb-3" id="editPriceInventoryFields">
@@ -651,7 +645,7 @@
             showToast('error', 'ID sản phẩm không hợp lệ!');
             return;
         }
-        
+        console.log('Gọi sửa sản phẩm với ID:', productId);
         $.ajax({
             url: `/products/${productId}`,
             type: 'GET',

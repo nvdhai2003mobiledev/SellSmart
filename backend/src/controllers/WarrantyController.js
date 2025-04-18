@@ -158,7 +158,7 @@ const activateWarranty = async (req, res) => {
 const updateWarranty = async (req, res) => {
   try {
     const { warrantyId } = req.params;
-    const { status, notes } = req.body;
+    const { status, notes, warrantyPeriod } = req.body;
 
     // Validate ID
     if (!mongoose.Types.ObjectId.isValid(warrantyId)) {
@@ -171,9 +171,10 @@ const updateWarranty = async (req, res) => {
       return res.status(404).json({ success: false, message: "Không tìm thấy thông tin bảo hành!" });
     }
 
-    // Only allow updating status and notes
+    // Update fields if provided
     if (status) warranty.status = status;
     if (notes) warranty.notes = notes;
+    if (warrantyPeriod) warranty.warrantyPeriod = warrantyPeriod;
 
     await warranty.save();
 
