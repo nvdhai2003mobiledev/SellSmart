@@ -39,6 +39,9 @@ router.get("/", async (req, res) => {
 // Route lấy danh sách sản phẩm trong kho (JSON) - Không cần xác thực
 router.get("/json", InventoryController.getInventoryList);
 
+// Route lấy danh sách tất cả sản phẩm duy nhất để nhập lô hàng mới
+router.get("/products-for-batch", InventoryController.getProductsForBatch);
+
 // Route lấy mã sản phẩm cuối cùng - Không cần xác thực
 router.get("/last-code", async (req, res) => {
     try {
@@ -56,8 +59,11 @@ router.get("/last-code", async (req, res) => {
     }
 });
 
-// Route thêm sản phẩm mới vào kho - Yêu cầu xác thực
-router.post("/create", protect, InventoryController.importInventory);
+// Route lấy danh sách sản phẩm theo lô hàng - Không cần xác thực
+router.get("/batch/:batch_number", InventoryController.getInventoryByBatch);
+
+// Route thêm sản phẩm mới vào kho - Không yêu cầu xác thực để dễ test
+router.post("/create", InventoryController.importInventory);
 
 // Route cập nhật sản phẩm trong kho - Yêu cầu xác thực
 router.put("/update/:id", protect, InventoryController.updateInventory);

@@ -7,6 +7,9 @@
         <button class="btn btn-primary" onclick="openAddModal()">
             <i class="fas fa-plus"></i> Nhập sản phẩm mới
         </button>
+        <button class="btn btn-success ms-2" onclick="openBatchModal()">
+            <i class="fas fa-boxes"></i> Nhập lô hàng mới
+        </button>
     </div>
 
     <!-- Danh sách sản phẩm trong kho -->
@@ -15,12 +18,14 @@
             <thead class="table-primary">
                 <tr>
                     <th width="10%">Mã sản phẩm</th>
-                    <th width="20%">Tên sản phẩm</th>
-                    <th width="15%">Danh mục</th>
-                    <th width="15%">Nhà cung cấp</th>
+                    <th width="15%">Tên sản phẩm</th>
+                    <th width="10%">Lô hàng</th>
+                    <th width="10%">Ngày nhập</th>
+                    <th width="10%">Danh mục</th>
+                    <th width="10%">Nhà cung cấp</th>
                     <th width="10%" class="text-center">Số lượng</th>
                     <th width="10%" class="text-center">Tổng giá</th>
-                    <th width="10%" class="text-center">Trạng thái</th>
+                    <th width="5%" class="text-center">Trạng thái</th>
                     <th width="10%" class="text-center">Hành động</th>
                 </tr>
             </thead>
@@ -29,6 +34,8 @@
                     <tr id="inventory-row-<%= inventory._id %>">
                         <td><strong><%= inventory.product_code %></strong></td>
                         <td><%= inventory.product_name %></td>
+                        <td><%= inventory.batch_number || 'Chưa có' %></td>
+                        <td><%= inventory.batch_date ? new Date(inventory.batch_date).toLocaleDateString('vi-VN') : 'Chưa có' %></td>
                         <td><%= inventory.typeProduct_id?.name || 'Chưa có danh mục' %></td>
                         <td><%= inventory.provider_id?.fullName || 'Chưa có nhà cung cấp' %></td>
                         <td class="text-center">
@@ -96,13 +103,9 @@
                 <div class="modal-body">
                     <form id="addInventoryForm">
                         <div class="row">
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-12 mb-3">
                                 <label class="form-label">Tên sản phẩm</label>
                                 <input type="text" class="form-control" id="addProductName" required maxlength="100">
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Mã sản phẩm</label>
-                                <input type="text" class="form-control" id="addProductCode" readonly>
                             </div>
                         </div>
                         <div class="row">
@@ -123,6 +126,16 @@
                                         <option value="<%= provider._id %>"><%= provider.fullName %></option>
                                     <% }); %>
                                 </select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Số lô hàng</label>
+                                <input type="text" class="form-control" id="addBatchNumber" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Ngày nhập lô</label>
+                                <input type="date" class="form-control" id="addBatchDate" required>
                             </div>
                         </div>
                         <div class="row">
@@ -154,10 +167,6 @@
                             <textarea class="form-control" id="addProductDescription" rows="3" maxlength="500"></textarea>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Ngày hết hạn</label>
-                            <input type="date" class="form-control" id="addExpiryDate">
-                        </div>
-                        <div class="mb-3">
                             <label class="form-label">Ghi chú</label>
                             <textarea class="form-control" id="addNote" rows="2" maxlength="200"></textarea>
                         </div>
@@ -166,6 +175,103 @@
                             <input type="checkbox" id="hasVariants">
                         </div>
                         <button type="submit" class="btn btn-primary" id="addSubmitBtn" disabled>Lưu</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal nhập lô hàng mới -->
+    <div id="batchImportModal" class="modal fade" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">Nhập lô hàng mới</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="batchImportForm">
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label class="form-label">Chọn sản phẩm</label>
+                                <select class="form-select" id="batchSelectProduct" name="batchSelectProduct" required>
+                                    <option value="">-- Chọn sản phẩm --</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div id="batchProductInfo" class="d-none">
+                            <div class="card mb-3">
+                                <div class="card-header bg-info text-white">
+                                    <h6 class="mb-0">Thông tin sản phẩm</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p><strong>Mã sản phẩm:</strong> <span id="batch-product-code"></span></p>
+                                            <p><strong>Tên sản phẩm:</strong> <span id="batch-product-name"></span></p>
+                                            <p><strong>Danh mục:</strong> <span id="batch-category"></span></p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>Nhà cung cấp:</strong> <span id="batch-provider"></span></p>
+                                            <p><strong>Đơn vị:</strong> <span id="batch-unit"></span></p>
+                                            <p><strong>Có biến thể:</strong> <span id="batch-has-variants"></span></p>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-12">
+                                            <p><strong>Mô tả:</strong> <span id="batch-description"></span></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <input type="hidden" id="batchProductId">
+                            <input type="hidden" id="batchHasVariants">
+                            <input type="hidden" id="batchVariantDetails">
+                            <input type="hidden" id="batchTypeProductId">
+                            <input type="hidden" id="batchProviderId">
+                            <input type="hidden" id="batchProductName">
+                            <input type="hidden" id="batchProductCode">
+                            <input type="hidden" id="batchProductDescription">
+                            <input type="hidden" id="batchUnit">
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Số lô hàng</label>
+                                    <input type="text" class="form-control" id="batchNumber" name="batchNumber" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Ngày nhập lô</label>
+                                    <input type="date" class="form-control" id="batchDate" name="batchDate" required>
+                                </div>
+                            </div>
+                            
+                            <div id="batchVariantSection" class="d-none">
+                                <h6 class="mb-3">Thông tin biến thể</h6>
+                                <div id="batchVariantList" class="mb-3"></div>
+                            </div>
+                            
+                            <div id="batchNonVariantSection" class="d-none">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Số lượng</label>
+                                        <input type="number" class="form-control" id="batchQuantity" name="batchQuantity" min="1" step="1">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Giá đơn vị</label>
+                                        <input type="number" class="form-control" id="batchPrice" name="batchPrice" min="0.01" step="0.01">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Ghi chú</label>
+                                <textarea class="form-control" id="batchNote" name="batchNote" rows="2" maxlength="200"></textarea>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-success" id="batchSubmitBtn">Lưu</button>
+                        </div>
                     </form>
                 </div>
             </div>
@@ -184,13 +290,30 @@
                     <form id="editInventoryForm">
                         <input type="hidden" id="editInventoryId">
                         <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Mã sản phẩm</label>
-                                <input type="text" class="form-control" id="editProductCode" readonly>
-                            </div>
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-12 mb-3">
                                 <label class="form-label">Tên sản phẩm</label>
                                 <input type="text" class="form-control" id="editProductName" required maxlength="100">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Mã sản phẩm</label>
+                                <input type="text" class="form-control" id="editProductCode" required pattern="^MD\d+$">
+                                <small class="form-text text-muted">Mã sản phẩm phải bắt đầu bằng 'MD' và theo sau là số</small>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Đơn vị</label>
+                                <input type="text" class="form-control" id="editUnit" required>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Số lô hàng</label>
+                                <input type="text" class="form-control" id="editBatchNumber" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Ngày nhập lô</label>
+                                <input type="date" class="form-control" id="editBatchDate" required>
                             </div>
                         </div>
                         <div class="row">
@@ -222,10 +345,6 @@
                                 </button>
                                 <div id="editSelectedVariantDisplay" class="mt-2"></div>
                             </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Đơn vị tính</label>
-                                <input type="text" class="form-control" id="editUnit" value="cái" required>
-                            </div>
                         </div>
                         <div class="row edit-common-fields">
                             <div class="col-md-6 mb-3">
@@ -240,10 +359,6 @@
                         <div class="mb-3">
                             <label class="form-label">Mô tả sản phẩm</label>
                             <textarea class="form-control" id="editProductDescription" rows="3" maxlength="500"></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Ngày hết hạn</label>
-                            <input type="date" class="form-control" id="editExpiryDate">
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Ghi chú</label>
@@ -432,8 +547,9 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
-    let addInventoryModal, editInventoryModal, viewDetailsModal, viewVariantsModal, variantPriceModal;
+    let addInventoryModal, editInventoryModal, viewDetailsModal, viewVariantsModal, variantPriceModal, batchImportModal;
     let selectedVariants = [];
+    let batchSelectedVariants = [];
     let isEditing = false;
     let currentVariantIndex = null;
 
@@ -444,6 +560,7 @@
         viewDetailsModal = new bootstrap.Modal($('#viewDetailsModal'));
         viewVariantsModal = new bootstrap.Modal($('#viewVariantsModal'));
         variantPriceModal = new bootstrap.Modal($('#variantPriceModal'));
+        batchImportModal = new bootstrap.Modal($('#batchImportModal'));
 
         // Lấy mã sản phẩm cuối cùng
         $.get('/inventory/last-code', function (response) {
@@ -570,44 +687,310 @@
         addInventoryModal.show();
     }
 
-    function editInventory(id) {
-        $.get(`/inventory/${id}`, function (response) {
-            if (response.status === 'Ok' && response.inventory) {
-                const inventory = response.inventory;
-                $('#editInventoryId').val(inventory._id);
-                $('#editProductCode').val(inventory.product_code);
-                $('#editProductName').val(inventory.product_name);
-                $('#editTypeProduct').val(inventory.typeProduct_id?._id || '');
-                $('#editProvider').val(inventory.provider_id?._id || '');
-                $('#editUnit').val(inventory.unit || 'cái');
-                $('#editProductDescription').val(inventory.product_description || '');
-                $('#editExpiryDate').val(inventory.expiry_date ? new Date(inventory.expiry_date).toISOString().split('T')[0] : '');
-                $('#editNote').val(inventory.note || '');
-                $('#editHasVariants').prop('checked', inventory.hasVariants);
-
-                selectedVariants = inventory.hasVariants && inventory.variantDetails?.length
-                    ? inventory.variantDetails.map(v => ({
-                        attributes: v.attributes || {},
-                        price: v.price || null,
-                        quantity: v.quantity || null,
-                    }))
-                    : [];
-
-                updateVariantDisplay('#editSelectedVariantDisplay', selectedVariants);
-                $('.edit-common-fields').toggle(!inventory.hasVariants);
-                $('#editQuantity, #editPrice').prop('required', !inventory.hasVariants);
-                if (!inventory.hasVariants) {
-                    $('#editQuantity').val(inventory.total_quantity || '');
-                    $('#editPrice').val(inventory.total_price && inventory.total_quantity ? (inventory.total_price / inventory.total_quantity) : '');
+    function openBatchModal() {
+        $('#batchImportForm')[0].reset();
+        $('#batchProductInfo').addClass('d-none');
+        $('#batchVariantSection').addClass('d-none');
+        $('#batchNonVariantSection').addClass('d-none');
+        batchSelectedVariants = [];
+        
+        // Set current date for batch date
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        $('#batchDate').val(`${year}-${month}-${day}`);
+        
+        // Load product list for batch import
+        $.ajax({
+            url: '/inventory/products-for-batch',
+            method: 'GET',
+            success: function(response) {
+                if (response.status === 'Ok' && response.data) {
+                    const products = response.data;
+                    const selectProduct = $('#batchSelectProduct');
+                    selectProduct.find('option:not(:first)').remove();
+                    
+                    products.forEach(product => {
+                        selectProduct.append(`<option value="${product._id}">${product.product_name} (${product.product_code}) - ${product.typeProduct_name}</option>`);
+                    });
+                    
+                    batchImportModal.show();
+                } else {
+                    showErrorToast('Không thể tải danh sách sản phẩm');
                 }
-
-                updateEditSubmitButton();
-                editInventoryModal.show();
-            } else {
-                showErrorToast('Không tìm thấy sản phẩm');
+            },
+            error: function(xhr) {
+                showErrorToast(xhr.responseJSON?.message || 'Lỗi khi tải danh sách sản phẩm');
             }
-        }).fail(function (xhr) {
-            showErrorToast(xhr.responseJSON?.message || 'Lỗi khi tải thông tin sản phẩm');
+        });
+    }
+    
+    // Handle product selection in batch import modal
+    $('#batchSelectProduct').change(function() {
+        const productId = $(this).val();
+        if (!productId) {
+            $('#batchProductInfo').addClass('d-none');
+            return;
+        }
+        
+        $.ajax({
+            url: `/inventory/${productId}`,
+            method: 'GET',
+            success: function(response) {
+                if (response.status === 'Ok' && response.inventory) {
+                    const product = response.inventory;
+                    
+                    // Display product information
+                    $('#batch-product-code').text(product.product_code || 'Chưa có mã');
+                    $('#batch-product-name').text(product.product_name || 'Chưa có tên');
+                    $('#batch-category').text(product.typeProduct_id?.name || 'Chưa có danh mục');
+                    $('#batch-provider').text(product.provider_id?.fullName || 'Chưa có nhà cung cấp');
+                    $('#batch-unit').text(product.unit || 'Cái');
+                    $('#batch-has-variants').text(product.hasVariants ? 'Có' : 'Không');
+                    $('#batch-description').text(product.product_description || 'Không có mô tả');
+                    
+                    // Store product data in hidden fields
+                    $('#batchProductId').val(product._id);
+                    $('#batchHasVariants').val(product.hasVariants ? 'true' : 'false');
+                    $('#batchTypeProductId').val(product.typeProduct_id?._id || '');
+                    $('#batchProviderId').val(product.provider_id?._id || '');
+                    $('#batchProductName').val(product.product_name || '');
+                    $('#batchProductCode').val(product.product_code || '');
+                    $('#batchProductDescription').val(product.product_description || '');
+                    $('#batchUnit').val(product.unit || 'cái');
+                    
+                    // Handle variants
+                    if (product.hasVariants && product.variantDetails?.length) {
+                        $('#batchVariantDetails').val(JSON.stringify(product.variantDetails));
+                        batchSelectedVariants = product.variantDetails.map(v => ({
+                            attributes: v.attributes || {},
+                            price: null,
+                            quantity: null,
+                        }));
+                        
+                        // Display variant inputs
+                        const variantList = $('#batchVariantList');
+                        variantList.empty();
+                        
+                        product.variantDetails.forEach((variant, index) => {
+                            let attributeText = 'Không có thuộc tính';
+                            if (variant.attributes && typeof variant.attributes === 'object') {
+                                const entries = Object.entries(variant.attributes);
+                                if (entries.length > 0) {
+                                    attributeText = entries.map(([key, value]) => `${value}`).join(', ');
+                                }
+                            }
+                            
+                            const variantHtml = `
+                                <div class="card mb-3 variant-card" data-index="${index}">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">Biến thể: ${attributeText}</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-6 mb-2">
+                                                <label class="form-label">Số lượng</label>
+                                                <input type="number" class="form-control batch-variant-quantity" 
+                                                    data-index="${index}" name="batchVariantQuantity_${index}" min="1" step="1">
+                                            </div>
+                                            <div class="col-md-6 mb-2">
+                                                <label class="form-label">Giá đơn vị</label>
+                                                <input type="number" class="form-control batch-variant-price" 
+                                                    data-index="${index}" name="batchVariantPrice_${index}" min="0.01" step="0.01">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                            variantList.append(variantHtml);
+                        });
+                        
+                        $('#batchVariantSection').removeClass('d-none');
+                        $('#batchNonVariantSection').addClass('d-none');
+                    } else {
+                        $('#batchVariantSection').addClass('d-none');
+                        $('#batchNonVariantSection').removeClass('d-none');
+                    }
+                    
+                    $('#batchProductInfo').removeClass('d-none');
+                } else {
+                    showErrorToast('Không tìm thấy thông tin sản phẩm');
+                }
+            },
+            error: function(xhr) {
+                showErrorToast(xhr.responseJSON?.message || 'Lỗi khi tải thông tin sản phẩm');
+            }
+        });
+    });
+    
+    // Handle variant quantity and price input in batch import
+    $(document).on('input', '.batch-variant-quantity, .batch-variant-price', function() {
+        const index = $(this).data('index');
+        const isPrice = $(this).hasClass('batch-variant-price');
+        const value = Number($(this).val());
+        
+        if (index >= 0 && index < batchSelectedVariants.length) {
+            if (isPrice) {
+                batchSelectedVariants[index].price = value;
+            } else {
+                batchSelectedVariants[index].quantity = value;
+            }
+        }
+    });
+    
+    // Handle batch import form submission
+    $('#batchImportForm').submit(function(e) {
+        e.preventDefault();
+        
+        const hasVariants = $('#batchHasVariants').val() === 'true';
+        
+        // Kiểm tra xem đã chọn sản phẩm chưa
+        const productId = $('#batchSelectProduct').val();
+        if (!productId) {
+            showErrorToast('Vui lòng chọn sản phẩm');
+            return;
+        }
+        
+        // Kiểm tra số lô hàng và ngày nhập
+        const batchNumber = $('#batchNumber').val().trim();
+        const batchDate = $('#batchDate').val();
+        if (!batchNumber || !batchDate) {
+            showErrorToast('Vui lòng nhập đầy đủ thông tin số lô hàng và ngày nhập');
+            return;
+        }
+        
+        const formData = {
+            product_name: $('#batchProductName').val(),
+            product_code: $('#batchProductCode').val(),
+            product_description: $('#batchProductDescription').val(),
+            typeProduct_id: $('#batchTypeProductId').val(),
+            provider_id: $('#batchProviderId').val(),
+            unit: $('#batchUnit').val(),
+            note: $('#batchNote').val(),
+            batch_number: batchNumber,
+            batch_date: batchDate,
+            hasVariants,
+            type: 'import',
+            is_batch_import: true,
+            original_product_id: productId
+        };
+        
+        if (hasVariants) {
+            // Kiểm tra dữ liệu biến thể
+            let hasError = false;
+            $('.batch-variant-quantity, .batch-variant-price').each(function() {
+                if (!$(this).val() || Number($(this).val()) <= 0) {
+                    hasError = true;
+                }
+            });
+            
+            if (hasError) {
+                showErrorToast('Vui lòng nhập giá và số lượng hợp lệ cho tất cả biến thể');
+                return;
+            }
+            
+            // Validate variant data
+            const allVariantsValid = batchSelectedVariants.every(v => 
+                v.attributes && Object.keys(v.attributes).length > 0 && 
+                Number(v.price) > 0 && Number(v.quantity) > 0
+            );
+            
+            if (!allVariantsValid) {
+                showErrorToast('Vui lòng nhập giá và số lượng hợp lệ cho tất cả biến thể');
+                return;
+            }
+            
+            formData.variantDetails = batchSelectedVariants;
+        } else {
+            // Kiểm tra dữ liệu không biến thể
+            const price = Number($('#batchPrice').val());
+            const quantity = Number($('#batchQuantity').val());
+            
+            if (!price || !quantity || price <= 0 || quantity <= 0) {
+                showErrorToast('Giá và số lượng phải là số dương');
+                return;
+            }
+            
+            formData.price = price;
+            formData.quantity = quantity;
+        }
+        
+        // Gửi form
+        $.ajax({
+            url: '/inventory/create',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(formData),
+            success: function(response) {
+                if (response.status === 'Ok') {
+                    showSuccessToast('Nhập lô hàng mới thành công');
+                    batchImportModal.hide();
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showErrorToast(response.message || 'Lỗi khi nhập lô hàng mới');
+                }
+            },
+            error: function(xhr) {
+                showErrorToast(xhr.responseJSON?.message || 'Lỗi khi nhập lô hàng mới');
+                console.error('Lỗi AJAX:', xhr.responseJSON);
+            }
+        });
+    });
+
+    function editInventory(id) {
+        $.ajax({
+            url: `/inventory/${id}`,
+            method: 'GET',
+            success: function (response) {
+                if (response.status === 'Ok') {
+                    const inventory = response.inventory;
+                    $('#editInventoryId').val(inventory._id);
+                    $('#editProductName').val(inventory.product_name);
+                    $('#editProductCode').val(inventory.product_code);
+                    $('#editProductDescription').val(inventory.product_description || '');
+                    $('#editTypeProduct').val(inventory.typeProduct_id?._id || '');
+                    $('#editProvider').val(inventory.provider_id?._id || '');
+                    $('#editUnit').val(inventory.unit || 'cái');
+                    $('#editNote').val(inventory.note || '');
+                    $('#editBatchNumber').val(inventory.batch_number || '');
+                    
+                    // Định dạng ngày nhập lô theo định dạng YYYY-MM-DD cho input type="date"
+                    if (inventory.batch_date) {
+                        const date = new Date(inventory.batch_date);
+                        const year = date.getFullYear();
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const day = String(date.getDate()).padStart(2, '0');
+                        $('#editBatchDate').val(`${year}-${month}-${day}`);
+                    } else {
+                        $('#editBatchDate').val('');
+                    }
+
+                    selectedVariants = inventory.hasVariants && inventory.variantDetails?.length
+                        ? inventory.variantDetails.map(v => ({
+                            attributes: v.attributes || {},
+                            price: v.price || null,
+                            quantity: v.quantity || null,
+                        }))
+                        : [];
+
+                    updateVariantDisplay('#editSelectedVariantDisplay', selectedVariants);
+                    $('.edit-common-fields').toggle(!inventory.hasVariants);
+                    $('#editQuantity, #editPrice').prop('required', !inventory.hasVariants);
+                    if (!inventory.hasVariants) {
+                        $('#editQuantity').val(inventory.total_quantity || '');
+                        $('#editPrice').val(inventory.total_price && inventory.total_quantity ? (inventory.total_price / inventory.total_quantity) : '');
+                    }
+
+                    updateEditSubmitButton();
+                    editInventoryModal.show();
+                } else {
+                    showErrorToast('Không tìm thấy sản phẩm');
+                }
+            },
+            error: function(xhr) {
+                showErrorToast(xhr.responseJSON?.message || 'Lỗi khi tải thông tin sản phẩm');
+            }
         });
     }
 
@@ -658,7 +1041,7 @@
                     $('#detail-category').text(inventory.typeProduct_id?.name || 'Chưa có danh mục');
                     $('#detail-provider').text(inventory.provider_id?.fullName || 'Chưa có nhà cung cấp');
                     $('#detail-unit').text(inventory.unit || 'Cái');
-                    $('#detail-note').text(inventory.note || 'Không có ghi chú');
+                    $('#detail-note').text(inventory.note || '');
                     
                     // Trạng thái
                     const statusBadge = $('#detail-status');
@@ -674,7 +1057,7 @@
                     $('#detail-description').text(inventory.product_description || 'Không có mô tả');
                     
                     // Xử lý hiển thị biến thể
-                    if (inventory.hasVariants && inventory.variantDetails && inventory.variantDetails.length > 0) {
+                    if (inventory.hasVariants && inventory.variantDetails?.length > 0) {
                         console.log('Hiển thị biến thể:', inventory.variantDetails.length, 'biến thể');
                         
                         // Lấy template biến thể
@@ -1002,9 +1385,11 @@
             provider_id: $('#addProvider').val(),
             unit: $('#addUnit').val().trim(),
             product_description: $('#addProductDescription').val().trim(),
-            expiry_date: $('#addExpiryDate').val(),
             note: $('#addNote').val().trim(),
+            batch_number: $('#addBatchNumber').val().trim(),
+            batch_date: $('#addBatchDate').val(),
             hasVariants,
+            type: 'import'
         };
 
         if (hasVariants) {
@@ -1064,9 +1449,11 @@
             typeProduct_id: $('#editTypeProduct').val(),
             provider_id: $('#editProvider').val(),
             unit: $('#editUnit').val().trim(),
-            expiry_date: $('#editExpiryDate').val(),
             note: $('#editNote').val().trim(),
+            batch_number: $('#editBatchNumber').val().trim(),
+            batch_date: $('#editBatchDate').val(),
             hasVariants,
+            type: 'import'
         };
 
         if (hasVariants) {
