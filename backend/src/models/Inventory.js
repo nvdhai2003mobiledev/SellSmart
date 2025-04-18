@@ -32,6 +32,16 @@ const InventorySchema = new Schema(
       ref: "Provider",
       required: [true, "Nhà cung cấp là bắt buộc"],
     },
+    batch_number: {
+      type: String,
+      required: [true, "Số lô hàng là bắt buộc"],
+      trim: true,
+    },
+    batch_date: {
+      type: Date,
+      required: [true, "Ngày nhập lô hàng là bắt buộc"],
+      default: Date.now,
+    },
     hasVariants: {
       type: Boolean,
       default: false,
@@ -72,7 +82,8 @@ const InventorySchema = new Schema(
     employee_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Employee",
-      required: [true, "ID nhân viên là bắt buộc"],
+      // Tạm thởi bỏ required để test
+      // required: [true, "ID nhân viên là bắt buộc"],
     },
     status: {
       type: String,
@@ -95,15 +106,43 @@ const InventorySchema = new Schema(
       default: "cái",
       trim: true,
     },
-    expiry_date: {
-      type: Date,
-      default: null,
-    },
     note: {
       type: String,
       trim: true,
       maxlength: [200, "Ghi chú không được vượt quá 200 ký tự"],
     },
+    batch_info: [
+      {
+        batch_number: {
+          type: String,
+          required: [true, "Số lô hàng là bắt buộc"],
+          trim: true,
+        },
+        batch_date: {
+          type: Date,
+          required: [true, "Ngày nhập lô hàng là bắt buộc"],
+          default: Date.now,
+        },
+        quantity: {
+          type: Number,
+          min: [0, "Số lượng không được nhỏ hơn 0"],
+          default: 0,
+        },
+        price: {
+          type: Number,
+          min: [0, "Giá không được nhỏ hơn 0"],
+          default: 0,
+        },
+        note: {
+          type: String,
+          trim: true,
+        },
+        created_at: {
+          type: Date,
+          default: Date.now,
+        }
+      }
+    ],
   },
   { timestamps: true }
 );
@@ -142,5 +181,6 @@ InventorySchema.pre("validate", function (next) {
 InventorySchema.index({ product_code: 1 }, { unique: true });
 InventorySchema.index({ typeProduct_id: 1 });
 InventorySchema.index({ provider_id: 1 });
+InventorySchema.index({ batch_number: 1 });
 
 module.exports = mongoose.model("Inventory", InventorySchema);

@@ -56,10 +56,8 @@ exports.createEmployee = async (req, res) => {
       role,
       employeeId,
       position,
-      salary,
       hireDate,
       workStatus,
-      bankAccount,
     } = req.body;
 
     if (!username || !email || !password || !employeeId) {
@@ -100,10 +98,8 @@ exports.createEmployee = async (req, res) => {
       userId: user._id,
       employeeId,
       position,
-      salary,
       hireDate: hireDate || new Date(),
       workStatus: workStatus || "active",
-      bankAccount,
     });
     await employee.save({ session });
 
@@ -181,14 +177,12 @@ exports.updateEmployee = async (req, res) => {
   session.startTransaction();
 
   try {
-    const { position, salary, workStatus, bankAccount, userInfo } =
+    const { position, workStatus, userInfo } =
       req.body;
 
     const employeeUpdateData = {
       position,
-      salary,
       workStatus,
-      bankAccount,
     };
     Object.keys(employeeUpdateData).forEach(
       (key) =>
@@ -202,33 +196,50 @@ exports.updateEmployee = async (req, res) => {
     );
 
     if (!employee) {
-      throw new Error("Không tìm thấy nhân viên");
+      await session.abortTransaction();
+      session.endSession();
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy nhân viên" });
     }
 
-    if (userInfo && Object.keys(userInfo).length > 0) {
-      const { password, role, ...safeUserFields } = userInfo;
-      if (password) safeUserFields.password = await bcrypt.hash(password, 10);
+    // Cập nhật thông tin user nếu có
+    if (userInfo) {
+      const userUpdateData = {};
+      const allowedFields = [
+        "fullName",
+        "gender",
+        "dob",
+        "phoneNumber",
+        "address",
+      ];
 
-      const updatedUser = await User.findByIdAndUpdate(
-        employee.userId,
-        safeUserFields,
-        { new: true, runValidators: true, session },
-      );
+      allowedFields.forEach((field) => {
+        if (userInfo[field] !== undefined) {
+          userUpdateData[field] = userInfo[field];
+        }
+      });
 
-      if (!updatedUser) throw new Error("Không tìm thấy thông tin người dùng");
+      if (Object.keys(userUpdateData).length > 0) {
+        const updatedUser = await User.findByIdAndUpdate(
+          employee.userId,
+          userUpdateData,
+          { new: true, session },
+        );
+        if (!updatedUser) {
+          throw new Error("Không tìm thấy thông tin người dùng");
+        }
+      }
     }
 
     await session.commitTransaction();
     session.endSession();
 
-    const updatedEmployee = await Employee.findOne({
-      employeeId: req.params.id,
-    }).populate({
-      path: "userId",
-      select: "-password",
+    res.status(200).json({
+      success: true,
+      message: "Cập nhật thông tin nhân viên thành công",
+      data: employee,
     });
-
-    res.status(200).json({ success: true, data: updatedEmployee });
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
@@ -242,20 +253,26 @@ exports.deleteEmployee = async (req, res) => {
   session.startTransaction();
 
   try {
-    const employee = await Employee.findOne({ employeeId: req.params.id });
-    if (!employee) throw new Error("Không tìm thấy nhân viên");
+    const employee = await Employee.findOneAndDelete({
+      employeeId: req.params.id,
+    }).session(session);
 
-    const userId = employee.userId;
-    await Employee.findOneAndDelete({ employeeId: req.params.id }, { session });
-    await User.findByIdAndDelete(userId, { session });
+    if (!employee) {
+      await session.abortTransaction();
+      session.endSession();
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy nhân viên" });
+    }
+
+    await User.findByIdAndDelete(employee.userId).session(session);
 
     await session.commitTransaction();
     session.endSession();
 
-    res.status(200).json({
-      success: true,
-      message: "Đã xóa nhân viên và tài khoản người dùng thành công",
-    });
+    res
+      .status(200)
+      .json({ success: true, message: "Xóa nhân viên thành công" });
   } catch (error) {
     await session.abortTransaction();
     session.endSession();

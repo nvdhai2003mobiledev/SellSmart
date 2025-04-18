@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tài liệu hướng dẫn - <%= product.name %></title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <style>
+    :root {
+      --primary-color: #4f46e5;
+      --primary-hover: #4338ca;
+      --secondary-color: #6366f1;
+      --accent-color: #818cf8;
+      --background-color: #f1f5f9;
+      --card-bg: #ffffff;
+      --text-color: #1e293b;
+      --text-muted: #64748b;
+      --border-color: #e2e8f0;
+      --sidebar-width: 280px;
+      --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body { 
+      font-family: 'Montserrat', 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background-color: var(--background-color);
+      color: var(--text-color);
+      line-height: 1.6;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background-color: var(--card-bg);
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      padding: 1rem;
+      display: flex;
+      align-items: center;
+    }
+
+    .header-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+    }
+    
+    .back-link {
+      text-decoration: none;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: color 0.2s ease;
+      margin-right: 2rem;
+    }
+
+    .back-link:hover {
+      color: var(--primary-color);
+    }
+
+    .back-link i {
+      font-size: 0.9rem;
+    }
+    
+    .title-center-container {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    .title-text {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--primary-color);
+    }
+
+    .main-container {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .sidebar {
+      width: var(--sidebar-width);
+      background-color: var(--card-bg);
+      border-right: 1px solid var(--border-color);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-header {
+      padding: 1.5rem 1rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .sidebar-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-color);
+      margin-bottom: 0.25rem;
+    }
+
+    .sidebar-subtitle {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .document-list {
+      list-style: none;
+    }
+
+    .document-item {
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .document-link {
+      display: block;
+      padding: 1rem;
+      color: var(--text-color);
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+
+    .document-link:hover {
+      background-color: var(--background-color);
+    }
+
+    .document-link.active {
+      background-color: rgba(79, 70, 229, 0.1);
+      border-left: 3px solid var(--primary-color);
+    }
+
+    .document-link-title {
+      font-size: 0.9rem;
+      font-weight: 500;
+      margin-bottom: 0.25rem;
+    }
+
+    .document-link-desc {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 2rem;
+    }
+
+    .document-content {
+      max-width: 800px;
+      margin: 0 auto;
+      background-color: var(--card-bg);
+      border-radius: 0.5rem;
+      box-shadow: var(--card-shadow);
+      padding: 2rem;
+    }
+
+    .document-header {
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .document-title {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--text-color);
+      margin-bottom: 0.5rem;
+    }
+
+    .document-meta {
+      display: flex;
+      align-items: center;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    .document-description {
+      font-size: 1rem;
+      color: var(--text-color);
+      margin-bottom: 2rem;
+      line-height: 1.8;
+    }
+
+    .video-container {
+      position: relative;
+      padding-bottom: 56.25%; /* 16:9 aspect ratio */
+      height: 0;
+      margin-bottom: 2rem;
+      overflow: hidden;
+      border-radius: 0.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    .video-container iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-muted);
+    }
+
+    .empty-state i {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      color: var(--border-color);
+    }
+
+    .empty-state h3 {
+      font-size: 1.2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .empty-state p {
+      font-size: 0.9rem;
+    }
+
+    @media (max-width: 768px) {
+      .main-container {
+        flex-direction: column;
+      }
+
+      .sidebar {
+        width: 100%;
+        max-height: 200px;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      .content {
+        padding: 1rem;
+      }
+
+      .document-content {
+        padding: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-container">
+      <a href="/public/documents" class="back-link">
+        <i class="fas fa-arrow-left"></i>
+        Quay lại danh sách sản phẩm
+      </a>
+      <div class="title-center-container">
+        <div class="title-text">
+          <i class="fas fa-book"></i>
+          Tài liệu hướng dẫn
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="main-container">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-title">Hướng dẫn sử dụng tài liệu</div>
+        <div class="sidebar-subtitle">Chọn một mục bên dưới để xem chi tiết</div>
+      </div>
+      <ul class="document-list">
+        <% if (documents.length > 0) { %>
+          <% documents.forEach(function(doc) { %>
+            <li class="document-item">
+              <a href="/public/product/<%= product._id %>/documents?document_id=<%= doc._id %>" class="document-link <%= (activeDocument && doc._id.toString() === activeDocument._id.toString()) ? 'active' : '' %>">
+                <div class="document-link-title"><%= doc.title %></div>
+                <div class="document-link-desc"><%= doc.description.substring(0, 100) %><%= doc.description.length > 100 ? '...' : '' %></div>
+              </a>
+            </li>
+          <% }); %>
+        <% } else { %>
+          <li class="document-item">
+            <div class="document-link">
+              <div class="document-link-title">Không có tài liệu</div>
+            </div>
+          </li>
+        <% } %>
+      </ul>
+    </aside>
+
+    <main class="content">
+      <% if (activeDocument) { %>
+        <div class="document-content">
+          <div class="document-header">
+            <h1 class="document-title"><%= activeDocument.title %></h1>
+            <div class="document-meta">
+              <i class="fas fa-clock"></i> &nbsp; Cập nhật gần đây
+            </div>
+          </div>
+          
+          <div class="document-description">
+            <%= activeDocument.description %>
+          </div>
+          
+          <% if (activeDocument.media) { %>
+            <% 
+              const mediaUrl = activeDocument.media;
+              if (mediaUrl.includes('youtube.com') || mediaUrl.includes('youtu.be')) { 
+                let videoId = '';
+                if (mediaUrl.includes('youtube.com/watch?v=')) {
+                  videoId = mediaUrl.split('v=')[1];
+                  if (videoId.includes('&')) {
+                    videoId = videoId.split('&')[0];
+                  }
+                } else if (mediaUrl.includes('youtu.be/')) {
+                  videoId = mediaUrl.split('youtu.be/')[1];
+                  if (videoId.includes('?')) {
+                    videoId = videoId.split('?')[0];
+                  }
+                }
+            %>
+              <div class="video-container">
+                <iframe 
+                  src="https://www.youtube.com/embed/<%= videoId %>"
+                  title="YouTube video player"
+                  frameborder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                  allowfullscreen>
+                </iframe>
+              </div>
+            <% } else if (mediaUrl.includes('tiktok.com')) { %>
+              <div class="video-container">
+                <blockquote 
+                  class="tiktok-embed" 
+                  cite="<%= mediaUrl %>"
+                  data-video-id="<%= mediaUrl.split('/video/')[1] || '' %>"
+                  style="max-width: 100%;">
+                  <section></section>
+                </blockquote>
+                <script async src="https://www.tiktok.com/embed.js"></script>
+              </div>
+            <% } else if (mediaUrl.includes('facebook.com') || mediaUrl.includes('fb.watch')) { %>
+              <div class="video-container fb-video-container">
+                <div id="fb-root"></div>
+                <script async defer crossorigin="anonymous" 
+                  src="https://connect.facebook.net/vi_VN/sdk.js#xfbml=1&version=v18.0">
+                </script>
+                <div class="fb-video" 
+                  data-href="<%= mediaUrl %>"
+                  data-width="auto"
+                  data-show-text="false">
+                </div>
+              </div>
+            <% } else if (mediaUrl.match(/\.(jpeg|jpg|gif|png)$/i)) { %>
+              <div class="document-media">
+                <img src="<%= mediaUrl %>" alt="Hình ảnh tài liệu" style="max-width: 100%; border-radius: 0.5rem;">
+              </div>
+            <% } else { %>
+              <div class="video-container">
+                <iframe src="<%= mediaUrl %>" frameborder="0" allowfullscreen style="width:100%; height:100%;"></iframe>
+              </div>
+            <% } %>
+          <% } %>
+        </div>
+      <% } else { %>
+        <div class="empty-state">
+          <i class="fas fa-file-alt"></i>
+          <h3>Không có tài liệu nào cho sản phẩm này</h3>
+          <p>Vui lòng chọn một sản phẩm khác hoặc quay lại sau.</p>
+        </div>
+      <% } %>
+    </main>
+  </div>
+
+  <script>
+    // Fix cho video Facebook và TikTok để hiển thị đúng
+    document.addEventListener('DOMContentLoaded', function() {
+      // Resize Facebook video container
+      setTimeout(function() {
+        const fbVideos = document.querySelectorAll('.fb-video');
+        if (fbVideos.length > 0) {
+          FB.XFBML.parse();
+        }
+      }, 1000);
+    });
+  </script>
+</body>
+</html>

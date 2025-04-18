@@ -48,8 +48,11 @@
         }
     </style>
 
-    <!-- Button to open Add Warranty modal -->
-    <div class="d-flex justify-content-end mb-4">
+    <!-- Buttons -->
+    <div class="d-flex justify-content-between mb-4">
+        <a href="/warranty/list/active" class="btn btn-info">
+            <i class="fas fa-list"></i> Xem Danh Sách Bảo Hành
+        </a>
         <button class="btn btn-primary" onclick="openAddModal()">
             <i class="fas fa-plus"></i> Thêm Bảo Hành Mới
         </button>
@@ -58,17 +61,8 @@
     <!-- Tìm kiếm bảo hành -->
     <div class="container mt-2 mb-4">
         <div class="row">
-            <div class="col-md-6">
-                <input type="text" id="customerSearch" class="form-control mb-4" placeholder="Tìm kiếm theo tên khách hàng" style="border-radius: 8px; border: 2px solid #ccc; padding: 10px; font-size: 16px;">
-            </div>
-            <div class="col-md-6">
-                <select id="statusFilter" class="form-select mb-4" style="border-radius: 8px; border: 2px solid #ccc; padding: 10px; font-size: 16px;">
-                    <option value="">Tất cả trạng thái</option>
-                    <option value="Chờ kích hoạt">Chờ kích hoạt</option>
-                    <option value="Đang xử lý">Đang xử lý</option>
-                    <option value="Đã hoàn thành">Đã hoàn thành</option>
-                    <option value="Hết hạn">Hết hạn</option>
-                </select>
+            <div class="col-md-12">
+                <input type="text" id="productSearch" class="form-control mb-4" placeholder="Tìm kiếm theo tên sản phẩm" style="border-radius: 8px; border: 2px solid #ccc; padding: 10px; font-size: 16px;">
             </div>
         </div>
     </div>
@@ -79,12 +73,7 @@
             <thead class="table-primary">
                 <tr>
                     <th>Sản phẩm</th>
-                    <th>Khách hàng</th>
-                    <th>Đơn hàng</th>
-                    <th>Trạng thái</th>
                     <th>Thời gian BH</th>
-                    <th>Ngày bắt đầu</th>
-                    <th>Ngày kết thúc</th>
                     <th>Thao tác</th>
                 </tr>
             </thead>
@@ -92,55 +81,7 @@
                 <% warranties.forEach(function(warranty) { %>
                     <tr>
                         <td><%= warranty.product ? warranty.product.name : 'Không có' %></td>
-                        <td>
-                            <% if (warranty.customer) { %>
-                                <%= warranty.customer.fullName %><br>
-                                <small class="text-muted"><%= warranty.customer.phoneNumber %></small>
-                            <% } else { %>
-                                <span class="text-muted">Chưa có</span>
-                            <% } %>
-                        </td>
-                        <td>
-                            <% if (warranty.order) { %>
-                                #<%= warranty.order.orderNumber %>
-                            <% } else { %>
-                                <span class="text-muted">Chưa có</span>
-                            <% } %>
-                        </td>
-                        <td>
-                            <% if (warranty.status === 'Chờ kích hoạt') { %>
-                                <span class="badge badge-warranty badge-pending">
-                                    <i class="fas fa-clock"></i> Chờ kích hoạt
-                                </span>
-                            <% } else if (warranty.status === 'Đang xử lý') { %>
-                                <span class="badge badge-warranty badge-processing">
-                                    <i class="fas fa-cog"></i> Đang xử lý
-                                </span>
-                            <% } else if (warranty.status === 'Đã hoàn thành') { %>
-                                <span class="badge badge-warranty badge-completed">
-                                    <i class="fas fa-check"></i> Đã hoàn thành
-                                </span>
-                            <% } else { %>
-                                <span class="badge badge-warranty badge-expired">
-                                    <i class="fas fa-times"></i> Hết hạn
-                                </span>
-                            <% } %>
-                        </td>
                         <td class="text-center"><%= warranty.warrantyPeriod %> tháng</td>
-                        <td>
-                            <% if (warranty.startDate) { %>
-                                <%= new Date(warranty.startDate).toLocaleDateString('vi-VN') %>
-                            <% } else { %>
-                                <span class="text-muted">Chưa kích hoạt</span>
-                            <% } %>
-                        </td>
-                        <td>
-                            <% if (warranty.endDate) { %>
-                                <%= new Date(warranty.endDate).toLocaleDateString('vi-VN') %>
-                            <% } else { %>
-                                <span class="text-muted">Chưa kích hoạt</span>
-                            <% } %>
-                        </td>
                         <td>
                             <button class="btn btn-warning btn-sm" onclick="editWarranty('<%= warranty._id %>')">
                                 <i class="fas fa-edit"></i>
@@ -185,13 +126,8 @@
                 <form id="editWarrantyForm">
                     <input type="hidden" id="editWarrantyId">
                     <div class="mb-3">
-                        <label class="form-label">Trạng thái</label>
-                        <select class="form-select" id="editStatus">
-                            <option value="Chờ kích hoạt">Chờ kích hoạt</option>
-                            <option value="Đang xử lý">Đang xử lý</option>
-                            <option value="Đã hoàn thành">Đã hoàn thành</option>
-                            <option value="Hết hạn">Hết hạn</option>
-                        </select>
+                        <label class="form-label">Thời gian bảo hành (tháng)</label>
+                        <input type="number" class="form-control" id="editWarrantyPeriod" min="0">
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Ghi chú</label>
@@ -216,6 +152,17 @@ document.addEventListener('DOMContentLoaded', function() {
     // Khởi tạo modals
     addModal = new bootstrap.Modal(document.getElementById('addWarrantyModal'));
     editModal = new bootstrap.Modal(document.getElementById('editWarrantyModal'));
+
+    // Thêm chức năng tìm kiếm
+    document.getElementById('productSearch').addEventListener('keyup', function() {
+        const searchText = this.value.toLowerCase();
+        const rows = document.querySelectorAll('tbody tr');
+        
+        rows.forEach(row => {
+            const productName = row.cells[0].textContent.toLowerCase();
+            row.style.display = productName.includes(searchText) ? '' : 'none';
+        });
+    });
 });
 
 // Mở modal thêm mới
@@ -230,7 +177,7 @@ async function editWarranty(warrantyId) {
         const warranty = await response.json();
         
         document.getElementById('editWarrantyId').value = warranty._id;
-        document.getElementById('editStatus').value = warranty.status;
+        document.getElementById('editWarrantyPeriod').value = warranty.warrantyPeriod;
         document.getElementById('editNotes').value = warranty.notes || '';
         
         editModal.show();
@@ -243,7 +190,7 @@ async function editWarranty(warrantyId) {
 // Cập nhật bảo hành
 async function submitEditWarranty() {
     const warrantyId = document.getElementById('editWarrantyId').value;
-    const status = document.getElementById('editStatus').value;
+    const warrantyPeriod = document.getElementById('editWarrantyPeriod').value;
     const notes = document.getElementById('editNotes').value;
     
     try {
@@ -252,121 +199,20 @@ async function submitEditWarranty() {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ status, notes })
+            body: JSON.stringify({
+                warrantyPeriod,
+                notes
+            })
         });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            alert('Cập nhật bảo hành thành công!');
+
+        if (response.ok) {
             location.reload();
         } else {
-            alert(result.message || 'Có lỗi xảy ra!');
+            throw new Error('Cập nhật không thành công');
         }
     } catch (error) {
         console.error('Error updating warranty:', error);
-        alert('Có lỗi xảy ra khi cập nhật bảo hành!');
+        alert('Không thể cập nhật thông tin bảo hành!');
     }
-}
-
-// Lọc theo trạng thái
-document.getElementById('statusFilter').addEventListener('change', function() {
-    const status = this.value;
-    const rows = document.querySelectorAll('tbody tr');
-    
-    rows.forEach(row => {
-        const statusCell = row.querySelector('td:nth-child(4)');
-        if (!status || statusCell.textContent.trim().includes(status)) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
-        }
-    });
-});
-
-// Tìm kiếm theo khách hàng
-document.getElementById('customerSearch').addEventListener('input', debounce(async function() {
-    const searchTerm = this.value.trim();
-    
-    if (searchTerm.length < 2) return;
-    
-    try {
-        const response = await fetch(`/warranty/search/customer?searchTerm=${encodeURIComponent(searchTerm)}`);
-        const warranties = await response.json();
-        
-        const tbody = document.querySelector('tbody');
-        tbody.innerHTML = warranties.map(warranty => `
-            <tr>
-                <td>${warranty.product ? warranty.product.name : 'Không có'}</td>
-                <td>
-                    ${warranty.customer ? 
-                        `${warranty.customer.fullName}<br>
-                        <small class="text-muted">${warranty.customer.phoneNumber}</small>` 
-                        : '<span class="text-muted">Chưa có</span>'}
-                </td>
-                <td>
-                    ${warranty.order ? 
-                        `#${warranty.order.orderNumber}` 
-                        : '<span class="text-muted">Chưa có</span>'}
-                </td>
-                <td>
-                    <span class="badge badge-warranty badge-${getStatusBadgeClass(warranty.status)}">
-                        <i class="fas fa-${getStatusIcon(warranty.status)}"></i> ${warranty.status}
-                    </span>
-                </td>
-                <td class="text-center">${warranty.warrantyPeriod} tháng</td>
-                <td>
-                    ${warranty.startDate ? 
-                        new Date(warranty.startDate).toLocaleDateString('vi-VN') 
-                        : '<span class="text-muted">Chưa kích hoạt</span>'}
-                </td>
-                <td>
-                    ${warranty.endDate ? 
-                        new Date(warranty.endDate).toLocaleDateString('vi-VN') 
-                        : '<span class="text-muted">Chưa kích hoạt</span>'}
-                </td>
-                <td>
-                    <button class="btn btn-warning btn-sm" onclick="editWarranty('${warranty._id}')">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                </td>
-            </tr>
-        `).join('');
-    } catch (error) {
-        console.error('Error searching warranties:', error);
-    }
-}, 300));
-
-// Utility functions
-function getStatusBadgeClass(status) {
-    switch (status) {
-        case 'Chờ kích hoạt': return 'pending';
-        case 'Đang xử lý': return 'processing';
-        case 'Đã hoàn thành': return 'completed';
-        case 'Hết hạn': return 'expired';
-        default: return 'secondary';
-    }
-}
-
-function getStatusIcon(status) {
-    switch (status) {
-        case 'Chờ kích hoạt': return 'clock';
-        case 'Đang xử lý': return 'cog';
-        case 'Đã hoàn thành': return 'check';
-        case 'Hết hạn': return 'times';
-        default: return 'question';
-    }
-}
-
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func.apply(this, args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
 }
 </script>

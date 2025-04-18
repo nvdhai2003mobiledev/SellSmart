@@ -7,7 +7,7 @@
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb bg-transparent p-0">
                     <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
-                    <li class="breadcrumb-item active" aria-current="page">Sản phẩm</li>
+                    <!-- <li class="breadcrumb-item active" aria-current="page">Sản phẩm</li> -->
                 </ol>
             </nav>
         </div>
@@ -95,8 +95,6 @@
                             <th class="py-3 px-4 text-uppercase text-muted small fw-semibold text-center">Trạng thái</th>
                             <th class="py-3 px-4 text-uppercase text-muted small fw-semibold">Giá (VNĐ)</th>
                             <th class="py-3 px-4 text-uppercase text-muted small fw-semibold">Tồn kho</th>
-                            <th class="py-3 px-4 text-uppercase text-muted small fw-semibold">Nhà cung cấp</th>
-                            <th class="py-3 px-4 text-uppercase text-muted small fw-semibold">Bảo hành</th>
                             <th class="py-3 px-4 text-uppercase text-muted small fw-semibold">Thuộc tính</th>
                         </tr>
                     </thead>
@@ -156,30 +154,23 @@
                                                 const totalInventory = inventories.reduce((sum, curr) => sum + curr, 0);
                                                 const minInventory = Math.min(...inventories);
                                                 const maxInventory = Math.max(...inventories);
+                                                let stockClass = "text-success";
+                                                if (totalInventory < 10) stockClass = "text-danger";
+                                                else if (totalInventory < 30) stockClass = "text-warning";
                                             %>
-                                            <div>
-                                                <span class="fw-semibold"><%= totalInventory %></span>
-                                                <div class="small text-muted">
-                                                    (<span class="text-success"><%= minInventory %></span>
-                                                    <i class="fas fa-arrow-right mx-1"></i>
-                                                    <span class="text-danger"><%= maxInventory %></span>
-                                                    / biến thể)
-                                                </div>
-                                            </div>
+                                            <span class="badge bg-light px-2 py-1 border">
+                                                <span class="<%= stockClass %> fw-semibold"><%= totalInventory %></span>
+                                                <span class="text-muted small ms-1">(<span class="text-success"><%= minInventory %></span><i class="fas fa-arrows-left-right mx-1 small"></i><span class="text-danger"><%= maxInventory %></span>)</span>
+                                            </span>
                                         <% } else { %>
-                                            <span class="fw-semibold"><%= product.inventory ?? 'N/A' %></span>
+                                            <% 
+                                                const inventory = product.inventory || 0;
+                                                let stockClass = "text-success";
+                                                if (inventory < 10) stockClass = "text-danger";
+                                                else if (inventory < 30) stockClass = "text-warning";
+                                            %>
+                                            <span class="badge bg-light px-2 py-1 border <%= stockClass %> fw-semibold"><%= inventory !== undefined ? inventory : 'N/A' %></span>
                                         <% } %>
-                                    </td>
-                                    <td class="py-3 px-4" data-provider-id="<%= product.providerId?._id || '' %>">
-                                        <span class="badge bg-primary bg-opacity-10 text-primary">
-                                            <%= product.providerId?.fullName || 'Chưa có' %>
-                                        </span>
-                                    </td>
-                                    <td class="py-3 px-4">
-                                        <span class="badge bg-warning bg-opacity-10 text-warning">
-                                            <i class="fas fa-shield-alt me-1"></i>
-                                            <%= product.warrantyPeriod || 12 %> tháng
-                                        </span>
                                     </td>
                                     <td class="py-3 px-4">
                                         <% if (product.hasVariants && product.detailsVariants?.length > 0) { %>
@@ -351,12 +342,6 @@
                                     <option value="available">Có sẵn</option>
                                     <option value="unavailable">Hết hàng</option>
                                 </select>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="editWarrantyPeriod" class="form-label fw-bold">Thời gian bảo hành (tháng)</label>
-                                <input type="number" class="form-control" id="editWarrantyPeriod" name="warrantyPeriod" 
-                                       min="1" required>
-                                <small class="text-muted">Mặc định là 12 tháng nếu không nhập</small>
                             </div>
                         </div>
                         <div class="row">
@@ -651,7 +636,7 @@
             showToast('error', 'ID sản phẩm không hợp lệ!');
             return;
         }
-        
+        console.log('Gọi sửa sản phẩm với ID:', productId);
         $.ajax({
             url: `/products/${productId}`,
             type: 'GET',
@@ -1108,7 +1093,7 @@
     $('#providerFilter, #categoryFilter, #statusFilter').change(function() {
         $('#applyFilter').click();
     });
-</script>
+</script> 
 
 <style>
 .form-control:focus, .form-select:focus {
