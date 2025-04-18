@@ -12,45 +12,45 @@
     <div class="order-search-grid">
       <div>
         <label for="searchOrderID">Mã đơn hàng:</label>
-        <input type="text" id="searchOrderID" class="order-search-input" placeholder="Nhập mã đơn hàng">
+        <input type="text" id="searchOrderID" class="order-search-input" placeholder="Nhập mã đơn hàng" value="<%= filters?.orderID || '' %>">
       </div>
       <div>
         <label for="searchCustomerName">Tên khách hàng:</label>
-        <input type="text" id="searchCustomerName" class="order-search-input" placeholder="Nhập tên khách hàng">
+        <input type="text" id="searchCustomerName" class="order-search-input" placeholder="Nhập tên khách hàng" value="<%= filters?.customerName || '' %>">
       </div>
       <div>
         <label for="searchPhone">Số điện thoại:</label>
-        <input type="text" id="searchPhone" class="order-search-input" placeholder="Nhập số điện thoại">
+        <input type="text" id="searchPhone" class="order-search-input" placeholder="Nhập số điện thoại" value="<%= filters?.phone || '' %>">
       </div>
       <div>
         <label for="searchStatus">Trạng thái:</label>
         <select id="searchStatus" class="order-search-input">
           <option value="">Tất cả</option>
-          <option value="pending">Chưa xử lý</option>
-          <option value="processing">Đã xử lý</option>
-          <option value="canceled">Đã hủy</option>
+          <option value="pending" <%= filters?.status === 'pending' ? 'selected' : '' %>>Chưa xử lý</option>
+          <option value="processing" <%= filters?.status === 'processing' ? 'selected' : '' %>>Đã xử lý</option>
+          <option value="canceled" <%= filters?.status === 'canceled' ? 'selected' : '' %>>Đã hủy</option>
         </select>
       </div>
       <div>
         <label for="searchPaymentStatus">Trạng thái thanh toán:</label>
         <select id="searchPaymentStatus" class="order-search-input">
           <option value="">Tất cả</option>
-          <option value="paid">Đã thanh toán</option>
-          <option value="unpaid">Chưa thanh toán</option>
-          <option value="partpaid">Thanh toán một phần</option>
+          <option value="paid" <%= filters?.paymentStatus === 'paid' ? 'selected' : '' %>>Đã thanh toán</option>
+          <option value="unpaid" <%= filters?.paymentStatus === 'unpaid' ? 'selected' : '' %>>Chưa thanh toán</option>
+          <option value="partpaid" <%= filters?.paymentStatus === 'partpaid' ? 'selected' : '' %>>Thanh toán một phần</option>
         </select>
       </div>
       <div>
         <label for="searchFromDate">Từ ngày:</label>
-        <input type="date" id="searchFromDate" class="order-search-input">
+        <input type="date" id="searchFromDate" class="order-search-input" value="<%= filters?.fromDate || '' %>">
       </div>
       <div>
         <label for="searchToDate">Đến ngày:</label>
-        <input type="date" id="searchToDate" class="order-search-input">
+        <input type="date" id="searchToDate" class="order-search-input" value="<%= filters?.toDate || '' %>">
       </div>
     </div>
     <div class="order-search-actions">
-      <button type="button" onclick="searchOrdersDirectly()" class="btn btn-primary">
+      <button type="button" onclick="searchServerSide()" class="btn btn-primary">
         <i class="fas fa-search"></i> Tìm kiếm
       </button>
       <button type="button" onclick="resetSearch()" class="btn btn-secondary">
@@ -131,6 +131,65 @@
     </tbody>
   </table>
   </div>
+
+  <!-- Thêm phân trang -->
+  <% if (pagination && pagination.totalPages > 0) { %>
+  <div class="pagination-container">
+    <div class="pagination-info">
+      Hiển thị <%= orders.length %> trên tổng số <%= pagination.total %> đơn hàng
+    </div>
+    <div class="pagination-controls">
+      <span>Trang:</span>
+      <ul class="pagination">
+        <% if (pagination.page > 1) { %>
+          <li class="page-item">
+            <a class="page-link" href="/orders?page=1<%= filters.orderID ? '&orderID=' + filters.orderID : '' %><%= filters.customerName ? '&customerName=' + filters.customerName : '' %><%= filters.phone ? '&phone=' + filters.phone : '' %><%= filters.status ? '&status=' + filters.status : '' %><%= filters.paymentStatus ? '&paymentStatus=' + filters.paymentStatus : '' %><%= filters.fromDate ? '&fromDate=' + filters.fromDate : '' %><%= filters.toDate ? '&toDate=' + filters.toDate : '' %><%= pagination.pageSize ? '&pageSize=' + pagination.pageSize : '' %>">Đầu</a>
+          </li>
+          <li class="page-item">
+            <a class="page-link" href="/orders?page=<%= pagination.page - 1 %><%= filters.orderID ? '&orderID=' + filters.orderID : '' %><%= filters.customerName ? '&customerName=' + filters.customerName : '' %><%= filters.phone ? '&phone=' + filters.phone : '' %><%= filters.status ? '&status=' + filters.status : '' %><%= filters.paymentStatus ? '&paymentStatus=' + filters.paymentStatus : '' %><%= filters.fromDate ? '&fromDate=' + filters.fromDate : '' %><%= filters.toDate ? '&toDate=' + filters.toDate : '' %><%= pagination.pageSize ? '&pageSize=' + pagination.pageSize : '' %>">
+              <i class="fas fa-chevron-left"></i>
+            </a>
+          </li>
+        <% } %>
+
+        <% 
+          let startPage = Math.max(pagination.page - 2, 1);
+          let endPage = Math.min(startPage + 4, pagination.totalPages);
+          
+          if (endPage - startPage < 4 && pagination.totalPages > 4) {
+            startPage = Math.max(endPage - 4, 1);
+          }
+        %>
+
+        <% for (let i = startPage; i <= endPage; i++) { %>
+          <li class="page-item <%= i === pagination.page ? 'active' : '' %>">
+            <a class="page-link" href="/orders?page=<%= i %><%= filters.orderID ? '&orderID=' + filters.orderID : '' %><%= filters.customerName ? '&customerName=' + filters.customerName : '' %><%= filters.phone ? '&phone=' + filters.phone : '' %><%= filters.status ? '&status=' + filters.status : '' %><%= filters.paymentStatus ? '&paymentStatus=' + filters.paymentStatus : '' %><%= filters.fromDate ? '&fromDate=' + filters.fromDate : '' %><%= filters.toDate ? '&toDate=' + filters.toDate : '' %><%= pagination.pageSize ? '&pageSize=' + pagination.pageSize : '' %>"><%= i %></a>
+          </li>
+        <% } %>
+
+        <% if (pagination.page < pagination.totalPages) { %>
+          <li class="page-item">
+            <a class="page-link" href="/orders?page=<%= pagination.page + 1 %><%= filters.orderID ? '&orderID=' + filters.orderID : '' %><%= filters.customerName ? '&customerName=' + filters.customerName : '' %><%= filters.phone ? '&phone=' + filters.phone : '' %><%= filters.status ? '&status=' + filters.status : '' %><%= filters.paymentStatus ? '&paymentStatus=' + filters.paymentStatus : '' %><%= filters.fromDate ? '&fromDate=' + filters.fromDate : '' %><%= filters.toDate ? '&toDate=' + filters.toDate : '' %><%= pagination.pageSize ? '&pageSize=' + pagination.pageSize : '' %>">
+              <i class="fas fa-chevron-right"></i>
+            </a>
+          </li>
+          <li class="page-item">
+            <a class="page-link" href="/orders?page=<%= pagination.totalPages %><%= filters.orderID ? '&orderID=' + filters.orderID : '' %><%= filters.customerName ? '&customerName=' + filters.customerName : '' %><%= filters.phone ? '&phone=' + filters.phone : '' %><%= filters.status ? '&status=' + filters.status : '' %><%= filters.paymentStatus ? '&paymentStatus=' + filters.paymentStatus : '' %><%= filters.fromDate ? '&fromDate=' + filters.fromDate : '' %><%= filters.toDate ? '&toDate=' + filters.toDate : '' %><%= pagination.pageSize ? '&pageSize=' + pagination.pageSize : '' %>">Cuối</a>
+          </li>
+        <% } %>
+      </ul>
+    </div>
+    <div class="pagination-size">
+      <label for="pageSize">Số đơn/trang:</label>
+      <select id="pageSize" onchange="changePageSize()">
+        <option value="10" <%= pagination.pageSize === 10 ? 'selected' : '' %>>10</option>
+        <option value="20" <%= pagination.pageSize === 20 ? 'selected' : '' %>>20</option>
+        <option value="50" <%= pagination.pageSize === 50 ? 'selected' : '' %>>50</option>
+        <option value="100" <%= pagination.pageSize === 100 ? 'selected' : '' %>>100</option>
+      </select>
+    </div>
+  </div>
+  <% } %>
     </div>
 
 <!-- Thêm modal chi tiết đơn hàng -->
@@ -672,10 +731,140 @@
     background-color: #ffeeba;
     color: #856404;
   }
+
+  /* Pagination styles */
+  .pagination-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 20px;
+    background-color: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  .pagination-info {
+    color: #6c757d;
+    font-size: 14px;
+  }
+  
+  .pagination-controls {
+    display: flex;
+    align-items: center;
+  }
+  
+  .pagination-controls span {
+    margin-right: 10px;
+    color: #495057;
+  }
+  
+  .pagination {
+    display: flex;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+  .page-item {
+    margin: 0 2px;
+  }
+  
+  .page-link {
+    display: inline-block;
+    padding: 6px 12px;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    color: #007bff;
+    background-color: #fff;
+    text-decoration: none;
+    font-size: 14px;
+    transition: all 0.2s;
+  }
+  
+  .page-link:hover {
+    background-color: #e9ecef;
+  }
+  
+  .page-item.active .page-link {
+    background-color: #007bff;
+    color: #fff;
+    border-color: #007bff;
+  }
+  
+  .pagination-size {
+    display: flex;
+    align-items: center;
+  }
+  
+  .pagination-size label {
+    margin-right: 10px;
+    color: #495057;
+    font-size: 14px;
+  }
+  
+  .pagination-size select {
+    padding: 5px 10px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    background-color: #fff;
+  }
 </style>
 
 <script>
-  // Lưu trữ tất cả đơn hàng
+  // We don't need the goToPage function anymore since we're using direct links
+  
+  // Update the page size change function
+  function changePageSize() {
+    const pageSize = document.getElementById('pageSize').value;
+    
+    // Build the URL with current search parameters and new page size
+    const currentUrl = new URL(window.location.href);
+    const params = new URLSearchParams(currentUrl.search);
+    
+    params.set('pageSize', pageSize);
+    params.set('page', 1); // Reset to first page
+    
+    window.location.href = window.location.pathname + '?' + params.toString();
+  }
+  
+  // Search server-side
+  function searchServerSide() {
+    const orderID = document.getElementById('searchOrderID').value.trim();
+    const customerName = document.getElementById('searchCustomerName').value.trim();
+    const phone = document.getElementById('searchPhone').value.trim();
+    const status = document.getElementById('searchStatus').value;
+    const paymentStatus = document.getElementById('searchPaymentStatus').value;
+    const fromDate = document.getElementById('searchFromDate').value;
+    const toDate = document.getElementById('searchToDate').value;
+    
+    const urlParams = new URLSearchParams();
+    
+    if (orderID) urlParams.set('orderID', orderID);
+    if (customerName) urlParams.set('customerName', customerName);
+    if (phone) urlParams.set('phone', phone);
+    if (status) urlParams.set('status', status);
+    if (paymentStatus) urlParams.set('paymentStatus', paymentStatus);
+    if (fromDate) urlParams.set('fromDate', fromDate);
+    if (toDate) urlParams.set('toDate', toDate);
+    
+    // Keep the current page size
+    const pageSizeElement = document.getElementById('pageSize');
+    const currentPageSize = pageSizeElement ? pageSizeElement.value : '10';
+    urlParams.set('pageSize', currentPageSize);
+    
+    // Reset to first page
+    urlParams.set('page', 1);
+    
+    window.location.href = window.location.pathname + '?' + urlParams.toString();
+  }
+  
+  // Reset search
+  function resetSearch() {
+    window.location.href = window.location.pathname;
+  }
+  
+  // Lưu trữ tất cả đơn hàng (only the current page)
   let allOrders = [];
 
   // Khởi tạo trang
@@ -713,162 +902,18 @@
       return order;
     }).filter(order => order !== null);
 
-    console.log("Tổng số đơn hàng:", allOrders.length);
+    console.log("Tổng số đơn hàng trên trang hiện tại:", allOrders.length);
   };
 
-  // Tìm kiếm đơn hàng
+  // Remove the client-side search functions that are being replaced by server-side search
   function searchOrders() {
-    const orderID = document.getElementById('searchOrderID').value.trim().toLowerCase();
-    const customerName = document.getElementById('searchCustomerName').value.trim().toLowerCase();
-    const phone = document.getElementById('searchPhone').value.trim().toLowerCase();
-    const status = document.getElementById('searchStatus').value;
-    const paymentStatus = document.getElementById('searchPaymentStatus').value;
-    const fromDate = document.getElementById('searchFromDate').value;
-    const toDate = document.getElementById('searchToDate').value;
-
-    console.log("Tìm kiếm:", { orderID, customerName, phone, status, paymentStatus, fromDate, toDate });
-
-    const filteredOrders = allOrders.filter(order => {
-      // Kiểm tra OrderID - tìm kiếm trong cả mã đầy đủ
-      const matchOrderID = !orderID || 
-        (order.orderID && order.orderID.toLowerCase().includes(orderID));
-
-      // Kiểm tra Tên khách hàng
-      const matchCustomerName = !customerName || 
-        (order.customerID && order.customerID.fullName && 
-         order.customerID.fullName.toLowerCase().includes(customerName));
-
-      // Kiểm tra Số điện thoại
-      const matchPhone = !phone || 
-        (order.customerID && order.customerID.phoneNumber && 
-         order.customerID.phoneNumber.toLowerCase().includes(phone));
-
-      // Kiểm tra Trạng thái
-      const matchStatus = !status || 
-        (order.status && order.status.toLowerCase() === status.toLowerCase());
-      
-      // Kiểm tra Trạng thái thanh toán
-      const matchPaymentStatus = !paymentStatus || 
-        (order.paymentStatus && order.paymentStatus.toLowerCase() === paymentStatus.toLowerCase());
-
-      // Kiểm tra Khoảng ngày
-      let matchDateRange = true;
-      if (fromDate || toDate) {
-        try {
-          const orderDate = new Date(order.createdAt);
-          
-          if (fromDate) {
-            const fromDateObj = new Date(fromDate);
-            matchDateRange = matchDateRange && orderDate >= fromDateObj;
-          }
-          
-          if (toDate) {
-            const toDateObj = new Date(toDate);
-            toDateObj.setHours(23, 59, 59, 999);
-            matchDateRange = matchDateRange && orderDate <= toDateObj;
-          }
-        } catch (error) {
-          console.error("Lỗi khi phân tích ngày:", error);
-          matchDateRange = false;
-        }
-      }
-
-      return matchOrderID && matchCustomerName && 
-             matchPhone && matchStatus && 
-             matchPaymentStatus && matchDateRange;
-    });
-
-    console.log("Số đơn hàng tìm được:", filteredOrders.length);
-    displayOrders(filteredOrders);
+    // This function is now replaced by searchServerSide()
+    searchServerSide();
   }
 
-  // Hiển thị danh sách đơn hàng
   function displayOrders(orders) {
-    const tableBody = document.querySelector('.order-table tbody');
-    tableBody.innerHTML = '';
-
-    if (orders.length === 0) {
-      tableBody.innerHTML = `
-        <tr>
-          <td colspan="8" class="text-center">Không tìm thấy đơn hàng nào</td>
-        </tr>
-      `;
-      return;
-    }
-
-    // Định nghĩa các trạng thái đơn hàng
-    const statusMap = {
-      'pending': 'Chưa xử lý',
-      'processing': 'Đã xử lý',
-      'canceled': 'Đã hủy'
-    };
-    
-    // Định nghĩa các trạng thái thanh toán
-    const paymentStatusMap = {
-      'paid': 'Đã thanh toán',
-      'unpaid': 'Chưa thanh toán',
-      'partpaid': 'Thanh toán một phần'
-    };
-    
-    orders.forEach(order => {
-      const row = document.createElement('tr');
-      
-      // Lấy 4 ký tự cuối của orderID để hiển thị
-      const parts = order.orderID.split('-');
-      const prefix = parts[0];
-      const code = parts.length > 1 ? parts[1].slice(-4) : order.orderID.slice(-4);
-      const shortOrderID = `${prefix}-${code}`;
-      
-      row.innerHTML = `
-        <td><a href="/orders/${order._id}/detail" class="order-id-link" title="${order.orderID}">${shortOrderID}</a></td>
-        <td>${order.customerID.fullName}</td>
-        <td>${order.customerID.phoneNumber}</td>
-        <td class="text-right">${order.totalAmount.toLocaleString("vi-VN")} VND</td>
-        <td>
-          <span class="order-status status-${order.status}">
-            ${statusMap[order.status] || order.status}
-          </span>
-        </td>
-        <td>
-          <span class="payment-status payment-${order.paymentStatus}">
-            ${paymentStatusMap[order.paymentStatus] || order.paymentStatus}
-          </span>
-        </td>
-        <td>${order.createdAt}</td>
-        <td>
-          <div class="order-action-buttons">
-            <button class="btn btn-sm btn-info show-details-btn" data-id="${order._id}">
-              <i class="fas fa-eye"></i> Chi tiết
-            </button>
-           
-          </div>
-        </td>
-      `;
-
-      tableBody.appendChild(row);
-    });
-  } 
-
-  // Reset tìm kiếm
-  function resetSearch() {
-    document.getElementById('searchOrderID').value = '';
-    document.getElementById('searchCustomerName').value = '';
-    document.getElementById('searchPhone').value = '';
-    document.getElementById('searchStatus').value = '';
-    document.getElementById('searchPaymentStatus').value = '';
-    document.getElementById('searchFromDate').value = '';
-    document.getElementById('searchToDate').value = '';
-
-    // Reload page to restore original order list
-    window.location.reload();
-  }
-
- 
-
-  // Hàm gọi trực tiếp cho nút tìm kiếm
-  function searchOrdersDirectly() {
-    console.log("Hàm tìm kiếm trực tiếp được gọi");
-    searchOrders();
+    // This function is no longer needed as the server handles rendering
+    console.log("Display orders is now handled by the server");
   }
 
   // Modal handling
@@ -918,7 +963,7 @@
     detailContainer.style.display = "none";
     
     // Fetch order details
-    fetch(`/orders/${orderId}/json`)
+    fetch(`/orders/${orderId}/detail-json`)
     .then(response => {
       if (!response.ok) {
           throw new Error('Network response was not ok');
@@ -926,8 +971,8 @@
       return response.json();
     })
     .then(data => {
-        if (data.success && data.order) {
-          const order = data.order;
+        if (data.status === 'Ok' && data.data) {
+          const order = data.data;
           
           // Set basic order info
           modalOrderId.textContent = formatShortOrderId(order.orderID);
