@@ -9,4 +9,7 @@ router.get('/documents', publicDocumentController.getPublicDocuments);
 // Route GET để hiển thị chi tiết sản phẩm và tài liệu liên quan
 router.get('/product/:id', publicDocumentController.getProductDetails);
 
+// Route GET để hiển thị trang chi tiết tài liệu mới (với sidebar)
+router.get('/product/:id/documents', publicDocumentController.getDocumentDetailPage);
+
 module.exports = router;
