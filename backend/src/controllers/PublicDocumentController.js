@@ -41,3 +41,48 @@ exports.getProductDetails = async (req, res) => {
     res.status(500).send('Lỗi server');
   }
 };
+
+exports.getDocumentDetailPage = async (req, res) => {
+  try {
+    const productId = req.params.id;
+    
+    // Lấy thông tin sản phẩm
+    const product = await Product.findById(productId).select('name thumbnail');
+    if (!product) {
+      return res.status(404).send('Sản phẩm không tồn tại');
+    }
+    
+    // Lấy danh sách tài liệu liên quan đến sản phẩm
+    const documents = await Document.find({ product_id: productId })
+      .select('title description media');
+    
+    if (documents.length === 0) {
+      return res.render('documentDetailPage', { 
+        product, 
+        documents: [], 
+        activeDocument: null 
+      });
+    }
+    
+    // Nếu có tham số document_id, lấy tài liệu đó làm active, nếu không lấy tài liệu đầu tiên
+    const documentId = req.query.document_id;
+    let activeDocument = documents[0]; // Mặc định là tài liệu đầu tiên
+    
+    if (documentId) {
+      const requestedDoc = documents.find(doc => doc._id.toString() === documentId);
+      if (requestedDoc) {
+        activeDocument = requestedDoc;
+      }
+    }
+    
+    // Render view với dữ liệu
+    res.render('documentDetailPage', { 
+      product, 
+      documents, 
+      activeDocument 
+    });
+  } catch (error) {
+    console.error('Lỗi khi lấy chi tiết tài liệu:', error);
+    res.status(500).send('Lỗi server');
+  }
+};
