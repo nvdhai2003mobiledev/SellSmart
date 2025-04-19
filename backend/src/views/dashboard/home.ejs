@@ -8,6 +8,33 @@
             <button class="btn btn-outline-primary active" data-period="day">Ngày</button>
             <button class="btn btn-outline-primary" data-period="week">Tuần</button>
             <button class="btn btn-outline-primary" data-period="month">Tháng</button>
+            <button class="btn btn-outline-primary" data-period="custom" data-bs-toggle="modal" data-bs-target="#customDateModal">Tùy chọn</button>
+        </div>
+    </div>
+
+    <!-- Custom Date Range Modal -->
+    <div class="modal fade" id="customDateModal" tabindex="-1" aria-labelledby="customDateModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="customDateModalLabel">Chọn khoảng thời gian</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="startDatePicker" class="form-label">Từ ngày</label>
+                        <input type="date" class="form-control" id="startDatePicker">
+                    </div>
+                    <div class="mb-3">
+                        <label for="endDatePicker" class="form-label">Đến ngày</label>
+                        <input type="date" class="form-control" id="endDatePicker">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                    <button type="button" class="btn btn-primary" id="applyCustomDateBtn">Áp dụng</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -168,7 +195,6 @@
                             <thead>
                                 <tr>
                                     <th>Nhân viên</th>
-                                    <th>Chức vụ</th>
                                     <th>Đơn hàng</th>
                                     <th>Doanh số</th>
                                     <th>Tỷ lệ</th>
@@ -176,7 +202,7 @@
                             </thead>
                             <tbody id="employeePerformanceTable">
                                 <tr>
-                                    <td colspan="5" class="text-center">Đang tải dữ liệu...</td>
+                                    <td colspan="4" class="text-center">Đang tải dữ liệu...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -186,42 +212,10 @@
         </div>
     </div>
 
-    <!-- Real-time Monitoring and Payment Stats -->
+    <!-- Payment Stats -->
     <div class="row">
-        <!-- Real-time Monitoring -->
-        <div class="col-xl-8">
-            <div class="card shadow-sm mb-4">
-                <div class="card-body">
-                    <h5 class="card-title text-primary mb-4">THEO DÕI THỜI GIAN THỰC</h5>
-                    <div class="row g-4">
-                        <!-- Đơn hàng mới -->
-                        <div class="col-md-4">
-                            <div class="p-3 bg-white rounded shadow-sm h-100">
-                                <h6 class="text-muted mb-2">Đơn hàng mới</h6>
-                                <h3 class="mb-0 text-primary" id="rtNewOrders">0</h3>
-                            </div>
-                        </div>
-                        <!-- Hoàn Thành -->
-                        <div class="col-md-4">
-                            <div class="p-3 bg-white rounded shadow-sm h-100">
-                                <h6 class="text-muted mb-2">Hoàn Thành</h6>
-                                <h3 class="mb-0 text-success" id="rtProcessing">0</h3>
-                            </div>
-                        </div>
-                        <!-- Hủy -->
-                        <div class="col-md-4">
-                            <div class="p-3 bg-white rounded shadow-sm h-100">
-                                <h6 class="text-muted mb-2">Hủy</h6>
-                                <h3 class="mb-0 text-danger" id="rtCancelled">0</h3>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- Payment Stats -->
-        <div class="col-xl-4">
+        <div class="col-xl-12">
             <div class="card shadow mb-4">
                 <div class="card-header">
                     <h6 class="m-0 font-weight-bold">Thống Kê Thanh Toán</h6>
@@ -291,6 +285,177 @@
             </div>
         </div>
     </div>
+
+    <!-- Order List Section -->
+    <div class="row">
+        <div class="col-xl-12">
+            <div class="card shadow mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold">Danh Sách Đơn Hàng</h6>
+                    <a href="/orders" class="btn btn-sm btn-primary">Xem tất cả</a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Mã đơn hàng</th>
+                                    <th>Khách hàng</th>
+                                    <th>Tổng tiền</th>
+                                    <th>Trạng thái</th>
+                                    <th>Thanh toán</th>
+                                    <th>Ngày tạo</th>
+                                    <th>Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="orderListTable">
+                                <tr>
+                                    <td colspan="7" class="text-center">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div class="pagination-info">
+                            Hiển thị <span id="orderStartIndex">0</span>-<span id="orderEndIndex">0</span> trên tổng số <span id="orderTotalCount">0</span> đơn hàng
+                        </div>
+                        <nav>
+                            <ul class="pagination mb-0" id="orderPagination">
+                                <li class="page-item disabled">
+                                    <a class="page-link" href="#" aria-label="Previous" id="orderPrevPage">
+                                        <span aria-hidden="true">&laquo;</span>
+                                    </a>
+                                </li>
+                                <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                                <li class="page-item disabled">
+                                    <a class="page-link" href="#" aria-label="Next" id="orderNextPage">
+                                        <span aria-hidden="true">&raquo;</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Order Detail Modal -->
+<div class="modal fade" id="orderDetailModal" tabindex="-1" aria-labelledby="orderDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="orderDetailModalLabel">Chi tiết đơn hàng</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="fw-bold">Thông tin đơn hàng</h6>
+                        <table class="table table-sm">
+                            <tbody>
+                                <tr>
+                                    <td>Mã đơn hàng:</td>
+                                    <td id="modal-order-id"></td>
+                                </tr>
+                                <tr>
+                                    <td>Ngày tạo:</td>
+                                    <td id="modal-order-date"></td>
+                                </tr>
+                                <tr>
+                                    <td>Trạng thái:</td>
+                                    <td id="modal-order-status"></td>
+                                </tr>
+                                <tr>
+                                    <td>Thanh toán:</td>
+                                    <td id="modal-order-payment"></td>
+                                </tr>
+                                <tr>
+                                    <td>Nhân viên:</td>
+                                    <td id="modal-order-employee">Không xác định</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="fw-bold">Thông tin khách hàng</h6>
+                        <table class="table table-sm">
+                            <tbody>
+                                <tr>
+                                    <td>Tên:</td>
+                                    <td id="modal-customer-name"></td>
+                                </tr>
+                                <tr>
+                                    <td>Số điện thoại:</td>
+                                    <td id="modal-customer-phone"></td>
+                                </tr>
+                                <tr>
+                                    <td>Email:</td>
+                                    <td id="modal-customer-email"></td>
+                                </tr>
+                                <tr>
+                                    <td>Địa chỉ:</td>
+                                    <td id="modal-customer-address"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <h6 class="fw-bold mt-3">Sản phẩm</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Sản phẩm</th>
+                                <th>Số lượng</th>
+                                <th>Đơn giá</th>
+                                <th>Thành tiền</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modal-order-products">
+                            <!-- Products will be added here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="fw-bold">Ghi chú</h6>
+                        <p id="modal-order-notes" class="border p-2 rounded">Không có ghi chú</p>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-sm">
+                            <tbody>
+                                <tr>
+                                    <td>Tổng tiền sản phẩm:</td>
+                                    <td id="modal-subtotal" class="text-end"></td>
+                                </tr>
+                                <tr>
+                                    <td>Giảm giá:</td>
+                                    <td id="modal-discount" class="text-end"></td>
+                                </tr>
+                                <tr class="fw-bold">
+                                    <td>Tổng thanh toán:</td>
+                                    <td id="modal-total" class="text-end"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                 </div>
+        </div>
+    </div>
 </div>
 
 <!-- Custom CSS -->
@@ -303,8 +468,37 @@
     padding: 1rem 0;
 }
 
+.period-selector {
+    display: flex;
+    gap: 8px;
+}
+
 .period-selector .btn {
-    margin-left: 0.5rem;
+    transition: all 0.2s ease;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-weight: 500;
+}
+
+.period-selector .btn.active {
+    background-color: #4e73df;
+    color: white;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.period-selector button[data-period="custom"] {
+    background-color: #f8f9fc;
+    border-color: #4e73df;
+    color: #4e73df;
+}
+
+.period-selector button[data-period="custom"].active {
+    background-color: #4e73df;
+    color: white;
+}
+
+.period-selector button[data-period="custom"]:hover:not(.active) {
+    background-color: rgba(78, 115, 223, 0.1);
 }
 
 .stats-card {
@@ -452,6 +646,59 @@
         margin-bottom: 1rem;
     }
 }
+
+/* Add styles for order status badges */
+.status-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-pending {
+    background-color: #f6c23e;
+    color: #856404;
+}
+
+.status-processing {
+    background-color: #4e73df;
+    color: white;
+}
+
+.status-canceled {
+    background-color: #e74a3b;
+    color: white;
+}
+
+.payment-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.payment-paid {
+    background-color: #1cc88a;
+    color: white;
+}
+
+.payment-unpaid {
+    background-color: #e74a3b;
+    color: white;
+}
+
+.payment-partpaid {
+    background-color: #f6c23e;
+    color: #856404;
+}
+
+.order-action-btn {
+    padding: 4px 8px;
+    font-size: 12px;
+    margin-right: 5px;
+}
 </style>
 
 <!-- Chart.js -->
@@ -482,10 +729,19 @@ function formatCurrency(amount) {
 let revenueChart = null;
 
 // Hàm cập nhật biểu đồ doanh thu
-async function updateRevenueChart() {
+async function updateRevenueChart(dateRange) {
     try {
-        console.log('Fetching revenue data...');
-        const response = await fetch('/orders/daily-revenue');
+        console.log('Fetching revenue data with date range:', dateRange);
+        const url = new URL('/orders/daily-revenue', window.location.origin);
+        
+        // Add period parameter
+        if (dateRange) {
+            url.searchParams.append('period', dateRange.period);
+            url.searchParams.append('startDate', dateRange.startDate);
+            url.searchParams.append('endDate', dateRange.endDate);
+        }
+        
+        const response = await fetch(url);
         const data = await response.json();
 
         if (data.status !== 'Ok' || !data.data) {
@@ -495,11 +751,33 @@ async function updateRevenueChart() {
 
         const ctx = document.getElementById('revenueChart').getContext('2d');
         
-        // Định dạng lại nhãn giờ
-        const labels = data.data.labels.map(hour => {
-            const hourNum = parseInt(hour);
-            return `${hourNum}h`;
-        });
+        // Get the period and data
+        const period = data.data.period || 'day';
+        const labels = data.data.labels || [];
+        const revenueData = data.data.revenue || [];
+        
+        // Customize chart type and options based on period
+        let chartType = 'bar';
+        let barThickness = 20;
+        let chartTitle = '';
+        
+        switch(period) {
+            case 'day':
+                // Use default bar chart for hourly data
+                chartTitle = 'Doanh thu theo giờ (7:00 - 21:00)';
+                barThickness = 25;
+                break;
+            case 'week':
+                // Wider bars for days of week
+                chartTitle = 'Doanh thu theo ngày trong tuần';
+                barThickness = 40;
+                break;
+            case 'month':
+                // Wider bars for weeks of month
+                chartTitle = 'Doanh thu theo tuần trong tháng';
+                barThickness = 60;
+                break;
+        }
 
         // Hủy biểu đồ cũ nếu tồn tại
         if (revenueChart) {
@@ -512,16 +790,16 @@ async function updateRevenueChart() {
         gradient.addColorStop(1, 'rgba(78, 115, 223, 0)');
 
         revenueChart = new Chart(ctx, {
-            type: 'bar',
+            type: chartType,
             data: {
                 labels: labels,
                 datasets: [{
                     label: 'Doanh thu',
-                    data: data.data.revenue,
+                    data: revenueData,
                     backgroundColor: 'rgba(78, 115, 223, 0.8)',
                     borderColor: 'rgba(78, 115, 223, 1)',
                     borderWidth: 1,
-                    barThickness: 20,
+                    barThickness: barThickness,
                     fill: true,
                     backgroundColor: gradient
                 }]
@@ -530,31 +808,21 @@ async function updateRevenueChart() {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    title: {
-                        display: true,
-                        text: 'Doanh thu trong ngày',
-                        font: {
-                            size: 16,
-                            weight: 'bold'
-                        },
-                        padding: 20
-                    },
                     legend: {
                         display: false
                     },
+                    title: {
+                        display: true,
+                        text: chartTitle || (dateRange ? dateRange.label : 'Hôm nay'),
+                        font: {
+                            size: 16
+                        }
+                    },
                     tooltip: {
-                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                        titleFont: {
-                            size: 14
-                        },
-                        bodyFont: {
-                            size: 13
-                        },
-                        padding: 12,
-                        displayColors: false,
                         callbacks: {
                             label: function(context) {
-                                return 'Doanh thu: ' + formatCurrency(context.raw);
+                                const value = context.raw;
+                                return formatCurrency(value);
                             }
                         }
                     }
@@ -563,131 +831,91 @@ async function updateRevenueChart() {
                     x: {
                         grid: {
                             display: false
-                        },
-                        ticks: {
-                            font: {
-                                size: 12,
-                                weight: '500'
-                            },
-                            color: '#666'
                         }
                     },
                     y: {
                         beginAtZero: true,
-                        grid: {
-                            color: 'rgba(0, 0, 0, 0.05)',
-                            drawBorder: false
-                        },
                         ticks: {
-                            font: {
-                                size: 12,
-                                weight: '500'
-                            },
-                            color: '#666',
                             callback: function(value) {
                                 return formatCurrency(value);
                             }
                         }
                     }
-                },
-                layout: {
-                    padding: {
-                        left: 10,
-                        right: 25,
-                        top: 25,
-                        bottom: 10
-                    }
                 }
             }
         });
-
-        // Cập nhật thông tin tổng quan
-        const totalRevenueElement = document.getElementById('totalRevenue');
-        if (totalRevenueElement) {
-            totalRevenueElement.textContent = formatCurrency(data.data.totalRevenue);
-        }
-
-        console.log('Revenue chart updated successfully');
     } catch (error) {
-        console.error('Error updating revenue chart:', error);
+        console.error('Error in updateRevenueChart:', error);
     }
 }
 
-// Function to fetch and display best selling products
-async function fetchBestSellingProducts() {
+// Fetch best-selling products with date range
+async function fetchBestSellingProducts(dateRange) {
     try {
-        const response = await fetch('/products/sales');
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
+        console.log('Fetching best-selling products with date range:', dateRange);
+        const tableBody = document.getElementById('bestSellingProducts');
+        tableBody.innerHTML = '<tr><td colspan="4" class="text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></td></tr>';
+        
+        const url = new URL('/products/sales', window.location.origin);
+        
+        // Add date range parameters
+        if (dateRange) {
+            url.searchParams.append('startDate', dateRange.startDate);
+            url.searchParams.append('endDate', dateRange.endDate);
         }
+        
+        const response = await fetch(url);
         const data = await response.json();
         
-        if (data.status === "Ok") {
-            const products = data.data;
-            const tbody = document.getElementById('bestSellingProducts');
-            tbody.innerHTML = ''; // Clear existing content
-
-            if (products.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="4" class="text-center">
-                            Chưa có sản phẩm nào được bán
-                        </td>
-                    </tr>
-                `;
-                return;
-            }
-
-            // Take top 10 products (already sorted by API)
-            const topProducts = products.slice(0, 10);
-
-            topProducts.forEach(product => {
-                // Handle image path
-                let imagePath = '/images/default-product.png'; // Default image path
-                if (product.thumbnail) {
-                    if (product.thumbnail.startsWith('/uploads/')) {
-                        imagePath = product.thumbnail;
-                    } else if (product.thumbnail.startsWith('/images/')) {
-                        imagePath = product.thumbnail;
-                    } else {
-                        imagePath = `/uploads/products/${product.thumbnail}`;
-                    }
-                }
-
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>
-                        <div class="d-flex align-items-center">
-                            <img src="${imagePath}" 
-                                 alt="${product.name}" 
-                                 class="product-thumbnail me-2"
-                                 style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;"
-                                 onerror="this.onerror=null; this.src='/images/default-product.png'">
-                            <span>${product.name}</span>
-                        </div>
-                    </td>
-                    <td>${product.totalSold}</td>
-                    <td>${formatCurrency(product.revenue)}</td>
-                    <td>
-                        <span class="badge ${product.inventory > 10 ? 'bg-success' : product.inventory > 0 ? 'bg-warning' : 'bg-danger'}">
-                            ${product.inventory}
-                        </span>
-                    </td>
-                `;
-                tbody.appendChild(row);
-            });
-        } else {
-            throw new Error('Failed to fetch products');
+        if (data.status !== 'Ok' && !Array.isArray(data.data)) {
+            throw new Error('Invalid data format');
         }
+        
+        tableBody.innerHTML = '';
+        
+        if (data.data.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="4" class="text-center">Không có dữ liệu sản phẩm</td></tr>';
+            return;
+        }
+        
+        // Định dạng tiền tệ
+        const formatter = new Intl.NumberFormat('vi-VN', {
+            style: 'currency',
+            currency: 'VND'
+        });
+        
+        // Hiển thị top 5 sản phẩm bán chạy nhất
+        data.data.slice(0, 5).forEach(product => {
+            const row = document.createElement('tr');
+            
+            row.innerHTML = `
+                <td>
+                    <div class="d-flex align-items-center">
+                        <img src="${product.thumbnail || '/images/default-product.png'}" 
+                             alt="${product.name}" 
+                             class="me-2" 
+                             style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">
+                        <div>
+                            <p class="fw-bold mb-0">${product.name}</p>
+                          
+                            ${product.attributes && product.attributes.length > 0 ? 
+                                `<p class="text-muted mb-0 small">${product.attributes.map(attr => 
+                                    `${attr.value[0]}`
+                                ).join(' / ')}</p>` : ''}
+                        </div>
+                    </div>
+                </td>
+                <td>${product.totalSold || 0}</td>
+                <td>${formatter.format(product.revenue || 0)}</td>
+                <td>${product.inventory || 0}</td>
+            `;
+            
+            tableBody.appendChild(row);
+        });
     } catch (error) {
         console.error('Error fetching best selling products:', error);
-        document.getElementById('bestSellingProducts').innerHTML = `
-            <tr>
-                <td colspan="4" class="text-center text-danger">
-                    Không thể tải dữ liệu sản phẩm bán chạy
-                </td>
-            </tr>
-        `;
+        document.getElementById('bestSellingProducts').innerHTML = 
+            `<tr><td colspan="4" class="text-center">Lỗi khi tải dữ liệu: ${error.message}</td></tr>`;
     }
 }
 
@@ -704,32 +932,46 @@ style.textContent = `
 document.head.appendChild(style);
 
 // Function to fetch dashboard statistics
-async function fetchDashboardStats() {
+async function fetchDashboardStats(dateRange) {
     try {
-        const response = await fetch('/products/dashboard-stats');
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
+        console.log('Fetching dashboard stats with date range:', dateRange);
+        const url = new URL('/products/dashboard-stats', window.location.origin);
+        
+        // Add date range parameters
+        if (dateRange) {
+            url.searchParams.append('startDate', dateRange.startDate);
+            url.searchParams.append('endDate', dateRange.endDate);
         }
+        
+        const response = await fetch(url);
         const data = await response.json();
         
         if (data.status === "Ok") {
             const stats = data.data;
             
+            // Format currency
+            const formatter = new Intl.NumberFormat('vi-VN', {
+                style: 'currency',
+                currency: 'VND',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            });
+            
             // Cập nhật doanh thu
             const totalRevenueElement = document.getElementById('totalRevenue');
-            totalRevenueElement.textContent = formatCurrency(stats.totalRevenue);
+            totalRevenueElement.textContent = formatter.format(stats.totalRevenue);
             updateChangePercentage(totalRevenueElement, stats.percentageChanges.revenue);
-
-            // Cập nhật số đơn hàng
+            
+            // Cập nhật đơn hàng
             const totalOrdersElement = document.getElementById('totalOrders');
             totalOrdersElement.textContent = stats.totalOrders;
             updateChangePercentage(totalOrdersElement, stats.percentageChanges.orders);
-
-            // Cập nhật số khách hàng
+            
+            // Cập nhật khách hàng
             const totalCustomersElement = document.getElementById('totalCustomers');
             totalCustomersElement.textContent = stats.totalCustomers;
             updateChangePercentage(totalCustomersElement, stats.percentageChanges.customers);
-
+            
             // Cập nhật số sản phẩm
             const totalProductsElement = document.getElementById('totalProducts');
             totalProductsElement.textContent = stats.totalProducts;
@@ -750,63 +992,110 @@ function updateChangePercentage(element, percentage) {
     }
 }
 
-// Function to fetch and display employee performance
-async function fetchEmployeePerformance() {
+// Fetch employee performance data
+async function fetchEmployeePerformance(dateRange) {
     try {
-        console.log('Fetching employee performance data...');
-        const response = await fetch('/orders/employee-performance');
-        console.log('Response status:', response.status);
-        const result = await response.json();
-        console.log('Employee performance data:', result);
-
-        const tableBody = document.getElementById('employeePerformanceTable');
+        console.log('Fetching employee performance data with date range:', dateRange);
+        const url = new URL('/orders/employee-performance', window.location.origin);
         
-        if (!result.data || !result.data.employees || result.data.employees.length === 0) {
-            console.log('No employee performance data found');
-            tableBody.innerHTML = '<tr><td colspan="5" class="text-center">Không có dữ liệu hiệu suất nhân viên</td></tr>';
+        // Add date range parameters
+        if (dateRange) {
+            url.searchParams.append('startDate', dateRange.startDate);
+            url.searchParams.append('endDate', dateRange.endDate);
+        }
+        
+        const response = await fetch(url);
+        console.log('Response status:', response.status);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Received employee performance data:', data);
+        
+        const tableBody = document.getElementById('employeePerformanceTable');
+        tableBody.innerHTML = '';
+        
+        if (!data || !data.data || !data.data.employees || data.data.employees.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="4" class="text-center">Không có dữ liệu hiệu suất</td></tr>';
             return;
         }
-
-        let html = '';
-        result.data.employees.forEach(employee => {
-            console.log('Processing employee:', employee);
-            const contribution = (employee.performance?.contribution || 0);
-            html += `
-                <tr>
-                    <td>${employee.fullName || 'N/A'}</td>
-                    <td>${employee.position || 'Nhân viên bán hàng'}</td>
-                    <td>${employee.orderCount || 0}</td>
-                    <td>${formatCurrency(employee.totalRevenue || 0)}</td>
-                    <td>
-                        <div class="progress" style="height: 6px;">
-                            <div class="progress-bar bg-success" role="progressbar" 
-                                 style="width: ${contribution}%" 
-                                 aria-valuenow="${contribution}" 
+        
+        // Sort employees by contribution for top performers
+        const employees = data.data.employees.sort((a, b) => 
+            parseFloat(b.performance.contribution) - parseFloat(a.performance.contribution)
+        );
+        
+        employees.forEach(employee => {
+            const row = document.createElement('tr');
+            
+            // Determine display name, preferring fullName but falling back to username if needed
+            const displayName = employee.fullName || employee.username || 'Không xác định';
+            
+            // Format currency
+            const formatter = new Intl.NumberFormat('vi-VN', {
+                style: 'currency',
+                currency: 'VND'
+            });
+            
+            // Calculate contribution value for progress bar
+            const contributionValue = parseFloat(employee.performance.contribution);
+            
+            // Create HTML for the row
+            row.innerHTML = `
+                <td>
+                    <div class="d-flex align-items-center">
+                        <img src="${employee.avatar || '/images/default_user.png'}" 
+                             alt="${displayName}" 
+                             class="rounded-circle mr-2" 
+                             style="width: 40px; height: 40px; object-fit: cover;">
+                        <div class="ms-3">
+                            <p class="fw-bold mb-1">${displayName}</p>
+                        </div>
+                    </div>
+                </td>
+                <td>${employee.orderCount}</td>
+                <td>${formatter.format(employee.totalRevenue)}</td>
+                <td>
+                    <div class="d-flex align-items-center">
+                        <span class="me-2">${contributionValue}%</span>
+                        <div class="progress" style="height: 8px; width: 100px;">
+                            <div class="progress-bar bg-primary" 
+                                 role="progressbar" 
+                                 style="width: ${Math.min(contributionValue, 100)}%;" 
+                                 aria-valuenow="${contributionValue}" 
                                  aria-valuemin="0" 
                                  aria-valuemax="100">
                             </div>
                         </div>
-                        <small class="fw-bold">${contribution}%</small>
-                    </td>
-                </tr>
+                    </div>
+                </td>
             `;
+            
+            tableBody.appendChild(row);
         });
-        
-        console.log('Updating table with HTML:', html);
-        tableBody.innerHTML = html;
     } catch (error) {
         console.error('Error fetching employee performance:', error);
-        const tableBody = document.getElementById('employeePerformanceTable');
-        tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Lỗi khi tải dữ liệu: ' + error.message + '</td></tr>';
+        document.getElementById('employeePerformanceTable').innerHTML = 
+            `<tr><td colspan="4" class="text-center">Lỗi khi tải dữ liệu: ${error.message}</td></tr>`;
     }
 }
 
 // Update payment statistics
-async function updatePaymentStats() {
+async function updatePaymentStats(dateRange) {
     console.log('=== STARTING PAYMENT STATS UPDATE ===');
     try {
-        console.log('1. Initiating fetch request to /orders/payment-stats');
-        const response = await fetch('http://localhost:5000/orders/payment-stats', {
+        console.log('1. Initiating fetch request to /orders/payment-stats with date range:', dateRange);
+        const url = new URL('/orders/payment-stats', window.location.origin);
+        
+        // Add date range parameters
+        if (dateRange) {
+            url.searchParams.append('startDate', dateRange.startDate);
+            url.searchParams.append('endDate', dateRange.endDate);
+        }
+        
+        const response = await fetch(url, {
             method: 'GET',
             headers: {
                 'Accept': 'application/json'
@@ -910,10 +1199,23 @@ async function updatePaymentStats() {
 let orderDistributionChart = null;
 
 // Hàm cập nhật biểu đồ phân bố đơn hàng
-async function updateOrderDistribution() {
-    console.log('Đang cập nhật biểu đồ phân bố đơn hàng...');
+async function updateOrderDistribution(dateRange) {
+    console.log('Đang cập nhật biểu đồ phân bố đơn hàng với date range:', dateRange);
     try {
-        const response = await fetch('/orders/order-distribution');
+        const url = new URL('/orders/order-distribution', window.location.origin);
+        
+        // Add date range parameters
+        if (dateRange) {
+            url.searchParams.append('startDate', dateRange.startDate);
+            url.searchParams.append('endDate', dateRange.endDate);
+            
+            // Add period parameter if available
+            if (dateRange.period) {
+                url.searchParams.append('period', dateRange.period);
+            }
+        }
+        
+        const response = await fetch(url);
         if (!response.ok) {
             throw new Error('Network response was not ok');
         }
@@ -925,101 +1227,100 @@ async function updateOrderDistribution() {
             console.log('Dữ liệu phân bố đơn hàng:', data);
 
             // Kiểm tra tính hợp lệ của dữ liệu
-            if (!data.completed || !data.processing || !data.canceled || !data.pending) {
+            if (!data.processing || !data.canceled || !data.pending) {
                 throw new Error('Dữ liệu không đầy đủ');
             }
 
-            // Chuẩn bị dữ liệu cho biểu đồ
+            // Biến đổi dữ liệu cho biểu đồ - chỉ hiển thị 3 trạng thái: đang xử lý, đã hủy, chờ xử lý
             const chartData = {
-                labels: [ 'Hoàn thành', 'Đã hủy', 'Chờ xử lý'],
+                labels: ['Đã xử lý', 'Đã hủy', 'Chưa xử lý'],
                 counts: [
-                    data.processing.count || 0,
-                    data.canceled.count || 0,
+                    data.processing.count || 0, 
+                    data.canceled.count || 0, 
                     data.pending.count || 0
                 ],
                 percentages: [
-                    parseFloat(data.processing.percentage) || 0,
-                    parseFloat(data.canceled.percentage) || 0,
-                    parseFloat(data.pending.percentage) || 0
-                ]
+                    parseFloat(data.processing.percentage || 0), 
+                    parseFloat(data.canceled.percentage || 0), 
+                    parseFloat(data.pending.percentage || 0)
+                ],
+                // Màu sắc: xanh dương cho đang xử lý, đỏ cho đã hủy, vàng cho chờ xử lý
+                colors: ['#4e73df', '#e74a3b', '#f6c23e']
             };
 
-            console.log('Dữ liệu đã xử lý:', chartData);
+            // Tính lại phần trăm dựa trên tổng của 3 loại
+            const total = chartData.counts.reduce((a, b) => a + b, 0);
+            if (total > 0) {
+                chartData.percentages = chartData.counts.map(count => parseFloat(((count / total) * 100).toFixed(1)));
+            }
 
-            // Cập nhật hoặc tạo mới biểu đồ
+            // Tạo biểu đồ
             const ctx = document.getElementById('orderDistributionChart');
-            if (ctx) {
-                // Hủy biểu đồ cũ nếu tồn tại
-                if (orderDistributionChart) {
-                    orderDistributionChart.destroy();
-                }
-
-                // Tạo biểu đồ mới
-                orderDistributionChart = new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: chartData.labels,
-                        datasets: [{
-                            data: chartData.percentages,
-                            backgroundColor: [ '#f6c23e', '#e74a3b', '#4e73df'],
-                            hoverBackgroundColor: [ '#dda20a', '#be2617', '#2e59d9'],
-                            hoverBorderColor: "rgba(234, 236, 244, 1)",
-                        }]
-                    },
-                    options: {
-                        maintainAspectRatio: false,
-                        plugins: {
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        const dataIndex = context.dataIndex;
-                                        const percentage = chartData.percentages[dataIndex].toFixed(1);
-                                        const count = chartData.counts[dataIndex];
-                                        return `${chartData.labels[dataIndex]}: ${percentage}% (${count} đơn)`;
-                                    }
-                                }
-                            },
-                            legend: {
-                                display: true,
-                                position: 'bottom',
-                                labels: {
-                                    font: {
-                                        size: 12
-                                    }
-                                }
-                            },
-                            title: {
-                                display: true,
-                                text: 'Phân bố đơn hàng trong ngày',
-                                font: {
-                                    size: 14,
-                                    weight: 'bold'
-                                }
+            
+            // Destroy chart if it exists
+            if (orderDistributionChart) {
+                orderDistributionChart.destroy();
+            }
+            
+            orderDistributionChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                        data: chartData.counts,
+                        backgroundColor: chartData.colors,
+                        hoverBackgroundColor: chartData.colors.map(color => color + 'CC'),
+                        hoverBorderColor: 'white'
+                    }]
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                boxWidth: 12
                             }
                         },
-                        cutout: '70%'
-                    }
-                });
+                        title: {
+                            display: true,
+                            text: 'Phân bố đơn hàng ' + (dateRange ? dateRange.label : 'Hôm nay')
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.raw;
+                                    const index = context.dataIndex;
+                                    const percentage = chartData.percentages[index];
+                                    return `${label}: ${value} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '70%'
+                }
+            });
 
-                // Thêm tổng số đơn hàng vào giữa biểu đồ
-                const totalOrders = chartData.counts.reduce((a, b) => a + b, 0);
-                const centerText = {
-                    id: 'centerText',
-                    afterDraw(chart) {
-                        const { ctx, chartArea: { left, right, top, bottom, width, height } } = chart;
-                        ctx.save();
-                        ctx.font = 'bold 14px Arial';
-                        ctx.fillStyle = '#666';
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        ctx.fillText(`Tổng: ${totalOrders}`, width / 2 + left, height / 2 + top);
-                        ctx.restore();
-                    }
-                };
-                orderDistributionChart.options.plugins.centerText = centerText;
-                
-                console.log('Biểu đồ đã được cập nhật thành công');
-            }
+            // Thêm tổng số đơn hàng vào giữa biểu đồ
+            const totalOrders = total || data.total || 0;
+            const centerText = {
+                id: 'centerText',
+                afterDraw(chart) {
+                    const { ctx, chartArea: { left, right, top, bottom, width, height } } = chart;
+                    ctx.save();
+                    ctx.font = 'bold 14px Arial';
+                    ctx.fillStyle = '#666';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(`Tổng: ${totalOrders}`, width / 2 + left, height / 2 + top);
+                    ctx.restore();
+                }
+            };
+            orderDistributionChart.options.plugins.centerText = centerText;
+            
+            console.log('Biểu đồ đã được cập nhật thành công');
         } else {
             throw new Error('Dữ liệu không hợp lệ từ API');
         }
@@ -1056,64 +1357,552 @@ async function updateOrderDistribution() {
     }
 }
 
-// Hàm cập nhật số liệu theo thời gian thực
-async function updateRealTimeStats() {
-    try {
-        const response = await fetch('/orders/order-distribution');
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        const data = await response.json();
-        
-        if (data.status === 'Ok' && data.data) {
-            // Cập nhật số liệu từ server
-            document.getElementById('rtNewOrders').textContent = data.data.pending.count || 0;
-            document.getElementById('rtProcessing').textContent = data.data.processing.count || 0;
-            document.getElementById('rtCancelled').textContent = data.data.canceled.count || 0;
-        }
-    } catch (error) {
-        console.error('Error updating real-time stats:', error);
-    }
-}
-
 // Initialize everything when page loads
 document.addEventListener('DOMContentLoaded', function() {
     console.log('=== DOM Content Loaded - Starting Dashboard Initialization ===');
     
     try {
+        // Set up period selector
+        const periodButtons = document.querySelectorAll('.period-selector button');
+        let currentPeriod = 'day'; // Default period
+        let customDateRange = null;
+        
+        // Initialize date range based on default period (day)
+        let dateRange = getDateRangeForPeriod(currentPeriod);
+        
+        // Set default values for date pickers (last 7 days)
+        const today = new Date();
+        const lastWeek = new Date(today);
+        lastWeek.setDate(today.getDate() - 7);
+        
+        document.getElementById('startDatePicker').valueAsDate = lastWeek;
+        document.getElementById('endDatePicker').valueAsDate = today;
+        
+        // Add click event listeners to period buttons
+        periodButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                // Skip if clicking on the custom date button (modal will handle it)
+                if (this.getAttribute('data-period') === 'custom' && this.hasAttribute('data-bs-toggle')) {
+                    return;
+                }
+                
+                // Remove active class from all buttons
+                periodButtons.forEach(btn => btn.classList.remove('active'));
+                
+                // Add active class to clicked button
+                this.classList.add('active');
+                
+                // Update current period
+                currentPeriod = this.getAttribute('data-period');
+                
+                // Get date range for the selected period (use custom dates if needed)
+                if (currentPeriod === 'custom') {
+                    dateRange = getDateRangeForPeriod(currentPeriod, customDateRange);
+                } else {
+                    dateRange = getDateRangeForPeriod(currentPeriod);
+                }
+                console.log(`Period changed to ${currentPeriod}:`, dateRange);
+                
+                // Reload all dashboard data with new date range
+                reloadDashboardData(dateRange);
+            });
+        });
+        
+        // Handle custom date selection
+        document.getElementById('applyCustomDateBtn').addEventListener('click', function() {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('customDateModal'));
+            
+            // Get selected dates
+            const startDate = document.getElementById('startDatePicker').value;
+            const endDate = document.getElementById('endDatePicker').value;
+            
+            if (!startDate || !endDate) {
+                alert('Vui lòng chọn ngày bắt đầu và ngày kết thúc');
+                return;
+            }
+            
+            // Validate date range
+            if (new Date(endDate) < new Date(startDate)) {
+                alert('Ngày kết thúc phải sau ngày bắt đầu');
+                return;
+            }
+            
+            // Save custom date range
+            customDateRange = {
+                startDate: startDate,
+                endDate: endDate
+            };
+            
+            // Update current period
+            currentPeriod = 'custom';
+            
+            // Update active button
+            periodButtons.forEach(btn => btn.classList.remove('active'));
+            document.querySelector('button[data-period="custom"]').classList.add('active');
+            
+            // Get date range for the custom period
+            dateRange = getDateRangeForPeriod('custom', customDateRange);
+            console.log('Custom date range applied:', dateRange);
+            
+            // Reload all dashboard data with new date range
+            reloadDashboardData(dateRange);
+            
+            // Close the modal
+            modal.hide();
+        });
+        
         // Fetch initial data
         console.log('2. Fetching initial data...');
-        updateRevenueChart().catch(err => console.error('Error updating revenue chart:', err));
-        fetchBestSellingProducts().catch(err => console.error('Error fetching best selling products:', err));
-        fetchDashboardStats().catch(err => console.error('Error fetching dashboard stats:', err));
-        fetchEmployeePerformance().catch(err => console.error('Error fetching employee performance:', err));
-        
-        console.log('3. Fetching payment statistics...');
-        updatePaymentStats().catch(err => console.error('Error updating payment stats:', err));
+        reloadDashboardData(dateRange);
         
         // Set up intervals for updates
         console.log('4. Setting up update intervals...');
         setInterval(() => {
             console.log('Running periodic updates...');
-            updateRevenueChart().catch(err => console.error('Error in periodic revenue update:', err));
-            fetchBestSellingProducts().catch(err => console.error('Error in periodic best selling update:', err));
-            fetchDashboardStats().catch(err => console.error('Error in periodic stats update:', err));
-            fetchEmployeePerformance().catch(err => console.error('Error in periodic performance update:', err));
-            updatePaymentStats().catch(err => console.error('Error in periodic payment stats update:', err));
+            if (currentPeriod !== 'custom') {
+                // Only auto-refresh for standard periods (not custom ranges)
+                dateRange = getDateRangeForPeriod(currentPeriod);
+                reloadDashboardData(dateRange);
+            }
         }, 300000); // Every 5 minutes
-        
-        // Cập nhật biểu đồ khi trang tải xong và mỗi 5 phút
-        updateOrderDistribution();
-        setInterval(updateOrderDistribution, 300000); // 5 phút = 300000ms
-        
-        // Cập nhật số liệu khi trang tải xong và mỗi 5 giây
-        updateRealTimeStats();
-        setInterval(updateRealTimeStats, 5000);
         
         console.log('=== Dashboard Initialization Completed ===');
     } catch (error) {
         console.error('Critical error during dashboard initialization:', error);
     }
 });
+
+// Function to reload all dashboard data
+function reloadDashboardData(dateRange) {
+    updateRevenueChart(dateRange).catch(err => console.error('Error updating revenue chart:', err));
+    fetchBestSellingProducts(dateRange).catch(err => console.error('Error fetching best selling products:', err));
+    fetchDashboardStats(dateRange).catch(err => console.error('Error fetching dashboard stats:', err));
+    fetchEmployeePerformance(dateRange).catch(err => console.error('Error fetching employee performance:', err));
+    updatePaymentStats(dateRange).catch(err => console.error('Error updating payment stats:', err));
+    updateOrderDistribution(dateRange).catch(err => console.error('Error updating order distribution:', err));
+    fetchOrdersList(dateRange, 1).catch(err => console.error('Error fetching orders list:', err));
+}
+
+// Order list variables
+let currentOrderPage = 1;
+let totalOrderPages = 1;
+let ordersPerPage = 5;
+let currentOrderDateRange = null;
+
+// Function to fetch orders list with pagination
+async function fetchOrdersList(dateRange, page = 1) {
+    try {
+        console.log('Fetching orders list with date range:', dateRange, 'page:', page);
+        currentOrderDateRange = dateRange;
+        currentOrderPage = page;
+        
+        const tableBody = document.getElementById('orderListTable');
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </td>
+            </tr>
+        `;
+        
+        const url = new URL('/orders/list-json', window.location.origin);
+        
+        // Add parameters
+        url.searchParams.append('page', page);
+        url.searchParams.append('limit', ordersPerPage);
+        
+        if (dateRange) {
+            url.searchParams.append('startDate', dateRange.startDate);
+            url.searchParams.append('endDate', dateRange.endDate);
+            
+            // Add period parameter if available
+            if (dateRange.period) {
+                url.searchParams.append('period', dateRange.period);
+            }
+        }
+        
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Orders data:', data);
+        
+        if (data.status === 'Ok' && data.data) {
+            // Update pagination info
+            totalOrderPages = data.data.totalPages || 1;
+            const totalOrders = data.data.totalOrders || 0;
+            
+            const startIndex = (page - 1) * ordersPerPage + 1;
+            const endIndex = Math.min(page * ordersPerPage, totalOrders);
+            
+            document.getElementById('orderStartIndex').textContent = startIndex;
+            document.getElementById('orderEndIndex').textContent = endIndex;
+            document.getElementById('orderTotalCount').textContent = totalOrders;
+            
+            // Clear table
+            tableBody.innerHTML = '';
+            
+            // Check if there are orders
+            if (!data.data.orders || data.data.orders.length === 0) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="text-center">Không có đơn hàng nào trong khoảng thời gian này</td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            // Format currency
+            const formatter = new Intl.NumberFormat('vi-VN', {
+                style: 'currency',
+                currency: 'VND'
+            });
+            
+            // Add orders to table
+            data.data.orders.forEach(order => {
+                const row = document.createElement('tr');
+                
+                // Format date
+                const orderDate = new Date(order.createdAt);
+                const formattedDate = `${orderDate.getDate()}/${orderDate.getMonth() + 1}/${orderDate.getFullYear()} ${orderDate.getHours()}:${String(orderDate.getMinutes()).padStart(2, '0')}`;
+                
+                // Status badge
+                const statusClass = `status-${order.status}`;
+                const statusText = order.status === 'pending' ? 'Chưa xử lý' :
+                                   order.status === 'processing' ? 'Đã xử lý' :
+                                   order.status === 'canceled' ? 'Đã hủy' : order.status;
+                                   
+                // Payment badge
+                const paymentClass = `payment-${order.paymentStatus}`;
+                const paymentText = order.paymentStatus === 'paid' ? 'Đã thanh toán' :
+                                   order.paymentStatus === 'unpaid' ? 'Chưa thanh toán' :
+                                   order.paymentStatus === 'partpaid' ? 'Thanh toán một phần' : order.paymentStatus;
+                
+                // Customer name
+                const customerName = order.customerID ? (order.customerID.fullName || 'Khách hàng') : 'Khách hàng';
+
+                row.innerHTML = `
+                    <td>${order.orderID || '-'}</td>
+                    <td>${customerName}</td>
+                    <td>${formatter.format(order.totalAmount || 0)}</td>
+                    <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                    <td><span class="payment-badge ${paymentClass}">${paymentText}</span></td>
+                    <td>${formattedDate}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary order-action-btn view-order-btn" data-order-id="${order._id}">
+                            <i class="fas fa-eye"></i> Xem
+                        </button>
+                    </td>
+                `;
+                
+                tableBody.appendChild(row);
+            });
+            
+            // Add event listeners to view buttons
+            document.querySelectorAll('.view-order-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const orderId = this.getAttribute('data-order-id');
+                    showOrderDetail(orderId);
+                });
+            });
+            
+            // Update pagination
+            updateOrderPagination(page, totalOrderPages);
+        } else {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center">Lỗi khi tải dữ liệu: ${data.message || 'Unknown error'}</td>
+                </tr>
+            `;
+        }
+    } catch (error) {
+        console.error('Error fetching orders list:', error);
+        document.getElementById('orderListTable').innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center">Lỗi khi tải dữ liệu: ${error.message}</td>
+            </tr>
+        `;
+    }
+}
+
+// Function to update order pagination
+function updateOrderPagination(currentPage, totalPages) {
+    const pagination = document.getElementById('orderPagination');
+    pagination.innerHTML = '';
+    
+    // Previous button
+    const prevItem = document.createElement('li');
+    prevItem.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+    prevItem.innerHTML = `
+        <a class="page-link" href="#" aria-label="Previous" id="orderPrevPage">
+            <span aria-hidden="true">&laquo;</span>
+        </a>
+    `;
+    pagination.appendChild(prevItem);
+    
+    // Page numbers
+    const displayPages = 5; // Number of page links to display
+    let startPage = Math.max(1, currentPage - Math.floor(displayPages / 2));
+    let endPage = Math.min(totalPages, startPage + displayPages - 1);
+    
+    // Adjust start page if we're at the end
+    if (endPage - startPage + 1 < displayPages) {
+        startPage = Math.max(1, endPage - displayPages + 1);
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+        const pageItem = document.createElement('li');
+        pageItem.className = `page-item ${i === currentPage ? 'active' : ''}`;
+        pageItem.innerHTML = `<a class="page-link" href="#" data-page="${i}">${i}</a>`;
+        pagination.appendChild(pageItem);
+    }
+    
+    // Next button
+    const nextItem = document.createElement('li');
+    nextItem.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+    nextItem.innerHTML = `
+        <a class="page-link" href="#" aria-label="Next" id="orderNextPage">
+            <span aria-hidden="true">&raquo;</span>
+        </a>
+    `;
+    pagination.appendChild(nextItem);
+    
+    // Add event listeners
+    document.querySelectorAll('#orderPagination .page-link').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            if (this.id === 'orderPrevPage' && currentPage > 1) {
+                fetchOrdersList(currentOrderDateRange, currentPage - 1);
+            } else if (this.id === 'orderNextPage' && currentPage < totalPages) {
+                fetchOrdersList(currentOrderDateRange, currentPage + 1);
+            } else if (this.getAttribute('data-page')) {
+                const page = parseInt(this.getAttribute('data-page'));
+                if (page !== currentPage) {
+                    fetchOrdersList(currentOrderDateRange, page);
+                }
+            }
+        });
+    });
+}
+
+// Function to show order detail
+async function showOrderDetail(orderId) {
+    try {
+        console.log('Fetching order detail for:', orderId);
+        
+        const url = new URL(`/orders/${orderId}/detail-json`, window.location.origin);
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Order detail data:', data);
+        
+        if (data.status === 'Ok' && data.data) {
+            const order = data.data;
+            
+            // Format currency
+            const formatter = new Intl.NumberFormat('vi-VN', {
+                style: 'currency',
+                currency: 'VND'
+            });
+            
+            // Format date
+            const orderDate = new Date(order.createdAt);
+            const formattedDate = `${orderDate.getDate()}/${orderDate.getMonth() + 1}/${orderDate.getFullYear()} ${orderDate.getHours()}:${String(orderDate.getMinutes()).padStart(2, '0')}`;
+            
+            // Status text
+            const statusText = order.status === 'pending' ? 'Chờ xử lý' :
+                              order.status === 'processing' ? 'Đang xử lý' :
+                              order.status === 'canceled' ? 'Đã hủy' : order.status;
+                              
+            // Payment text
+            const paymentText = order.paymentStatus === 'paid' ? 'Đã thanh toán' :
+                              order.paymentStatus === 'unpaid' ? 'Chưa thanh toán' :
+                              order.paymentStatus === 'partpaid' ? 'Thanh toán một phần' : order.paymentStatus;
+            
+            // Update modal content
+            document.getElementById('modal-order-id').textContent = order.orderID || '-';
+            document.getElementById('modal-order-date').textContent = formattedDate;
+            document.getElementById('modal-order-status').innerHTML = `<span class="status-badge status-${order.status}">${statusText}</span>`;
+            document.getElementById('modal-order-payment').innerHTML = `<span class="payment-badge payment-${order.paymentStatus}">${paymentText}</span>`;
+            
+            // Employee info
+            const employeeElement = document.getElementById('modal-order-employee');
+            if (order.employeeID) {
+                if (typeof order.employeeID === 'object') {
+                    const employeeName = order.employeeID.fullName || 'N/A';
+                    const position = order.employeeID.position ? ` (${order.employeeID.position})` : '';
+                    employeeElement.textContent = employeeName + position;
+                } else {
+                    employeeElement.textContent = "ID: " + order.employeeID;
+                }
+            } else {
+                employeeElement.textContent = "Không xác định";
+            }
+            
+            // Customer info
+            document.getElementById('modal-customer-name').textContent = order.customerID ? order.customerID.fullName || '-' : '-';
+            document.getElementById('modal-customer-phone').textContent = order.customerID ? order.customerID.phoneNumber || '-' : '-';
+            document.getElementById('modal-customer-email').textContent = order.customerID ? order.customerID.email || '-' : '-';
+            document.getElementById('modal-customer-address').textContent = order.customerID ? order.customerID.address || '-' : '-';
+            
+            // Notes
+            document.getElementById('modal-order-notes').textContent = order.notes || 'Không có ghi chú';
+            
+            // Products
+            const productsContainer = document.getElementById('modal-order-products');
+            productsContainer.innerHTML = '';
+            
+            if (order.products && order.products.length > 0) {
+                order.products.forEach(product => {
+                    const row = document.createElement('tr');
+                    
+                    // Product name with attributes
+                    let productName = product.name || 'Sản phẩm không xác định';
+                    if (product.attributes && product.attributes.length > 0) {
+                        const attributesList = product.attributes.map(attr => {
+                            if (Array.isArray(attr.value)) {
+                                return `${attr.name}: ${attr.value.join(', ')}`;
+                            }
+                            return `${attr.name}: ${attr.value}`;
+                        }).join(' / ');
+                        
+                        productName += `<br><small class="text-muted">${attributesList}</small>`;
+                    }
+                    
+                    const quantity = product.quantity || 1;
+                    const price = product.price || 0;
+                    const total = quantity * price;
+                    
+                    row.innerHTML = `
+                        <td>${productName}</td>
+                        <td>${quantity}</td>
+                        <td>${formatter.format(price)}</td>
+                        <td>${formatter.format(total)}</td>
+                    `;
+                    
+                    productsContainer.appendChild(row);
+                });
+            } else {
+                productsContainer.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="text-center">Không có sản phẩm</td>
+                    </tr>
+                `;
+            }
+            
+            // Calculate subtotal and discount
+            const subtotal = order.originalAmount || order.totalAmount || 0;
+            const total = order.totalAmount || 0;
+            const discount = subtotal - total;
+            
+            document.getElementById('modal-subtotal').textContent = formatter.format(subtotal);
+            document.getElementById('modal-discount').textContent = formatter.format(discount);
+            document.getElementById('modal-total').textContent = formatter.format(total);
+            
+            // Set button URL
+        
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('orderDetailModal'));
+            modal.show();
+        } else {
+            alert(`Error: ${data.message || 'Could not load order details'}`);
+        }
+    } catch (error) {
+        console.error('Error showing order detail:', error);
+        alert(`Error: ${error.message}`);
+    }
+}
+
+// Function to get date range for a given period
+function getDateRangeForPeriod(period, customDates = null) {
+    const now = new Date();
+    let startDate, endDate;
+    
+    switch (period) {
+        case 'custom':
+            // Use provided custom dates
+            if (customDates && customDates.startDate && customDates.endDate) {
+                startDate = new Date(customDates.startDate);
+                startDate.setHours(0, 0, 0, 0);
+                
+                endDate = new Date(customDates.endDate);
+                endDate.setHours(23, 59, 59);
+            } else {
+                // Default to last 7 days if no custom dates provided
+                endDate = new Date(now);
+                startDate = new Date(now);
+                startDate.setDate(startDate.getDate() - 7);
+                startDate.setHours(0, 0, 0, 0);
+            }
+            break;
+            
+        case 'day':
+            // Today: from 00:00:00 to 23:59:59 of the current day
+            startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+            endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+            break;
+            
+        case 'week':
+            // Current week: from Monday 00:00:00 to Sunday 23:59:59
+            const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+            const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Convert to 0 = Monday, 6 = Sunday
+            
+            startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysFromMonday, 0, 0, 0);
+            endDate = new Date(startDate);
+            endDate.setDate(startDate.getDate() + 6);
+            endDate.setHours(23, 59, 59);
+            break;
+            
+        case 'month':
+            // Current month: from 1st day 00:00:00 to last day 23:59:59
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+            endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59); // Last day of current month
+            break;
+            
+        default:
+            // Default to today
+            startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+            endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+    }
+    
+    return {
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        label: getPeriodLabel(period, startDate, endDate),
+        period: period
+    };
+}
+
+// Function to generate human-readable label for the time period
+function getPeriodLabel(period, startDate, endDate) {
+    const formatDate = (date) => {
+        return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
+    };
+    
+    switch (period) {
+        case 'day':
+            return `Ngày ${formatDate(startDate)}`;
+        case 'week':
+            return `Tuần từ ${formatDate(startDate)} đến ${formatDate(endDate)}`;
+        case 'month':
+            const monthNames = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 
+                               'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
+            return `${monthNames[startDate.getMonth()]} ${startDate.getFullYear()}`;
+        case 'custom':
+            return `${formatDate(startDate)} - ${formatDate(endDate)}`;
+        default:
+            return `${formatDate(startDate)} - ${formatDate(endDate)}`;
+    }
+}
 </script>
 

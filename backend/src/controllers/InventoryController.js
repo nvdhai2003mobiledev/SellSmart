@@ -515,7 +515,6 @@ const updateInventory = async (req, res) => {
         message: "Thiếu thông tin bắt buộc: tên sản phẩm, danh mục, nhà cung cấp, số lô hàng",
       });
     }
-
     // Kiểm tra danh mục tồn tại
     const typeProduct = await TypeProduct.findById(typeProduct_id);
     if (!typeProduct) {

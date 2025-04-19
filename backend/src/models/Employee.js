@@ -24,10 +24,6 @@ const Employee = new Schema(
       required: true,
       trim: true,
     },
-    salary: {
-      type: Number,
-      required: true,
-    },
     hireDate: {
       type: Date,
       required: true,
@@ -37,11 +33,6 @@ const Employee = new Schema(
       type: String,
       enum: ["active", "inactive", "leave"],
       default: "active",
-    },
-    bankAccount: {
-      bankName: String,
-      accountNumber: String,
-      accountHolder: String,
     },
   },
   { timestamps: true },

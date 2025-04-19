@@ -547,15 +547,43 @@ const getMobileOrdersList = async (req, res) => {
 };
 const renderOrdersPage = async (req, res) => {
   try {
-    const orders = await getAllOrders(); // Lấy danh sách đơn hàng
-
-    if (!orders || orders.length === 0) {
-      return res.render("orders", { orders: [] }); // Nếu không có dữ liệu, gửi mảng rỗng để tránh lỗi
-    }
-
-    res.render("orders", { orders });
+    // Get pagination parameters from query
+    const page = parseInt(req.query.page) || 1;
+    const pageSize = parseInt(req.query.pageSize) || 10;
+    
+    // Get filter parameters from query
+    const filters = {
+      orderID: req.query.orderID || '',
+      customerName: req.query.customerName || '',
+      phone: req.query.phone || '',
+      status: req.query.status || '',
+      paymentStatus: req.query.paymentStatus || '',
+      fromDate: req.query.fromDate || '',
+      toDate: req.query.toDate || ''
+    };
+    
+    // Get paginated orders with filters
+    const { orders, total, totalPages } = await orderService.getPaginatedOrders(page, pageSize, filters);
+    
+    // Log pagination info
+    console.log(`Rendering orders page ${page} of ${totalPages}, showing ${orders.length} of ${total} orders`);
+    
+    // Render the page with pagination data
+    res.render("dashboard/orders", { 
+      orders,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages
+      },
+      filters,
+      page: "orders",
+      title: "Quản lý đơn hàng"
+    });
   } catch (error) {
-    res.status(500).send("Lỗi server: " + error.message);
+    console.error("Lỗi khi render trang đơn hàng:", error);
+    res.status(500).send("Lỗi server khi hiển thị danh sách đơn hàng");
   }
 };
 
@@ -953,29 +981,38 @@ const getPaymentStats = async (req, res) => {
 // Thêm hàm mới để lấy phân bố đơn hàng
 const getOrderDistribution = async (req, res) => {
     try {
-        console.log('\n===== FETCHING TODAY\'S ORDER DISTRIBUTION =====');
+        console.log('\n===== FETCHING ORDER DISTRIBUTION =====');
+        
+        // Get date range from query parameters
+        let startDate, endDate;
+        
+        if (req.query.startDate && req.query.endDate) {
+            startDate = new Date(req.query.startDate);
+            endDate = new Date(req.query.endDate);
+            console.log(`Using provided date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
+        } else {
+            // Default to today
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            startDate = today;
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            endDate = tomorrow;
+            console.log(`Using default date range (today): ${startDate.toISOString()} to ${endDate.toISOString()}`);
+        }
 
-        // Get today's start and end
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-
-        console.log(`Fetching orders between: ${today.toISOString()} and ${tomorrow.toISOString()}`);
-
-        // Get only today's orders
+        // Get orders within the date range
         const orders = await Order.find({
             createdAt: {
-                $gte: today,
-                $lt: tomorrow
+                $gte: startDate,
+                $lte: endDate
             }
         });
         
-        console.log(`Found ${orders.length} orders for today`);
+        console.log(`Found ${orders.length} orders for the selected period`);
 
-        // Initialize counters
+        // Initialize counters for the three order statuses
         const stats = {
-            completed: 0,
             processing: 0,
             canceled: 0,
             pending: 0
@@ -989,15 +1026,11 @@ const getOrderDistribution = async (req, res) => {
             }
         });
 
-        // Calculate total
-        const total = stats.completed + stats.processing + stats.canceled + stats.pending;
+        // Calculate total based on just the three statuses
+        const total = stats.processing + stats.canceled + stats.pending;
 
         // Calculate percentages and format to one decimal place
         const distribution = {
-            completed: {
-                count: stats.completed,
-                percentage: total > 0 ? ((stats.completed / total) * 100).toFixed(1) : "0.0"
-            },
             processing: {
                 count: stats.processing,
                 percentage: total > 0 ? ((stats.processing / total) * 100).toFixed(1) : "0.0"
@@ -1013,7 +1046,7 @@ const getOrderDistribution = async (req, res) => {
             total: total
         };
 
-        console.log('Today\'s order distribution:', distribution);
+        console.log('Order distribution for selected period:', distribution);
         console.log('===== END ORDER DISTRIBUTION =====\n');
 
         return res.status(200).json({
@@ -1034,101 +1067,199 @@ const getEmployeePerformance = async (req, res) => {
     try {
         console.log('\n===== FETCHING EMPLOYEE PERFORMANCE DATA =====');
         
-        // Get the date range (default to current month)
-        const endDate = new Date();
-        const startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+        // Get the date range from query parameters
+        let startDate, endDate;
+        
+        if (req.query.startDate && req.query.endDate) {
+            startDate = new Date(req.query.startDate);
+            endDate = new Date(req.query.endDate);
+            console.log(`Using provided date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
+        } else {
+            // Default to current month
+            endDate = new Date();
+            startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+            console.log(`Using default date range (month): ${startDate.toISOString()} to ${endDate.toISOString()}`);
+        }
         
         console.log(`Analyzing performance from ${startDate.toISOString()} to ${endDate.toISOString()}`);
 
         // Get all employees first
         const employees = await Employee.find()
-            .populate('userId', 'fullName avatar')
+            .populate('userId', 'fullName username avatar')
             .lean();
 
-        console.log(`Found ${employees.length} total employees`);
+        // Get all users with employee role
+        const employeeUsers = await mongoose.model('User').find({ role: 'employee' }).lean();
+        
+        console.log(`Found ${employees.length} employees and ${employeeUsers.length} employee users`);
+
+        // Create a map of employee and user data for quick lookup
+        const employeeMap = new Map();
+        
+        // Add data from Employee collection
+        employees.forEach(employee => {
+            const id = employee._id.toString();
+            employeeMap.set(id, {
+                id: id,
+                fullName: employee.userId ? employee.userId.fullName : null,
+                position: employee.position || 'Nhân viên',
+                avatar: employee.userId ? employee.userId.avatar : null,
+                username: employee.userId ? employee.userId.username : null,
+                source: 'employee'
+            });
+            
+            // Also map by userId if available
+            if (employee.userId && employee.userId._id) {
+                employeeMap.set(employee.userId._id.toString(), {
+                    id: id,
+                    fullName: employee.userId.fullName,
+                    position: employee.position || 'Nhân viên',
+                    avatar: employee.userId.avatar,
+                    username: employee.userId.username,
+                    source: 'employee'
+                });
+            }
+        });
+        
+        // Add data from User collection
+        employeeUsers.forEach(user => {
+            const id = user._id.toString();
+            // Only add if not already in the map from Employee collection
+            if (!employeeMap.has(id)) {
+                employeeMap.set(id, {
+                    id: id,
+                    fullName: user.fullName || user.username,
+                    position: 'Nhân viên',
+                    avatar: user.avatar,
+                    username: user.username,
+                    source: 'user'
+                });
+            }
+        });
+
+        console.log(`Created lookup map with ${employeeMap.size} employee entries`);
 
         // Get all completed and paid orders within date range
         const orders = await Order.find({
             createdAt: { $gte: startDate, $lte: endDate },
             status: { $ne: 'canceled' },
-            employeeID: { $exists: true, $ne: null },
             paymentStatus: 'paid'
-        }).populate('employeeID');
+        });
 
-        console.log(`Found ${orders.length} valid orders in date range`);
+        console.log(`Found ${orders.length} valid paid orders in date range`);
 
-        // Initialize performance map with all employees
-        const employeeStats = new Map();
+        // Initialize tracking for stats
+        const performanceStats = new Map();
         let totalRevenue = 0;
         let totalOrders = 0;
 
-        // Initialize stats for all employees
-        employees.forEach(employee => {
-            if (employee.userId) {  // Only include employees with valid user data
-                employeeStats.set(employee._id.toString(), {
-                    employeeId: employee._id,
-                    fullName: employee.userId.fullName || 'Unknown',
-                    avatar: employee.userId.avatar || null,
-                    position: employee.position || 'Nhân viên bán hàng',
-                    orderCount: 0,
-                    totalRevenue: 0,
-                    averageOrderValue: 0,
-                    successRate: 0,
-                    totalCustomers: new Set()
-                });
-            }
-        });
-
         // Process orders
         orders.forEach(order => {
-            if (!order.employeeID) return;
-
-            const employeeId = order.employeeID._id.toString();
-            const stats = employeeStats.get(employeeId);
-            
-            if (stats) {
-                stats.orderCount++;
-                stats.totalRevenue += order.totalAmount || 0;
-                stats.totalCustomers.add(order.customerID.toString());
-                totalRevenue += order.totalAmount || 0;
-                totalOrders++;
+            if (!order.employeeID) {
+                console.log(`Order ${order.orderID || order._id} has no employeeID, skipping...`);
+                return;
             }
+            
+            // Handle the case where employeeID can be an ObjectId or a string
+            let employeeId = '';
+            
+            if (typeof order.employeeID === 'object' && order.employeeID !== null) {
+                employeeId = order.employeeID.toString();
+            } else if (typeof order.employeeID === 'string') {
+                employeeId = order.employeeID;
+            } else {
+                console.log(`Unexpected employeeID format in order ${order.orderID || order._id}: ${typeof order.employeeID}`);
+                return;
+            }
+            
+            console.log(`Processing order ${order.orderID || order._id} with employeeID: ${employeeId}`);
+            
+            // Try to find employee in our map
+            let employeeInfo = employeeMap.get(employeeId);
+            
+            // If not found directly, try to find by different ID formats
+            if (!employeeInfo) {
+                if (employeeId.includes('ObjectId')) {
+                    const cleanId = employeeId.replace(/ObjectId\(['"](.+)['"]\)/g, '$1');
+                    employeeInfo = employeeMap.get(cleanId);
+                    console.log(`Tried cleaning ObjectId: ${employeeId} -> ${cleanId}, found: ${Boolean(employeeInfo)}`);
+                }
+            }
+            
+            // If still not found, create a basic entry
+            if (!employeeInfo) {
+                console.log(`Employee ${employeeId} not found in map, creating basic entry...`);
+                employeeInfo = {
+                    id: employeeId,
+                    fullName: 'Nhân viên không xác định',
+                    position: 'Nhân viên',
+                    avatar: null,
+                    username: null,
+                    source: 'unknown'
+                };
+            }
+            
+            // Get or create stats for this employee
+            let stats = performanceStats.get(employeeId);
+            if (!stats) {
+                stats = {
+                    employeeId: employeeId,
+                    fullName: employeeInfo.fullName,
+                    position: employeeInfo.position,
+                    avatar: employeeInfo.avatar,
+                    username: employeeInfo.username,
+                    orderCount: 0,
+                    totalRevenue: 0,
+                    customers: new Set()
+                };
+                performanceStats.set(employeeId, stats);
+            }
+            
+            // Update stats
+            stats.orderCount++;
+            stats.totalRevenue += order.totalAmount || 0;
+            if (order.customerID) {
+                stats.customers.add(typeof order.customerID === 'object' ? 
+                    order.customerID.toString() : order.customerID);
+            }
+            
+            // Update totals
+            totalRevenue += order.totalAmount || 0;
+            totalOrders++;
         });
-
-        // Calculate final statistics and convert to array
-        let performanceData = Array.from(employeeStats.values())
-            .map(employee => {
-                const orderCount = employee.orderCount;
-                const totalRevenue = employee.totalRevenue;
+        
+        // Convert to array for response
+        let performanceData = Array.from(performanceStats.values())
+            .map(stats => {
+                // Calculate derived stats
+                const orderCount = stats.orderCount;
+                const totalRevenue = stats.totalRevenue;
+                const contribution = totalRevenue > 0 ? 
+                    (stats.totalRevenue / totalRevenue * 100).toFixed(1) : "0.0";
                 
                 return {
-                    employeeId: employee.employeeId,
-                    fullName: employee.fullName,
-                    avatar: employee.avatar,
-                    position: employee.position,
-                    orderCount,
-                    totalRevenue,
-                    averageOrderValue: orderCount > 0 ? totalRevenue / orderCount : 0,
-                    contributionRatio: totalRevenue > 0 ? (employee.totalRevenue / totalRevenue) : 0,
-                    customerCount: employee.totalCustomers.size,
+                    employeeId: stats.employeeId,
+                    fullName: stats.fullName,
+                    username: stats.username,
+                    position: stats.position,
+                    avatar: stats.avatar,
+                    orderCount: orderCount,
+                    totalRevenue: totalRevenue,
+                    customerCount: stats.customers.size,
                     performance: {
                         orders: orderCount,
                         revenue: totalRevenue,
                         averageOrder: orderCount > 0 ? totalRevenue / orderCount : 0,
-                        contribution: totalRevenue > 0 ? (employee.totalRevenue / totalRevenue * 100).toFixed(1) : 0
+                        contribution: contribution
                     }
                 };
             })
-            .filter(employee => employee.orderCount > 0)  // Only include employees with orders
-            .sort((a, b) => b.totalRevenue - a.totalRevenue);  // Sort by revenue
+            .filter(employee => employee.orderCount > 0)
+            .sort((a, b) => b.totalRevenue - a.totalRevenue);
 
-        console.log('\nPerformance Summary:');
-        console.log(`Total Revenue: ${totalRevenue}`);
-        console.log(`Total Orders: ${totalOrders}`);
-        console.log(`Active Employees: ${performanceData.length}`);
+        console.log(`Generated performance data for ${performanceData.length} employees`);
         
-        console.log('===== END EMPLOYEE PERFORMANCE DATA =====\n');
-
+        // Return the result
         return res.json({
             status: 'Ok',
             data: {
@@ -1156,51 +1287,142 @@ const getEmployeePerformance = async (req, res) => {
 
 const getDailyRevenue = async (req, res) => {
   try {
-    console.log('Fetching daily revenue data...');
-        
-    // Get today's start and end time
-    const today = new Date();
-    today.setHours(8, 0, 0, 0); // Start from 8:00
-    const endTime = new Date(today);
-    endTime.setHours(22, 59, 59, 999); // End at 22:59:59.999
-
-    // Query for completed orders within today's business hours
-    const orders = await Order.find({
-      createdAt: {
-        $gte: today,
-        $lte: endTime
-      },
-      status: 'processing', // Only count completed orders
-      paymentStatus: 'paid' // Only count paid orders
-    }).sort('createdAt');
-
-    console.log(`Found ${orders.length} orders for today's business hours`);
-
-    // Initialize arrays for business hours (8-22)
-    const labels = Array.from({ length: 15 }, (_, i) => `${i + 8}h`);
-    const revenue = Array(15).fill(0);
-
-    // Process orders
-    orders.forEach(order => {
-      const hour = order.createdAt.getHours();
-      if (hour >= 8 && hour <= 22) {
-        revenue[hour - 8] += order.totalAmount;
+    console.log('Revenue request with query params:', req.query);
+    
+    // Extract date range and period from query parameters
+    let startDate, endDate;
+    const { period = 'day' } = req.query;
+    
+    if (req.query.startDate && req.query.endDate) {
+      startDate = new Date(req.query.startDate);
+      endDate = new Date(req.query.endDate);
+      console.log(`Using provided date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
+    } else {
+      // Use default date range based on period
+      const now = new Date();
+      
+      switch (period) {
+        case 'day':
+          // Default to today
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+          endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+          break;
+        case 'week':
+          // Default to this week
+          const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+          const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Convert to 0 = Monday, 6 = Sunday
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysFromMonday, 0, 0, 0);
+          endDate = new Date(now);
+          break;
+        case 'month':
+          // Default to this month
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+          endDate = new Date(now);
+          break;
+        default:
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+          endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
       }
-    });
-
+      
+      console.log(`Using default date range for ${period}: ${startDate.toISOString()} to ${endDate.toISOString()}`);
+    }
+    
+    console.log(`Fetching revenue data for period: ${period}`);
+    
+    let labels = [];
+    let revenue = [];
+    let totalRevenue = 0;
+    let totalOrders = 0;
+    let orders = [];
+    
+    // Fetch orders for the selected date range
+    const baseQuery = {
+      createdAt: { $gte: startDate, $lte: endDate },
+      status: { $ne: 'canceled' },
+      paymentStatus: 'paid'
+    };
+    
+    orders = await Order.find(baseQuery).sort('createdAt');
+    
+    console.log(`Found ${orders.length} orders for the selected period`);
+    
+    switch (period) {
+      case 'day':
+        // Daily view: show hourly data from 7am to 9pm (21:00)
+        labels = Array.from({ length: 15 }, (_, i) => `${i + 7}h`);
+        revenue = Array(15).fill(0);
+        
+        // Process orders by hour, only between 7am and 9pm
+        orders.forEach(order => {
+          const hour = order.createdAt.getHours();
+          if (hour >= 7 && hour < 21) {
+            revenue[hour - 7] += order.totalAmount;
+          }
+        });
+        break;
+        
+      case 'week':
+        // Weekly view: show daily data
+        const dayNames = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'CN'];
+        labels = dayNames;
+        revenue = Array(7).fill(0);
+        
+        // Process orders by day of week
+        orders.forEach(order => {
+          const dayOfWeek = order.createdAt.getDay(); // 0 = Sunday, 1 = Monday, ...
+          const index = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Adjust so 0 = Monday, 6 = Sunday
+          revenue[index] += order.totalAmount;
+        });
+        break;
+        
+      case 'month':
+        // Monthly view: show data by week of month
+        labels = ['Tuần 1', 'Tuần 2', 'Tuần 3', 'Tuần 4', 'Tuần 5'];
+        revenue = Array(5).fill(0);
+        
+        // Process orders by week of month
+        orders.forEach(order => {
+          const day = order.createdAt.getDate();
+          // Determine which week of the month
+          let weekOfMonth;
+          if (day <= 7) {
+            weekOfMonth = 0; // Week 1
+          } else if (day <= 14) {
+            weekOfMonth = 1; // Week 2
+          } else if (day <= 21) {
+            weekOfMonth = 2; // Week 3
+          } else if (day <= 28) {
+            weekOfMonth = 3; // Week 4
+          } else {
+            weekOfMonth = 4; // Week 5 (beyond 28)
+          }
+          revenue[weekOfMonth] += order.totalAmount;
+        });
+        break;
+        
+      default:
+        // Default to daily view
+        return res.status(400).json({
+          status: 'Error',
+          message: 'Invalid period parameter'
+        });
+    }
+    
     // Calculate total revenue and orders
-    const totalRevenue = revenue.reduce((sum, val) => sum + val, 0);
-    const totalOrders = orders.length;
-
+    totalRevenue = orders.reduce((sum, order) => sum + order.totalAmount, 0);
+    totalOrders = orders.length;
+    
     console.log('Processed revenue data:', {
+      period,
       totalRevenue,
       totalOrders,
-      hourlyRevenue: revenue
+      dataPoints: revenue.length
     });
-
+    
     res.json({
       status: 'Ok',
       data: {
+        period,
         labels,
         revenue,
         totalRevenue,
@@ -1212,96 +1434,193 @@ const getDailyRevenue = async (req, res) => {
     console.error('Error in getDailyRevenue:', error);
     res.status(500).json({
       status: 'Error',
-      message: 'Failed to fetch daily revenue data'
+      message: 'Failed to fetch revenue data'
     });
   }
+};
 
- 
-  };
-   /**
-   * Hoàn trả tồn kho khi hủy đơn hàng
-   * @param {Object} order - Đơn hàng đã được hủy
-   */
-   const restoreInventoryForOrder = async (order) => {
-    try {
-      console.log(`===== BẮT ĐẦU HOÀN TRẢ TỒN KHO =====`);
-      console.log(`Đơn hàng: ${order._id}, Trạng thái: ${order.status}, Thanh toán: ${order.paymentStatus}`);
+/**
+ * Hoàn trả tồn kho khi hủy đơn hàng
+ * @param {Object} order - Đơn hàng đã được hủy
+ */
+const restoreInventoryForOrder = async (order) => {
+  try {
+    console.log(`===== BẮT ĐẦU HOÀN TRẢ TỒN KHO =====`);
+    console.log(`Đơn hàng: ${order._id}, Trạng thái: ${order.status}, Thanh toán: ${order.paymentStatus}`);
+  
+    // Chỉ hoàn trả tồn kho nếu đơn hàng đã thanh toán
+    if (order.paymentStatus !== 'paid') {
+      console.log(`Đơn hàng chưa thanh toán (${order.paymentStatus}), không cần hoàn trả tồn kho`);
+      return;
+    }
+  
+    if (!order.products || order.products.length === 0) {
+      console.log('Không có sản phẩm nào để hoàn trả tồn kho');
+      return;
+    }
+  
+    console.log(`Đơn hàng có ${order.products.length} sản phẩm cần hoàn trả tồn kho`);
+  
+    // Xử lý từng sản phẩm trong đơn hàng
+    for (const orderProduct of order.products) {
+      console.log(`\n------ Xử lý hoàn trả sản phẩm: ${orderProduct.name} ------`);
     
-      // Chỉ hoàn trả tồn kho nếu đơn hàng đã thanh toán
-      if (order.paymentStatus !== 'paid') {
-        console.log(`Đơn hàng chưa thanh toán (${order.paymentStatus}), không cần hoàn trả tồn kho`);
-        return;
-      }
+      const productID = orderProduct.productID._id || orderProduct.productID.toString();
+      const quantity = orderProduct.quantity || 1;
     
-      if (!order.products || order.products.length === 0) {
-        console.log('Không có sản phẩm nào để hoàn trả tồn kho');
-        return;
-      }
+      console.log(`ID Sản phẩm: ${productID}`);
+      console.log(`Số lượng cần hoàn trả: ${quantity}`);
     
-      console.log(`Đơn hàng có ${order.products.length} sản phẩm cần hoàn trả tồn kho`);
+      // Kiểm tra nếu có variantID
+      const variantID = orderProduct.variantID?._id || orderProduct.variantID || null;
     
-      // Xử lý từng sản phẩm trong đơn hàng
-      for (const orderProduct of order.products) {
-        console.log(`\n------ Xử lý hoàn trả sản phẩm: ${orderProduct.name} ------`);
+      if (variantID) {
+        console.log(`Biến thể ID: ${variantID}`);
       
-        const productID = orderProduct.productID._id || orderProduct.productID.toString();
-        const quantity = orderProduct.quantity || 1;
+        // Tìm kiếm biến thể và hoàn trả
+        const variant = await DetailsVariant.findById(variantID);
       
-        console.log(`ID Sản phẩm: ${productID}`);
-        console.log(`Số lượng cần hoàn trả: ${quantity}`);
-      
-        // Kiểm tra nếu có variantID
-        const variantID = orderProduct.variantID?._id || orderProduct.variantID || null;
-      
-        if (variantID) {
-          console.log(`Biến thể ID: ${variantID}`);
+        if (variant) {
+          console.log(`Tìm thấy biến thể: ${variant._id}`);
+          console.log(`Tồn kho biến thể hiện tại: ${variant.inventory}`);
         
-          // Tìm kiếm biến thể và hoàn trả
-          const variant = await DetailsVariant.findById(variantID);
+          // Cập nhật tồn kho: CỘNG số lượng để hoàn trả
+          const oldInventory = variant.inventory;
+          variant.inventory += quantity;
         
-          if (variant) {
-            console.log(`Tìm thấy biến thể: ${variant._id}`);
-            console.log(`Tồn kho biến thể hiện tại: ${variant.inventory}`);
-          
-            // Cập nhật tồn kho: CỘNG số lượng để hoàn trả
-            const oldInventory = variant.inventory;
-            variant.inventory += quantity;
-          
-            // Lưu thay đổi
-            await variant.save();
-          
-            console.log(`Đã hoàn trả tồn kho biến thể: ${oldInventory} -> ${variant.inventory}`);
-          } else {
-            console.log(`Không tìm thấy biến thể với ID: ${variantID}`);
-          }
+          // Lưu thay đổi
+          await variant.save();
+        
+          console.log(`Đã hoàn trả tồn kho biến thể: ${oldInventory} -> ${variant.inventory}`);
         } else {
-          // Nếu không có biến thể, hoàn trả tồn kho sản phẩm chính
-          const product = await Product.findById(productID);
+          console.log(`Không tìm thấy biến thể với ID: ${variantID}`);
+        }
+      } else {
+        // Nếu không có biến thể, hoàn trả tồn kho sản phẩm chính
+        const product = await Product.findById(productID);
+      
+        if (product) {
+          console.log(`Tìm thấy sản phẩm: ${product.name}`);
+          console.log(`Tồn kho sản phẩm hiện tại: ${product.inventory}`);
         
-          if (product) {
-            console.log(`Tìm thấy sản phẩm: ${product.name}`);
-            console.log(`Tồn kho sản phẩm hiện tại: ${product.inventory}`);
-          
-            // Cập nhật tồn kho: CỘNG số lượng để hoàn trả
-            const oldInventory = product.inventory;
-            product.inventory += quantity;
-          
-            // Lưu thay đổi
-            await product.save();
-          
-            console.log(`Đã hoàn trả tồn kho sản phẩm: ${oldInventory} -> ${product.inventory}`);
-          } else {
-            console.log(`Không tìm thấy sản phẩm với ID: ${productID}`);
-          }
+          // Cập nhật tồn kho: CỘNG số lượng để hoàn trả
+          const oldInventory = product.inventory;
+          product.inventory += quantity;
+        
+          // Lưu thay đổi
+          await product.save();
+        
+          console.log(`Đã hoàn trả tồn kho sản phẩm: ${oldInventory} -> ${product.inventory}`);
+        } else {
+          console.log(`Không tìm thấy sản phẩm với ID: ${productID}`);
         }
       }
-    
-      console.log(`===== HOÀN THÀNH HOÀN TRẢ TỒN KHO =====`);
-    } catch (error) {
-      console.error(`LỖI HOÀN TRẢ TỒN KHO: ${error.message}`);
-      console.error(error.stack);
     }
-  };
+  
+    console.log(`===== HOÀN THÀNH HOÀN TRẢ TỒN KHO =====`);
+  } catch (error) {
+    console.error(`LỖI HOÀN TRẢ TỒN KHO: ${error.message}`);
+    console.error(error.stack);
+  }
+};
+
+// Lấy chi tiết đơn hàng dạng JSON cho modal
+const getOrderDetailJson = async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const order = await orderService.getOrderById(orderId);
+    
+    if (!order) {
+      return res.status(404).json({
+        status: 'Error',
+        message: "Không tìm thấy đơn hàng!"
+      });
+    }
+    
+    return res.status(200).json({
+      status: 'Ok',
+      data: order
+    });
+  } catch (error) {
+    console.error("Lỗi khi lấy thông tin đơn hàng:", error);
+    return res.status(500).json({
+      status: 'Error',
+      message: "Có lỗi xảy ra khi lấy thông tin đơn hàng"
+    });
+  }
+};
+
+// Get orders for dashboard with pagination and filtering
+const getOrdersForDashboard = async (req, res) => {
+  try {
+    console.log('Fetching orders for dashboard:', req.query);
+    
+    // Parse query parameters
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 5;
+    const skip = (page - 1) * limit;
+    
+    // Get date range from query parameters
+    let startDate, endDate;
+    
+    if (req.query.startDate && req.query.endDate) {
+      startDate = new Date(req.query.startDate);
+      endDate = new Date(req.query.endDate);
+      console.log(`Using provided date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
+    } else {
+      // Default to current day
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      startDate = today;
+      
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      endDate = tomorrow;
+      
+      console.log(`Using default date range (today): ${startDate.toISOString()} to ${endDate.toISOString()}`);
+    }
+    
+    // Build the query
+    const query = {
+      createdAt: {
+        $gte: startDate,
+        $lte: endDate
+      }
+    };
+    
+    // Count total matching documents for pagination
+    const totalOrders = await Order.countDocuments(query);
+    
+    // Calculate total pages
+    const totalPages = Math.ceil(totalOrders / limit);
+    
+    // Fetch orders with pagination
+    const orders = await Order.find(query)
+      .populate('customerID', 'fullName phoneNumber email')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+    
+    console.log(`Found ${orders.length} orders (page ${page}/${totalPages}, total: ${totalOrders})`);
+    
+    res.json({
+      status: 'Ok',
+      data: {
+        orders,
+        totalOrders,
+        totalPages,
+        currentPage: page
+      }
+    });
+  } catch (error) {
+    console.error('Error in getOrdersForDashboard:', error);
+    res.status(500).json({
+      status: 'Error',
+      message: error.message
+    });
+  }
+};
 
 module.exports = {
   createOrder,
@@ -1314,10 +1633,11 @@ module.exports = {
   getOrdersJson,
   getMobileOrdersList,
   getOrderDetail,
+  getOrderDetailJson,
   updateOrderPayment,
   getPaymentStats,
   getOrderDistribution,
   getEmployeePerformance,
   getDailyRevenue,
-  
+  getOrdersForDashboard
 };

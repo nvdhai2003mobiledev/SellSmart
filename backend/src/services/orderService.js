@@ -125,16 +125,14 @@ const getAllOrders = async () => {
       .populate({
         path: "products.productID",
         model: "Product",
-
         select: "name price inventory thumbnail attributes",
-
-
       })
       .populate({
         path: "employeeID",
         model: "Employee",
         select: "fullName position",
       })
+      .sort({ createdAt: -1 }) // Sắp xếp theo ngày tạo giảm dần (mới nhất đến cũ nhất)
       .lean();
 
     return orders;
@@ -151,7 +149,13 @@ const getOrderById = async (orderId) => {
       throw new Error("ID đơn hàng không hợp lệ!");
     }
 
-    const order = await Order.findById(orderId)
+    // Kiểm tra xem trường employeeID có tham chiếu đến Employee hay User
+    const order = await Order.findById(orderId);
+    
+    if (!order) throw new Error("Không tìm thấy đơn hàng!");
+    
+    // Tải đơn hàng với đầy đủ thông tin
+    const populatedOrder = await Order.findById(orderId)
       .populate({
         path: "customerID",
         select: "fullName phoneNumber email address",
@@ -159,15 +163,52 @@ const getOrderById = async (orderId) => {
       .populate({
         path: "products.productID",
         select: "name price inventory thumbnail attributes",
-      })
-      .populate({
-        path: "employeeID",
-        select: "fullName position",
-      })
-      .lean();
-
-    if (!order) throw new Error("Không tìm thấy đơn hàng!");
-    return order;
+      });
+    
+    // Nếu có employeeID, kiểm tra xem nó là ID của Employee hay User
+    if (order.employeeID) {
+      // Thử tải thông tin từ Employee trước
+      const isEmployee = await Employee.findById(order.employeeID).lean();
+      
+      if (isEmployee) {
+        // Nếu tìm thấy trong Employee, populate thông tin nhân viên bình thường
+        await populatedOrder.populate({
+          path: "employeeID",
+          model: "Employee",
+          select: "userId position",
+          populate: {
+            path: "userId",
+            model: "User",
+            select: "fullName username"
+          }
+        });
+      } else {
+        // Nếu không tìm thấy trong Employee, thử load từ User
+        await populatedOrder.populate({
+          path: "employeeID",
+          model: "User", 
+          select: "fullName username role"
+        });
+      }
+    }
+    
+    // Chuyển đổi sang đối tượng thường để dễ xử lý
+    let orderData = populatedOrder.toObject();
+    
+    // Định dạng lại thuộc tính employeeID
+    if (orderData.employeeID) {
+      if (orderData.employeeID.userId) {
+        // Nếu là Employee với userId
+        orderData.employeeID = {
+          _id: orderData.employeeID._id,
+          fullName: orderData.employeeID.userId.fullName,
+          position: orderData.employeeID.position
+        };
+      }
+      // Nếu là User thì đã có fullName rồi, giữ nguyên
+    }
+    
+    return orderData;
   } catch (error) {
     console.error(`Lỗi khi lấy đơn hàng ID ${orderId}:`, error);
     throw error;
@@ -331,11 +372,313 @@ const createOrder = async (orderData) => {
   }
 };
 
+// Get paginated orders
+const getPaginatedOrders = async (page = 1, pageSize = 10, filters = {}) => {
+  try {
+    const skip = (page - 1) * pageSize;
+    
+    // Build filter query
+    const filterQuery = {};
+    
+    if (filters.orderID) {
+      // Match the last 4 characters of orderID instead of the entire string
+      const searchTerm = filters.orderID.trim();
+      if (searchTerm.length > 0) {
+        // Create an aggregation pipeline to allow more complex matching
+        return await getOrdersByLastDigits(searchTerm, page, pageSize, filters);
+      }
+    }
+    
+    if (filters.customerName) {
+      const customers = await Customer.find({ 
+        fullName: { $regex: filters.customerName, $options: 'i' } 
+      });
+      const customerIds = customers.map(c => c._id);
+      if (customerIds.length > 0) {
+        filterQuery.customerID = { $in: customerIds };
+      } else {
+        // No matching customers found, return empty results
+        return { orders: [], total: 0, totalPages: 0 };
+      }
+    }
+    
+    if (filters.phone) {
+      const customers = await Customer.find({ 
+        phoneNumber: { $regex: filters.phone, $options: 'i' } 
+      });
+      const customerIds = customers.map(c => c._id);
+      if (customerIds.length > 0) {
+        filterQuery.customerID = { $in: customerIds };
+      } else {
+        // No matching customers found, return empty results
+        return { orders: [], total: 0, totalPages: 0 };
+      }
+    }
+    
+    if (filters.status && filters.status !== '') {
+      filterQuery.status = filters.status;
+    }
+    
+    if (filters.paymentStatus && filters.paymentStatus !== '') {
+      filterQuery.paymentStatus = filters.paymentStatus;
+    }
+    
+    if (filters.fromDate) {
+      if (!filterQuery.createdAt) {
+        filterQuery.createdAt = {};
+      }
+      filterQuery.createdAt.$gte = new Date(filters.fromDate);
+    }
+    
+    if (filters.toDate) {
+      if (!filterQuery.createdAt) {
+        filterQuery.createdAt = {};
+      }
+      const toDateObj = new Date(filters.toDate);
+      toDateObj.setHours(23, 59, 59, 999);
+      filterQuery.createdAt.$lte = toDateObj;
+    }
+    
+    // Count total matching documents
+    const totalOrders = await Order.countDocuments(filterQuery);
+    
+    // Calculate total pages
+    const totalPages = Math.ceil(totalOrders / pageSize);
+    
+    // Get paginated orders
+    const orders = await Order.find(filterQuery)
+      .populate({
+        path: "customerID",
+        model: "Customer",
+        select: "fullName phoneNumber email address",
+      })
+      .populate({
+        path: "products.productID",
+        model: "Product",
+        select: "name price inventory thumbnail attributes",
+      })
+      .populate({
+        path: "employeeID",
+        model: "Employee",
+        select: "fullName position",
+      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(pageSize)
+      .lean();
+    
+    return {
+      orders,
+      total: totalOrders,
+      totalPages
+    };
+  } catch (error) {
+    console.error("Error fetching paginated orders:", error);
+    throw error;
+  }
+};
+
+// Specialized function to search orders by the last 4 characters of orderID
+const getOrdersByLastDigits = async (searchTerm, page = 1, pageSize = 10, filters = {}) => {
+  try {
+    const skip = (page - 1) * pageSize;
+    console.log(`Searching for orders where the last 4 characters of orderID contain: '${searchTerm}'`);
+    
+    // Create aggregation pipeline
+    const pipeline = [];
+    
+    // Stage 1: Add a field containing the last 4 characters of orderID
+    pipeline.push({
+      $addFields: {
+        lastFourChars: {
+          $substr: ["$orderID", { $subtract: [{ $strLenCP: "$orderID" }, 4] }, 4]
+        }
+      }
+    });
+    
+    // Stage 2: Match orders where lastFourChars contains the search term
+    pipeline.push({
+      $match: {
+        lastFourChars: { $regex: searchTerm, $options: 'i' }
+      }
+    });
+    
+    // Add other filters if provided
+    if (filters.customerName) {
+      // We need to do a lookup to search by customer name
+      pipeline.push(
+        {
+          $lookup: {
+            from: "customers",
+            localField: "customerID",
+            foreignField: "_id",
+            as: "customerDetails"
+          }
+        },
+        {
+          $match: {
+            "customerDetails.fullName": { $regex: filters.customerName, $options: 'i' }
+          }
+        }
+      );
+    }
+    
+    if (filters.phone) {
+      // We need to do a lookup to search by phone number
+      if (!pipeline.some(stage => stage.$lookup && stage.$lookup.as === "customerDetails")) {
+        pipeline.push({
+          $lookup: {
+            from: "customers",
+            localField: "customerID",
+            foreignField: "_id",
+            as: "customerDetails"
+          }
+        });
+      }
+      
+      pipeline.push({
+        $match: {
+          "customerDetails.phoneNumber": { $regex: filters.phone, $options: 'i' }
+        }
+      });
+    }
+    
+    if (filters.status && filters.status !== '') {
+      pipeline.push({
+        $match: { status: filters.status }
+      });
+    }
+    
+    if (filters.paymentStatus && filters.paymentStatus !== '') {
+      pipeline.push({
+        $match: { paymentStatus: filters.paymentStatus }
+      });
+    }
+    
+    if (filters.fromDate) {
+      const fromDate = new Date(filters.fromDate);
+      pipeline.push({
+        $match: { createdAt: { $gte: fromDate } }
+      });
+    }
+    
+    if (filters.toDate) {
+      const toDate = new Date(filters.toDate);
+      toDate.setHours(23, 59, 59, 999);
+      pipeline.push({
+        $match: { createdAt: { $lte: toDate } }
+      });
+    }
+    
+    // Clone the pipeline to count total orders
+    const countPipeline = [...pipeline];
+    countPipeline.push({ $count: "totalOrders" });
+    
+    // Add pagination to the main pipeline
+    pipeline.push(
+      { $sort: { createdAt: -1 } },
+      { $skip: skip },
+      { $limit: pageSize }
+    );
+    
+    // Add lookups to populate related fields
+    pipeline.push(
+      {
+        $lookup: {
+          from: "customers",
+          localField: "customerID",
+          foreignField: "_id",
+          as: "customerDetails"
+        }
+      },
+      {
+        $lookup: {
+          from: "products",
+          localField: "products.productID",
+          foreignField: "_id",
+          as: "productDetails"
+        }
+      },
+      {
+        $lookup: {
+          from: "employees",
+          localField: "employeeID",
+          foreignField: "_id",
+          as: "employeeDetails"
+        }
+      }
+    );
+    
+    // Unwind arrays and format output
+    pipeline.push({
+      $addFields: {
+        customerID: {
+          $cond: {
+            if: { $gt: [{ $size: "$customerDetails" }, 0] },
+            then: {
+              _id: { $arrayElemAt: ["$customerDetails._id", 0] },
+              fullName: { $arrayElemAt: ["$customerDetails.fullName", 0] },
+              phoneNumber: { $arrayElemAt: ["$customerDetails.phoneNumber", 0] },
+              email: { $arrayElemAt: ["$customerDetails.email", 0] },
+              address: { $arrayElemAt: ["$customerDetails.address", 0] }
+            },
+            else: null
+          }
+        },
+        employeeID: {
+          $cond: {
+            if: { $gt: [{ $size: "$employeeDetails" }, 0] },
+            then: {
+              _id: { $arrayElemAt: ["$employeeDetails._id", 0] },
+              fullName: { $arrayElemAt: ["$employeeDetails.fullName", 0] },
+              position: { $arrayElemAt: ["$employeeDetails.position", 0] }
+            },
+            else: null
+          }
+        }
+      }
+    });
+    
+    // Remove temporary fields
+    pipeline.push({
+      $project: {
+        customerDetails: 0,
+        productDetails: 0,
+        employeeDetails: 0,
+        lastFourChars: 0
+      }
+    });
+    
+    // Execute the aggregation
+    const orders = await Order.aggregate(pipeline);
+    
+    // Count total matching orders
+    const countResult = await Order.aggregate(countPipeline);
+    const totalOrders = countResult.length > 0 ? countResult[0].totalOrders : 0;
+    
+    // Calculate total pages
+    const totalPages = Math.ceil(totalOrders / pageSize);
+    
+    console.log(`Found ${totalOrders} orders matching the search criteria.`);
+    
+    return {
+      orders,
+      total: totalOrders,
+      totalPages
+    };
+  } catch (error) {
+    console.error("Error in getOrdersByLastDigits:", error);
+    throw error;
+  }
+};
+
 module.exports = {
   getAllOrders,
   getOrderById,
   updateOrderStatus,
   deleteOrder,
   createOrder,
-  getMobileOrders
+  getMobileOrders,
+  getPaginatedOrders,
+  getOrdersByLastDigits
 };

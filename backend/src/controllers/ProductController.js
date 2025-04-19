@@ -542,23 +542,58 @@ const getProductSales = async (req, res) => {
                 variantDetails: item.variantDetails
             };
         });
+        console.log('Product sales request with query params:', req.query);
+        
+        // Extract date range from query parameters
+        let startDate, endDate;
+        
+        if (req.query.startDate && req.query.endDate) {
+            startDate = new Date(req.query.startDate);
+            endDate = new Date(req.query.endDate);
+            console.log(`Using provided date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
+        } else {
+            // Default to today
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            startDate = today;
+            endDate = new Date(today);
+            endDate.setHours(23, 59, 59, 999);
+            console.log(`Using default date range (today): ${startDate.toISOString()} to ${endDate.toISOString()}`);
+        }
+        
+        const products = await Product.find()
+            .populate("providerId")
+            .populate("category")
+            .populate("detailsVariants");
 
-        // Lấy các đơn hàng đã thanh toán thành công
+        // Lấy các đơn hàng trong khoảng thời gian đã chọn
         const orders = await mongoose.model('Order').find({
+            createdAt: { $gte: startDate, $lte: endDate },
             status: { $ne: 'canceled' }, // Không tính đơn hàng đã hủy
             paymentStatus: 'paid' // Chỉ tính đơn hàng đã thanh toán
         }).populate('products.productID');
+        
+        console.log(`Found ${orders.length} orders in the selected period`);
 
         // Tính toán số lượng bán và doanh thu cho mỗi sản phẩm
         const productSales = products.map(product => {
             let totalSold = 0;
             let revenue = 0;
+            let productVariants = []; // Chứa các biến thể đã bán
 
             orders.forEach(order => {
                 order.products.forEach(orderProduct => {
                     if (orderProduct.productID && orderProduct.productID._id.toString() === product._id.toString()) {
                         totalSold += orderProduct.quantity || 0;
                         revenue += (orderProduct.price * orderProduct.quantity) || 0;
+                        
+                        // Theo dõi các biến thể đã bán
+                        if (orderProduct.attributes && orderProduct.attributes.length > 0) {
+                            productVariants.push({
+                                quantity: orderProduct.quantity,
+                                attributes: orderProduct.attributes
+                            });
+                        }
                     }
                 });
             });
@@ -571,13 +606,26 @@ const getProductSales = async (req, res) => {
                 totalInventory = product.inventory || 0;
             }
 
+            // Tạo một đối tượng biến thể duy nhất để hiển thị
+            let displayVariants = [];
+            if (productVariants.length > 0) {
+                // Lấy biến thể đầu tiên để hiển thị
+                const firstVariant = productVariants[0];
+                displayVariants = firstVariant.attributes.map(attr => ({
+                    name: attr.name,
+                    value: attr.value
+                }));
+            }
+
             return {
                 _id: product._id,
                 name: product.name,
                 thumbnail: product.thumbnail,
+                sku: product.sku || product.productCode || product._id.toString().substring(0, 8),
                 totalSold,
                 revenue,
-                inventory: totalInventory
+                inventory: totalInventory,
+                attributes: displayVariants
             };
         });
 
@@ -602,51 +650,74 @@ const getProductSales = async (req, res) => {
 // Lấy thống kê tổng quan cho dashboard
 const getDashboardStats = async (req, res) => {
     try {
-        // Get current date at start of day
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        console.log('Dashboard stats request with query params:', req.query);
+        
+        // Extract date range from query parameters
+        let startDate, endDate;
+        
+        if (req.query.startDate && req.query.endDate) {
+            startDate = new Date(req.query.startDate);
+            endDate = new Date(req.query.endDate);
+            console.log(`Using provided date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
+        } else {
+            // Default to today
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            startDate = today;
+            endDate = new Date(today);
+            endDate.setHours(23, 59, 59, 999);
+            console.log(`Using default date range (today): ${startDate.toISOString()} to ${endDate.toISOString()}`);
+        }
+        
+        // Get yesterday's date for comparison (one day before the start date)
+        const previousPeriodEndDate = new Date(startDate);
+        previousPeriodEndDate.setMilliseconds(-1); // One millisecond before start date
+        
+        // Calculate the duration of the current period in milliseconds
+        const periodDuration = endDate.getTime() - startDate.getTime();
+        
+        // Set the start of the previous period with the same duration
+        const previousPeriodStartDate = new Date(previousPeriodEndDate.getTime() - periodDuration);
+        
+        console.log(`Comparison period: ${previousPeriodStartDate.toISOString()} to ${previousPeriodEndDate.toISOString()}`);
 
-        // Get yesterday's date
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-
-        // Get all orders for today and yesterday
-        const todayOrders = await Order.find({
-            createdAt: { $gte: today },
+        // Get all orders for current period and previous period
+        const currentPeriodOrders = await Order.find({
+            createdAt: { $gte: startDate, $lte: endDate },
             status: { $ne: 'canceled' }
         });
 
-        const yesterdayOrders = await Order.find({
-            createdAt: { $gte: yesterday, $lt: today },
+        const previousPeriodOrders = await Order.find({
+            createdAt: { $gte: previousPeriodStartDate, $lte: previousPeriodEndDate },
             status: { $ne: 'canceled' }
         });
 
         // Calculate revenue from paid orders
-        const todayRevenue = todayOrders
+        const currentPeriodRevenue = currentPeriodOrders
             .filter(order => order.paymentStatus === 'paid')
             .reduce((sum, order) => sum + (order.totalAmount || 0), 0);
 
-        const yesterdayRevenue = yesterdayOrders
+        const previousPeriodRevenue = previousPeriodOrders
             .filter(order => order.paymentStatus === 'paid')
             .reduce((sum, order) => sum + (order.totalAmount || 0), 0);
 
-        // Get total customers and new customers
+        // Get total customers and new customers in the period
         const totalCustomers = await Customer.countDocuments();
         const newCustomers = await Customer.countDocuments({
-            createdAt: { $gte: today }
+            createdAt: { $gte: startDate, $lte: endDate }
         });
-        const yesterdayNewCustomers = await Customer.countDocuments({
-            createdAt: { $gte: yesterday, $lt: today }
+        const previousPeriodNewCustomers = await Customer.countDocuments({
+            createdAt: { $gte: previousPeriodStartDate, $lte: previousPeriodEndDate }
         });
 
-        // Get total products and new products
-        const totalProducts = await Product.countDocuments();
-        const newProducts = await Product.countDocuments({
-            createdAt: { $gte: today }
-        });
-        const yesterdayNewProducts = await Product.countDocuments({
-            createdAt: { $gte: yesterday, $lt: today }
-        });
+        // Count total products sold in the period
+        const productsSold = currentPeriodOrders.reduce((count, order) => {
+            return count + order.products.reduce((sum, product) => sum + (product.quantity || 0), 0);
+        }, 0);
+        
+        const previousPeriodProductsSold = previousPeriodOrders.reduce((count, order) => {
+            return count + order.products.reduce((sum, product) => sum + (product.quantity || 0), 0);
+        }, 0);
 
         // Calculate percentage changes
         const calculatePercentageChange = (current, previous) => {
@@ -657,23 +728,23 @@ const getDashboardStats = async (req, res) => {
         };
 
         const stats = {
-            totalRevenue: todayRevenue,
-            totalOrders: todayOrders.length,
-            totalCustomers,
-            totalProducts,
+            totalRevenue: currentPeriodRevenue,
+            totalOrders: currentPeriodOrders.length,
+            totalCustomers: newCustomers,
+            totalProducts: productsSold,
             percentageChanges: {
-                revenue: calculatePercentageChange(todayRevenue, yesterdayRevenue),
-                orders: calculatePercentageChange(todayOrders.length, yesterdayOrders.length),
-                customers: calculatePercentageChange(newCustomers, yesterdayNewCustomers),
-                products: calculatePercentageChange(newProducts, yesterdayNewProducts)
+                revenue: calculatePercentageChange(currentPeriodRevenue, previousPeriodRevenue),
+                orders: calculatePercentageChange(currentPeriodOrders.length, previousPeriodOrders.length),
+                customers: calculatePercentageChange(newCustomers, previousPeriodNewCustomers),
+                products: calculatePercentageChange(productsSold, previousPeriodProductsSold)
             }
         };
 
         console.log('Dashboard Stats:', {
-            todayRevenue,
-            yesterdayRevenue,
-            todayOrders: todayOrders.length,
-            yesterdayOrders: yesterdayOrders.length,
+            currentPeriodRevenue,
+            previousPeriodRevenue,
+            currentPeriodOrders: currentPeriodOrders.length,
+            previousPeriodOrders: previousPeriodOrders.length,
             percentageChanges: stats.percentageChanges
         });
 
@@ -694,14 +765,36 @@ const getDashboardStats = async (req, res) => {
 // Lấy thống kê phân bố đơn hàng
 const getOrderDistribution = async (req, res) => {
     try {
-        // Lấy tất cả đơn hàng
-        const orders = await mongoose.model('Order').find();
+        console.log('Order distribution request with query params:', req.query);
+        
+        // Extract date range from query parameters
+        let startDate, endDate;
+        
+        if (req.query.startDate && req.query.endDate) {
+            startDate = new Date(req.query.startDate);
+            endDate = new Date(req.query.endDate);
+            console.log(`Using provided date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
+        } else {
+            // Default to today
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            startDate = today;
+            endDate = new Date(today);
+            endDate.setHours(23, 59, 59, 999);
+            console.log(`Using default date range (today): ${startDate.toISOString()} to ${endDate.toISOString()}`);
+        }
+
+        // Lấy tất cả đơn hàng trong khoảng thời gian đã chọn
+        const orders = await mongoose.model('Order').find({
+            createdAt: { $gte: startDate, $lte: endDate }
+        });
 
         // Đếm số lượng đơn hàng theo trạng thái
         const distribution = {
             completed: 0, // Hoàn thành
             processing: 0, // Đang xử lý
-            canceled: 0 // Hủy
+            canceled: 0, // Hủy
+            pending: 0 // Chờ xử lý
         };
 
         orders.forEach(order => {
@@ -715,6 +808,12 @@ const getOrderDistribution = async (req, res) => {
                 case 'canceled':
                     distribution.canceled++;
                     break;
+                case 'pending':
+                    distribution.pending++;
+                    break;
+                default:
+                    // Thêm vào pending nếu không khớp với bất kỳ trạng thái đã biết nào
+                    distribution.pending++;
             }
         });
 
@@ -725,8 +824,11 @@ const getOrderDistribution = async (req, res) => {
         const percentages = {
             completed: total > 0 ? (distribution.completed / total * 100).toFixed(1) : 0,
             processing: total > 0 ? (distribution.processing / total * 100).toFixed(1) : 0,
-            canceled: total > 0 ? (distribution.canceled / total * 100).toFixed(1) : 0
+            canceled: total > 0 ? (distribution.canceled / total * 100).toFixed(1) : 0,
+            pending: total > 0 ? (distribution.pending / total * 100).toFixed(1) : 0
         };
+
+        console.log(`Found ${total} orders in the selected period with distribution:`, distribution);
 
         res.json({
             status: "Ok",
@@ -749,9 +851,19 @@ const getEmployeePerformance = async (req, res) => {
     try {
         console.log('\n===== FETCHING EMPLOYEE PERFORMANCE DATA =====');
         
-        // Get the date range (default to current month)
-        const endDate = new Date();
-        const startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+        // Extract date range from query parameters
+        let startDate, endDate;
+        
+        if (req.query.startDate && req.query.endDate) {
+            startDate = new Date(req.query.startDate);
+            endDate = new Date(req.query.endDate);
+            console.log(`Using provided date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
+        } else {
+            // Default to current month
+            endDate = new Date();
+            startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+            console.log(`Using default date range (month): ${startDate.toISOString()} to ${endDate.toISOString()}`);
+        }
         
         console.log(`Analyzing performance from ${startDate.toISOString()} to ${endDate.toISOString()}`);
 
@@ -797,16 +909,32 @@ const getEmployeePerformance = async (req, res) => {
         // Process orders
         orders.forEach(order => {
             if (!order.employeeID) return;
-
-            const employeeId = order.employeeID._id.toString();
+            
+            // Handle both object and string employeeID
+            let employeeId = null;
+            if (typeof order.employeeID === 'object' && order.employeeID !== null) {
+                employeeId = order.employeeID._id.toString();
+            } else if (typeof order.employeeID === 'string') {
+                employeeId = order.employeeID;
+            } else {
+                console.log(`Skipping order with invalid employeeID format: ${order.orderID}`);
+                return;
+            }
+            
+            console.log(`Processing order ${order.orderID || order._id} by employee ${employeeId}`);
+            
             const stats = employeeStats.get(employeeId);
             
             if (stats) {
                 stats.orderCount++;
                 stats.totalRevenue += order.totalAmount || 0;
-                stats.totalCustomers.add(order.customerID.toString());
+                if (order.customerID) {
+                    stats.totalCustomers.add(order.customerID.toString());
+                }
                 totalRevenue += order.totalAmount || 0;
                 totalOrders++;
+            } else {
+                console.log(`Employee ${employeeId} not found in stats map`);
             }
         });
 
@@ -841,6 +969,12 @@ const getEmployeePerformance = async (req, res) => {
         console.log(`Total Revenue: ${totalRevenue}`);
         console.log(`Total Orders: ${totalOrders}`);
         console.log(`Active Employees: ${performanceData.length}`);
+        
+        if (performanceData.length === 0) {
+            console.log('WARNING: No employee performance data found for the selected period');
+        } else {
+            console.log('Top performer:', performanceData[0].fullName);
+        }
         
         console.log('===== END EMPLOYEE PERFORMANCE DATA =====\n');
 
