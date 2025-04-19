@@ -30,11 +30,23 @@ const ProductSchema = new Schema({
     },
     price: {
         type: Number,
-        min: 0, // Giá mặc định nếu không có biến thể
+        min: 0, // Giá bán
+    },
+    original_price: {
+        type: Number,
+        min: 0, // Giá gốc từ kho hàng
     },
     inventory: {
         type: Number,
         min: 0, // Tồn kho mặc định nếu không có biến thể
+    },
+    inventoryId: {
+        type: Schema.Types.ObjectId,
+        ref: 'Inventory',
+        required: true,
+    },
+    product_code: {
+        type: String,
     },
     detailsVariants: [{
         type: Schema.Types.ObjectId,
