@@ -92,10 +92,7 @@
                                             data-start-date="<%= promo.startDate ? new Date(promo.startDate).toISOString().split('T')[0] : '' %>"
                                             data-end-date="<%= promo.endDate ? new Date(promo.endDate).toISOString().split('T')[0] : '' %>">
                                         <i class="fas fa-edit"></i>
-                                    </button>
-                                    <!-- <button class="btn btn-sm btn-danger delete-btn" data-id="<%= promo._id %>"> -->
-                                        <i class="fas fa-trash"></i>
-                                    </button>
+                                   
                                 </td>
                             </tr>
                         <% }) %>

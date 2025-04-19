@@ -7,7 +7,7 @@
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb bg-transparent p-0">
                     <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
-                    <!-- <li class="breadcrumb-item active" aria-current="page">Sản phẩm</li> -->
+                    <li class="breadcrumb-item active" aria-current="page">Sản phẩm</li>
                 </ol>
             </nav>
         </div>
@@ -97,12 +97,10 @@
                         <tr>
                             <th class="py-3 px-4 text-uppercase text-muted small fw-semibold">Tên sản phẩm</th>
                             <th class="py-3 px-4 text-uppercase text-muted small fw-semibold">Danh mục</th>
-
                             <th class="py-3 px-4 text-uppercase text-muted small fw-semibold text-center">Tồn kho</th>
                             <th class="py-3 px-4 text-uppercase text-muted small fw-semibold text-end">Giá (VNĐ)</th>
                             <th class="py-3 px-4 text-uppercase text-muted small fw-semibold">Nhà cung cấp</th>
                             <th class="py-3 px-4 text-uppercase text-muted small fw-semibold text-center">Thuộc tính</th>
-
                         </tr>
                     </thead>
                     <tbody>
@@ -187,7 +185,6 @@
                                             <% } else { %>
                                                 <span class="text-muted">Không có biến thể</span>
                                             <% } %>
-
                                         </td>
                                     </tr>
                                 <% } %>
@@ -259,45 +256,6 @@
                                         </tr>
                                     <% } %>
                                 <% }); %>
-                                        <% } else { %>
-                                            <span class="text-success fw-semibold"><%= product.price?.toLocaleString() || 'N/A' %></span>
-                                        <% } %>
-                                    </td>
-                                    <td class="py-3 px-4">
-                                        <% if (product.hasVariants && product.detailsVariants?.length > 0) { %>
-                                            <% 
-                                                const inventories = product.detailsVariants.map(v => v.inventory).filter(i => i !== undefined);
-                                                const totalInventory = inventories.reduce((sum, curr) => sum + curr, 0);
-                                                const minInventory = Math.min(...inventories);
-                                                const maxInventory = Math.max(...inventories);
-                                                let stockClass = "text-success";
-                                                if (totalInventory < 10) stockClass = "text-danger";
-                                                else if (totalInventory < 30) stockClass = "text-warning";
-                                            %>
-                                            <span class="badge bg-light px-2 py-1 border">
-                                                <span class="<%= stockClass %> fw-semibold"><%= totalInventory %></span>
-                                                <span class="text-muted small ms-1">(<span class="text-success"><%= minInventory %></span><i class="fas fa-arrows-left-right mx-1 small"></i><span class="text-danger"><%= maxInventory %></span>)</span>
-                                            </span>
-                                        <% } else { %>
-                                            <% 
-                                                const inventory = product.inventory || 0;
-                                                let stockClass = "text-success";
-                                                if (inventory < 10) stockClass = "text-danger";
-                                                else if (inventory < 30) stockClass = "text-warning";
-                                            %>
-                                            <span class="badge bg-light px-2 py-1 border <%= stockClass %> fw-semibold"><%= inventory !== undefined ? inventory : 'N/A' %></span>
-                                        <% } %>
-                                    </td>
-                                    <td class="py-3 px-4">
-                                        <% if (product.hasVariants && product.detailsVariants?.length > 0) { %>
-                                            <span class="badge bg-info">
-                                                <%= product.detailsVariants.length %> biến thể
-                                            </span>
-                                        <% } else { %>
-                                            <span class="text-muted small">Không có thuộc tính</span>
-                                        <% } %>
-                                    </td>
-                                </tr>
                             <% } %>
                         <% } else if (hiddenProducts && hiddenProducts.length > 0) { %>
                             <tr id="no-visible-products-row">
@@ -509,6 +467,12 @@
                                     <option value="available">Có sẵn</option>
                                     <option value="unavailable">Hết hàng</option>
                                 </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="editWarrantyPeriod" class="form-label fw-bold">Thời gian bảo hành (tháng)</label>
+                                <input type="number" class="form-control" id="editWarrantyPeriod" name="warrantyPeriod" 
+                                       min="1" required>
+                                <small class="text-muted">Mặc định là 12 tháng nếu không nhập</small>
                             </div>
                         </div>
                         <div class="row">
@@ -905,7 +869,7 @@
             showToast('error', 'ID sản phẩm không hợp lệ!');
             return;
         }
-        console.log('Gọi sửa sản phẩm với ID:', productId);
+        
         $.ajax({
             url: `/products/${productId}`,
             type: 'GET',
@@ -1430,8 +1394,7 @@
             $('#profitDisplay').val('Chưa đủ thông tin').removeClass('text-success text-danger').addClass('text-muted');
         }
     });
-
-</script> 
+</script>
 
 <style>
 .form-control:focus, .form-select:focus {
