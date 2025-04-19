@@ -28,7 +28,14 @@ router.get("/", async (req, res) => {
             typeProducts,
             providers,
             inventories,
-            admin: req.session.admin
+            admin: {
+                fullName: req.user?.fullName || 'Admin',
+                avatar: req.user?.avatar || null
+            },
+            user: {
+                fullName: req.user?.fullName || 'Admin',
+                avatar: req.user?.avatar || null
+            }
         });
     } catch (error) {
         console.error("Error loading inventory page:", error);

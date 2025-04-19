@@ -515,7 +515,6 @@ const updateInventory = async (req, res) => {
         message: "Thiếu thông tin bắt buộc: tên sản phẩm, danh mục, nhà cung cấp, số lô hàng",
       });
     }
-
     // Kiểm tra danh mục tồn tại
     const typeProduct = await TypeProduct.findById(typeProduct_id);
     if (!typeProduct) {
@@ -695,22 +694,39 @@ const getInventoryList = async (req, res) => {
     const typeProducts = await TypeProduct.find().lean();
     const providers = await Provider.find().lean();
 
-    if (!inventories.length) {
-      return res.render("dashboard/inventory", {
-        title: "Quản lý nhập kho",
-        inventories: [],
-        typeProducts,
-        providers,
-        message: "Không có sản phẩm nào trong kho",
+    // Kiểm tra nếu request muốn JSON
+    if (req.headers.accept === 'application/json' || req.path.includes('/json')) {
+      console.log("Trả về danh sách sản phẩm dạng JSON");
+      return res.json({
+        status: "Ok",
+        data: inventories
       });
     }
 
-    res.render("dashboard/inventory", {
+    // Chuẩn bị dữ liệu cho template
+    const templateData = {
       title: "Quản lý nhập kho",
-      inventories,
+      page: "inventory",
+      inventories: inventories || [],
       typeProducts,
       providers,
-    });
+      admin: {
+        fullName: req.user?.fullName || 'Admin',
+        avatar: req.user?.avatar || null
+      },
+      user: {
+        fullName: req.user?.fullName || 'Admin',
+        avatar: req.user?.avatar || null
+      }
+    };
+
+    // Thêm thông báo nếu không có sản phẩm
+    if (!inventories.length) {
+      templateData.message = "Không có sản phẩm nào trong kho";
+    }
+
+    console.log("Render trang inventory với admin:", templateData.admin);
+    res.render("dashboard/inventory", templateData);
   } catch (error) {
     console.error("Lỗi khi lấy danh sách kho:", error);
     res.status(500).json({
@@ -765,10 +781,29 @@ const getInventoryDetail = async (req, res) => {
       });
     }
 
-    console.log("Sản phẩm tìm thấy:", inventory);
-    res.status(200).json({
-      status: "Ok",
+    // Kiểm tra nếu request muốn JSON
+    if (req.headers.accept === 'application/json') {
+      console.log("Trả về chi tiết sản phẩm dạng JSON");
+      return res.status(200).json({
+        status: "Ok",
+        inventory,
+      });
+    }
+
+    // Nếu không, render trang chi tiết
+    console.log("Render trang chi tiết sản phẩm");
+    res.render("dashboard/inventory-detail", {
       inventory,
+      title: "Chi tiết sản phẩm",
+      page: "inventory",
+      admin: {
+        fullName: req.user?.fullName || 'Admin',
+        avatar: req.user?.avatar || null
+      },
+      user: {
+        fullName: req.user?.fullName || 'Admin',
+        avatar: req.user?.avatar || null
+      }
     });
   } catch (error) {
     console.error("Lỗi khi lấy chi tiết kho:", error);
