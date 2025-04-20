@@ -92,10 +92,11 @@
                         <tr>
                             <th class="py-3 px-4 text-uppercase text-muted small fw-semibold">Tên sản phẩm</th>
                             <th class="py-3 px-4 text-uppercase text-muted small fw-semibold">Danh mục</th>
-                            <th class="py-3 px-4 text-uppercase text-muted small fw-semibold text-center">Tồn kho</th>
+                            <th class="py-3 px-4 text-uppercase text-muted small fw-semibold text-center">Thuộc tính</th>
                             <th class="py-3 px-4 text-uppercase text-muted small fw-semibold text-end">Giá (VNĐ)</th>
                             <th class="py-3 px-4 text-uppercase text-muted small fw-semibold">Nhà cung cấp</th>
-                            <th class="py-3 px-4 text-uppercase text-muted small fw-semibold text-center">Thuộc tính</th>
+                            <th class="py-3 px-4 text-uppercase text-muted small fw-semibold text-center">Trạng thái</th>
+                            <th class="py-3 px-4 text-uppercase text-muted small fw-semibold text-center">Tồn kho</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -127,9 +128,28 @@
                                             </span>
                                         </td>
                                         <td class="py-3 px-4 text-center">
-                                            <span class="fw-medium">
-                                                <%= product.inventory || 0 %>
-                                            </span>
+                                            <% 
+                                            // Kiểm tra biến thể từ nhiều nguồn dữ liệu khác nhau
+                                            const hasInventoryVariants = product.inventoryId && product.inventoryId.hasVariants && 
+                                                product.inventoryId.variantDetails && product.inventoryId.variantDetails.length > 0;
+                                                
+                                            const hasDetailsVariants = product.detailsVariants && product.detailsVariants.length > 0;
+                                            
+                                            const hasVariantDetails = product.variantDetails && product.variantDetails.length > 0;
+                                            
+                                            const hasAnyVariants = product.hasVariants || hasInventoryVariants || hasDetailsVariants || hasVariantDetails;
+                                            %>
+                                            
+                                            <% if (hasAnyVariants) { %>
+                                                <span class="badge bg-primary rounded-pill">
+                                                    <i class="fas fa-cubes me-1"></i> Các phiên bản khác 
+                                                </span>
+                                            <% } else { %>
+                                                <span class="badge bg-secondary rounded-pill">
+                                                    <i class="fas fa-cube me-1"></i>
+                                                    Không có biến thể
+                                                </span>
+                                            <% } %>
                                         </td>
                                         <td class="py-3 px-4 text-end">
                                             <% if (product.hasVariants && product.variantDetails && product.variantDetails.length > 0) { %>
@@ -150,36 +170,20 @@
                                             </span>
                                         </td>
                                         <td class="py-3 px-4 text-center">
-                                            <% if (product.hasVariants && product.variantDetails && product.variantDetails.length > 0) { %>
-                                                <div class="d-flex flex-column align-items-start">
-                                                    <% product.variantDetails.slice(0, 2).forEach(variant => { %>
-                                                        <div class="mb-1">
-                                                            <% 
-                                                            let attributes = variant.attributes;
-                                                            let attributeStr = '';
-                                                            
-                                                            if (attributes instanceof Map) {
-                                                                for (const [key, value] of attributes.entries()) {
-                                                                    attributeStr += `${key}: ${value}, `;
-                                                                }
-                                                            } else if (typeof attributes === 'object' && attributes !== null) {
-                                                                for (const key in attributes) {
-                                                                    attributeStr += `${key}: ${attributes[key]}, `;
-                                                                }
-                                                            }
-                                                            
-                                                            attributeStr = attributeStr.slice(0, -2); // Remove trailing comma and space
-                                                            %>
-                                                            <small class="text-muted"><%= attributeStr %> | Giá: <%= new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(variant.price) %> | SL: <%= variant.quantity %></small>
-                                                        </div>
-                                                    <% }); %>
-                                                    <% if (product.variantDetails.length > 2) { %>
-                                                        <small class="text-primary">+<%= product.variantDetails.length - 2 %> biến thể khác</small>
-                                                    <% } %>
-                                                </div>
+                                            <% if (product.status === 'available') { %>
+                                                <span class="badge bg-success rounded-pill">
+                                                    <i class="fas fa-check-circle me-1"></i>Có sẵn
+                                                </span>
                                             <% } else { %>
-                                                <span class="text-muted">Không có biến thể</span>
+                                                <span class="badge bg-danger rounded-pill">
+                                                    <i class="fas fa-times-circle me-1"></i>Hết hàng
+                                                </span>
                                             <% } %>
+                                        </td>
+                                        <td class="py-3 px-4 text-center">
+                                            <span class="fw-medium">
+                                                <%= product.inventory || 0 %>
+                                            </span>
                                         </td>
                                     </tr>
                                 <% } %>
@@ -213,9 +217,28 @@
                                                 </span>
                                             </td>
                                             <td class="py-3 px-4 text-center">
-                                                <span class="fw-medium text-danger">
-                                                    <%= product.inventory || 0 %>
-                                                </span>
+                                                <% 
+                                                // Kiểm tra biến thể từ nhiều nguồn dữ liệu khác nhau
+                                                const hasInventoryVariants = product.inventoryId && product.inventoryId.hasVariants && 
+                                                    product.inventoryId.variantDetails && product.inventoryId.variantDetails.length > 0;
+                                                    
+                                                const hasDetailsVariants = product.detailsVariants && product.detailsVariants.length > 0;
+                                                
+                                                const hasVariantDetails = product.variantDetails && product.variantDetails.length > 0;
+                                                
+                                                const hasAnyVariants = product.hasVariants || hasInventoryVariants || hasDetailsVariants || hasVariantDetails;
+                                                %>
+                                                
+                                                <% if (hasAnyVariants) { %>
+                                                    <span class="badge bg-primary rounded-pill">
+                                                        <i class="fas fa-cubes me-1"></i> Có biến thể
+                                                    </span>
+                                                <% } else { %>
+                                                    <span class="badge bg-secondary rounded-pill">
+                                                        <i class="fas fa-cube me-1"></i>
+                                                        Không có biến thể
+                                                    </span>
+                                                <% } %>
                                             </td>
                                             <td class="py-3 px-4 text-end">
                                                 <% if (product.hasVariants && product.variantDetails && product.variantDetails.length > 0) { %>
@@ -236,17 +259,20 @@
                                                 </span>
                                             </td>
                                             <td class="py-3 px-4 text-center">
-                                                <% if (product.hasVariants && product.variantDetails && product.variantDetails.length > 0) { %>
-                                                    <span class="badge bg-primary rounded-pill">
-                                                        <i class="fas fa-cubes me-1"></i>
-                                                        <%= product.variantDetails.length %> biến thể
+                                                <% if (product.status === 'available') { %>
+                                                    <span class="badge bg-success rounded-pill">
+                                                        <i class="fas fa-check-circle me-1"></i>Có sẵn
                                                     </span>
                                                 <% } else { %>
-                                                    <span class="badge bg-secondary rounded-pill">
-                                                        <i class="fas fa-cube me-1"></i>
-                                                        Không có biến thể
+                                                    <span class="badge bg-danger rounded-pill">
+                                                        <i class="fas fa-times-circle me-1"></i>Hết hàng
                                                     </span>
                                                 <% } %>
+                                            </td>
+                                            <td class="py-3 px-4 text-center">
+                                                <span class="fw-medium">
+                                                    <%= product.inventory || 0 %>
+                                                </span>
                                             </td>
                                         </tr>
                                     <% } %>
@@ -254,7 +280,7 @@
                             <% } %>
                         <% } else if (hiddenProducts && hiddenProducts.length > 0) { %>
                             <tr id="no-visible-products-row">
-                                <td colspan="6" class="text-center py-5">
+                                <td colspan="8" class="text-center py-5">
                                     <div class="d-flex flex-column align-items-center">
                                         <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
                                         <h5 class="text-muted">Không có sản phẩm nào có giá và tồn kho</h5>
@@ -270,7 +296,7 @@
                             </tr>
                         <% } else { %>
                             <tr>
-                                <td colspan="6" class="text-center py-5">
+                                <td colspan="8" class="text-center py-5">
                                     <div class="d-flex flex-column align-items-center">
                                         <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
                                         <h5 class="text-muted">Chưa có sản phẩm nào được phát hành</h5>
@@ -567,7 +593,7 @@
                                             <i class="fas fa-dollar-sign text-success fa-lg"></i>
                                         </div>
                                         <div>
-                                            <div class="text-muted small">Giá</div>
+                                            <div class="text-muted small">Giá bán</div>
                                             <div id="productPrice" class="fw-semibold text-success mt-1"></div>
                                         </div>
                                     </div>
@@ -603,7 +629,7 @@
                                 <thead class="table-light">
                                     <tr>
                                         <th class="fw-bold" style="width: 40%">Tổ hợp thuộc tính</th>
-                                        <th class="fw-bold text-end" style="width: 25%">Giá (VNĐ)</th>
+                                        <th class="fw-bold text-end" style="width: 25%">Giá bán (VNĐ)</th>
                                         <th class="fw-bold text-center" style="width: 15%">Tồn kho</th>
                                         <th class="fw-bold text-center" style="width: 20%">Trạng thái</th>
                                     </tr>
@@ -871,6 +897,7 @@
             success: function(response) {
                 if (response.status === 'Ok') {
                     const product = response.data;
+                    console.log('Chi tiết sản phẩm nhận được:', product);
                     
                     // Cập nhật thông tin cơ bản
                     $('#productImage').attr('src', product.thumbnail || 'https://via.placeholder.com/100');
@@ -919,9 +946,29 @@
                     `);
                     
                     // Hiển thị giá và tồn kho
-                    if (product.hasVariants && product.detailsVariants?.length > 0) {
+                    if (product.hasVariants) {
+                        console.log('Sản phẩm có biến thể:', product.hasVariants);
+                        
+                        // Xác định nguồn dữ liệu biến thể (có thể từ detailsVariants hoặc variantDetails)
+                        let variantsList = [];
+                        
+                        if (product.detailsVariants && product.detailsVariants.length > 0) {
+                            console.log('Sử dụng dữ liệu từ detailsVariants:', product.detailsVariants);
+                            variantsList = product.detailsVariants;
+                        } else if (product.variantDetails && product.variantDetails.length > 0) {
+                            console.log('Sử dụng dữ liệu từ variantDetails:', product.variantDetails);
+                            variantsList = product.variantDetails;
+                        } else if (product.inventoryId && product.inventoryId.variantDetails) {
+                            console.log('Sử dụng dữ liệu từ inventoryId.variantDetails:', product.inventoryId.variantDetails);
+                            variantsList = product.inventoryId.variantDetails;
+                        }
+                        
                         // Tính giá từ biến thể
-                        const prices = product.detailsVariants.map(v => v.price).filter(p => p !== undefined);
+                        const prices = variantsList
+                            .map(v => v.price || (v.attributes ? v.price : 0))
+                            .filter(p => p !== undefined && p > 0);
+                        
+                        console.log('Danh sách giá biến thể:', prices);
                         
                         if (prices.length > 0) {
                             const minPrice = Math.min(...prices);
@@ -930,18 +977,18 @@
                             if (minPrice === maxPrice) {
                                 $('#productPrice').html(`
                                     <span class="badge bg-success-subtle text-success px-3 py-2 rounded-pill">
-                                        <i class="fas fa-tag me-1"></i>${minPrice.toLocaleString()} VNĐ
+                                        <i class="fas fa-tag me-1"></i>${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(minPrice)}
                                     </span>
                                 `);
                             } else {
                                 $('#productPrice').html(`
                                     <div class="d-flex align-items-center">
                                         <span class="badge bg-success-subtle text-success px-3 py-2 rounded-pill">
-                                            <i class="fas fa-tag me-1"></i>${minPrice.toLocaleString()} VNĐ
+                                            <i class="fas fa-tag me-1"></i>${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(minPrice)}
                                         </span>
                                         <i class="fas fa-arrow-right mx-2 text-muted"></i>
                                         <span class="badge bg-danger-subtle text-danger px-3 py-2 rounded-pill">
-                                            <i class="fas fa-tag me-1"></i>${maxPrice.toLocaleString()} VNĐ
+                                            <i class="fas fa-tag me-1"></i>${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(maxPrice)}
                                         </span>
                                     </div>
                                 `);
@@ -955,7 +1002,12 @@
                         }
                         
                         // Tính tồn kho từ biến thể
-                        const inventories = product.detailsVariants.map(v => v.inventory).filter(i => i !== undefined);
+                        const inventories = variantsList
+                            .map(v => v.inventory || v.quantity || 0)
+                            .filter(i => i !== undefined);
+                        
+                        console.log('Danh sách tồn kho biến thể:', inventories);
+                        
                         const totalInventory = inventories.length > 0 ? inventories.reduce((sum, curr) => sum + curr, 0) : 0;
                         
                         $('#productInventory').html(`
@@ -963,40 +1015,79 @@
                                 <i class="fas fa-boxes me-1"></i>${totalInventory} <small class="text-muted">(tổng ${inventories.length} biến thể)</small>
                             </span>
                         `);
-                    } else {
-                        // Hiển thị giá và tồn kho cơ bản
-                        const price = product.price || 0;
-                        $('#productPrice').html(`
-                            <span class="badge bg-success-subtle text-success px-3 py-2 rounded-pill">
-                                <i class="fas fa-tag me-1"></i>${price.toLocaleString()} VNĐ
-                            </span>
-                        `);
                         
-                        const inventory = product.inventory || 0;
-                        $('#productInventory').html(`
-                            <span class="badge bg-dark-subtle text-dark px-3 py-2 rounded-pill">
-                                <i class="fas fa-boxes me-1"></i>${inventory}
-                            </span>
-                        `);
-                    }
-                    
-                    // Xử lý hiển thị biến thể
-                    const hasVariants = product.hasVariants && product.detailsVariants?.length > 0;
-                    $('#productVariantsSection').toggle(hasVariants);
-                    
-                    if (hasVariants && product.detailsVariants) {
+                        // Hiển thị bảng biến thể
+                        $('#productVariantsSection').show();
                         $('#productVariantsBody').empty();
                         
-                        product.detailsVariants.forEach(variant => {
-                            if (!variant.variantDetails) return;
+                        console.log('Hiển thị bảng biến thể với dữ liệu:', variantsList);
+                        
+                        variantsList.forEach((variant, index) => {
+                            console.log(`Xử lý biến thể #${index}:`, variant);
                             
-                            const variantDetails = variant.variantDetails.map(detail => {
-                                const variantName = detail.variantId?.name || '';
-                                const variantValue = detail.value || '';
-                                return `<strong>${variantName}:</strong> ${variantValue}`;
-                            }).filter(detail => detail.trim() !== '<strong>:</strong> ' && detail.trim() !== '').join(', ');
+                            // Xử lý hiển thị thuộc tính biến thể
+                            let variantDetails = '';
                             
-                            const hasInventory = variant.inventory > 0;
+                            if (variant.variantDetails && Array.isArray(variant.variantDetails)) {
+                                // Trường hợp variantDetails là mảng các đối tượng {variantId, value}
+                                variantDetails = variant.variantDetails.map(detail => {
+                                    const variantName = detail.variantId?.name || '';
+                                    const variantValue = detail.value || '';
+                                    return `<strong>${variantName}:</strong> ${variantValue}`;
+                                }).filter(detail => detail.trim() !== '<strong>:</strong> ' && detail.trim() !== '').join(', ');
+                            } else if (variant.attributes) {
+                                // Trường hợp attributes là Map hoặc Object
+                                let attributes = variant.attributes;
+                                
+                                // Chuyển đổi Map thành Object nếu cần
+                                if (typeof attributes.get === 'function') {
+                                    attributes = Object.fromEntries(attributes);
+                                } else if (typeof attributes === 'string') {
+                                    try {
+                                        attributes = JSON.parse(attributes);
+                                    } catch (e) {
+                                        console.error('Không thể parse attributes:', e);
+                                    }
+                                }
+                                
+                                // Tạo chuỗi hiển thị từ attributes
+                                if (typeof attributes === 'object' && attributes !== null) {
+                                    // Hiển thị tên thuộc tính thay vì ID
+                                    variantDetails = Object.entries(attributes)
+                                        .map(([key, value]) => {
+                                            // Chuyển đổi key từ ID sang tên thuộc tính nếu có thể
+                                            let displayKey = key;
+                                            
+                                            // Xử lý trường hợp key là ID MongoDB (24 ký tự hex)
+                                            if (/^[0-9a-fA-F]{24}$/.test(key)) {
+                                                // Sử dụng tên thuộc tính phổ biến dựa vào giá trị
+                                                if (value.toLowerCase().includes('inch')) {
+                                                    displayKey = 'Kích thước';
+                                                } else if (['đỏ', 'xanh', 'vàng', 'đen', 'trắng', 'tím', 'hồng'].some(color => value.toLowerCase().includes(color))) {
+                                                    displayKey = 'Màu sắc';
+                                                } else if (['gb', 'tb', 'mb'].some(unit => value.toLowerCase().includes(unit))) {
+                                                    displayKey = 'Bộ nhớ';
+                                                } else if (['ram'].some(term => value.toLowerCase().includes(term))) {
+                                                    displayKey = 'RAM';
+                                                } else {
+                                                    displayKey = 'Thuộc tính';
+                                                }
+                                            }
+                                            
+                                            return `<strong>${displayKey}:</strong> ${value}`;
+                                        })
+                                        .join(', ');
+                                } else {
+                                    console.warn('Không thể xử lý attributes:', attributes);
+                                }
+                            }
+                            
+                            // Lấy giá và số lượng
+                            const price = variant.price || 0;
+                            const quantity = variant.inventory || variant.quantity || 0;
+                            const hasInventory = quantity > 0;
+                            
+                            // Trạng thái tồn kho
                             const inventoryStatus = hasInventory
                                 ? `<span class="badge bg-success-subtle text-success px-2 py-1 rounded-pill">
                                     <i class="fas fa-check-circle me-1"></i>Còn hàng
@@ -1015,8 +1106,8 @@
                                                 ${variantDetails}
                                             </div>
                                         </td>
-                                        <td class="text-end fw-semibold text-success">${(variant.price || 0).toLocaleString()} VNĐ</td>
-                                        <td class="text-center fw-semibold">${variant.inventory ?? 0}</td>
+                                        <td class="text-end fw-semibold text-success">${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price)}</td>
+                                        <td class="text-center fw-semibold">${quantity}</td>
                                         <td class="text-center">${inventoryStatus}</td>
                                     </tr>
                                 `;
@@ -1035,6 +1126,24 @@
                                 </tr>
                             `);
                         }
+                    } else {
+                        // Hiển thị giá và tồn kho cơ bản
+                        const price = product.price || 0;
+                        $('#productPrice').html(`
+                            <span class="badge bg-success-subtle text-success px-3 py-2 rounded-pill">
+                                <i class="fas fa-tag me-1"></i>${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price)}
+                            </span>
+                        `);
+                        
+                        const inventory = product.inventory || 0;
+                        $('#productInventory').html(`
+                            <span class="badge bg-dark-subtle text-dark px-3 py-2 rounded-pill">
+                                <i class="fas fa-boxes me-1"></i>${inventory}
+                            </span>
+                        `);
+                        
+                        // Ẩn phần biến thể
+                        $('#productVariantsSection').hide();
                     }
                     
                     // Xử lý nút sửa sản phẩm
@@ -1162,8 +1271,8 @@
                         <h6 class="fw-bold mb-2">Tổ hợp #${index + 1}: ${variantText}</h6>
                         <div class="row">
                             <div class="col-md-6">
-                                <label class="form-label">Giá (VNĐ)</label>
-                                <input type="number" class="form-control" name="price-${index}" placeholder="Giá (VNĐ)" min="0" required>
+                                <label class="form-label">Giá bán (VNĐ)</label>
+                                <input type="number" class="form-control" name="price-${index}" placeholder="Giá bán (VNĐ)" min="0" required>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Tồn kho</label>
@@ -1387,6 +1496,24 @@
             $('#profitDisplay').val(profitText).removeClass('text-success text-danger text-muted').addClass(profitClass);
         } else {
             $('#profitDisplay').val('Chưa đủ thông tin').removeClass('text-success text-danger').addClass('text-muted');
+        }
+    });
+    
+    // Xử lý hiển thị/ẩn sản phẩm không có giá/tồn kho
+    $('#showHiddenProductsInline').on('change', function() {
+        const showHidden = $(this).prop('checked');
+        
+        // Hiển thị hoặc ẩn các sản phẩm không có giá/tồn kho
+        $('.hidden-product').toggle(showHidden);
+        
+        // Ẩn thông báo "Không có sản phẩm nào có giá và tồn kho" nếu hiển thị sản phẩm ẩn
+        if (showHidden) {
+            $('#no-visible-products-row').hide();
+        } else {
+            // Kiểm tra nếu không có sản phẩm có giá và tồn kho thì hiển thị thông báo
+            if ($('.product-row:not(.hidden-product)').length === 0) {
+                $('#no-visible-products-row').show();
+            }
         }
     });
 </script>

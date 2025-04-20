@@ -26,7 +26,7 @@
                     <th width="10%">Danh mục</th>
                     <th width="10%">Nhà cung cấp</th>
                     <th width="10%" class="text-center">Số lượng</th>
-                    <th width="10%" class="text-center">Tổng giá</th>
+                    <th width="10%" class="text-center">Giá bán</th>
                     <th width="5%" class="text-center">Trạng thái</th>
                     <th width="10%" class="text-center">Hành động</th>
                 </tr>
@@ -58,18 +58,26 @@
                         <td class="text-center">
                             <% if (inventory.hasVariants) { %>
                                 <% if (inventory.variantDetails?.length) { %>
-                                    <button class="btn btn-info btn-sm" onclick="viewVariants('<%= inventory._id %>')">
-                                        Xem biến thể
-                                    </button>
+                                    <% 
+                                        let minPrice = Infinity;
+                                        inventory.variantDetails.forEach(variant => {
+                                            if (variant.price && variant.price < minPrice) {
+                                                minPrice = variant.price;
+                                            }
+                                        });
+                                        if (minPrice === Infinity) minPrice = 0;
+                                    %>
+                                    <%= minPrice.toLocaleString('vi-VN') %> VND
                                 <% } else { %>
-                                    <span class="badge bg-warning">Không có biến thể</span>
+                                    <span class="badge bg-warning">Không có giá</span>
                                 <% } %>
                             <% } else { %>
-                                <% if (inventory.total_price != null) { %>
-                                    <%= inventory.total_price.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' }) %>
-                                <% } else { %>
-                                    <span class="badge bg-warning">Chưa có giá</span>
-                                <% } %>
+                                <% 
+                                    const unitPrice = inventory.total_quantity > 0 
+                                        ? (inventory.total_price / inventory.total_quantity) 
+                                        : 0;
+                                %>
+                                <%= unitPrice.toLocaleString('vi-VN') %> VND
                             <% } %>
                         </td>
                         <td class="text-center">
