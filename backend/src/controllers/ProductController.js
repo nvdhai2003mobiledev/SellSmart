@@ -175,69 +175,112 @@ const getProductAsJson = async (req, res) => {
 
 // Lấy sản phẩm theo ID
 const getProductById = async (req, res) => {
-    const { productId } = req.params;
-    console.log("Bắt đầu lấy sản phẩm theo ID", { productId });
-    if (!mongoose.Types.ObjectId.isValid(productId)) {
-      return res.status(400).json({
+  const productId = req.params.productId;
+  console.log("Bắt đầu lấy sản phẩm theo ID", { productId });
+  if (!productId || !mongoose.Types.ObjectId.isValid(productId)) {
+    return res.status(400).json({
+      status: "Error",
+      message: "ID sản phẩm không hợp lệ hoặc không được cung cấp",
+    });
+  }
+
+  try {
+    // Tìm sản phẩm từ bảng Product thay vì Inventory
+    const product = await Product.findById(productId)
+      .populate("category")
+      .populate("providerId")
+      .populate({
+        path: "inventoryId",
+        populate: {
+          path: "variantDetails",
+        }
+      })
+      .populate({
+        path: "detailsVariants",
+        populate: {
+          path: "variantDetails.variantId",
+          model: "Variant"
+        }
+      })
+      .lean();
+
+    if (!product) {
+      console.log("Không tìm thấy sản phẩm với ID:", productId);
+      return res.status(404).json({
         status: "Error",
-        message: "ID sản phẩm không hợp lệ",
+        message: "Không tìm thấy sản phẩm với ID: " + productId,
       });
     }
-  
-    try {
-      // Tìm sản phẩm từ Inventory
-      const inventoryItem = await Inventory.findById(productId)
-        .populate("typeProduct_id")
-        .populate("provider_id")
-        .lean();
-  
-      if (!inventoryItem) {
-        console.log("Không tìm thấy sản phẩm với ID:", productId);
-        return res.status(404).json({
-          status: "Error",
-          message: "Không tìm thấy sản phẩm với ID: " + productId,
+
+    // Nếu có biến thể, lấy thông tin chi tiết
+    if (product.hasVariants) {
+      console.log(`Sản phẩm có biến thể, đang lấy thông tin chi tiết...`);
+      
+      // Lấy thông tin từ Inventory nếu cần thêm dữ liệu biến thể
+      if (product.inventoryId) {
+        const inventory = await Inventory.findById(product.inventoryId).lean();
+        if (inventory && inventory.hasVariants && inventory.variantDetails && inventory.variantDetails.length > 0) {
+          console.log(`Tìm thấy ${inventory.variantDetails.length} biến thể từ inventory`);
+          
+          // Thêm thông tin biến thể từ inventory vào product
+          product.variantDetails = inventory.variantDetails;
+          console.log('Đã thêm thông tin biến thể từ inventory vào product');
+        }
+      }
+      
+      // Kiểm tra nếu không có dữ liệu biến thể nào, thử lấy từ DetailsVariant
+      if ((!product.variantDetails || product.variantDetails.length === 0) && 
+          product.detailsVariants && product.detailsVariants.length > 0) {
+        console.log('Không tìm thấy variantDetails, thử lấy từ detailsVariants');
+        
+        // Chuyển đổi detailsVariants thành định dạng variantDetails để dễ xử lý
+        product.variantDetails = product.detailsVariants.map(variant => {
+          return {
+            attributes: variant.variantDetails ? 
+              variant.variantDetails.reduce((acc, detail) => {
+                if (detail.variantId && detail.variantId.name) {
+                  acc[detail.variantId.name] = detail.value;
+                }
+                return acc;
+              }, {}) : {},
+            price: variant.price || 0,
+            quantity: variant.inventory || 0
+          };
         });
+        
+        console.log('Đã chuyển đổi detailsVariants thành variantDetails:', product.variantDetails);
       }
-  
-      // Chuyển đổi dữ liệu từ Inventory sang định dạng Product
-      const product = {
-          _id: inventoryItem._id,
-          name: inventoryItem.product_name,
-          product_code: inventoryItem.product_code,
-          category: inventoryItem.typeProduct_id,
-          providerId: inventoryItem.provider_id,
-          status: inventoryItem.status,
-          hasVariants: inventoryItem.hasVariants,
-          price: inventoryItem.hasVariants ? 
-              (inventoryItem.variantDetails && inventoryItem.variantDetails.length > 0 ? 
-                  inventoryItem.variantDetails.reduce((min, v) => Math.min(min, v.price), Infinity) : 0) : 
-              inventoryItem.total_price / (inventoryItem.total_quantity || 1),
-          inventory: inventoryItem.total_quantity,
-          inventoryId: inventoryItem._id,
-          variantDetails: inventoryItem.variantDetails
-      };
-  
-      // Lấy thông tin bảo hành
-      const warranty = await Warranty.findOne({ product: productId })
-        .sort({ createdAt: -1 })
-        .lean();
-      if (warranty) {
-        product.warrantyPeriod = warranty.warrantyPeriod;
-      }
-  
-      console.log("Đã tìm thấy sản phẩm:", product.name);
-      res.status(200).json({
-        status: "Ok",
-        data: product,
-      });
-    } catch (error) {
-      console.error("Lỗi khi lấy sản phẩm theo ID:", error);
-      res.status(500).json({
-        status: "Error",
-        message: "Lỗi khi lấy sản phẩm theo ID: " + error.message,
-      });
     }
-  };
+
+    // Lấy thông tin bảo hành
+    const warranty = await Warranty.findOne({ product: productId })
+      .sort({ createdAt: -1 })
+      .lean();
+    if (warranty) {
+      product.warrantyPeriod = warranty.warrantyPeriod;
+    }
+
+    console.log("Đã tìm thấy sản phẩm:", product.name);
+    console.log("Thông tin biến thể:", product.hasVariants ? 
+      (product.variantDetails?.length || 0) + " biến thể" : 
+      "Không có biến thể");
+    
+    if (product.variantDetails && product.variantDetails.length > 0) {
+      console.log("Chi tiết biến thể đầu tiên:", JSON.stringify(product.variantDetails[0]));
+    }
+    
+    res.status(200).json({
+      status: "Ok",
+      data: product,
+    });
+  } catch (error) {
+    console.error("Lỗi khi lấy sản phẩm theo ID:", error);
+    res.status(500).json({
+      status: "Error",
+      message: "Lỗi khi lấy sản phẩm theo ID: " + error.message,
+    });
+  }
+};
 
 // Thêm hàm xử lý route /products/variants
 const getVariantsPage = async (req, res) => {

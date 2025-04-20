@@ -34,6 +34,6 @@ router.post("/details-variants/create", protect, detailsVariantController.addDet
 router.delete("/details-variants/delete/:detailsVariantId", protect, detailsVariantController.deleteDetailsVariant); // Xóa chi tiết biến thể
 
 // Route động (đặt sau các route tĩnh)
-router.get("/:productId", protect, productController.getProductById); // Lấy sản phẩm theo ID
+router.get("/:productId", productController.getProductById); // Lấy sản phẩm theo ID - không yêu cầu xác thực
 
 module.exports = router;
