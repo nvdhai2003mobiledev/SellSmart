@@ -1,4 +1,3 @@
-
 <%- include('../layouts/main.ejs') %>
 <div class="main-content">
     <div class="row mb-4">
@@ -48,6 +47,7 @@
                     <tr class="text-center">
                         <th scope="col">STT</th>
                         <th scope="col">Mã NV</th>
+                        <th scope="col">Ảnh</th>
                         <th scope="col">Thông tin</th>
                         <th scope="col">Chức vụ</th>
                         <th scope="col">Ngày vào làm</th>
@@ -62,15 +62,16 @@
                                 <td><%= index + 1 %></td>
                                 <td><span class="fw-medium"><%= employee.employeeId %></span></td>
                                 <td>
+                                    <% if (employee.userId && employee.userId.avatar) { %>
+                                        <img src="<%= employee.userId.avatar %>" alt="Avatar" class="avatar-sm rounded-circle">
+                                    <% } else { %>
+                                        <div class="avatar-sm bg-light d-flex align-items-center justify-content-center rounded-circle mx-auto">
+                                            <i class="fas fa-user text-secondary"></i>
+                                        </div>
+                                    <% } %>
+                                </td>
+                                <td>
                                     <div class="d-flex align-items-center justify-content-center">
-                                        <% if (employee.userId && employee.userId.avatar) { %>
-                                            <img src="<%= employee.userId.avatar %>" alt="Avatar"
-                                                 class="avatar-sm me-3">
-                                        <% } else { %>
-                                            <div class="avatar-sm me-3 bg-light d-flex align-items-center justify-content-center rounded-circle">
-                                                <i class="fas fa-user text-secondary"></i>
-                                            </div>
-                                        <% } %>
                                         <div>
                                             <h6 class="mb-0"><%= employee.userId ? employee.userId.fullName : '' %></h6>
                                             <small class="text-muted">
@@ -166,7 +167,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form id="addEmployeeForm">
+                <form id="addEmployeeForm" class="needs-validation" novalidate>
                     <div class="row mb-3">
                         <div class="col-12">
                             <h5 class="border-bottom pb-2">Thông tin cơ bản</h5>
@@ -177,24 +178,28 @@
                         <div class="col-md-6">
                             <label for="employeeId" class="form-label">Mã nhân viên <span
                                         class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="employeeId" name="employeeId" required>
+                            <input type="text" class="form-control" id="employeeId" name="employeeId" minlength="3" required>
+                            <div class="invalid-feedback">Mã nhân viên phải có ít nhất 3 ký tự</div>
                         </div>
                         <div class="col-md-6">
                             <label for="fullName" class="form-label">Họ và tên <span
                                         class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="fullName" name="fullName" required>
+                            <input type="text" class="form-control" id="fullName" name="fullName" minlength="3" required>
+                            <div class="invalid-feedback">Họ và tên phải có ít nhất 3 ký tự</div>
                         </div>
                     </div>
 
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label for="email" class="form-label">Email <span class="text-danger">*</span></label>
-                            <input type="email" class="form-control" id="email" name="email" required>
+                            <input type="email" class="form-control" id="email" name="email" pattern="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$" required>
+                            <div class="invalid-feedback">Email phải có định dạng hợp lệ </div>
                         </div>
                         <div class="col-md-6">
                             <label for="phoneNumber" class="form-label">Số điện thoại <span
                                         class="text-danger">*</span></label>
-                            <input type="tel" class="form-control" id="phoneNumber" name="phoneNumber" required>
+                            <input type="tel" class="form-control" id="phoneNumber" name="phoneNumber" pattern="[0-9]{10,11}" required>
+                            <div class="invalid-feedback">Số điện thoại phải là số và có độ dài 10-11 ký tự</div>
                         </div>
                     </div>
 
@@ -208,8 +213,9 @@
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label for="dob" class="form-label">Ngày sinh</label>
-                            <input type="date" class="form-control" id="dob" name="dob">
+                            <label for="dob" class="form-label">Ngày sinh <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="dob" name="dob" required>
+                            <div class="invalid-feedback">Vui lòng chọn ngày sinh (phải trên 16 tuổi)</div>
                         </div>
                     </div>
 
@@ -307,7 +313,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form id="editEmployeeForm">
+                <form id="editEmployeeForm" class="needs-validation" novalidate>
                     <input type="hidden" id="editEmployeeId" name="employeeId">
 
                     <div class="row mb-3">
@@ -321,11 +327,14 @@
                             <label for="editFullName" class="form-label">Họ và tên <span
                                         class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="editFullName" name="userInfo[fullName]"
-                                   required>
+                                   minlength="3" required>
+                            <div class="invalid-feedback">Họ và tên phải có ít nhất 3 ký tự</div>
                         </div>
                         <div class="col-md-6">
                             <label for="editEmail" class="form-label">Email <span class="text-danger">*</span></label>
-                            <input type="email" class="form-control" id="editEmail" name="userInfo[email]" required>
+                            <input type="email" class="form-control" id="editEmail" name="userInfo[email]" 
+                                   pattern="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$" required>
+                            <div class="invalid-feedback">Email phải có định dạng hợp lệ (với @ và .com)</div>
                         </div>
                     </div>
 
@@ -334,7 +343,8 @@
                             <label for="editPhoneNumber" class="form-label">Số điện thoại <span
                                         class="text-danger">*</span></label>
                             <input type="tel" class="form-control" id="editPhoneNumber" name="userInfo[phoneNumber]"
-                                   required>
+                                   pattern="[0-9]{10,11}" required>
+                            <div class="invalid-feedback">Số điện thoại phải là số và có độ dài 10-11 ký tự</div>
                         </div>
                         <div class="col-md-6">
                             <label for="editGender" class="form-label">Giới tính</label>
@@ -348,8 +358,9 @@
 
                     <div class="row mb-3">
                         <div class="col-md-6">
-                            <label for="editDob" class="form-label">Ngày sinh</label>
-                            <input type="date" class="form-control" id="editDob" name="userInfo[dob]">
+                            <label for="editDob" class="form-label">Ngày sinh <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="editDob" name="userInfo[dob]" required>
+                            <div class="invalid-feedback">Vui lòng chọn ngày sinh (phải trên 16 tuổi)</div>
                         </div>
                         <div class="col-md-6">
                             <label for="editAddress" class="form-label">Địa chỉ</label>
@@ -551,18 +562,107 @@
       }
     });
     // Add Employee
-    $('#saveEmployee').click(function () {
+    $('#saveEmployee').click(function (event) {
+      // Form validation
+      const form = document.getElementById('addEmployeeForm');
+      
+      if (!form.checkValidity()) {
+        // Trigger bootstrap validation
+        event.preventDefault();
+        event.stopPropagation();
+        form.classList.add('was-validated');
+        return;
+      }
+      
+      // Custom validation
+      let isValid = true;
+      let errorMessage = '';
+      
+      // Validate employeeId (at least 3 characters)
+      const employeeId = $('#employeeId').val().trim();
+      if (employeeId.length < 3) {
+        $('#employeeId').addClass('is-invalid');
+        isValid = false;
+        errorMessage += 'Mã nhân viên phải có ít nhất 3 ký tự.\n';
+      } else {
+        $('#employeeId').removeClass('is-invalid');
+      }
+      
+      // Validate fullName (at least 3 characters)
+      const fullName = $('#fullName').val().trim();
+      if (fullName.length < 3) {
+        $('#fullName').addClass('is-invalid');
+        isValid = false;
+        errorMessage += 'Họ và tên phải có ít nhất 3 ký tự.\n';
+      } else {
+        $('#fullName').removeClass('is-invalid');
+      }
+      
+      // Validate email (must have @ and .com)
+      const email = $('#email').val().trim();
+      const emailPattern = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!emailPattern.test(email)) {
+        $('#email').addClass('is-invalid');
+        isValid = false;
+        errorMessage += 'Email phải có định dạng hợp lệ (với @ và tên miền).\n';
+      } else {
+        $('#email').removeClass('is-invalid');
+      }
+      
+      // Validate phone number (must be numeric and 10-11 digits)
+      const phone = $('#phoneNumber').val().trim();
+      const phonePattern = /^[0-9]{10,11}$/;
+      if (!phonePattern.test(phone)) {
+        $('#phoneNumber').addClass('is-invalid');
+        isValid = false;
+        errorMessage += 'Số điện thoại phải là số và có độ dài 10-11 ký tự.\n';
+      } else {
+        $('#phoneNumber').removeClass('is-invalid');
+      }
+      
+      // Validate date of birth (required)
+      const dob = $('#dob').val();
+      if (!dob) {
+        $('#dob').addClass('is-invalid');
+        isValid = false;
+        errorMessage += 'Ngày sinh là bắt buộc.\n';
+      } else {
+        // Validate employee is at least 16 years old
+        const birthDate = new Date(dob);
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        
+        // Adjust age if birthday hasn't occurred yet this year
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+          age--;
+        }
+        
+        if (age < 16) {
+          $('#dob').addClass('is-invalid');
+          isValid = false;
+          errorMessage += 'Nhân viên phải trên 16 tuổi.\n';
+        } else {
+          $('#dob').removeClass('is-invalid');
+        }
+      }
+      
+      if (!isValid) {
+        alert('Vui lòng kiểm tra lại thông tin:\n' + errorMessage);
+        return;
+      }
+      
       const formData = {
         username: $('#username').val(),
-        fullName: $('#fullName').val(),
+        fullName: fullName,
         gender: $('#gender').val(),
-        dob: $('#dob').val(),
+        dob: dob,
         address: $('#address').val(),
-        email: $('#email').val(),
-        phoneNumber: $('#phoneNumber').val(),
+        email: email,
+        phoneNumber: phone,
         password: $('#password').val(),
         role: 'employee',
-        employeeId: $('#employeeId').val(),
+        employeeId: employeeId,
         position: $('#position').val(),
         hireDate: $('#hireDate').val(),
         workStatus: $('#workStatus').val(),
@@ -625,6 +725,82 @@
 
     // Update Employee
     $('#updateEmployee').click(function () {
+      const form = document.getElementById('editEmployeeForm');
+      
+      if (!form.checkValidity()) {
+        // Trigger bootstrap validation
+        form.classList.add('was-validated');
+        return;
+      }
+      
+      // Custom validation
+      let isValid = true;
+      let errorMessage = '';
+      
+      // Validate fullName (at least 3 characters)
+      const fullName = $('#editFullName').val().trim();
+      if (fullName.length < 3) {
+        $('#editFullName').addClass('is-invalid');
+        isValid = false;
+        errorMessage += 'Họ và tên phải có ít nhất 3 ký tự.\n';
+      } else {
+        $('#editFullName').removeClass('is-invalid');
+      }
+      
+      // Validate email (must have @ and .com)
+      const email = $('#editEmail').val().trim();
+      const emailPattern = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!emailPattern.test(email)) {
+        $('#editEmail').addClass('is-invalid');
+        isValid = false;
+        errorMessage += 'Email phải có định dạng hợp lệ (với @ và tên miền).\n';
+      } else {
+        $('#editEmail').removeClass('is-invalid');
+      }
+      
+      // Validate phone number (must be numeric and 10-11 digits)
+      const phone = $('#editPhoneNumber').val().trim();
+      const phonePattern = /^[0-9]{10,11}$/;
+      if (!phonePattern.test(phone)) {
+        $('#editPhoneNumber').addClass('is-invalid');
+        isValid = false;
+        errorMessage += 'Số điện thoại phải là số và có độ dài 10-11 ký tự.\n';
+      } else {
+        $('#editPhoneNumber').removeClass('is-invalid');
+      }
+      
+      // Validate date of birth (required)
+      const dob = $('#editDob').val();
+      if (!dob) {
+        $('#editDob').addClass('is-invalid');
+        isValid = false;
+        errorMessage += 'Ngày sinh là bắt buộc.\n';
+      } else {
+        // Validate employee is at least 16 years old
+        const birthDate = new Date(dob);
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        
+        // Adjust age if birthday hasn't occurred yet this year
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+          age--;
+        }
+        
+        if (age < 16) {
+          $('#editDob').addClass('is-invalid');
+          isValid = false;
+          errorMessage += 'Nhân viên phải trên 16 tuổi.\n';
+        } else {
+          $('#editDob').removeClass('is-invalid');
+        }
+      }
+      
+      if (!isValid) {
+        alert('Vui lòng kiểm tra lại thông tin:\n' + errorMessage);
+        return;
+      }
+      
       const formData = {
         userInfo: {
           fullName: $('#editFullName').val(),
