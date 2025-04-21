@@ -932,106 +932,49 @@
       });
     });
 
+    // Pagination implementation
+    const pagination = initializePagination({
+      itemSelector: 'tbody tr',
+      itemsPerPageSelector: '#itemsPerPage',
+      prevPageSelector: '#prevPage',
+      nextPageSelector: '#nextPage',
+      currentPageSelector: '#currentPage',
+      totalItemsSelector: '#totalItems',
+      itemNameSingular: 'nhân viên',
+      itemNamePlural: 'nhân viên',
+      onPageChange: function(state) {
+        // Update STT numbers for visible rows
+        const visibleRows = $('tbody tr:visible');
+        visibleRows.each(function(index) {
+          const startIndex = (state.currentPageIndex - 1) * state.itemsPerPage;
+          $(this).find('td:first').text(startIndex + index + 1);
+        });
+      }
+    });
+
     // Filter functionality
     $('#applyFilter').click(function () {
       const status = $('#statusFilter').val();
       const search = $('#searchInput').val().toLowerCase();
 
-      $('tbody tr').each(function () {
-        const row = $(this);
+      // Define filter function
+      const filterFn = function(item) {
+        const row = $(item);
         const rowStatus = row.find('td:eq(5) .badge').text().toLowerCase();
         const rowSearchText = row.text().toLowerCase();
 
-        const statusMatch = !status || (status === 'active' && rowStatus.includes('đang làm việc')) ||
-          (status === 'inactive' && rowStatus.includes('đã nghỉ việc')) ||
-          (status === 'leave' && rowStatus.includes('nghỉ phép'));
+        const statusMatch = !status || 
+                          (status === 'active' && rowStatus.includes('đang làm việc')) ||
+                          (status === 'inactive' && rowStatus.includes('đã nghỉ việc')) ||
+                          (status === 'leave' && rowStatus.includes('nghỉ phép'));
+                          
         const searchMatch = !search || rowSearchText.includes(search);
 
-        if (statusMatch && searchMatch) {
-          row.show();
-        } else {
-          row.hide();
-        }
-      });
-      
-      // Reset to page 1 after filtering
-      currentPageIndex = 1;
-      updateEmployeeDisplay();
-    });
-    
-    // Pagination variables
-    let currentPageIndex = 1;
-    let itemsPerPage = 10;
-    let filteredEmployees = [];
-    
-    // Function to update employee display based on pagination
-    function updateEmployeeDisplay() {
-        // Get all visible employee rows
-        const rows = $('tbody tr');
-        filteredEmployees = [];
-        
-        // Filter the employees based on current filters
-        rows.each(function() {
-            const row = $(this);
-            if (row.css('display') !== 'none') {
-                filteredEmployees.push(row);
-            }
-        });
-        
-        // Update total count
-        $('#totalItems').text(filteredEmployees.length);
-        
-        // Calculate total pages
-        const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
-        
-        // Hide all rows initially
-        rows.hide();
-        
-        // Show only rows for current page
-        const start = (currentPageIndex - 1) * itemsPerPage;
-        const end = Math.min(start + itemsPerPage, filteredEmployees.length);
-        
-        for (let i = start; i < end; i++) {
-            $(filteredEmployees[i]).show();
-        }
-        
-        // Update pagination buttons state
-        $('#prevPage').toggleClass('disabled', currentPageIndex === 1);
-        $('#nextPage').toggleClass('disabled', currentPageIndex === totalPages || totalPages === 0);
-        $('#currentPage').text(currentPageIndex);
-    }
-    
-    // Handle items per page change
-    $('#itemsPerPage').change(function() {
-        itemsPerPage = parseInt($(this).val());
-        currentPageIndex = 1;
-        updateEmployeeDisplay();
-    });
-    
-    // Handle pagination navigation
-    $('#prevPage').click(function(e) {
-        e.preventDefault();
-        if (currentPageIndex > 1) {
-            currentPageIndex--;
-            updateEmployeeDisplay();
-        }
-    });
-    
-    $('#nextPage').click(function(e) {
-        e.preventDefault();
-        const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
-        if (currentPageIndex < totalPages) {
-            currentPageIndex++;
-            updateEmployeeDisplay();
-        }
-    });
-    
-    // Initialize pagination on page load
-    $(document).ready(function() {
-        // Initial count of employees
-        const totalEmployees = $('tbody tr').length;
-        $('#totalItems').text(totalEmployees);
-        updateEmployeeDisplay();
+        return statusMatch && searchMatch;
+      };
+
+      // Apply the filter
+      pagination.filterItems(filterFn);
     });
   });
 </script>

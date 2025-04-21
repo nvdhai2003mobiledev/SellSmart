@@ -225,13 +225,58 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
-    // Pagination variables
-    let currentPageIndex = 1;
-    let itemsPerPage = 10;
-    let filteredProviders = [];
-    
-    $(document).ready(() => {
-        // Save Provider (Add New)
+    $(document).ready(function() {
+        // Xử lý phân trang
+        const providerPagination = initializePagination({
+            itemSelector: '#providerTableBody tr',
+            itemsPerPageSelector: '#itemsPerPage',
+            prevPageSelector: '#prevPage',
+            nextPageSelector: '#nextPage', 
+            currentPageSelector: '#currentPage',
+            totalItemsSelector: '#totalItems',
+            itemNameSingular: 'nhà cung cấp',
+            itemNamePlural: 'nhà cung cấp',
+            onPageChange: function(state) {
+                // Cập nhật số thứ tự nếu cần
+                const visibleRows = $('#providerTableBody tr:visible');
+                visibleRows.each(function(index) {
+                    const startIndex = (state.currentPageIndex - 1) * state.itemsPerPage;
+                    $(this).find('td:first').text(startIndex + index + 1);
+                });
+            }
+        });
+
+        // Xử lý tìm kiếm
+        $('#searchInput, #statusFilter').on('input change', function() {
+            applyFilters();
+        });
+
+        $('#applyFilter').click(function() {
+            applyFilters();
+        });
+
+        // Hàm áp dụng bộ lọc
+        function applyFilters() {
+            const searchText = $('#searchInput').val().toLowerCase().trim();
+            const statusFilter = $('#statusFilter').val();
+            
+            // Tạo hàm lọc
+            const filterFn = function(item) {
+                const row = $(item);
+                const rowText = row.text().toLowerCase();
+                const rowStatus = row.find('.provider-status').text().toLowerCase();
+                
+                const searchMatch = !searchText || rowText.includes(searchText);
+                const statusMatch = !statusFilter || rowStatus.includes(statusFilter);
+                
+                return searchMatch && statusMatch;
+            };
+            
+            // Áp dụng bộ lọc
+            providerPagination.filterItems(filterFn);
+        }
+
+        // Chức năng thêm mới nhà cung cấp
         $('#saveProviderBtn').click(function() {
             const data = {
                 fullName: $('#providerName').val().trim(),
@@ -288,223 +333,114 @@
             saveEditProvider();
         });
         
-        // Filter functionality
-        $('#applyFilter').click(function() {
-            const status = $('#statusFilter').val();
-            const search = $('#searchInput').val().toLowerCase();
-            
-            $('#providerTableBody tr').each(function() {
-                const row = $(this);
-                let statusMatch = true;
-                let searchMatch = true;
-                
-                if (status) {
-                    const rowStatus = row.find('td:nth-child(5) .badge').text().toLowerCase();
-                    statusMatch = rowStatus.includes(status === 'cung cấp' ? 'đang cung cấp' : 'dừng cung cấp');
-                }
-                
-                if (search) {
-                    const rowText = row.text().toLowerCase();
-                    searchMatch = rowText.includes(search);
-                }
-                
-                if (statusMatch && searchMatch) {
-                    row.show();
-                } else {
-                    row.hide();
-                }
-            });
-            
-            // Reset to page 1 after filtering
-            currentPageIndex = 1;
-            updateProviderDisplay();
-        });
-        
-        // Search on input change (optional)
-        $('#searchInput').on('input', function() {
-            if (this.value.length >= 3 || this.value.length === 0) {
-                $('#applyFilter').click();
-            }
-        });
-        
-        // Handle items per page change
-        $('#itemsPerPage').change(function() {
-            itemsPerPage = parseInt($(this).val());
-            currentPageIndex = 1;
-            updateProviderDisplay();
-        });
-        
-        // Handle pagination navigation
-        $('#prevPage').click(function(e) {
-            e.preventDefault();
-            if (currentPageIndex > 1) {
-                currentPageIndex--;
-                updateProviderDisplay();
-            }
-        });
-        
-        $('#nextPage').click(function(e) {
-            e.preventDefault();
-            const totalPages = Math.ceil(filteredProviders.length / itemsPerPage);
-            if (currentPageIndex < totalPages) {
-                currentPageIndex++;
-                updateProviderDisplay();
-            }
-        });
-        
-        // Initialize pagination on page load
-        // Initial count of providers
-        const totalProviders = $('#providerTableBody tr').length;
-        $('#totalItems').text(totalProviders);
-        updateProviderDisplay();
-    });
-  
-    // Function to update provider display based on pagination
-    function updateProviderDisplay() {
-        // Get all visible provider rows
-        const rows = $('#providerTableBody tr');
-        filteredProviders = [];
-        
-        // Filter the providers based on current filters
-        rows.each(function() {
-            const row = $(this);
-            if (row.css('display') !== 'none') {
-                filteredProviders.push(row);
-            }
-        });
-        
-        // Update total count
-        $('#totalItems').text(filteredProviders.length);
-        
-        // Calculate total pages
-        const totalPages = Math.ceil(filteredProviders.length / itemsPerPage);
-        
-        // Hide all rows initially
-        rows.hide();
-        
-        // Show only rows for current page
-        const start = (currentPageIndex - 1) * itemsPerPage;
-        const end = Math.min(start + itemsPerPage, filteredProviders.length);
-        
-        for (let i = start; i < end; i++) {
-            $(filteredProviders[i]).show();
+        // Edit Provider function
+        function editProvider(id) {
+            fetch(`/providers/${id}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.data) {
+                        const provider = data.data;
+                        document.getElementById("editProviderId").value = provider._id;
+                        document.getElementById("editFullName").value = provider.fullName;
+                        document.getElementById("editEmail").value = provider.email;
+                        document.getElementById("editPhoneNumber").value = provider.phoneNumber;
+                        document.getElementById("editAddress").value = provider.address;
+                        document.getElementById("editStatus").value = provider.status;
+                        
+                        // Show modal
+                        new bootstrap.Modal(document.getElementById('editProviderModal')).show();
+                    } else {
+                        console.error("Dữ liệu nhà cung cấp không hợp lệ:", data);
+                        alert("Không thể lấy thông tin nhà cung cấp");
+                    }
+                })
+                .catch(err => {
+                    console.error("Lỗi khi lấy dữ liệu nhà cung cấp:", err);
+                    alert("Không thể lấy thông tin nhà cung cấp. Vui lòng thử lại sau.");
+                });
         }
-        
-        // Update pagination buttons state
-        $('#prevPage').toggleClass('disabled', currentPageIndex === 1);
-        $('#nextPage').toggleClass('disabled', currentPageIndex === totalPages || totalPages === 0);
-        $('#currentPage').text(currentPageIndex);
-    }
 
-    // Edit Provider function
-    function editProvider(id) {
-        fetch(`/providers/${id}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data && data.data) {
-                    const provider = data.data;
-                    document.getElementById("editProviderId").value = provider._id;
-                    document.getElementById("editFullName").value = provider.fullName;
-                    document.getElementById("editEmail").value = provider.email;
-                    document.getElementById("editPhoneNumber").value = provider.phoneNumber;
-                    document.getElementById("editAddress").value = provider.address;
-                    document.getElementById("editStatus").value = provider.status;
-                    
-                    // Show modal
-                    new bootstrap.Modal(document.getElementById('editProviderModal')).show();
-                } else {
-                    console.error("Dữ liệu nhà cung cấp không hợp lệ:", data);
-                    alert("Không thể lấy thông tin nhà cung cấp");
-                }
+        // Save Edit Provider function
+        function saveEditProvider() {
+            const id = document.getElementById("editProviderId").value;
+            const fullName = document.getElementById("editFullName").value.trim();
+            const email = document.getElementById("editEmail").value.trim();
+            const phoneNumber = document.getElementById("editPhoneNumber").value.trim();
+            const address = document.getElementById("editAddress").value.trim();
+            const status = document.getElementById("editStatus").value;
+            
+            if (!validateProviderData(fullName, email, phoneNumber)) return;
+            
+            // Show loading state
+            $('#saveEditBtn').text('Đang lưu...').attr('disabled', true);
+            
+            fetch(`/providers/${id}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({fullName, email, phoneNumber, address, status})
             })
-            .catch(err => {
-                console.error("Lỗi khi lấy dữ liệu nhà cung cấp:", err);
-                alert("Không thể lấy thông tin nhà cung cấp. Vui lòng thử lại sau.");
-            });
-    }
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === "Ok") {
+                        // Close modal
+                        bootstrap.Modal.getInstance(document.getElementById('editProviderModal')).hide();
+                        
+                        alert("✅ Cập nhật nhà cung cấp thành công!");
+                        location.reload();
+                    } else {
+                        alert(`❌ Lỗi: ${data.message || 'Không thể cập nhật nhà cung cấp'}`);
+                    }
+                })
+                .catch(err => {
+                    console.error("Lỗi khi cập nhật:", err);
+                    alert("❌ Lỗi khi cập nhật nhà cung cấp! Vui lòng thử lại.");
+                })
+                .finally(() => {
+                    // Restore button
+                    $('#saveEditBtn').text('Lưu thay đổi').attr('disabled', false);
+                });
+        }
 
-    // Save Edit Provider function
-    function saveEditProvider() {
-        const id = document.getElementById("editProviderId").value;
-        const fullName = document.getElementById("editFullName").value.trim();
-        const email = document.getElementById("editEmail").value.trim();
-        const phoneNumber = document.getElementById("editPhoneNumber").value.trim();
-        const address = document.getElementById("editAddress").value.trim();
-        const status = document.getElementById("editStatus").value;
-        
-        if (!validateProviderData(fullName, email, phoneNumber)) return;
-        
-        // Show loading state
-        $('#saveEditBtn').text('Đang lưu...').attr('disabled', true);
-        
-        fetch(`/providers/${id}`, {
-            method: "PUT",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({fullName, email, phoneNumber, address, status})
-        })
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === "Ok") {
+        // Delete Provider function
+        function deleteProvider(id) {
+            $.ajax({
+                url: `/providers/${id}`, 
+                type: 'DELETE',
+                success: function() {
+                    alert("✅ Xóa nhà cung cấp thành công!");
                     // Close modal
-                    bootstrap.Modal.getInstance(document.getElementById('editProviderModal')).hide();
-                    
-                    alert("✅ Cập nhật nhà cung cấp thành công!");
+                    bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal')).hide();
                     location.reload();
-                } else {
-                    alert(`❌ Lỗi: ${data.message || 'Không thể cập nhật nhà cung cấp'}`);
+                },
+                error: function(error) {
+                    console.error("Lỗi khi xóa:", error);
+                    alert("❌ Lỗi khi xóa nhà cung cấp! Vui lòng thử lại.");
                 }
-            })
-            .catch(err => {
-                console.error("Lỗi khi cập nhật:", err);
-                alert("❌ Lỗi khi cập nhật nhà cung cấp! Vui lòng thử lại.");
-            })
-            .finally(() => {
-                // Restore button
-                $('#saveEditBtn').text('Lưu thay đổi').attr('disabled', false);
             });
-    }
+        }
 
-    // Delete Provider function
-    function deleteProvider(id) {
-        $.ajax({
-            url: `/providers/${id}`, 
-            type: 'DELETE',
-            success: function() {
-                alert("✅ Xóa nhà cung cấp thành công!");
-                // Close modal
-                bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal')).hide();
-                location.reload();
-            },
-            error: function(error) {
-                console.error("Lỗi khi xóa:", error);
-                alert("❌ Lỗi khi xóa nhà cung cấp! Vui lòng thử lại.");
+        // Validate Provider Data function
+        function validateProviderData(name, email, phone) {
+            if (name.length < 3) {
+                alert("Tên phải có ít nhất 3 ký tự!");
+                return false;
             }
-        });
-    }
 
-    // Validate Provider Data function
-    function validateProviderData(name, email, phone) {
-        if (name.length < 3) {
-            alert("Tên phải có ít nhất 3 ký tự!");
-            return false;
+            const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+            if (!emailRegex.test(email)) {
+                alert("Email không hợp lệ!");
+                return false;
+            }
+
+            const phoneRegex = /^[0-9]{10,11}$/;
+            if (!phoneRegex.test(phone)) {
+                alert("Số điện thoại phải có 10-11 chữ số!");
+                return false;
+            }
+
+            return true;
         }
-
-        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-        if (!emailRegex.test(email)) {
-            alert("Email không hợp lệ!");
-            return false;
-        }
-
-        const phoneRegex = /^[0-9]{10,11}$/;
-        if (!phoneRegex.test(phone)) {
-            alert("Số điện thoại phải có 10-11 chữ số!");
-            return false;
-        }
-
-        return true;
-    }
+    });
 </script>
-
-

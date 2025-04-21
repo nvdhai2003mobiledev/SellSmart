@@ -256,11 +256,6 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
-    // Pagination variables
-    let currentPageIndex = 1;
-    let itemsPerPage = 10;
-    let filteredCustomers = [];
-    
     // Save customer (from modal)
     document.getElementById("saveCustomer").addEventListener("click", async function () {
         const form = document.getElementById("addCustomerForm");
@@ -449,103 +444,41 @@
             });
     }
     
-    // Function to update customer display based on pagination
-    function updateCustomerDisplay() {
-        // Get all visible customer rows
-        const rows = $('#customerTableBody tr');
-        filteredCustomers = [];
-        
-        // Filter the customers based on current filters
-        rows.each(function() {
-            const row = $(this);
-            if (row.css('display') !== 'none') {
-                filteredCustomers.push(row);
-            }
-        });
-        
-        // Update total count
-        $('#totalItems').text(filteredCustomers.length);
-        
-        // Calculate total pages
-        const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage);
-        
-        // Hide all rows initially
-        rows.hide();
-        
-        // Show only rows for current page
-        const start = (currentPageIndex - 1) * itemsPerPage;
-        const end = Math.min(start + itemsPerPage, filteredCustomers.length);
-        
-        for (let i = start; i < end; i++) {
-            $(filteredCustomers[i]).show();
-        }
-        
-        // Update pagination buttons state
-        $('#prevPage').toggleClass('disabled', currentPageIndex === 1);
-        $('#nextPage').toggleClass('disabled', currentPageIndex === totalPages || totalPages === 0);
-        $('#currentPage').text(currentPageIndex);
-    }
-    
-    // Handle items per page change
-    $('#itemsPerPage').change(function() {
-        itemsPerPage = parseInt($(this).val());
-        currentPageIndex = 1;
-        updateCustomerDisplay();
-    });
-    
-    // Handle pagination navigation
-    $('#prevPage').click(function(e) {
-        e.preventDefault();
-        if (currentPageIndex > 1) {
-            currentPageIndex--;
-            updateCustomerDisplay();
-        }
-    });
-    
-    $('#nextPage').click(function(e) {
-        e.preventDefault();
-        const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage);
-        if (currentPageIndex < totalPages) {
-            currentPageIndex++;
-            updateCustomerDisplay();
-        }
-    });
-    
     // Search functionality
     $('#applyFilter').click(function() {
         const searchText = $('#phoneSearch').val().toLowerCase();
         
-        $('#customerTableBody tr').each(function() {
-            const row = $(this);
-            const rowText = row.text().toLowerCase();
-            
-            if (rowText.includes(searchText)) {
-                row.show();
-            } else {
-                row.hide();
-            }
-        });
+        // Create a filter function for the pagination
+        const filterFn = function(item) {
+            const row = $(item);
+            const customerText = row.text().toLowerCase();
+            return !searchText || customerText.includes(searchText);
+        };
         
-        // Reset to page 1 after filtering
-        currentPageIndex = 1;
-        updateCustomerDisplay();
+        // Use the pagination library to filter the customers
+        customerPagination.filterItems(filterFn);
     });
     
-    // Search on input change (optional: for more responsive search)
-    $('#phoneSearch').on('input', function() {
-        if (this.value.length >= 3 || this.value.length === 0) {
-            $('#applyFilter').click();
+    // Initialize pagination system
+    const customerPagination = initializePagination({
+        itemSelector: '#customerTableBody tr',
+        itemsPerPageSelector: '#itemsPerPage',
+        prevPageSelector: '#prevPage',
+        nextPageSelector: '#nextPage',
+        currentPageSelector: '#currentPage',
+        totalItemsSelector: '#totalItems',
+        itemNameSingular: 'khách hàng',
+        itemNamePlural: 'khách hàng',
+        onPageChange: function(state) {
+            // Update index numbers if needed
+            const visibleRows = $('#customerTableBody tr:visible');
+            visibleRows.each(function(index) {
+                const startIndex = (state.currentPageIndex - 1) * state.itemsPerPage;
+                $(this).find('td:first').text(startIndex + index + 1);
+            });
         }
     });
     
-    // Initialize pagination on page load
-    $(document).ready(function() {
-        // Initial count of customers
-        const totalCustomers = $('#customerTableBody tr').length;
-        $('#totalItems').text(totalCustomers);
-        updateCustomerDisplay();
-    });
-
     // Use data attributes for edit and delete buttons
     $(document).on('click', '.edit-customer-btn', function() {
         const btn = $(this);
