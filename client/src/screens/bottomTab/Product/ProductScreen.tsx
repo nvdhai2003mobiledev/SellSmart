@@ -10,6 +10,7 @@ import {
   ScrollView,
   RefreshControl,
   Dimensions,
+  Image,
 } from 'react-native';
 import {
   ShoppingCart,
@@ -45,6 +46,10 @@ import {
 import {Fonts} from '../../../assets';
 import {create} from 'apisauce';
 import {rootStore} from '../../../models/root-store';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import FastImage from 'react-native-fast-image';
+import {Api} from '../../../services/api/api';
+import {ApiEndpoint} from '../../../services/api/api-endpoint';
 
 // Define fonts object locally if the import is causing issues
 const fonts = {
@@ -157,6 +162,36 @@ const SelectDropdown = ({
   );
 };
 
+interface Product {
+  _id: string;
+  name: string;
+  thumbnail?: string;
+  category: {
+    _id: string;
+    name: string;
+  };
+  providerId: {
+    _id: string;
+    fullName: string;
+  };
+  status: 'available' | 'unavailable';
+  hasVariants: boolean;
+  price?: number;
+  inventory?: number;
+  variantDetails?: Array<{
+    attributes: Record<string, string>;
+    price: number;
+    quantity: number;
+  }>;
+  warrantyPeriod?: number;
+  inventoryId: string;
+}
+
+// Thêm interface cho Source type
+interface ImageSource {
+  uri: string;
+}
+
 const ProductScreen = observer(() => {
   const navigation = useNavigation<any>();
   const [store] = useState(() => {
@@ -185,6 +220,13 @@ const ProductScreen = observer(() => {
     [],
   );
   const [additionalProviders, setAdditionalProviders] = useState<string[]>([]);
+
+  const [products, setProducts] = useState<Product[]>([]);
+  const [hiddenProducts, setHiddenProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [showCart, setShowCart] = useState(false);
 
   // Lọc danh sách sản phẩm dựa trên điều kiện tìm kiếm và bộ lọc
   const filterProducts = useCallback(
@@ -497,65 +539,133 @@ const ProductScreen = observer(() => {
     return variant.variantDetails.map((detail: any) => detail.value).join(', ');
   };
 
-  const renderItem = ({item}: {item: any}) => {
-    // Calculate display price based on product structure
-    let price = 0;
+  const fetchProducts = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
 
-    if (item.price !== null && item.price !== undefined) {
-      price = item.price;
-    } else if (
-      item.hasVariants &&
-      item.detailsVariants &&
-      item.detailsVariants.length > 0
-    ) {
-      price = item.detailsVariants[0].price;
-    } else if (item.variants && item.variants.length > 0) {
-      price = item.variants[0].price;
+      // Sử dụng instance API đã được cấu hình
+      const response = await fetch('http://10.0.2.2:5000/api/products/json', {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (data.status === 'Ok' && data.data) {
+        // Lọc sản phẩm có giá và tồn kho
+        const validProducts = data.data.productsWithPriceAndInventory?.filter((product: Product) => {
+          if (product.hasVariants && product.variantDetails && product.variantDetails.length > 0) {
+            return product.variantDetails.some(variant => 
+              variant.price && variant.price > 0 && variant.quantity && variant.quantity > 0
+            );
+          }
+          return Boolean(product.price && product.price > 0 && product.inventory && product.inventory > 0);
+        }) || [];
+
+        setProducts(validProducts);
+        setHiddenProducts(data.data.productsWithoutPriceOrInventory || []);
+        console.log(`Loaded ${validProducts.length} valid products`);
+      } else {
+        throw new Error(data.message || 'Không thể lấy danh sách sản phẩm');
+      }
+    } catch (err) {
+      console.error('Error fetching products:', err);
+      setError(err instanceof Error ? err.message : 'Lỗi không xác định');
+    } finally {
+      setIsLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const renderItem = ({item}: {item: Product}) => {
+    const isAvailable = item.status === 'available';
+    const hasVariants = item.hasVariants && item.variantDetails && item.variantDetails.length > 0;
+    
+    // Kiểm tra xem sản phẩm có đủ điều kiện hiển thị không
+    const isValidProduct = hasVariants ? 
+      item.variantDetails?.some(v => v.price > 0 && v.quantity > 0) :
+      Boolean(item.price && item.price > 0 && item.inventory && item.inventory > 0);
+    
+    if (!isValidProduct) {
+      return null; // Không hiển thị sản phẩm không hợp lệ
     }
 
-    const productName =
-      typeof item.name === 'string'
-        ? item.name
-        : item.name && typeof item.name.toString === 'function'
-        ? item.name.toString()
-        : 'Sản phẩm không tên';
+    // Xử lý đường dẫn ảnh
+    const getImageSource = (): ImageSource | undefined => {
+      if (item.thumbnail) {
+        // Nếu thumbnail là đường dẫn đầy đủ
+        if (item.thumbnail.startsWith('http')) {
+          return { uri: item.thumbnail };
+        }
+        // Nếu thumbnail là đường dẫn tương đối
+        return { uri: `http://10.0.2.2:5000${item.thumbnail}` };
+      }
+      // Trả về undefined nếu không có ảnh
+      return undefined;
+    };
 
-    // No need to manually fix the URL, AsyncImage now handles this
-    const thumbnailUrl = item.thumbnail || '';
-
+    const imageSource = getImageSource();
+    
     return (
-      <TouchableOpacity
-        style={styles.productItem}
+      <TouchableOpacity 
+        style={styles.productCard}
         onPress={() => showProductDetails(item)}
-        activeOpacity={0.7}>
-        <AsyncImage
-          source={{uri: thumbnailUrl}}
-          style={styles.productImage}
-          resizeMode="contain"
-        />
-        <View style={styles.productInfo}>
-          <DynamicText style={styles.productName} numberOfLines={2}>
-            {productName}
-          </DynamicText>
-          <DynamicText style={styles.productCategory}>
-            {item.category ? item.category.name : 'Không phân loại'}
-          </DynamicText>
-          <DynamicText style={styles.productPrice}>
-            {price.toLocaleString('vi-VN')} đ
-          </DynamicText>
-          <View style={styles.productInfoBottom}>
-            <View style={styles.warrantyBadge}>
-              <DynamicText style={styles.warrantyText}>
-                <Text style={styles.warrantyIcon}>🛡️</Text>{' '}
-                {item.warrantyPeriod || 12} tháng BH
-              </DynamicText>
-            </View>
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={e => handleAddToCartClick(item, e)}>
-              <Add size={moderateScale(12)} color="#FFFFFF" variant="Linear" />
-            </TouchableOpacity>
+      >
+        {imageSource ? (
+          <FastImage 
+            source={imageSource}
+            style={styles.productImage}
+            resizeMode={FastImage.resizeMode.cover}
+          />
+        ) : (
+          <View style={[styles.productImage, styles.noImageContainer]}>
+            <Ionicons name="image-outline" size={40} color="#ccc" />
           </View>
+        )}
+        
+        <View style={styles.productInfo}>
+          <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
+          
+          {item.warrantyPeriod && (
+            <Text style={styles.warrantyText}>
+              BH: {item.warrantyPeriod} tháng
+            </Text>
+          )}
+          
+          {hasVariants ? (
+            <View>
+              <Text style={styles.variantText}>{item.variantDetails?.length} biến thể</Text>
+              <Text style={styles.priceText}>
+                Từ: {item.variantDetails?.reduce((min, v) => Math.min(min, v.price), Infinity).toLocaleString('vi-VN')}đ
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.priceText}>
+              {item.price?.toLocaleString('vi-VN')}đ
+            </Text>
+          )}
+          
+          <View style={styles.inventoryContainer}>
+            <Text style={styles.inventoryText}>
+              Còn: {hasVariants ? 
+                item.variantDetails?.reduce((sum, v) => sum + v.quantity, 0) : 
+                item.inventory
+              }
+            </Text>
+          </View>
+          
+          {isAvailable && (
+            <TouchableOpacity 
+              style={styles.addToCartBtn}
+              onPress={(e) => handleAddToCartClick(item, e)}
+            >
+              <Text style={styles.addToCartBtnText}>Thêm vào giỏ</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -712,7 +822,7 @@ const ProductScreen = observer(() => {
               data={filteredProducts}
               renderItem={renderItem}
               keyExtractor={item => item._id}
-              numColumns={5}
+              numColumns={4}
               contentContainerStyle={[
                 styles.productList,
                 {paddingBottom: moderateScale(100)},
@@ -1451,7 +1561,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     backgroundColor: '#F5F7FA',
   },
-  productItem: {
+  productCard: {
     backgroundColor: color.accentColor.whiteColor,
     borderRadius: moderateScale(12),
     maxWidth: '22%',
@@ -1468,8 +1578,9 @@ const styles = StyleSheet.create({
   },
   productImage: {
     width: '100%',
-    height: moderateScale(120),
-    backgroundColor: 'rgba(0, 0, 0, 0.02)',
+    aspectRatio: 1,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
   },
   productInfo: {
     padding: moderateScale(12),
@@ -1481,50 +1592,29 @@ const styles = StyleSheet.create({
     height: moderateScale(36),
     marginBottom: moderateScale(4),
   },
-  productCategory: {
-    fontSize: moderateScale(10),
-    color: color.accentColor.grayColor,
-    marginBottom: moderateScale(2),
-  },
-  productPrice: {
-    fontSize: scaledSize(24),
-    fontFamily: Fonts.Inter_SemiBold,
-    color: color.primaryColor,
-    marginBottom: moderateScale(2),
-  },
-  warrantyBadge: {
-    backgroundColor: '#FFF8E1',
-    paddingHorizontal: moderateScale(6),
-    paddingVertical: moderateScale(3),
-    borderRadius: moderateScale(4),
-    alignSelf: 'flex-start',
-    marginTop: moderateScale(6),
-    borderWidth: 1,
-    borderColor: 'rgba(255, 160, 0, 0.2)',
-  },
   warrantyText: {
     fontSize: scaledSize(18),
     color: '#FF8F00',
     fontWeight: '500',
   },
-  warrantyIcon: {
-    fontSize: moderateScale(10),
+  priceText: {
+    fontSize: scaledSize(24),
+    fontFamily: Fonts.Inter_SemiBold,
+    color: color.primaryColor,
+    marginBottom: moderateScale(2),
   },
-  addButton: {
-    width: moderateScale(20),
-    height: moderateScale(20),
-    borderRadius: moderateScale(5),
-    backgroundColor: color.primaryColor,
-    justifyContent: 'center',
+  inventoryContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
+    marginTop: moderateScale(4),
+  },
+  inventoryText: {
+    fontSize: moderateScale(14),
+    color: color.accentColor.grayColor,
+  },
+  variantText: {
+    fontSize: moderateScale(14),
+    color: color.accentColor.grayColor,
   },
   variantModalContent: {
     padding: moderateScale(20),
@@ -1852,5 +1942,22 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: moderateScale(4),
+  },
+  noImageContainer: {
+    backgroundColor: '#f5f5f5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addToCartBtn: {
+    backgroundColor: color.primaryColor,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 4,
+    alignItems: 'center',
+  },
+  addToCartBtnText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 14,
   },
 });
