@@ -969,6 +969,101 @@ const getProductsForBatch = async (req, res) => {
   }
 };
 
+// Add a new controller function for getting available inventory items for product selection
+const getAvailableInventory = async (req, res) => {
+  try {
+    console.log('Fetching available inventory items for product selection');
+    
+    // Create the query with explicit conditions
+    const query = { 
+      status: { $eq: "available" }, // Use $eq operator to ensure string comparison
+      // Only get items with positive quantity
+      $or: [
+        { total_quantity: { $gt: 0 } }, // For non-variant products
+        { "variantDetails.quantity": { $gt: 0 } } // For products with variants
+      ]
+    };
+    
+    console.log('Query structure:', JSON.stringify(query));
+    
+    // Find all available inventory items - use explicit string comparison for status
+    const availableInventory = await Inventory.find(query)
+      .populate('typeProduct_id')
+      .populate('provider_id')
+      .lean();
+    
+    console.log(`Found ${availableInventory.length} available inventory items`);
+    
+    // Get the Product model and find related products for thumbnails
+    try {
+      const Product = mongoose.model('Product');
+      
+      if (Product) {
+        // Find all products that reference these inventory items
+        const inventoryIds = availableInventory.map(item => item._id);
+        const relatedProducts = await Product.find({ 
+          inventoryId: { $in: inventoryIds } 
+        }).lean();
+        
+        console.log(`Found ${relatedProducts.length} related products with thumbnails`);
+        
+        // Add thumbnail information to inventory items
+        availableInventory.forEach(inventory => {
+          const relatedProduct = relatedProducts.find(
+            p => p.inventoryId && p.inventoryId.toString() === inventory._id.toString()
+          );
+          
+          if (relatedProduct && relatedProduct.thumbnail) {
+            inventory.productThumbnail = relatedProduct.thumbnail;
+          }
+        });
+      }
+    } catch (productError) {
+      console.error('Error fetching related product data:', productError);
+      // Continue without product thumbnails
+    }
+    
+    // If we found items, log the first one for debugging
+    if (availableInventory.length > 0) {
+      const sample = availableInventory[0];
+      console.log('Sample inventory item:', {
+        id: sample._id,
+        name: sample.product_name,
+        status: sample.status,
+        hasVariants: sample.hasVariants,
+        variantCount: sample.variantDetails?.length || 0,
+        thumbnail: sample.productThumbnail || 'None'
+      });
+    }
+    
+    // Send the response
+    res.status(200).json({
+      status: "Success",
+      message: "Available inventory items retrieved successfully",
+      data: availableInventory
+    });
+  } catch (error) {
+    console.error('Error fetching available inventory:', error);
+    console.error('Error stack:', error.stack);
+    
+    // Check if it's a MongoDB casting error
+    if (error.name === 'CastError') {
+      console.error('MongoDB Cast Error Details:', {
+        kind: error.kind,
+        path: error.path,
+        value: error.value,
+        model: error.model?.modelName || 'Unknown'
+      });
+    }
+    
+    res.status(500).json({
+      status: "Error",
+      message: "Failed to retrieve available inventory items",
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   importInventory,
   updateInventory,
@@ -978,4 +1073,5 @@ module.exports = {
   deleteInventory,
   getLastProductCode,
   getProductsForBatch,
+  getAvailableInventory
 };

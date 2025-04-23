@@ -88,6 +88,9 @@ router.get("/typeproduct/:id/variants", VariantController.getVariantsAsJson);
 // 🚀 Routes cho DetailsVariant (Chi tiết biến thể) - Không cần xác thực
 router.get("/variant/:id/details", DetailsVariantController.getDetailsByProduct);
 
+// Add a new route to get available inventory items - MUST be defined BEFORE the /:id route
+router.get("/available", InventoryController.getAvailableInventory);
+
 // Route động (đặt sau các route tĩnh) - Không cần xác thực
 router.get("/:id", InventoryController.getInventoryDetail);
 
