@@ -777,7 +777,7 @@ let originalTotalAmount = 0;
 // Function to open promotion dialog
 function openPromotionDialog() {
     // Fetch current promotions from the server
-    fetch("/promotions/json")
+    fetch("/promotions/api/json")
         .then(response => response.json())
         .then(promotions => {
             displayPromotions(promotions);
@@ -795,9 +795,29 @@ function closePromotionDialog() {
 }
 
 // Function to display promotions in dialog
-function displayPromotions(promotions) {
+function displayPromotions(promotionsData) {
     const promotionTableBody = document.getElementById("promotionTableBody");
     promotionTableBody.innerHTML = "";
+    
+    // Handle different response formats
+    let promotions = promotionsData;
+    if (promotionsData && typeof promotionsData === 'object' && !Array.isArray(promotionsData)) {
+        // Check if data is in a nested property
+        if (promotionsData.data) {
+            promotions = promotionsData.data;
+        }
+    }
+    
+    // Ensure promotions is an array
+    if (!Array.isArray(promotions)) {
+        console.error('Invalid promotions data format:', promotionsData);
+        promotionTableBody.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center">Không thể tải danh sách khuyến mãi</td>
+            </tr>
+        `;
+        return;
+    }
     
     // Get current date for comparison
     const currentDate = new Date();
@@ -816,7 +836,7 @@ function displayPromotions(promotions) {
     if (activePromotions.length === 0) {
         promotionTableBody.innerHTML = `
             <tr>
-                <td colspan="5" class="text-center">Không có khuyến mãi nào đang hoạt động</td>
+                <td colspan="6" class="text-center">Không có khuyến mãi nào đang hoạt động</td>
             </tr>
         `;
         return;

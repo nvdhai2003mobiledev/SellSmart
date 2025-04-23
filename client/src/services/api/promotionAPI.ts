@@ -1,5 +1,4 @@
 import { create, ApiResponse } from 'apisauce';
-import { AxiosError } from 'axios';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { IPromotion } from '../../models/promotion/promotion';
@@ -102,37 +101,42 @@ export const promotionAPI = {
     console.log('🔍 Fetching promotions from:', ApiEndpoint.PROMOTIONS);
     console.log('🔑 Using token:', rootStore.auth.accessToken); // Debug log for token
 
-    // Try each port until one works
-    for (let i = 0; i < PORTS.length; i++) {
-      const port = PORTS[i];
-      const baseUrl = `${Platform.OS === 'android' ? ANDROID_BASE_URL : IOS_BASE_URL}:${port}`;
-      console.log(`🔄 Trying base URL: ${baseUrl}`);
-      
-      apiClient.setBaseURL(baseUrl);
-      
-      try {
-        const response = await apiClient.get<IPromotion[]>(ApiEndpoint.PROMOTIONS);
-        console.log(`📦 Response from ${baseUrl}:`, response);
+    const baseUrl = Platform.OS === 'android' ? `${ANDROID_BASE_URL}:5000` : `${IOS_BASE_URL}:5000`;
+    console.log(`🔄 Using base URL: ${baseUrl}`);
+    
+    apiClient.setBaseURL(baseUrl);
+    
+    try {
+      const response = await apiClient.get<any>(ApiEndpoint.PROMOTIONS);
+      console.log(`📦 Raw promotion response:`, response);
 
-        if (response.ok && response.data) {
-          saveActivePort(port);
-          return response;
+      if (response.ok) {
+        // Handle different response formats
+        if (Array.isArray(response.data)) {
+          return { ...response, data: response.data };
+        } else if (response.data && Array.isArray(response.data.data)) {
+          return { ...response, data: response.data.data };
+        } else if (response.data && typeof response.data === 'object') {
+          // If response is an object but not in the expected format
+          console.log('Converting unexpected response format');
+          return { ...response, data: [response.data] };
         }
-      } catch (error) {
-        console.error(`❌ Error with ${baseUrl}:`, error);
       }
+      
+      console.error(`❌ Failed to get promotions:`, response.problem);
+      return response;
+    } catch (error) {
+      console.error(`❌ Error fetching promotions:`, error);
+      return {
+        ok: false,
+        problem: 'NETWORK_ERROR',
+        data: [] as IPromotion[],
+        status: 500,
+        headers: {},
+        config: {},
+        originalError: error instanceof Error ? error : new Error('Unknown error')
+      } as ApiResponse<IPromotion[]>;
     }
-
-    // If all ports failed, return error response
-    return {
-      ok: false,
-      problem: 'NETWORK_ERROR',
-      data: [] as IPromotion[],
-      status: 500,
-      headers: {},
-      config: {},
-      originalError: new AxiosError('Failed to connect to any available ports')
-    };
   },
   
   // Get promotion by ID

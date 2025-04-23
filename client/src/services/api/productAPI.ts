@@ -203,8 +203,33 @@ export const fetchCategories = async () => {
   }
 };
 
+// Add a new function to fetch inventory data for product selection
+export const fetchInventoriesForProductSelection = async () => {
+  try {
+    console.log('Fetching inventory data for product selection...');
+    
+    // Create timestamp to avoid cache
+    const timestamp = Date.now();
+    
+    // Use the API instance to get inventory data
+    const response = await Api.get(`/inventory/available?_=${timestamp}`);
+    
+    if (response.ok && response.data) {
+      console.log('Successfully fetched inventory data for product selection');
+      return response.data.data || [];
+    } else {
+      console.error('Failed to fetch inventory data:', response.problem);
+      throw new Error(response.data?.message || 'Failed to fetch inventory data');
+    }
+  } catch (error) {
+    console.error('Exception in fetchInventoriesForProductSelection:', error);
+    throw error;
+  }
+};
+
 export default {
   fetchProducts,
   addProduct,
   fetchCategories,
+  fetchInventoriesForProductSelection,
 };

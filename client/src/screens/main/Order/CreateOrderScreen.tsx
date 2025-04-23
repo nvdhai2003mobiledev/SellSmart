@@ -1,7 +1,7 @@
 import React, {useState, useEffect} from 'react';
 import {
   View,
-  Text,
+  Text as RNText,
   Image,
   TouchableOpacity,
   StyleSheet,
@@ -9,11 +9,12 @@ import {
   Alert,
   Modal,
   FlatList,
+  Dimensions,
+  Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {
   BaseLayout,
-  Button,
   Input,
   Header,
   DynamicText,
@@ -41,6 +42,8 @@ interface Product {
     value: string | string[];
   }>;
   variantId?: string;
+  originalProductId?: string;
+  product_code?: string;
 }
 
 // Customer type definition
@@ -70,7 +73,7 @@ const CreateOrderScreen = observer(() => {
     null,
   );
   const [notes, setNotes] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('cash');
+  const [_paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('cash');
   const [paymentStatus, setPaymentStatus] = useState<
     'paid' | 'unpaid' | 'partpaid'
   >('paid');
@@ -90,6 +93,18 @@ const CreateOrderScreen = observer(() => {
     amount: number;
     isPartial: boolean;
   } | null>(null);
+
+  // At the beginning of the component, add:
+  const windowWidth = Dimensions.get('window').width;
+  const windowHeight = Dimensions.get('window').height;
+  
+  // Then add code after useState declarations:
+  
+  // Device specific modal adjustments
+  const isIOS = Platform.OS === 'ios';
+  useEffect(() => {
+    console.log('Device info - Width:', windowWidth, 'Height:', windowHeight, 'Platform:', Platform.OS);
+  }, []);
 
   // Calculate totals
   const calculateTotal = () => {
@@ -122,8 +137,10 @@ const CreateOrderScreen = observer(() => {
     try {
       setIsLoadingPromotions(true);
       setPromotionError('');
+      console.log('Starting to fetch promotions...');
 
       const response = await promotionAPI.getPromotions();
+      console.log('Promotion API response:', JSON.stringify(response, null, 2));
 
       if (response.ok && response.data) {
         // Filter only active promotions with valid dates
@@ -138,7 +155,7 @@ const CreateOrderScreen = observer(() => {
         console.log('Active promotions found:', activePromotions.length);
         setPromotions(activePromotions);
       } else {
-        console.error('Failed to fetch promotions:', response.problem);
+        console.error('Failed to fetch promotions:', response.problem, response.status, response.originalError);
         setPromotionError('Không thể tải danh sách khuyến mãi');
       }
     } catch (error) {
@@ -179,12 +196,9 @@ const CreateOrderScreen = observer(() => {
 
   // Navigation functions
   const navigateToProductSelection = () => {
-    // Truyền cả thông tin khách hàng để giữ trạng thái khi quay lại
+    // Properly pass currently selected products to preserve selections
     navigation.navigate(Screen.CHOOSE_ORDER_PRODUCT as any, {
       selectedProducts,
-      selectedCustomer,
-      onProductsSelected: (products: Product[]) =>
-        setSelectedProducts(products),
     });
   };
 
@@ -197,27 +211,33 @@ const CreateOrderScreen = observer(() => {
 
   // Open promotion selection modal
   const openPromotionModal = () => {
-    if (promotions.length === 0) {
-      fetchPromotions();
-    }
+    console.log('Opening promotion modal');
+    
+    // Set modal visible immediately to ensure it shows up
     setShowPromotionModal(true);
+    console.log('Modal visibility set to true: ', showPromotionModal);
+    
+    // Then fetch promotions
+    fetchPromotions()
+      .then(() => {
+        console.log(`Fetched ${promotions.length} promotions for modal`);
+      })
+      .catch(error => {
+        console.error('Error fetching promotions:', error);
+        setPromotionError('Đã xảy ra lỗi khi tải khuyến mãi');
+      });
   };
 
-  // Get selected products and customer from navigation params
+  // Initialize with products from route params and preserve state
   useEffect(() => {
-    // Lưu trạng thái khách hàng hiện tại trước khi cập nhật
-    const currentCustomer = selectedCustomer;
-
-    // Cập nhật từ route.params
+    // Handle selected products from product selection screen
     if (route.params?.selectedProducts) {
       setSelectedProducts(route.params.selectedProducts);
     }
-
+    
+    // Handle customer if provided in the route params
     if (route.params?.customer) {
       setSelectedCustomer(route.params.customer);
-    } else if (currentCustomer) {
-      // Nếu route.params không có customer mới nhưng đã có customer được chọn từ trước, giữ lại customer cũ
-      setSelectedCustomer(currentCustomer);
     }
   }, [route.params]);
 
@@ -271,7 +291,7 @@ const CreateOrderScreen = observer(() => {
       const total = selectedPromotion
         ? calculateTotal() - calculateDiscount()
         : calculateTotal();
-
+      
       // Xác định thông tin thanh toán
       const paidAmount = paymentDetails ? paymentDetails.amount : 0;
       const isFullyPaid = paidAmount >= total;
@@ -284,11 +304,25 @@ const CreateOrderScreen = observer(() => {
         : 'partpaid';
 
       // Trạng thái đơn hàng dựa trên thanh toán
-      const orderStatus = isFullyPaid ? 'processing' : 'pending';
+      const orderStatus = paymentStatus === 'unpaid' ? 'pending' : 'processing';
 
       // Log thông tin thanh toán để debug
-      console.log('=== THÔNG TIN THANH TOÁN TRƯỚC KHI TẠO ĐƠN HÀNG ===');
-      console.log(`Số tiền đơn hàng: ${total}`);
+      console.log('===== Thông tin đơn hàng trước khi gửi =====');
+      console.log(`Khách hàng: ${selectedCustomer.fullName}`);
+      console.log(`Sản phẩm: ${selectedProducts.length} items`);
+      selectedProducts.forEach((product, index) => {
+        console.log(`${index + 1}. ${product.name} x ${product.quantity} (ID: ${product._id})`);
+        if (product.originalProductId) {
+          console.log(`   Original Product ID: ${product.originalProductId}`);
+        }
+        if (product.variantId) {
+          console.log(`   Variant ID: ${product.variantId}`);
+        }
+        if (product.attributes && product.attributes.length > 0) {
+          console.log(`   Attributes: ${JSON.stringify(product.attributes)}`);
+        }
+      });
+      console.log(`Tổng tiền: ${total}`);
       console.log(`Số tiền đã thanh toán: ${paidAmount}`);
       console.log(`Đã thanh toán đủ: ${isFullyPaid ? 'Có' : 'Không'}`);
       console.log(
@@ -306,18 +340,44 @@ const CreateOrderScreen = observer(() => {
         );
       }
 
-      // Chuẩn bị dữ liệu đơn hàng
+      // Map products for the order data
       const orderData = {
         customerID: selectedCustomer._id,
-        products: selectedProducts.map(product => ({
-          productID: product._id,
-          name: product.name,
-          quantity: product.quantity,
-          price: product.price,
-          inventory: product.inventory || Math.max(1, product.quantity),
-          attributes: product.attributes || [],
-          variantID: product.variantId || undefined,
-        })),
+        products: selectedProducts.map(product => {
+          // Start with productID from the product
+          let productID = product._id;
+          let variantID = product.variantId;
+          
+          // If no originalProductId exists, but _id contains a dash, it was previously combined
+          if (!product.originalProductId && typeof product._id === 'string' && product._id.includes('-')) {
+            const parts = product._id.split('-');
+            productID = parts[0];  // First part is the actual product ID
+            variantID = parts[1] || variantID;  // Second part is the variant ID if it exists
+            console.log(`Split combined ID: Original=${productID}, Variant=${variantID}`);
+          }
+          
+          // Ensure variant ID is properly formatted
+          if (variantID && typeof variantID === 'object' && variantID._id) {
+            variantID = variantID._id.toString();
+          } else if (variantID) {
+            variantID = variantID.toString();
+          }
+          
+          console.log(`Product in order: ${product.name}`);
+          console.log(`Final ProductID: ${productID}`);
+          console.log(`Final VariantID: ${variantID || 'None'}`);
+          
+          return {
+            productID: productID,
+            name: product.name,
+            quantity: product.quantity,
+            price: product.price,
+            inventory: product.inventory || Math.max(1, product.quantity),
+            attributes: product.attributes || [],
+            variantID: variantID || undefined,
+            product_code: product.product_code || undefined
+          };
+        }),
         totalAmount: total,
         paymentMethod: paymentDetails ? paymentDetails.method : null,
         paymentStatus: paymentStatus,
@@ -439,6 +499,19 @@ const CreateOrderScreen = observer(() => {
   // Render product item in the list
   const renderProductItem = (product: Product, index: number) => (
     <View key={product._id || index} style={styles.productContainer}>
+      {/* Thumbnail image with proper URL handling */}
+      {product.thumbnail ? (
+        <Image 
+          source={{ uri: product.thumbnail }} 
+          style={styles.productImage}
+          resizeMode="cover"
+        />
+      ) : (
+        <View style={[styles.productImage, {backgroundColor: '#f5f5f5', justifyContent: 'center', alignItems: 'center'}]}>
+          <RNText style={{fontSize: 18, color: '#999'}}>{product.name?.[0] || '?'}</RNText>
+        </View>
+      )}
+      
       <View style={styles.productDetails}>
         <DynamicText style={styles.productName}>{product.name}</DynamicText>
         <DynamicText style={styles.productVariant}>
@@ -475,6 +548,9 @@ const CreateOrderScreen = observer(() => {
       </TouchableOpacity>
     </View>
   );
+
+  // Log modal state on each render for debugging
+  console.log('Render - showPromotionModal:', showPromotionModal, 'promotions:', promotions.length);
 
   return (
     <BaseLayout>
@@ -816,17 +892,26 @@ const CreateOrderScreen = observer(() => {
       {/* Promotion Selection Modal */}
       <Modal
         visible={showPromotionModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowPromotionModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+        transparent={true}
+        animationType="slide"
+        statusBarTranslucent={true}
+        hardwareAccelerated={true}
+        presentationStyle="overFullScreen"
+        onRequestClose={() => {
+          console.log('Modal closing by request');
+          setShowPromotionModal(false);
+        }}>
+        <View style={[styles.modalOverlay, {zIndex: 1000}]}>
+          <View style={[styles.modalContent, {zIndex: 1001}]}>
             <View style={styles.modalHeader}>
               <DynamicText style={styles.modalTitle}>
                 Danh sách khuyến mãi
               </DynamicText>
               <TouchableOpacity
-                onPress={() => setShowPromotionModal(false)}
+                onPress={() => {
+                  console.log('Close button pressed');
+                  setShowPromotionModal(false);
+                }}
                 style={styles.closeButton}>
                 <DynamicText style={styles.closeButtonText}>×</DynamicText>
               </TouchableOpacity>
@@ -998,15 +1083,22 @@ const styles = StyleSheet.create({
   },
   productContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: moderateScale(8),
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    padding: moderateScale(8),
+    backgroundColor: color.backgroundColor,
+    borderRadius: moderateScale(8),
+    marginVertical: moderateScale(4),
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  productImage: {
+    width: moderateScale(60),
+    height: moderateScale(60),
+    borderRadius: moderateScale(4),
+    marginRight: moderateScale(10),
   },
   productDetails: {
     flex: 1,
-    marginRight: moderateScale(8),
   },
   productName: {
     fontSize: moderateScale(14),
@@ -1169,13 +1261,24 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+    padding: moderateScale(16),
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
   modalContent: {
     backgroundColor: '#fff',
     borderRadius: moderateScale(12),
-    width: '90%',
+    width: '100%',
     maxHeight: '80%',
     padding: moderateScale(16),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 10,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1197,88 +1300,89 @@ const styles = StyleSheet.create({
   closeButtonText: {
     fontSize: moderateScale(24),
     color: '#000',
+    fontWeight: 'bold',
   },
   loadingContainer: {
-    padding: moderateScale(32),
+    padding: moderateScale(16),
     alignItems: 'center',
   },
   loadingText: {
-    fontSize: moderateScale(16),
+    fontSize: moderateScale(14),
     color: '#666',
   },
   errorContainer: {
-    padding: moderateScale(32),
+    padding: moderateScale(16),
     alignItems: 'center',
   },
   errorText: {
-    fontSize: moderateScale(16),
-    color: 'red',
-    textAlign: 'center',
+    fontSize: moderateScale(14),
+    color: color.accentColor.errorColor,
   },
   emptyContainer: {
-    padding: moderateScale(32),
+    padding: moderateScale(16),
     alignItems: 'center',
   },
   emptyText: {
-    fontSize: moderateScale(16),
+    fontSize: moderateScale(14),
     color: '#666',
-    textAlign: 'center',
+  },
+  promotionList: {
+    paddingVertical: moderateScale(8),
   },
   promotionItem: {
-    backgroundColor: '#f0f7ff',
+    backgroundColor: '#f7f9fc',
     borderRadius: moderateScale(8),
-    padding: moderateScale(16),
-    marginBottom: moderateScale(12),
+    padding: moderateScale(12),
+    marginBottom: moderateScale(8),
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  ineligiblePromotion: {
+    opacity: 0.6,
+    backgroundColor: '#f0f0f0',
   },
   promotionItemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: moderateScale(8),
   },
   promotionItemName: {
     fontSize: moderateScale(16),
     fontFamily: Fonts.Inter_SemiBold,
     color: '#000',
+    flex: 1,
+  },
+  statusBadge: {
+    paddingHorizontal: moderateScale(8),
+    paddingVertical: moderateScale(2),
+    borderRadius: moderateScale(4),
+  },
+  eligibleBadge: {
+    backgroundColor: '#e1f5fe',
+  },
+  ineligibleBadge: {
+    backgroundColor: '#f5f5f5',
+  },
+  statusText: {
+    fontSize: moderateScale(10),
+    color: '#007AFF',
   },
   promotionItemDetails: {
     marginBottom: moderateScale(8),
   },
   promotionItemDetail: {
-    fontSize: moderateScale(14),
-    color: '#666',
-    marginVertical: moderateScale(2),
-  },
-  statusBadge: {
-    paddingHorizontal: moderateScale(8),
-    paddingVertical: moderateScale(4),
-    borderRadius: moderateScale(4),
-    marginTop: moderateScale(4),
-    alignSelf: 'flex-start',
-  },
-  eligibleBadge: {
-    backgroundColor: '#4CAF50',
-  },
-  ineligibleBadge: {
-    backgroundColor: '#FF5722',
-  },
-  statusText: {
     fontSize: moderateScale(12),
-    color: '#fff',
-    fontFamily: Fonts.Inter_SemiBold,
-  },
-  ineligiblePromotion: {
-    opacity: 0.7,
-    backgroundColor: '#f0f0f0',
+    color: '#666',
+    marginBottom: moderateScale(4),
   },
   promotionDates: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: moderateScale(8),
   },
   dateText: {
-    fontSize: moderateScale(12),
-    color: '#666',
-  },
-  promotionList: {
-    paddingVertical: moderateScale(8),
+    fontSize: moderateScale(10),
+    color: '#999',
   },
   paymentStatusContainer: {
     marginTop: moderateScale(8),
