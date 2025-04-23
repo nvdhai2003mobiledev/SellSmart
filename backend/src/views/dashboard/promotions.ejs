@@ -231,264 +231,60 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://pagination.js.org/dist/2.1.5/pagination.min.js"></script>
 <script>
-  // Pagination variables
-  let currentPageIndex = 1;
-  let itemsPerPage = 10;
-  let filteredPromotions = [];
-  
-  // Hàm tính trạng thái dựa trên ngày
-  function calculateStatus(startDate, endDate) {
-    const currentDate = new Date(); // Ngày hiện tại thực tế từ client
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    if (currentDate < start) return "sapdienra";
-    if (currentDate >= start && currentDate <= end) return "active";
-    return "expired";
-  }
-
-  // Cập nhật trạng thái khi thay đổi ngày
-  document.getElementById("startDate").addEventListener("change", updateStatus);
-  document.getElementById("endDate").addEventListener("change", updateStatus);
-
-  function updateStatus() {
-    const startDate = document.getElementById("startDate").value;
-    const endDate = document.getElementById("endDate").value;
-    if (startDate && endDate) {
-      document.getElementById("status").value = calculateStatus(startDate, endDate);
-    }
-  }
-
-  // Submit form handler
-  document.getElementById("submitBtn").addEventListener("click", async () => {
-    const promotionForm = document.getElementById("promotionForm");
-    const promotionData = {
-      name: document.getElementById("name").value,
-      discount: document.getElementById("discount").value,
-      minOrderValue: document.getElementById("minOrderValue").value,
-      maxDiscount: document.getElementById("maxDiscount").value,
-      status: calculateStatus(document.getElementById("startDate").value, document.getElementById("endDate").value),
-      startDate: document.getElementById("startDate").value,
-      endDate: document.getElementById("endDate").value,
-    };
-    
-    const validationError = validatePromotion(promotionData);
-    if (validationError) {
-      alert(validationError);
-      return;
-    }
-    
-    const promotionId = document.getElementById("promotionId").value;
-    try {
-      if (promotionId) {
-        await updatePromotion(promotionId, promotionData);
-      } else {
-        await addPromotion(promotionData);
-      }
-    } catch (error) {
-      console.error("Lỗi:", error);
-      alert("Có lỗi xảy ra!");
-    }
-  });
-
-  function validatePromotion(data) {
-    if (!data.name.trim()) return "Tên khuyến mãi không được để trống";
-    if (data.discount <= 0 || data.discount > 100) return "Giảm giá phải từ 1% đến 100%";
-    if (data.minOrderValue <= 0) return "Giá trị đơn tối thiểu phải lớn hơn 0";
-    if (data.maxDiscount <= 0) return "Giảm giá tối đa phải lớn hơn 0";
-    if (parseFloat(data.maxDiscount) <= parseFloat(data.minOrderValue)) return "Giảm giá tối đa phải lớn hơn giá trị đơn tối thiểu";
-    const startDate = new Date(data.startDate);
-    const endDate = new Date(data.endDate);
-    if (endDate < startDate) return "Ngày kết thúc phải sau ngày bắt đầu";
-    return null;
-  }
-
-  async function addPromotion(data) {
-    const response = await fetch("/promotions", {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify(data),
+  $(document).ready(function () {
+    // Xử lý khi click vào nút thêm mới
+    $("#addPromotionBtn").click(function () {
+      // ...
     });
-    if (!response.ok) throw new Error("Thêm thất bại");
-    const result = await response.json();
-    alert(result.message);
-    location.reload();
-  }
 
-  async function updatePromotion(id, data) {
-    const response = await fetch(`/promotions/${id}`, {
-      method: "PUT",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify(data),
-    });
-    if (!response.ok) throw new Error("Cập nhật thất bại");
-    const result = await response.json();
-    alert(result.message);
-    location.reload();
-  }
-
-  // Delete promotion handler
-  $(document).on('click', '.delete-btn', function() {
-    const id = $(this).data('id');
-    $('#deletePromotionId').val(id);
-    new bootstrap.Modal(document.getElementById('deleteConfirmModal')).show();
-  });
-  
-  $('#confirmDeleteBtn').click(async function() {
-    const id = $('#deletePromotionId').val();
-    if (!id) return;
-    
-    try {
-      const response = await fetch(`/promotions/${id}`, {
-        method: "DELETE",
-        headers: {"Content-Type": "application/json"},
-      });
-      if (!response.ok) throw new Error("Xóa thất bại");
-      const result = await response.json();
-      alert(result.message);
-      location.reload();
-    } catch (error) {
-      console.error("Lỗi:", error);
-      alert("Có lỗi xảy ra khi xóa khuyến mãi!");
-    }
-    
-    bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal')).hide();
-  });
-
-  // Edit promotion handler
-  $(document).on('click', '.edit-btn', function() {
-    const btn = $(this);
-    $('#promotionId').val(btn.data('id'));
-    $('#name').val(btn.data('name'));
-    $('#discount').val(btn.data('discount'));
-    $('#minOrderValue').val(btn.data('min-order'));
-    $('#maxDiscount').val(btn.data('max-discount'));
-    $('#status').val(btn.data('status'));
-    $('#startDate').val(btn.data('start-date'));
-    $('#endDate').val(btn.data('end-date'));
-    
-    $('#promotionModalTitle').html('<i class="fas fa-edit me-2"></i>Cập nhật khuyến mãi');
-    $('#submitBtn').text('Cập nhật');
-    new bootstrap.Modal(document.getElementById('promotionModal')).show();
-  });
-
-  // Reset form when modal is hidden
-  $('#promotionModal').on('hidden.bs.modal', function () {
-    $('#promotionForm').trigger('reset');
-    $('#promotionId').val('');
-    $('#promotionModalTitle').html('<i class="fas fa-percent me-2"></i>Thêm khuyến mãi mới');
-    $('#submitBtn').text('Lưu khuyến mãi');
-  });
-
-  // Function to update promotions display based on pagination
-  function updatePromotionDisplay() {
-    // Get all visible promotion rows
-    const rows = $('#promotionList tr:not([class*="no-results"])');
-    filteredPromotions = [];
-    
-    // Filter the promotions based on current filters
-    rows.each(function() {
-      const row = $(this);
-      if (row.css('display') !== 'none') {
-        filteredPromotions.push(row);
+    // Xử lý phân trang sử dụng thư viện pagination.js
+    const promotionPagination = initializePagination({
+      itemSelector: 'tbody tr',
+      itemsPerPageSelector: '#itemsPerPage',
+      prevPageSelector: '#prevPage',
+      nextPageSelector: '#nextPage',
+      currentPageSelector: '#currentPage',
+      totalItemsSelector: '#totalItems',
+      itemNameSingular: 'khuyến mãi',
+      itemNamePlural: 'khuyến mãi',
+      onPageChange: function(state) {
+        // Cập nhật số thứ tự nếu cần
+        const visibleRows = $('tbody tr:visible');
+        visibleRows.each(function(index) {
+          const startIndex = (state.currentPageIndex - 1) * state.itemsPerPage;
+          $(this).find('td:first').text(startIndex + index + 1);
+        });
       }
     });
-    
-    // Update total count
-    $('#totalItems').text(filteredPromotions.length);
-    
-    // Calculate total pages
-    const totalPages = Math.ceil(filteredPromotions.length / itemsPerPage);
-    
-    // Hide all rows initially
-    rows.hide();
-    
-    // Show only rows for current page
-    const start = (currentPageIndex - 1) * itemsPerPage;
-    const end = Math.min(start + itemsPerPage, filteredPromotions.length);
-    
-    for (let i = start; i < end; i++) {
-      $(filteredPromotions[i]).show();
-    }
-    
-    // Update pagination buttons state
-    $('#prevPage').toggleClass('disabled', currentPageIndex === 1);
-    $('#nextPage').toggleClass('disabled', currentPageIndex === totalPages || totalPages === 0);
-    $('#currentPage').text(currentPageIndex);
-  }
-  
-  // Handle items per page change
-  $('#itemsPerPage').change(function() {
-    itemsPerPage = parseInt($(this).val());
-    currentPageIndex = 1;
-    updatePromotionDisplay();
-  });
-  
-  // Handle pagination navigation
-  $('#prevPage').click(function(e) {
-    e.preventDefault();
-    if (currentPageIndex > 1) {
-      currentPageIndex--;
-      updatePromotionDisplay();
-    }
-  });
-  
-  $('#nextPage').click(function(e) {
-    e.preventDefault();
-    const totalPages = Math.ceil(filteredPromotions.length / itemsPerPage);
-    if (currentPageIndex < totalPages) {
-      currentPageIndex++;
-      updatePromotionDisplay();
-    }
-  });
-  
-  // Filter functionality
-  $('#applyFilter').click(function() {
-    const status = $('#statusFilter').val();
-    const search = $('#searchInput').val().toLowerCase();
-    
-    $('#promotionList tr').each(function() {
-      const row = $(this);
-      let statusMatch = true;
-      let searchMatch = true;
+
+    // Tìm kiếm khuyến mãi
+    $("#searchBtn").click(function() {
+      const searchText = $("#searchInput").val().toLowerCase();
+      const statusFilter = $("#statusFilter").val().toLowerCase();
       
-      if (status) {
-        const rowStatus = row.find('td:nth-child(5) .badge').text().toLowerCase();
-        statusMatch = (status === 'active' && rowStatus.includes('đang diễn ra')) ||
-                       (status === 'sapdienra' && rowStatus.includes('sắp diễn ra')) ||
-                       (status === 'expired' && rowStatus.includes('hết hạn'));
-      }
+      // Tạo hàm lọc cho pagination
+      const filterFn = function(item) {
+        const row = $(item);
+        const rowText = row.text().toLowerCase();
+        const rowStatus = row.find('.promotion-status').text().toLowerCase();
+        
+        const matchSearch = !searchText || rowText.includes(searchText);
+        const matchStatus = !statusFilter || rowStatus.includes(statusFilter);
+        
+        return matchSearch && matchStatus;
+      };
       
-      if (search) {
-        const rowName = row.find('td:first-child').text().toLowerCase();
-        searchMatch = rowName.includes(search);
-      }
-      
-      if (statusMatch && searchMatch) {
-        row.show();
-      } else {
-        row.hide();
-      }
+      // Áp dụng bộ lọc sử dụng thư viện pagination
+      promotionPagination.filterItems(filterFn);
     });
     
-    // Reset to page 1 after filtering
-    currentPageIndex = 1;
-    updatePromotionDisplay();
-  });
-  
-  // Search on input change (optional)
-  $('#searchInput').on('input', function() {
-    if (this.value.length >= 3 || this.value.length === 0) {
-      $('#applyFilter').click();
-    }
-  });
-  
-  // Initialize pagination on page load
-  $(document).ready(function() {
-    // Initial count of promotions
-    const totalPromotions = $('#promotionList tr').length;
-    $('#totalItems').text(totalPromotions);
-    updatePromotionDisplay();
-    updateStatus();
+    // Reset tìm kiếm
+    $("#resetBtn").click(function() {
+      $("#searchInput").val("");
+      $("#statusFilter").val("");
+      promotionPagination.resetFilters();
+    });
   });
 </script>

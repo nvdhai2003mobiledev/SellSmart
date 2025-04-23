@@ -23,7 +23,7 @@
                     <th width="10%" class="text-center">Hành động</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="typeProductTableBody">
                 <% types.forEach(type => { %>
                     <tr id="type-row-<%= type._id %>">
                         <td><strong><%= type.name %></strong></td>
@@ -39,6 +39,40 @@
                 <% }); %>
             </tbody>
         </table>
+        
+        <!-- Pagination -->
+        <div class="d-flex justify-content-between align-items-center p-3 border-top">
+            <div class="d-flex align-items-center">
+                <label class="text-muted me-2">Hiển thị:</label>
+                <select class="form-select form-select-sm" id="itemsPerPage" style="width: auto;">
+                    <option value="5">5</option>
+                    <option value="10" selected>10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                </select>
+                <span class="text-muted ms-2">danh mục</span>
+            </div>
+            <nav aria-label="Type navigation">
+                <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item" id="prevPage">
+                        <a class="page-link" href="#" aria-label="Previous">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <span class="page-link" id="currentPage">1</span>
+                    </li>
+                    <li class="page-item" id="nextPage">
+                        <a class="page-link" href="#" aria-label="Next">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            <div class="text-muted">
+                Tổng số: <span class="fw-semibold" id="totalItems">0</span> danh mục
+            </div>
+        </div>
     </div>
 
     <!-- Modal thêm loại sản phẩm -->
@@ -108,83 +142,102 @@
 <script>
     let addTypeModal, editTypeModal;
 
-    $(document).ready(function() {
-        addTypeModal = new bootstrap.Modal($('#addTypeModal'));
-        editTypeModal = new bootstrap.Modal($('#editTypeModal'));
-    });
-
-    function openAddModal() {
-        $('#addTypeName').val('');
-        addTypeModal.show();
-    }
-
-    function editType(id, name) {
-        $('#editTypeId').val(id);
-        $('#editTypeName').val(name);
-        editTypeModal.show();
-    }
-
-    $('#addTypeForm').submit(function(e) {
-        e.preventDefault();
-        const name = $('#addTypeName').val().trim();
-        if (!name || name.length < 2) {
-            showErrorToast('Tên loại sản phẩm phải có ít nhất 2 ký tự!');
-            return;
+    document.addEventListener('DOMContentLoaded', function() {
+        // Khởi tạo modals
+        addTypeModal = new bootstrap.Modal(document.getElementById('addTypeModal'));
+        editTypeModal = new bootstrap.Modal(document.getElementById('editTypeModal'));
+        
+        // Khởi tạo phân trang
+        const typePagination = initializePagination({
+            itemSelector: '#typeProductTableBody tr',
+            itemsPerPageSelector: '#itemsPerPage',
+            prevPageSelector: '#prevPage',
+            nextPageSelector: '#nextPage',
+            currentPageSelector: '#currentPage',
+            totalItemsSelector: '#totalItems',
+            itemNameSingular: 'danh mục',
+            itemNamePlural: 'danh mục'
+        });
+        
+        // Hàm mở modal thêm loại sản phẩm
+        function openAddModal() {
+            $('#addTypeName').val('');
+            addTypeModal.show();
         }
 
-        $.ajax({
-            url: '/typeproduct/create',
-            type: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({ name }),
-            success: function(response) {
-                if (response.status === 'Ok') {
-                    addTypeModal.hide();
-                    showSuccessToast('Thêm loại sản phẩm thành công!');
-                    setTimeout(() => location.reload(), 1500);
-                } else {
-                    showErrorToast(response.message);
-                }
-            },
-            error: xhr => showErrorToast('Lỗi khi thêm loại sản phẩm: ' + (xhr.responseJSON?.message || 'Vui lòng thử lại!'))
-        });
-    });
-
-    $('#editTypeForm').submit(function(e) {
-        e.preventDefault();
-        const id = $('#editTypeId').val();
-        const name = $('#editTypeName').val().trim();
-        if (!name || name.length < 2) {
-            showErrorToast('Tên loại sản phẩm phải có ít nhất 2 ký tự!');
-            return;
+        // Hàm chỉnh sửa loại sản phẩm
+        function editType(id, name) {
+            $('#editTypeId').val(id);
+            $('#editTypeName').val(name);
+            editTypeModal.show();
         }
 
-        $.ajax({
-            url: `/typeproduct/update/${id}`,
-            type: 'PUT',
-            contentType: 'application/json',
-            data: JSON.stringify({ name }),
-            success: function(response) {
-                if (response.status === 'Ok') {
-                    editTypeModal.hide();
-                    showSuccessToast('Cập nhật loại sản phẩm thành công!');
-                    $(`#type-row-${id} td:nth-child(1)`).html(`<strong>${name}</strong>`);
-                    $(`#type-row-${id} td:nth-child(4)`).text(new Date().toLocaleString('vi-VN'));
-                } else {
-                    showErrorToast(response.message);
-                }
-            },
-            error: xhr => showErrorToast('Lỗi khi cập nhật loại sản phẩm: ' + (xhr.responseJSON?.message || 'Vui lòng thử lại!'))
+        // Xử lý thêm loại sản phẩm
+        $('#addTypeForm').submit(function(e) {
+            e.preventDefault();
+            const name = $('#addTypeName').val().trim();
+            if (!name || name.length < 2) {
+                showErrorToast('Tên loại sản phẩm phải có ít nhất 2 ký tự!');
+                return;
+            }
+
+            $.ajax({
+                url: '/typeproduct/create',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ name }),
+                success: function(response) {
+                    if (response.status === 'Ok') {
+                        addTypeModal.hide();
+                        showSuccessToast('Thêm loại sản phẩm thành công!');
+                        setTimeout(() => location.reload(), 1500);
+                    } else {
+                        showErrorToast(response.message);
+                    }
+                },
+                error: xhr => showErrorToast('Lỗi khi thêm loại sản phẩm: ' + (xhr.responseJSON?.message || 'Vui lòng thử lại!'))
+            });
         });
+
+        // Xử lý chỉnh sửa loại sản phẩm
+        $('#editTypeForm').submit(function(e) {
+            e.preventDefault();
+            const id = $('#editTypeId').val();
+            const name = $('#editTypeName').val().trim();
+            if (!name || name.length < 2) {
+                showErrorToast('Tên loại sản phẩm phải có ít nhất 2 ký tự!');
+                return;
+            }
+
+            $.ajax({
+                url: `/typeproduct/update/${id}`,
+                type: 'PUT',
+                contentType: 'application/json',
+                data: JSON.stringify({ name }),
+                success: function(response) {
+                    if (response.status === 'Ok') {
+                        editTypeModal.hide();
+                        showSuccessToast('Cập nhật loại sản phẩm thành công!');
+                        $(`#type-row-${id} td:nth-child(1)`).html(`<strong>${name}</strong>`);
+                        $(`#type-row-${id} td:nth-child(4)`).text(new Date().toLocaleString('vi-VN'));
+                    } else {
+                        showErrorToast(response.message);
+                    }
+                },
+                error: xhr => showErrorToast('Lỗi khi cập nhật loại sản phẩm: ' + (xhr.responseJSON?.message || 'Vui lòng thử lại!'))
+            });
+        });
+
+        // Hàm hiển thị toast thông báo thành công
+        function showSuccessToast(message) {
+            $('#successToast .toast-body').text(message);
+            new bootstrap.Toast($('#successToast')).show();
+        }
+
+        // Hàm hiển thị toast thông báo lỗi
+        function showErrorToast(message) {
+            $('#errorToast .toast-body').text(message);
+            new bootstrap.Toast($('#errorToast')).show();
+        }
     });
-
-    function showSuccessToast(message) {
-        $('#successToast .toast-body').text(message);
-        new bootstrap.Toast($('#successToast')).show();
-    }
-
-    function showErrorToast(message) {
-        $('#errorToast .toast-body').text(message);
-        new bootstrap.Toast($('#errorToast')).show();
-    }
 </script>
