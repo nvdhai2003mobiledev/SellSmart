@@ -75,7 +75,7 @@ const OrderScreen = () => {
 
   return (
     <BaseLayout style={styles.scrollView}>
-      <Header title={'Đơn hàng'} />
+      <Header title={'Hóa đơn'} />
       <ScrollView
         showsVerticalScrollIndicator={false}
         onScroll={handleScroll}
@@ -95,12 +95,12 @@ const OrderScreen = () => {
 
         <View style={styles.sectionTitle}>
           <DynamicText style={styles.sectionTitleText}>
-            Quản lý đơn hàng
+            Quản lý Hóa đơn
           </DynamicText>
         </View>
 
         <View style={styles.grid}>
-          {/* Tất cả đơn hàng */}
+          {/* Tất cả Hóa đơn */}
           <TouchableOpacity
             style={styles.gridItem}
             onPress={() => navigateToOrderList()}>
@@ -114,7 +114,7 @@ const OrderScreen = () => {
                 />
               </View>
               <View>
-                <DynamicText style={styles.gridTitle}>Đơn hàng</DynamicText>
+                <DynamicText style={styles.gridTitle}>Hóa đơn</DynamicText>
                 <DynamicText style={styles.gridSubtitle}>
                   {rootStore.orders?.orders?.length || 0} đơn
                 </DynamicText>
@@ -127,7 +127,7 @@ const OrderScreen = () => {
             />
           </TouchableOpacity>
 
-          {/* Đơn hàng đã hủy */}
+          {/* Hóa đơn đã hủy */}
           <TouchableOpacity
             style={styles.gridItem}
             onPress={() => navigateToOrderList('canceled')}>

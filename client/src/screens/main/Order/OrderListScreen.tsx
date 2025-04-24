@@ -181,6 +181,8 @@ const OrderListScreen = observer(() => {
                 color:
                   item.status === 'pending'
                     ? color.primaryColor
+                    : item.status === 'waiting'
+                    ? '#FFB74D'
                     : item.status === 'processing'
                     ? '#FFA500'
                     : item.status === 'shipping'
@@ -194,6 +196,8 @@ const OrderListScreen = observer(() => {
             ]}>
             {item.status === 'pending'
               ? 'Chưa xử lý'
+              : item.status === 'waiting'
+              ? 'Chờ xử lý'
               : item.status === 'processing'
               ? 'Đã xử lý'
               : item.status === 'canceled'
@@ -209,7 +213,7 @@ const OrderListScreen = observer(() => {
     return (
       <BaseLayout>
         <Header
-          title="Danh sách đơn hàng"
+          title="Danh sách hóa đơn"
           showBackIcon
           onPressBack={() => navigateToOrderScreen()}
         />
@@ -223,7 +227,7 @@ const OrderListScreen = observer(() => {
   return (
     <BaseLayout>
       <Header
-        title="Danh sách đơn hàng"
+        title="Danh sách Hóa đơn"
         showBackIcon
         onPressBack={() => navigateToOrderScreen()}
       />
@@ -263,8 +267,8 @@ const OrderListScreen = observer(() => {
           <View style={styles.emptyContainer}>
             <DynamicText style={styles.emptyText}>
               {searchQuery.trim() || currentFilter
-                ? 'Không tìm thấy đơn hàng phù hợp'
-                : 'Không có đơn hàng nào'}
+                ? 'Không tìm thấy Hóa đơn phù hợp'
+                : 'Không có Hóa đơn nào'}
             </DynamicText>
           </View>
         }

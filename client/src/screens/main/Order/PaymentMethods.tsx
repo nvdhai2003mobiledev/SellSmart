@@ -13,7 +13,6 @@ import {
 import {useNavigation, useRoute} from '@react-navigation/native';
 import {observer} from 'mobx-react-lite';
 import Icon from 'react-native-vector-icons/Ionicons';
-import {Screen} from '../../../navigation/navigation.type';
 import {Header, DynamicText} from '../../../components';
 import {color, moderateScale} from '../../../utils';
 import {updateOrderPayment} from '../../../services/api/ordersApi';
@@ -146,14 +145,25 @@ const PaymentMethods = observer(() => {
       if (response.ok) {
         // Refresh order data in store
         await rootStore.orders.fetchOrders();
+        
+        // Gọi callback nếu được cung cấp (để có thể cập nhật trạng thái ở màn hình gọi)
+        if (onPaymentComplete) {
+          onPaymentComplete(selectedMethod, amount);
+        }
 
         // Hiển thị thông báo thành công với chi tiết thanh toán
-        Alert.alert('Thành công', 'Thanh toán đã được ghi nhận thành công', [
-          {
-            text: 'Xem chi tiết đơn hàng',
-            onPress: () => navigation.navigate('ORDER_DETAIL', {orderId}),
-          },
-        ]);
+        Alert.alert(
+          'Thành công', 
+          isPartialPay 
+            ? 'Thanh toán một phần đã được ghi nhận. Đơn hàng đã được chuyển sang trạng thái "Chờ xử lý"'
+            : 'Thanh toán đã được ghi nhận thành công. Đơn hàng đã được chuyển sang trạng thái "Đã xử lý"', 
+          [
+            {
+              text: 'Xem chi tiết đơn hàng',
+              onPress: () => navigation.navigate('ORDER_DETAIL', {orderId}),
+            },
+          ]
+        );
       } else {
         const errorData = response.data as {message?: string} | undefined;
         const errorMessage =
@@ -336,7 +346,8 @@ const PaymentMethods = observer(() => {
               {isPartialPaymentNow() && (
                 <DynamicText style={styles.confirmationPartial}>
                   Đây là thanh toán một phần ({calculatePaymentPercentage()}%).
-                  Đơn hàng sẽ được đánh dấu là "Thanh toán một phần".
+                  Đơn hàng sẽ được đánh dấu là "Thanh toán một phần" và 
+                  chuyển sang trạng thái "Chờ xử lý".
                 </DynamicText>
               )}
             </View>

@@ -37,6 +37,7 @@ export enum Screen {
   CUSTOMER_SELECTION = 'CUSTOMER_SELECTION',
   ORDER_DETAIL = 'ORDER_DETAIL',
   ORDER_CANCEL = 'ORDER_CANCEL',
+  ORDER_HISTORY = 'ORDER_HISTORY',
   PAYMENT_METHODS = 'PAYMENT_METHODS',
   PROMOTION_LIST = 'PROMOTION_LIST',
   PROMOTION_DETAIL = 'PROMOTION_DETAIL',
@@ -105,6 +106,10 @@ export type RootStackParamList = {
     orderAmount: number;
     paymentStatus: string;
     orderStatus: string;
+  };
+  [Screen.ORDER_HISTORY]: {
+    orderId: string;
+    orderNumber: string;
   };
   [Screen.PAYMENT_METHODS]: {
     orderId: string;

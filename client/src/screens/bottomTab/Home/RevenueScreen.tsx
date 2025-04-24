@@ -170,7 +170,7 @@ const RevenueScreen = observer(() => {
   const EmptyListComponent = () => (
     <View style={styles.emptyContainer}>
       <DynamicText style={styles.emptyText}>
-        Không có đơn hàng nào trong khoảng thời gian này
+        Không có Hóa đơn nào trong khoảng thời gian này
       </DynamicText>
     </View>
   );
@@ -218,7 +218,7 @@ const RevenueScreen = observer(() => {
                 </DynamicText>
                 <View style={styles.orderInfoRow}>
                   <DynamicText style={styles.orderInfoText}>
-                    {revenueStats.orderCount} đơn hàng
+                    {revenueStats.orderCount} hóa đơn
                   </DynamicText>
                 </View>
               </View>
@@ -245,13 +245,13 @@ const RevenueScreen = observer(() => {
       {/* Orders List */}
       <View style={styles.ordersContainer}>
         <DynamicText style={styles.ordersTitle}>
-          Danh sách đơn hàng ({filteredOrders.length})
+          Danh sách Hóa đơn ({filteredOrders.length})
         </DynamicText>
         
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={color.primaryColor} />
-            <DynamicText style={styles.loadingText}>Đang tải đơn hàng...</DynamicText>
+            <DynamicText style={styles.loadingText}>Đang tải Hóa đơn...</DynamicText>
           </View>
         ) : (
           <FlatList
