@@ -13,7 +13,6 @@ const InventorySchema = new Schema(
     product_code: {
       type: String,
       required: [true, "Mã sản phẩm là bắt buộc"],
-      unique: true,
       trim: true,
       match: [/^MD\d+$/, "Mã sản phẩm phải bắt đầu bằng 'MD' và theo sau là số"],
     },
@@ -82,8 +81,6 @@ const InventorySchema = new Schema(
     employee_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Employee",
-      // Tạm thởi bỏ required để test
-      // required: [true, "ID nhân viên là bắt buộc"],
     },
     status: {
       type: String,
@@ -178,9 +175,9 @@ InventorySchema.pre("validate", function (next) {
 });
 
 // Đảm bảo index cho truy vấn nhanh
-InventorySchema.index({ product_code: 1 }, { unique: true });
 InventorySchema.index({ typeProduct_id: 1 });
 InventorySchema.index({ provider_id: 1 });
 InventorySchema.index({ batch_number: 1 });
+InventorySchema.index({ product_code: 1 }, { collation: { locale: "en_US", numericOrdering: true } });
 
 module.exports = mongoose.model("Inventory", InventorySchema);

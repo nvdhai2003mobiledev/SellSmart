@@ -156,7 +156,7 @@
             </button>
         </div>
         <div class="right-buttons">
-            <button class="btn btn-success btn-custom" onclick="confirmSelection()">
+            <button class="btn btn-success btn-custom" onclick="selectVariants()">
                 <i class="fas fa-check me-1"></i> Xác nhận chọn
             </button>
         </div>
@@ -178,7 +178,7 @@
                     </thead>
                     <tbody id="variantTableBody">
                         <% variants.forEach(variant => { %>
-                            <tr id="row-<%= variant._id %>">
+                            <tr id="row-<%= variant._id %>" data-id="<%= variant._id %>" data-name="<%= variant.name %>" data-values="<%= variant.values.join(',') %>">
                                 <td><%= variant.name || 'Không có tên' %></td>
                                 <td>
                                     <% variant.values.forEach(value => { %>
@@ -432,15 +432,41 @@
         }
 
         // Xác nhận chọn biến thể
-        function confirmSelection() {
-            updateSelectedVariants();
+        function selectVariants() {
+            updateSelectedVariants(); // Make sure we have the latest selections
+            
             if (selectedVariants.length === 0) {
-                showErrorToast('Vui lòng chọn ít nhất một biến thể!');
+                showErrorToast('Vui lòng chọn ít nhất một tổ hợp biến thể');
                 return;
             }
-            console.log('Gửi tổ hợp biến thể đã chọn về parent window:', selectedVariants);
-            window.opener.postMessage({ selectedVariants: selectedVariants }, '*');
-            window.close();
+
+            try {
+                // Convert selected variants to the expected format
+                const formattedVariants = selectedVariants.map(group => {
+                    return group.map(variant => {
+                        const variantData = window.variantsData.find(v => v._id === variant.variantId);
+                        return {
+                            id: variant.variantId,
+                            name: variantData ? variantData.name : '',
+                            value: variant.value
+                        };
+                    });
+                });
+
+                // Sử dụng postMessage để gửi dữ liệu về cửa sổ chính
+                if (window.opener) {
+                    window.opener.postMessage({
+                        type: 'VARIANTS_SELECTED',
+                        variants: formattedVariants
+                    }, '*');
+                    window.close();
+                } else {
+                    showErrorToast('Không thể gửi dữ liệu về cửa sổ chính. Vui lòng thử lại.');
+                }
+            } catch (error) {
+                console.error('Error sending variants:', error);
+                showErrorToast('Có lỗi xảy ra khi gửi dữ liệu. Vui lòng thử lại.');
+            }
         }
 
         // Thêm biến thể

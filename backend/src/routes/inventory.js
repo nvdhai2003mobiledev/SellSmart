@@ -12,7 +12,6 @@ const { protect } = require("../middleware/auth");
 
 // 🚀 Routes cho Inventory (Quản lý kho)
 // Route tĩnh - Không cần xác thực
-// Route tĩnh - Không cần xác thực
 router.get("/", async (req, res) => {
     console.log("Yêu cầu đến route /inventory"); // Thêm log để kiểm tra
     try {
@@ -69,6 +68,12 @@ router.get("/last-code", async (req, res) => {
 // Route lấy danh sách sản phẩm theo lô hàng - Không cần xác thực
 router.get("/batch/:batch_number", InventoryController.getInventoryByBatch);
 
+// Route nhập lô hàng mới
+router.post("/batch-import", InventoryController.importInventory);
+
+// Route nhập lô hàng tiếp theo
+router.post("/next-batch", InventoryController.importInventory);
+
 // Route thêm sản phẩm mới vào kho - Không yêu cầu xác thực để dễ test
 router.post("/create", InventoryController.importInventory);
 
@@ -87,9 +92,6 @@ router.get("/typeproduct/:id/variants", VariantController.getVariantsAsJson);
 
 // 🚀 Routes cho DetailsVariant (Chi tiết biến thể) - Không cần xác thực
 router.get("/variant/:id/details", DetailsVariantController.getDetailsByProduct);
-
-// Add a new route to get available inventory items - MUST be defined BEFORE the /:id route
-router.get("/available", InventoryController.getAvailableInventory);
 
 // Route động (đặt sau các route tĩnh) - Không cần xác thực
 router.get("/:id", InventoryController.getInventoryDetail);
