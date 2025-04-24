@@ -1,9 +1,7 @@
 <%- include('../layouts/main.ejs') %>
 <div class="main-content">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="mb-0">Quản lý nhập kho</h1>
-     
-    </div>
+    <h1 class="text-center mb-4">Quản lý nhập kho</h1>
+
     <!-- Nút thêm sản phẩm mới -->
     <div class="mb-4 text-end">
         <button class="btn btn-primary" onclick="openAddModal()">
@@ -16,83 +14,64 @@
 
     <!-- Danh sách sản phẩm trong kho -->
     <div>
-        <table class="table table-bordered table-hover table-striped">
-            <thead class="table-primary">
+        <table id="inventoryTable" class="table table-hover">
+            <thead>
                 <tr>
-                    <th width="10%">Mã sản phẩm</th>
-                    <th width="15%">Tên sản phẩm</th>
-                    <th width="10%">Lô hàng</th>
-                    <th width="10%">Ngày nhập</th>
-                    <th width="10%">Danh mục</th>
-                    <th width="10%">Nhà cung cấp</th>
-                    <th width="10%" class="text-center">Số lượng</th>
-                    <th width="10%" class="text-center">Giá bán</th>
-                    <th width="5%" class="text-center">Trạng thái</th>
-                    <th width="10%" class="text-center">Hành động</th>
+                    <th scope="col" class="text-center">STT</th>
+                    <th scope="col">Tên sản phẩm</th>
+                    <th scope="col">Mã sản phẩm</th>
+                    <th scope="col">Danh mục</th>
+                    <th scope="col">Nhà cung cấp</th>
+                    <th scope="col" class="text-center">Tổng tồn kho</th>
+                    <th scope="col" class="text-center">Giá</th>
+                    <th scope="col" class="text-center">Trạng thái</th>
+                    <th scope="col" class="text-center">Thao tác</th>
                 </tr>
             </thead>
             <tbody>
-                <% inventories.forEach(inventory => { %>
-                    <tr id="inventory-row-<%= inventory._id %>">
-                        <td><strong><%= inventory.product_code %></strong></td>
-                        <td><%= inventory.product_name %></td>
-                        <td><%= inventory.batch_number || 'Chưa có' %></td>
-                        <td><%= inventory.batch_date ? new Date(inventory.batch_date).toLocaleDateString('vi-VN') : 'Chưa có' %></td>
-                        <td><%= inventory.typeProduct_id?.name || 'Chưa có danh mục' %></td>
-                        <td><%= inventory.provider_id?.fullName || 'Chưa có nhà cung cấp' %></td>
+                <% inventories.forEach((item, index) => { %>
+                    <tr>
+                        <td class="text-center"><%= index + 1 %></td>
+                        <td><%= item.product_name %></td>
+                        <td><%= item.product_code %></td>
+                        <td><%= item.typeProduct_id?.name || 'N/A' %></td>
+                        <td><%= item.provider_id?.fullName || 'N/A' %></td>
                         <td class="text-center">
-                            <% if (inventory.hasVariants) { %>
-                                <% if (inventory.variantDetails?.length) { %>
-                                    <button class="btn btn-info btn-sm" onclick="viewVariants('<%= inventory._id %>')">
-                                        Xem biến thể
-                                    </button>
-                                <% } else { %>
-                                    <span class="badge bg-warning">Không có biến thể</span>
-                                <% } %>
+                            <span class="badge bg-info">
+                                <%= item.total_quantity %> cái
+                            </span>
+                        </td>
+                        <td class="text-end">
+                            <% if (item.hasVariants && item.variantDetails && item.variantDetails.length > 0) { %>
+                                <% 
+                                    const prices = item.variantDetails.map(v => v.price);
+                                    const minPrice = Math.min(...prices);
+                                    const maxPrice = Math.max(...prices);
+                                %>
+                                <span class="text-primary">
+                                    <%= minPrice.toLocaleString('vi-VN') %> - <%= maxPrice.toLocaleString('vi-VN') %> đ
+                                </span>
                             <% } else { %>
-                                <span class="badge bg-info">
-                                    <%= inventory.total_quantity != null ? inventory.total_quantity : '0' %>
+                                <span class="text-primary">
+                                    <%= item.total_price.toLocaleString('vi-VN') %> đ
                                 </span>
                             <% } %>
                         </td>
                         <td class="text-center">
-                            <% if (inventory.hasVariants) { %>
-                                <% if (inventory.variantDetails?.length) { %>
-                                    <% 
-                                        let minPrice = Infinity;
-                                        inventory.variantDetails.forEach(variant => {
-                                            if (variant.price && variant.price < minPrice) {
-                                                minPrice = variant.price;
-                                            }
-                                        });
-                                        if (minPrice === Infinity) minPrice = 0;
-                                    %>
-                                    <%= minPrice.toLocaleString('vi-VN') %> VND
-                                <% } else { %>
-                                    <span class="badge bg-warning">Không có giá</span>
-                                <% } %>
+                            <% if (item.status === 'available') { %>
+                                <span class="badge bg-success">Còn hàng</span>
                             <% } else { %>
-                                <% 
-                                    const unitPrice = inventory.total_quantity > 0 
-                                        ? (inventory.total_price / inventory.total_quantity) 
-                                        : 0;
-                                %>
-                                <%= unitPrice.toLocaleString('vi-VN') %> VND
+                                <span class="badge bg-danger">Hết hàng</span>
                             <% } %>
                         </td>
                         <td class="text-center">
-                            <span class="badge <%= inventory.status === 'available' ? 'bg-success' : 'bg-danger' %>">
-                                <%= inventory.status === 'available' ? 'Có sẵn' : 'Hết hàng' %>
-                            </span>
-                        </td>
-                        <td class="text-center">
-                            <button class="btn btn-warning btn-sm" onclick="editInventory('<%= inventory._id %>')">
+                            <button type="button" class="btn btn-sm btn-warning" onclick="editInventory('<%= item._id %>')">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button class="btn btn-info btn-sm" onclick="viewDetails('<%= inventory._id %>')">
+                            <button type="button" class="btn btn-sm btn-primary" onclick="viewDetails('<%= item._id %>')">
                                 <i class="fas fa-eye"></i>
                             </button>
-                            <button class="btn btn-danger btn-sm" onclick="deleteInventory('<%= inventory._id %>')">
+                            <button type="button" class="btn btn-sm btn-danger" onclick="deleteInventory('<%= item._id %>')">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </td>
@@ -100,42 +79,7 @@
                 <% }); %>
             </tbody>
         </table>
-    </div> 
-     <!-- Pagination -->
-     <div class="d-flex justify-content-between align-items-center p-3 border-top">
-        <div class="d-flex align-items-center">
-            <label class="text-muted me-2">Hiển thị:</label>
-            <select class="form-select form-select-sm" id="itemsPerPage" style="width: auto;">
-                <option value="5">5</option>
-                <option value="10" selected>10</option>
-                <option value="20">20</option>
-                <option value="50">50</option>
-            </select>
-            <span class="text-muted ms-2">sản phẩm</span>
-        </div>
-        <nav aria-label="Inventory navigation">
-            <ul class="pagination pagination-sm mb-0">
-                <li class="page-item" id="prevPage">
-                    <a class="page-link" href="#" aria-label="Previous">
-                        <i class="fas fa-chevron-left"></i>
-                    </a>
-                </li>
-                <li class="page-item">
-                    <span class="page-link" id="currentPage">1</span>
-                </li>
-                <li class="page-item" id="nextPage">
-                    <a class="page-link" href="#" aria-label="Next">
-                        <i class="fas fa-chevron-right"></i>
-                    </a>
-                </li>
-            </ul>
-        </nav>
-        <div class="text-muted">
-            Tổng số: <span class="fw-semibold" id="totalItems">0</span> sản phẩm
-        </div>
     </div>
-</div>
-
 
     <!-- Modal thêm sản phẩm mới -->
     <div id="addInventoryModal" class="modal fade" tabindex="-1">
@@ -187,7 +131,7 @@
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Thuộc tính</label>
                                 <input type="hidden" id="variantDetails" name="variantDetails">
-                                <button type="button" class="btn btn-outline-secondary w-100" onclick="openVariantsPage(false)">
+                                <button type="button" class="btn btn-outline-secondary w-100" onclick="openVariantSelection()">
                                     <i class="fas fa-list me-2"></i>Chọn thuộc tính
                                 </button>
                                 <div id="selectedVariantDisplay" class="mt-2"></div>
@@ -216,8 +160,38 @@
                             <textarea class="form-control" id="addNote" rows="2" maxlength="200"></textarea>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Có biến thể</label>
-                            <input type="checkbox" id="hasVariants">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input has-variants" id="hasVariants" name="hasVariants">
+                                <label class="form-check-label" for="hasVariants">Sản phẩm có biến thể</label>
+                            </div>
+                        </div>
+                        <div class="variants-section d-none">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="mb-0">Biến thể sản phẩm</h5>
+                                <button type="button" class="btn btn-primary select-variant">
+                                    <i class="fas fa-plus"></i> Chọn thuộc tính
+                                </button>
+                            </div>
+                            <div class="variants-list">
+                                <div class="variant-item mb-3 d-none">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-4">
+                                            <input type="text" class="form-control variant-attribute" readonly>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <input type="number" class="form-control variant-quantity" placeholder="Số lượng" required>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <input type="number" class="form-control variant-price" placeholder="Giá" required>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="button" class="btn btn-danger remove-variant">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <button type="submit" class="btn btn-primary" id="addSubmitBtn" disabled>Lưu</button>
                     </form>
@@ -226,98 +200,121 @@
         </div>
     </div>
 
-    <!-- Modal nhập lô hàng mới -->
-    <div id="batchImportModal" class="modal fade" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+    <!-- Modal nhập lô hàng -->
+    <div class="modal fade" id="batchImportModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
             <div class="modal-content">
-                <div class="modal-header bg-success text-white">
-                    <h5 class="modal-title">Nhập lô hàng mới</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <div class="modal-header">
+                    <h5 class="modal-title">Nhập lô hàng</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <form id="batchImportForm">
-                        <div class="row mb-3">
-                            <div class="col-md-12">
-                                <label class="form-label">Chọn sản phẩm</label>
-                                <select class="form-select" id="batchSelectProduct" name="batchSelectProduct" required>
-                                    <option value="">-- Chọn sản phẩm --</option>
-                                </select>
+                        <!-- Thông tin lô hàng -->
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h6 class="mb-0">Thông tin lô hàng</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Mã lô hàng <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="batchNumber" required>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Ngày nhập <span class="text-danger">*</span></label>
+                                        <input type="date" class="form-control" id="batchDate" required>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Ghi chú</label>
+                                        <input type="text" class="form-control" id="batchNote">
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        
-                        <div id="batchProductInfo" class="d-none">
-                            <div class="card mb-3">
-                                <div class="card-header bg-info text-white">
-                                    <h6 class="mb-0">Thông tin sản phẩm</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <p><strong>Mã sản phẩm:</strong> <span id="batch-product-code"></span></p>
-                                            <p><strong>Tên sản phẩm:</strong> <span id="batch-product-name"></span></p>
-                                            <p><strong>Danh mục:</strong> <span id="batch-category"></span></p>
+
+                        <!-- Danh sách sản phẩm -->
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">Danh sách sản phẩm</h6>
+                                <button type="button" class="btn btn-primary btn-sm" id="addProductBtn">
+                                    <i class="fas fa-plus"></i> Thêm sản phẩm
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <div id="productsList">
+                                    <!-- Template sản phẩm đầu tiên -->
+                                    <div class="product-item card mb-3">
+                                        <div class="card-body">
+                                            <div class="row g-3">
+                                                <div class="col-md-6">
+                                                    <label class="form-label">Tên sản phẩm <span class="text-danger">*</span></label>
+                                                    <input type="text" class="form-control product-name" required>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label">Mã sản phẩm</label>
+                                                    <input type="text" class="form-control product-code">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label">Danh mục <span class="text-danger">*</span></label>
+                                                    <select class="form-select product-category" required>
+                                                        <option value="">Chọn danh mục</option>
+                                                        <% typeProducts.forEach(type => { %>
+                                                            <option value="<%= type._id %>"><%= type.name %></option>
+                                                        <% }); %>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label">Nhà cung cấp <span class="text-danger">*</span></label>
+                                                    <select class="form-select product-provider" required>
+                                                        <option value="">Chọn nhà cung cấp</option>
+                                                        <% providers.forEach(provider => { %>
+                                                            <option value="<%= provider._id %>"><%= provider.fullName %></option>
+                                                        <% }); %>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-6 common-fields">
+                                                    <label class="form-label">Số lượng <span class="text-danger">*</span></label>
+                                                    <input type="number" class="form-control product-quantity" min="1" required>
+                                                </div>
+                                                <div class="col-md-6 common-fields">
+                                                    <label class="form-label">Giá <span class="text-danger">*</span></label>
+                                                    <input type="number" class="form-control product-price" min="0" required>
+                                                </div>
+                                                <div class="col-12">
+                                                    <div class="form-check">
+                                                        <input type="checkbox" class="form-check-input has-variants" id="productHasVariants-1">
+                                                        <label class="form-check-label" for="productHasVariants-1">
+                                                            Sản phẩm có biến thể
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-12 variants-section d-none">
+                                                    <div class="card">
+                                                        <div class="card-header d-flex justify-content-between align-items-center">
+                                                            <h6 class="mb-0">Biến thể sản phẩm</h6>
+                                                            <button type="button" class="btn btn-primary select-variant">
+                                                                <i class="fas fa-plus"></i> Chọn thuộc tính
+                                                            </button>
+                                                        </div>
+                                                        <div class="card-body">
+                                                            <div class="variants-list">
+                                                                <!-- Variants will be added here -->
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div class="col-md-6">
-                                            <p><strong>Nhà cung cấp:</strong> <span id="batch-provider"></span></p>
-                                            <p><strong>Đơn vị:</strong> <span id="batch-unit"></span></p>
-                                            <p><strong>Có biến thể:</strong> <span id="batch-has-variants"></span></p>
-                                        </div>
-                                    </div>
-                                    <div class="row">
-                                        <div class="col-12">
-                                            <p><strong>Mô tả:</strong> <span id="batch-description"></span></p>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
-                            
-                            <input type="hidden" id="batchProductId">
-                            <input type="hidden" id="batchHasVariants">
-                            <input type="hidden" id="batchVariantDetails">
-                            <input type="hidden" id="batchTypeProductId">
-                            <input type="hidden" id="batchProviderId">
-                            <input type="hidden" id="batchProductName">
-                            <input type="hidden" id="batchProductCode">
-                            <input type="hidden" id="batchProductDescription">
-                            <input type="hidden" id="batchUnit">
-                            
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">Số lô hàng</label>
-                                    <input type="text" class="form-control" id="batchNumber" name="batchNumber" required>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">Ngày nhập lô</label>
-                                    <input type="date" class="form-control" id="batchDate" name="batchDate" required>
-                                </div>
-                            </div>
-                            
-                            <div id="batchVariantSection" class="d-none">
-                                <h6 class="mb-3">Thông tin biến thể</h6>
-                                <div id="batchVariantList" class="mb-3"></div>
-                            </div>
-                            
-                            <div id="batchNonVariantSection" class="d-none">
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label">Số lượng</label>
-                                        <input type="number" class="form-control" id="batchQuantity" name="batchQuantity" min="1" step="1">
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label">Giá đơn vị</label>
-                                        <input type="number" class="form-control" id="batchPrice" name="batchPrice" min="0.01" step="0.01">
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label class="form-label">Ghi chú</label>
-                                <textarea class="form-control" id="batchNote" name="batchNote" rows="2" maxlength="200"></textarea>
-                            </div>
-                            
-                            <button type="submit" class="btn btn-success" id="batchSubmitBtn">Lưu</button>
                         </div>
                     </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                    <button type="button" class="btn btn-primary" id="saveBatchBtn">Lưu</button>
                 </div>
             </div>
         </div>
@@ -385,7 +382,7 @@
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Thuộc tính</label>
                                 <input type="hidden" id="editVariantDetails" name="variantDetails">
-                                <button type="button" class="btn btn-outline-secondary w-100" onclick="openVariantsPage(true)">
+                                <button type="button" class="btn btn-outline-secondary w-100" onclick="openVariantSelection()">
                                     <i class="fas fa-list me-2"></i>Chọn thuộc tính
                                 </button>
                                 <div id="editSelectedVariantDisplay" class="mt-2"></div>
@@ -410,8 +407,38 @@
                             <textarea class="form-control" id="editNote" rows="2" maxlength="200"></textarea>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Có biến thể</label>
-                            <input type="checkbox" id="editHasVariants">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input has-variants" id="editHasVariants" name="editHasVariants">
+                                <label class="form-check-label" for="editHasVariants">Sản phẩm có biến thể</label>
+                            </div>
+                        </div>
+                        <div class="variants-section d-none">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="mb-0">Biến thể sản phẩm</h5>
+                                <button type="button" class="btn btn-primary select-variant">
+                                    <i class="fas fa-plus"></i> Chọn thuộc tính
+                                </button>
+                            </div>
+                            <div class="variants-list">
+                                <div class="variant-item mb-3 d-none">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-4">
+                                            <input type="text" class="form-control variant-attribute" readonly>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <input type="number" class="form-control variant-quantity" placeholder="Số lượng" required>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <input type="number" class="form-control variant-price" placeholder="Giá" required>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="button" class="btn btn-danger remove-variant">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <button type="submit" class="btn btn-warning" id="editSubmitBtn" disabled>Lưu thay đổi</button>
                     </form>
@@ -420,21 +447,63 @@
         </div>
     </div>
 
-    <!-- Modal xem chi tiết sản phẩm -->
-    <div id="viewDetailsModal" class="modal fade" tabindex="-1">
+    <!-- Modal Chi tiết sản phẩm -->
+    <div class="modal fade" id="productDetailModal" tabindex="-1" aria-labelledby="productDetailModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
-                <div class="modal-header bg-info text-white">
-                    <h5 class="modal-title">Chi tiết sản phẩm</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <div class="modal-header">
+                    <h5 class="modal-title" id="productDetailModalLabel">Chi tiết sản phẩm</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div id="productDetails" class="p-2">
-                        <div class="text-center">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Đang tải...</span>
+                    <div class="row">
+                        <!-- Thông tin cơ bản -->
+                        <div class="col-12 mb-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Thông tin cơ bản</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p><strong>Tên sản phẩm:</strong> <span id="detailProductName"></span></p>
+                                            <p><strong>Mã sản phẩm:</strong> <span id="detailProductCode"></span></p>
+                                            <p><strong>Loại sản phẩm:</strong> <span id="detailProductType"></span></p>
+                                            <p><strong>Nhà cung cấp:</strong> <span id="detailProvider"></span></p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>Số lô:</strong> <span id="detailBatchNumber"></span></p>
+                                            <p><strong>Ngày nhập:</strong> <span id="detailBatchDate"></span></p>
+                                            <p><strong>Tổng số lượng:</strong> <span id="detailTotalQuantity"></span></p>
+                                            <p><strong>Tổng giá trị:</strong> <span id="detailTotalPrice"></span></p>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <p>Đang tải thông tin sản phẩm...</p>
+                        </div>
+
+                        <!-- Chi tiết biến thể -->
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Chi tiết biến thể</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alert alert-info" id="noVariantsAlert" style="display: none;">
+                                        Sản phẩm này không có biến thể.
+                                    </div>
+                                    <table class="table table-bordered table-hover" id="variantDetailsTable">
+                                        <thead>
+                                            <tr>
+                                                <th>Thuộc tính</th>
+                                                <th class="text-end">Giá</th>
+                                                <th class="text-center">Số lượng</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -445,1131 +514,761 @@
         </div>
     </div>
 
-    <!-- Modal xem biến thể -->
-    <div id="viewVariantsModal" class="modal fade" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header bg-info text-white">
-                    <h5 class="modal-title">Danh sách biến thể</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div id="variantList"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal nhập giá và số lượng cho biến thể -->
-    <div id="variantPriceModal" class="modal fade" tabindex="-1">
+    <!-- Modal Variants -->
+    <div class="modal fade" id="variantsModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title">Nhập giá và số lượng cho biến thể</h5>
+                    <h5 class="modal-title">Quản lý biến thể</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div id="variantPriceForm"></div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Chọn biến thể</label>
+                                <select class="form-select" id="variantSelect">
+                                    <option value="">-- Chọn biến thể --</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Giá trị</label>
+                                <select class="form-select" id="variantValueSelect" disabled>
+                                    <option value="">-- Chọn giá trị --</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
-                    <button type="button" class="btn btn-primary" id="saveVariantPricesBtn">Lưu</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                    <button type="button" class="btn btn-primary" id="addVariantBtn" disabled>Thêm</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Template cho chi tiết sản phẩm -->
-    <script type="text/template" id="productDetailTemplate">
-        <div class="card mb-3">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Thông tin cơ bản</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <p><strong>Mã sản phẩm:</strong> <span id="detail-product-code"></span></p>
-                        <p><strong>Tên sản phẩm:</strong> <span id="detail-product-name"></span></p>
-                        <p><strong>Danh mục:</strong> <span id="detail-category"></span></p>
-                        <p><strong>Nhà cung cấp:</strong> <span id="detail-provider"></span></p>
-                    </div>
-                    <div class="col-md-6">
-                        <p><strong>Đơn vị:</strong> <span id="detail-unit"></span></p>
-                        <p><strong>Trạng thái:</strong> <span id="detail-status" class="badge"></span></p>
-                        <p><strong>Loại:</strong> <span id="detail-type"></span></p>
-                        <p><strong>Ngày tạo:</strong> <span id="detail-created-at"></span></p>
-                    </div>
-                </div>
-                <div class="row mt-2">
-                    <div class="col-12">
-                        <p><strong>Mô tả:</strong> <span id="detail-description"></span></p>
-                        <p><strong>Ghi chú:</strong> <span id="detail-note"></span></p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div id="variant-details-container">
-            <!-- Nội dung biến thể sẽ được thêm vào đây -->
-        </div>
-    </script>
-
-    <!-- Template cho biến thể -->
-    <script type="text/template" id="variantDetailsTemplate">
-        <div class="card">
-            <div class="card-header bg-info text-white">
-                <h5 class="mb-0">Thông tin biến thể</h5>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-bordered table-striped">
-                        <thead class="table-primary">
-                            <tr>
-                                <th>STT</th>
-                                <th>Thuộc tính</th>
-                                <th>Giá</th>
-                                <th>Số lượng</th>
-                                <th>Thành tiền</th>
-                            </tr>
-                        </thead>
-                        <tbody id="variant-details-body">
-                            <!-- Hàng biến thể sẽ được thêm vào đây -->
-                        </tbody>
-                        <tfoot class="table-info">
-                            <tr>
-                                <th colspan="3">Tổng cộng</th>
-                                <th id="total-quantity"></th>
-                                <th id="total-price"></th>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </script>
-
-    <!-- Template cho sản phẩm không có biến thể -->
-    <script type="text/template" id="noVariantTemplate">
-        <div class="card">
-            <div class="card-header bg-success text-white">
-                <h5 class="mb-0">Thông tin giá & số lượng</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-4">
-                        <p><strong>Số lượng:</strong> <span id="detail-quantity"></span></p>
-                    </div>
-                    <div class="col-md-4">
-                        <p><strong>Đơn giá:</strong> <span id="detail-price"></span></p>
-                    </div>
-                    <div class="col-md-4">
-                        <p><strong>Tổng tiền:</strong> <span id="detail-total-price"></span></p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </script>
-
-    <!-- Toast thông báo -->
-    <div class="toast-container position-fixed bottom-0 end-0 p-3">
-        <div id="successToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
-            <div class="toast-header bg-success text-white">
-                <strong class="me-auto">Thành công</strong>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
-            </div>
-            <div class="toast-body"></div>
-        </div>
-        <div id="errorToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
-            <div class="toast-header bg-danger text-white">
-                <strong class="me-auto">Lỗi</strong>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
-            </div>
-            <div class="toast-body"></div>
-        </div>
+    
     </div>
-</div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script>
-    let addInventoryModal, editInventoryModal, viewDetailsModal, viewVariantsModal, variantPriceModal, batchImportModal;
-    let selectedVariants = [];
-    let batchSelectedVariants = [];
-    let isEditing = false;
-    let currentVariantIndex = null;
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-    $(document).ready(function () {
-        // Khởi tạo các modal
-        addInventoryModal = new bootstrap.Modal($('#addInventoryModal'));
-        editInventoryModal = new bootstrap.Modal($('#editInventoryModal'));
-        viewDetailsModal = new bootstrap.Modal($('#viewDetailsModal'));
-        viewVariantsModal = new bootstrap.Modal($('#viewVariantsModal'));
-        variantPriceModal = new bootstrap.Modal($('#variantPriceModal'));
-        batchImportModal = new bootstrap.Modal($('#batchImportModal'));
-
-        // Lấy mã sản phẩm cuối cùng
-        $.get('/inventory/last-code', function (response) {
-            if (response.status === 'Ok') {
-                const lastCode = response.data || 'MD00';
-                const number = parseInt(lastCode.replace('MD', '')) + 1;
-                const newCode = 'MD' + number.toString().padStart(2, '0');
-                $('#addProductCode').val(newCode);
-            } else {
-                showErrorToast('Không thể lấy mã sản phẩm mới');
-            }
-        });
-
-        // Toggle common fields based on hasVariants
-        $('#hasVariants').change(function () {
-            const isChecked = this.checked;
-            $('.common-fields').toggle(!isChecked);
-            $('#addQuantity, #addPrice').prop('required', !isChecked);
-            updateAddSubmitButton();
-            if (isChecked && !selectedVariants.length) {
-                $('#selectedVariantDisplay').html('<p class="text-warning">Chưa chọn biến thể</p>');
-            } else if (!isChecked) {
-                $('#selectedVariantDisplay').empty();
-                selectedVariants = [];
-                updateVariantDisplay('#selectedVariantDisplay', selectedVariants);
-            }
-        });
-
-        $('#editHasVariants').change(function () {
-            const isChecked = this.checked;
-            $('.edit-common-fields').toggle(!isChecked);
-            $('#editQuantity, #editPrice').prop('required', !isChecked);
-            updateEditSubmitButton();
-            if (isChecked && !selectedVariants.length) {
-                $('#editSelectedVariantDisplay').html('<p class="text-warning">Chưa chọn biến thể</p>');
-            } else if (!isChecked) {
-                $('#editSelectedVariantDisplay').empty();
-                selectedVariants = [];
-                updateVariantDisplay('#editSelectedVariantDisplay', selectedVariants);
-            }
-        });
-
-        // Validate form inputs
-        $('#addProductName, #addTypeProduct, #addProvider, #addQuantity, #addPrice, #addUnit').on('input', updateAddSubmitButton);
-        $('#editProductName, #editTypeProduct, #editProvider, #editQuantity, #editPrice, #editUnit').on('input', updateEditSubmitButton);
-
-        // Validate variant price and quantity inputs
-        $('#variantPriceForm').on('input', '.variant-price, .variant-quantity', function () {
-            const price = Number($(this).closest('.variant-entry').find('.variant-price').val());
-            const quantity = Number($(this).closest('.variant-entry').find('.variant-quantity').val());
-            const isValid = price > 0 && quantity > 0;
-            $(this).closest('.variant-entry').find('.variant-error').toggle(!isValid);
-            updateSaveVariantPricesButton();
-        });
-    });
-
-    
-    document.addEventListener('DOMContentLoaded', function() {
-        // Khởi tạo phân trang
-        const inventoryPagination = initializePagination({
-            itemSelector: 'tbody tr',
-            itemsPerPageSelector: '#itemsPerPage',
-            prevPageSelector: '#prevPage',
-            nextPageSelector: '#nextPage',
-            currentPageSelector: '#currentPage',
-            totalItemsSelector: '#totalItems',
-            itemNameSingular: 'sản phẩm',
-            itemNamePlural: 'sản phẩm'
-        });
+    <script>
+    $(document).ready(function() {
+        // Load providers for all provider selects
+        loadProviders();
         
-    
-    });
-    function updateAddSubmitButton() {
-        const hasVariants = $('#hasVariants').is(':checked');
-        const productName = $('#addProductName').val().trim();
-        const typeProduct = $('#addTypeProduct').val();
-        const provider = $('#addProvider').val();
-        const unit = $('#addUnit').val().trim();
-
-        let isValid = productName && typeProduct && provider && unit;
-
-        if (hasVariants) {
-            isValid = isValid && selectedVariants.length > 0 && selectedVariants.every(v => 
-                v.attributes && Object.keys(v.attributes).length > 0 && 
-                Number(v.price) > 0 && Number(v.quantity) > 0
-            );
-        } else {
-            const price = Number($('#addPrice').val());
-            const quantity = Number($('#addQuantity').val());
-            isValid = isValid && price > 0 && quantity > 0;
-        }
-
-        $('#addSubmitBtn').prop('disabled', !isValid);
-    }
-
-    function updateEditSubmitButton() {
-        const hasVariants = $('#editHasVariants').is(':checked');
-        const productName = $('#editProductName').val().trim();
-        const typeProduct = $('#editTypeProduct').val();
-        const provider = $('#editProvider').val();
-        const unit = $('#editUnit').val().trim();
-
-        let isValid = productName && typeProduct && provider && unit;
-
-        if (hasVariants) {
-            isValid = isValid && selectedVariants.length > 0 && selectedVariants.every(v => 
-                v.attributes && Object.keys(v.attributes).length > 0 && 
-                Number(v.price) > 0 && Number(v.quantity) > 0
-            );
-        } else {
-            const price = Number($('#editPrice').val());
-            const quantity = Number($('#editQuantity').val());
-            isValid = isValid && price > 0 && quantity > 0;
-        }
-
-        $('#editSubmitBtn').prop('disabled', !isValid);
-    }
-
-    function updateSaveVariantPricesButton() {
-        let allValid = true;
-        $('.variant-entry').each(function () {
-            const price = Number($(this).find('.variant-price').val());
-            const quantity = Number($(this).find('.variant-quantity').val());
-            if (!price || !quantity || price <= 0 || quantity <= 0) {
-                allValid = false;
-            }
-        });
-        $('#saveVariantPricesBtn').prop('disabled', !allValid);
-    }
-
-    function openAddModal() {
-        $('#addInventoryForm')[0].reset();
-        $('#hasVariants').prop('checked', false);
-        selectedVariants = [];
-        $('#selectedVariantDisplay').empty();
-        $('.common-fields').show();
-        $('#addQuantity, #addPrice').prop('required', true);
-        $('#addUnit').val('cái');
-        $('#addSubmitBtn').prop('disabled', true);
-        addInventoryModal.show();
-    }
-
-    function openBatchModal() {
-        $('#batchImportForm')[0].reset();
-        $('#batchProductInfo').addClass('d-none');
-        $('#batchVariantSection').addClass('d-none');
-        $('#batchNonVariantSection').addClass('d-none');
-        batchSelectedVariants = [];
-        
-        // Set current date for batch date
-        const today = new Date();
-        const year = today.getFullYear();
-        const month = String(today.getMonth() + 1).padStart(2, '0');
-        const day = String(today.getDate()).padStart(2, '0');
-        $('#batchDate').val(`${year}-${month}-${day}`);
-        
-        // Load product list for batch import
-        $.ajax({
-            url: '/inventory/products-for-batch',
-            method: 'GET',
-            success: function(response) {
-                if (response.status === 'Ok' && response.data) {
-                    const products = response.data;
-                    const selectProduct = $('#batchSelectProduct');
-                    selectProduct.find('option:not(:first)').remove();
-                    
-                    products.forEach(product => {
-                        selectProduct.append(`<option value="${product._id}">${product.product_name} (${product.product_code}) - ${product.typeProduct_name}</option>`);
+        // Function to load providers
+        function loadProviders() {
+            $.get('/providers/json', function(response) {
+                if (response.status === 'Ok') {
+                    const providers = response.data;
+                    // Update all provider selects
+                    $('.product-provider, #addProvider, #editProvider').each(function() {
+                        const $select = $(this);
+                        $select.empty().append('<option value="">Chọn nhà cung cấp</option>');
+                        providers.forEach(provider => {
+                            $select.append(`<option value="${provider._id}">${provider.fullName}</option>`);
+                        });
                     });
-                    
-                    batchImportModal.show();
                 } else {
-                    showErrorToast('Không thể tải danh sách sản phẩm');
+                    showErrorToast('Lỗi khi tải danh sách nhà cung cấp');
                 }
-            },
-            error: function(xhr) {
-                showErrorToast(xhr.responseJSON?.message || 'Lỗi khi tải danh sách sản phẩm');
-            }
-        });
-    }
-    
-    // Handle product selection in batch import modal
-    $('#batchSelectProduct').change(function() {
-        const productId = $(this).val();
-        if (!productId) {
-            $('#batchProductInfo').addClass('d-none');
-            return;
+            }).fail(function() {
+                showErrorToast('Không thể kết nối đến server');
+            });
         }
-        
-        $.ajax({
-            url: `/inventory/${productId}`,
-            method: 'GET',
-            success: function(response) {
-                if (response.status === 'Ok' && response.inventory) {
-                    const product = response.inventory;
-                    
-                    // Display product information
-                    $('#batch-product-code').text(product.product_code || 'Chưa có mã');
-                    $('#batch-product-name').text(product.product_name || 'Chưa có tên');
-                    $('#batch-category').text(product.typeProduct_id?.name || 'Chưa có danh mục');
-                    $('#batch-provider').text(product.provider_id?.fullName || 'Chưa có nhà cung cấp');
-                    $('#batch-unit').text(product.unit || 'Cái');
-                    $('#batch-has-variants').text(product.hasVariants ? 'Có' : 'Không');
-                    $('#batch-description').text(product.product_description || 'Không có mô tả');
-                    
-                    // Store product data in hidden fields
-                    $('#batchProductId').val(product._id);
-                    $('#batchHasVariants').val(product.hasVariants ? 'true' : 'false');
-                    $('#batchTypeProductId').val(product.typeProduct_id?._id || '');
-                    $('#batchProviderId').val(product.provider_id?._id || '');
-                    $('#batchProductName').val(product.product_name || '');
-                    $('#batchProductCode').val(product.product_code || '');
-                    $('#batchProductDescription').val(product.product_description || '');
-                    $('#batchUnit').val(product.unit || 'cái');
-                    
-                    // Handle variants
-                    if (product.hasVariants && product.variantDetails?.length) {
-                        $('#batchVariantDetails').val(JSON.stringify(product.variantDetails));
-                        batchSelectedVariants = product.variantDetails.map(v => ({
-                            attributes: v.attributes || {},
-                            price: null,
-                            quantity: null,
-                        }));
-                        
-                        // Display variant inputs
-                        const variantList = $('#batchVariantList');
-                        variantList.empty();
-                        
-                        product.variantDetails.forEach((variant, index) => {
-                            let attributeText = 'Không có thuộc tính';
-                            if (variant.attributes && typeof variant.attributes === 'object') {
-                                const entries = Object.entries(variant.attributes);
-                                if (entries.length > 0) {
-                                    attributeText = entries.map(([key, value]) => `${value}`).join(', ');
-                                }
-                            }
+
+        // Add product button handler
+        $('#addProductBtn').click(function() {
+            const productTemplate = `
+                <div class="product-item card mb-3">
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Tên sản phẩm</label>
+                                <input type="text" class="form-control product-name" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Mã sản phẩm</label>
+                                <input type="text" class="form-control product-code" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Danh mục</label>
+                                <select class="form-select product-category" required>
+                                    <option value="">Chọn danh mục</option>
+                                    <% typeProducts.forEach(function(type) { %>
+                                        <option value="<%= type._id %>"><%= type.name %></option>
+                                    <% }); %>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Nhà cung cấp</label>
+                                <select class="form-select product-provider" required>
+                                    <option value="">Chọn nhà cung cấp</option>
+                                </select>
+                            </div>
                             
-                            const variantHtml = `
-                                <div class="card mb-3 variant-card" data-index="${index}">
-                                    <div class="card-header bg-light">
-                                        <h6 class="mb-0">Biến thể: ${attributeText}</h6>
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input has-variants" id="productHasVariants-${Date.now()}">
+                                    <label class="form-check-label" for="productHasVariants-${Date.now()}">Sản phẩm có biến thể</label>
+                                </div>
+                            </div>
+
+                            <div class="col-12 common-fields">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Số lượng</label>
+                                        <input type="number" class="form-control product-quantity" min="1" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Giá</label>
+                                        <input type="number" class="form-control product-price" min="0" required>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-12 variants-section d-none">
+                                <div class="card">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0">Biến thể sản phẩm</h6>
+                                        <button type="button" class="btn btn-primary select-variant">
+                                            <i class="fas fa-plus"></i> Chọn thuộc tính
+                                        </button>
                                     </div>
                                     <div class="card-body">
-                                        <div class="row">
-                                            <div class="col-md-6 mb-2">
-                                                <label class="form-label">Số lượng</label>
-                                                <input type="number" class="form-control batch-variant-quantity" 
-                                                    data-index="${index}" name="batchVariantQuantity_${index}" min="1" step="1">
-                                            </div>
-                                            <div class="col-md-6 mb-2">
-                                                <label class="form-label">Giá đơn vị</label>
-                                                <input type="number" class="form-control batch-variant-price" 
-                                                    data-index="${index}" name="batchVariantPrice_${index}" min="0.01" step="0.01">
-                                            </div>
+                                        <div class="variants-list">
+                                            <!-- Variants will be added here -->
                                         </div>
                                     </div>
                                 </div>
-                            `;
-                            variantList.append(variantHtml);
-                        });
-                        
-                        $('#batchVariantSection').removeClass('d-none');
-                        $('#batchNonVariantSection').addClass('d-none');
-                    } else {
-                        $('#batchVariantSection').addClass('d-none');
-                        $('#batchNonVariantSection').removeClass('d-none');
-                    }
-                    
-                    $('#batchProductInfo').removeClass('d-none');
-                } else {
-                    showErrorToast('Không tìm thấy thông tin sản phẩm');
-                }
-            },
-            error: function(xhr) {
-                showErrorToast(xhr.responseJSON?.message || 'Lỗi khi tải thông tin sản phẩm');
-            }
-        });
-    });
-    
-    // Handle variant quantity and price input in batch import
-    $(document).on('input', '.batch-variant-quantity, .batch-variant-price', function() {
-        const index = $(this).data('index');
-        const isPrice = $(this).hasClass('batch-variant-price');
-        const value = Number($(this).val());
-        
-        if (index >= 0 && index < batchSelectedVariants.length) {
-            if (isPrice) {
-                batchSelectedVariants[index].price = value;
-            } else {
-                batchSelectedVariants[index].quantity = value;
-            }
-        }
-    });
-    
-    // Handle batch import form submission
-    $('#batchImportForm').submit(function(e) {
-        e.preventDefault();
-        
-        const hasVariants = $('#batchHasVariants').val() === 'true';
-        
-        // Kiểm tra xem đã chọn sản phẩm chưa
-        const productId = $('#batchSelectProduct').val();
-        if (!productId) {
-            showErrorToast('Vui lòng chọn sản phẩm');
-            return;
-        }
-        
-        // Kiểm tra số lô hàng và ngày nhập
-        const batchNumber = $('#batchNumber').val().trim();
-        const batchDate = $('#batchDate').val();
-        if (!batchNumber || !batchDate) {
-            showErrorToast('Vui lòng nhập đầy đủ thông tin số lô hàng và ngày nhập');
-            return;
-        }
-        
-        const formData = {
-            product_name: $('#batchProductName').val(),
-            product_code: $('#batchProductCode').val(),
-            product_description: $('#batchProductDescription').val(),
-            typeProduct_id: $('#batchTypeProductId').val(),
-            provider_id: $('#batchProviderId').val(),
-            unit: $('#batchUnit').val(),
-            note: $('#batchNote').val(),
-            batch_number: batchNumber,
-            batch_date: batchDate,
-            hasVariants,
-            type: 'import',
-            is_batch_import: true,
-            original_product_id: productId
-        };
-        
-        if (hasVariants) {
-            // Kiểm tra dữ liệu biến thể
-            let hasError = false;
-            $('.batch-variant-quantity, .batch-variant-price').each(function() {
-                if (!$(this).val() || Number($(this).val()) <= 0) {
-                    hasError = true;
-                }
-            });
-            
-            if (hasError) {
-                showErrorToast('Vui lòng nhập giá và số lượng hợp lệ cho tất cả biến thể');
-                return;
-            }
-            
-            // Validate variant data
-            const allVariantsValid = batchSelectedVariants.every(v => 
-                v.attributes && Object.keys(v.attributes).length > 0 && 
-                Number(v.price) > 0 && Number(v.quantity) > 0
-            );
-            
-            if (!allVariantsValid) {
-                showErrorToast('Vui lòng nhập giá và số lượng hợp lệ cho tất cả biến thể');
-                return;
-            }
-            
-            formData.variantDetails = batchSelectedVariants;
-        } else {
-            // Kiểm tra dữ liệu không biến thể
-            const price = Number($('#batchPrice').val());
-            const quantity = Number($('#batchQuantity').val());
-            
-            if (!price || !quantity || price <= 0 || quantity <= 0) {
-                showErrorToast('Giá và số lượng phải là số dương');
-                return;
-            }
-            
-            formData.price = price;
-            formData.quantity = quantity;
-        }
-        
-        // Gửi form
-        $.ajax({
-            url: '/inventory/create',
-            type: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify(formData),
-            success: function(response) {
-                if (response.status === 'Ok') {
-                    showSuccessToast('Nhập lô hàng mới thành công');
-                    batchImportModal.hide();
-                    setTimeout(() => location.reload(), 1000);
-                } else {
-                    showErrorToast(response.message || 'Lỗi khi nhập lô hàng mới');
-                }
-            },
-            error: function(xhr) {
-                showErrorToast(xhr.responseJSON?.message || 'Lỗi khi nhập lô hàng mới');
-                console.error('Lỗi AJAX:', xhr.responseJSON);
-            }
-        });
-    });
-
-    function editInventory(id) {
-        $.ajax({
-            url: `/inventory/${id}`,
-            method: 'GET',
-            success: function (response) {
-                if (response.status === 'Ok') {
-                    const inventory = response.inventory;
-                    $('#editInventoryId').val(inventory._id);
-                    $('#editProductName').val(inventory.product_name);
-                    $('#editProductCode').val(inventory.product_code);
-                    $('#editProductDescription').val(inventory.product_description || '');
-                    $('#editTypeProduct').val(inventory.typeProduct_id?._id || '');
-                    $('#editProvider').val(inventory.provider_id?._id || '');
-                    $('#editUnit').val(inventory.unit || 'cái');
-                    $('#editNote').val(inventory.note || '');
-                    $('#editBatchNumber').val(inventory.batch_number || '');
-                    
-                    // Định dạng ngày nhập lô theo định dạng YYYY-MM-DD cho input type="date"
-                    if (inventory.batch_date) {
-                        const date = new Date(inventory.batch_date);
-                        const year = date.getFullYear();
-                        const month = String(date.getMonth() + 1).padStart(2, '0');
-                        const day = String(date.getDate()).padStart(2, '0');
-                        $('#editBatchDate').val(`${year}-${month}-${day}`);
-                    } else {
-                        $('#editBatchDate').val('');
-                    }
-
-                    selectedVariants = inventory.hasVariants && inventory.variantDetails?.length
-                        ? inventory.variantDetails.map(v => ({
-                            attributes: v.attributes || {},
-                            price: v.price || null,
-                            quantity: v.quantity || null,
-                        }))
-                        : [];
-
-                    updateVariantDisplay('#editSelectedVariantDisplay', selectedVariants);
-                    $('.edit-common-fields').toggle(!inventory.hasVariants);
-                    $('#editQuantity, #editPrice').prop('required', !inventory.hasVariants);
-                    if (!inventory.hasVariants) {
-                        $('#editQuantity').val(inventory.total_quantity || '');
-                        $('#editPrice').val(inventory.total_price && inventory.total_quantity ? (inventory.total_price / inventory.total_quantity) : '');
-                    }
-
-                    updateEditSubmitButton();
-                    editInventoryModal.show();
-                } else {
-                    showErrorToast('Không tìm thấy sản phẩm');
-                }
-            },
-            error: function(xhr) {
-                showErrorToast(xhr.responseJSON?.message || 'Lỗi khi tải thông tin sản phẩm');
-            }
-        });
-    }
-
-    function viewDetails(inventoryId) {
-        // Hiển thị trạng thái đang tải
-        $('#productDetails').html(`
-            <div class="text-center">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Đang tải...</span>
-                </div>
-                <p>Đang tải thông tin sản phẩm...</p>
-            </div>
-        `);
-        
-        // Mở modal
-        viewDetailsModal.show();
-        
-        // Gọi API lấy chi tiết sản phẩm
-        console.log('Gọi API với ID:', inventoryId);
-        
-        $.ajax({
-            url: `/inventory/${inventoryId}`,
-            method: 'GET',
-            success: function(response) {
-                console.log('Phản hồi từ API:', response);
-                
-                if (response.status === 'Ok' && response.inventory) {
-                    const inventory = response.inventory;
-                    console.log('Dữ liệu sản phẩm:', inventory);
-                    
-                    // Lấy template chi tiết sản phẩm
-                    const template = $('#productDetailTemplate').html();
-                    $('#productDetails').html(template);
-                    
-                    // Định dạng ngày tháng
-                    const createdAt = new Date(inventory.createdAt);
-                    const formattedDate = createdAt.toLocaleDateString('vi-VN', { 
-                        day: '2-digit', 
-                        month: '2-digit', 
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
-                    
-                    // Điền dữ liệu vào template
-                    $('#detail-product-code').text(inventory.product_code || 'Chưa có mã');
-                    $('#detail-product-name').text(inventory.product_name || 'Chưa có tên');
-                    $('#detail-category').text(inventory.typeProduct_id?.name || 'Chưa có danh mục');
-                    $('#detail-provider').text(inventory.provider_id?.fullName || 'Chưa có nhà cung cấp');
-                    $('#detail-unit').text(inventory.unit || 'Cái');
-                    $('#detail-note').text(inventory.note || '');
-                    
-                    // Trạng thái
-                    const statusBadge = $('#detail-status');
-                    if (inventory.status === 'available') {
-                        statusBadge.addClass('bg-success').text('Có sẵn');
-                    } else {
-                        statusBadge.addClass('bg-danger').text('Hết hàng');
-                    }
-                    
-                    // Loại
-                    $('#detail-type').text(inventory.type === 'import' ? 'Nhập kho' : 'Xuất kho');
-                    $('#detail-created-at').text(formattedDate);
-                    $('#detail-description').text(inventory.product_description || 'Không có mô tả');
-                    
-                    // Xử lý hiển thị biến thể
-                    if (inventory.hasVariants && inventory.variantDetails?.length > 0) {
-                        console.log('Hiển thị biến thể:', inventory.variantDetails.length, 'biến thể');
-                        
-                        // Lấy template biến thể
-                        const variantTemplate = $('#variantDetailsTemplate').html();
-                        $('#variant-details-container').html(variantTemplate);
-                        
-                        // Xóa nội dung cũ trong bảng biến thể
-                        $('#variant-details-body').empty();
-                        
-                        // Biến để tính tổng
-                        let totalQuantity = 0;
-                        let totalPrice = 0;
-                        
-                        // Thêm từng biến thể vào bảng
-                        inventory.variantDetails.forEach((variant, index) => {
-                            try {
-                                // Xử lý thuộc tính
-                                let attributeText = 'Không có thuộc tính';
-                                
-                                if (variant.attributes && typeof variant.attributes === 'object') {
-                                    const entries = Object.entries(variant.attributes);
-                                    if (entries.length > 0) {
-                                        attributeText = entries.map(([key, value]) => `${value}`).join(', ');
-                                    }
-                                }
-                                
-                                // Tính tổng
-                                const variantTotal = variant.price * variant.quantity;
-                                totalQuantity += variant.quantity;
-                                totalPrice += variantTotal;
-                                
-                                // Định dạng tiền tệ
-                                const formattedPrice = variant.price.toLocaleString('vi-VN') + ' VND';
-                                const formattedTotal = variantTotal.toLocaleString('vi-VN') + ' VND';
-                                
-                                // Tạo hàng cho biến thể
-                                const row = `
-                                    <tr>
-                                        <td class="text-center">${index + 1}</td>
-                                        <td>${attributeText}</td>
-                                        <td class="text-end">${formattedPrice}</td>
-                                        <td class="text-center">${variant.quantity}</td>
-                                        <td class="text-end">${formattedTotal}</td>
-                                    </tr>
-                                `;
-                                $('#variant-details-body').append(row);
-                            } catch (error) {
-                                console.error('Lỗi khi xử lý biến thể:', error);
-                            }
-                        });
-                        
-                        // Cập nhật tổng số lượng và tổng tiền
-                        $('#total-quantity').text(totalQuantity);
-                        $('#total-price').text(totalPrice.toLocaleString('vi-VN') + ' VND');
-                    } else {
-                        // Hiển thị template không có biến thể
-                        const noVariantTemplate = $('#noVariantTemplate').html();
-                        $('#variant-details-container').html(noVariantTemplate);
-                        
-                        // Điền dữ liệu giá và số lượng
-                        $('#detail-quantity').text(inventory.total_quantity || 0);
-                        
-                        const price = inventory.total_quantity > 0 ? (inventory.total_price / inventory.total_quantity) : 0;
-                        const formattedPrice = price.toLocaleString('vi-VN') + ' VND';
-                        $('#detail-price').text(formattedPrice);
-                        
-                        const totalPrice = inventory.total_price || 0;
-                        const formattedTotal = totalPrice.toLocaleString('vi-VN') + ' VND';
-                        $('#detail-total-price').text(formattedTotal);
-                    }
-                } else {
-                    // Hiển thị thông báo lỗi
-                    $('#productDetails').html(`
-                        <div class="alert alert-danger">
-                            <i class="fas fa-exclamation-triangle"></i> 
-                            Không thể tải thông tin sản phẩm. ${response.message || 'Vui lòng thử lại sau.'}
+                            </div>
                         </div>
-                    `);
-                }
-            },
-            error: function(xhr) {
-                console.error('Lỗi AJAX:', xhr.status, xhr.statusText, xhr.responseJSON);
-                $('#productDetails').html(`
-                    <div class="alert alert-danger">
-                        <i class="fas fa-exclamation-triangle"></i> 
-                        Không thể tải thông tin sản phẩm. ${xhr.responseJSON?.message || 'Vui lòng thử lại sau.'}
                     </div>
-                `);
-            }
+                    <div class="card-footer text-end">
+                        <button type="button" class="btn btn-danger btn-sm remove-product">
+                            <i class="fas fa-trash"></i> Xóa sản phẩm
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            $('#productsList').append(productTemplate);
+            // Reload providers for the new select
+            loadProviders();
         });
-    }
 
-    function viewVariants(id) {
-        $.get(`/inventory/${id}`, function (response) {
-            if (response.status === 'Ok' && response.inventory) {
-                const inventory = response.inventory;
-                const variantList = $('#variantList');
-                variantList.empty();
-                if (inventory.hasVariants && inventory.variantDetails?.length) {
-                    inventory.variantDetails.forEach(v => {
-                        const attrs = v.attributes && Object.keys(v.attributes).length
-                            ? Object.entries(v.attributes).map(([k, val]) => `${val}`).join(', ')
-                            : 'Không có thuộc tính';
-                        const html = `
-                            <div class="mb-3 p-3 border rounded">
-                                <p><strong>Thuộc tính:</strong> ${attrs}</p>
-                                <p><strong>Giá:</strong> ${Number(v.price).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}</p>
-                                <p><strong>Số lượng:</strong> ${v.quantity}</p>
-                            </div>`;
-                        variantList.append(html);
+        // Remove product handler
+        $(document).on('click', '.remove-product', function() {
+            $(this).closest('.product-item').remove();
+        });
+
+        // Thêm event listener để nhận message từ trang variants
+        window.addEventListener('message', function(event) {
+            console.log('Nhận được dữ liệu từ trang variants:', event.data);
+            
+            if (event.data && event.data.selectedVariants) {
+                const variants = event.data.selectedVariants;
+                if (window.currentProductItem) {
+                    const $variantsList = window.currentProductItem.find('.variants-list');
+                    $variantsList.empty(); // Xóa các biến thể cũ
+                    
+                    variants.forEach(variant => {
+                        // Check if variant already exists
+                        const existingVariant = $variantsList.find(`[data-variant-id="${variant.id}"]`);
+                        if (existingVariant.length > 0) {
+                            return; // Skip if already exists
+                        }
+
+                        // Create variant text from attributes
+                        const variantText = Object.entries(variant.attributes)
+                            .map(([key, value]) => `${key}: ${value}`)
+                            .join(', ');
+
+                        // Create new variant item
+                        const variantItem = document.createElement('div');
+                        variantItem.className = 'variant-item mb-3 p-3 border rounded';
+                        variantItem.dataset.variantId = variant.id;
+
+                        variantItem.innerHTML = `
+                            <div class="row align-items-center">
+                                <div class="col-md-4">
+                                    <strong>Thuộc tính:</strong> ${variantText}
+                                    <input type="hidden" name="variants[${variant.id}][attributes]" value='${JSON.stringify(variant.attributes)}'>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group mb-0">
+                                        <label>Số lượng:</label>
+                                        <input type="number" name="variants[${variant.id}][quantity]" class="form-control" required min="0">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group mb-0">
+                                        <label>Giá:</label>
+                                        <input type="number" name="variants[${variant.id}][price]" class="form-control" required min="0">
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="button" class="btn btn-danger" onclick="removeVariant(this)">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+
+                        $variantsList.append(variantItem);
                     });
-                } else {
-                    variantList.html('<p class="text-warning">Không có biến thể</p>');
                 }
-                viewVariantsModal.show();
-            } else {
-                showErrorToast('Không tìm thấy sản phẩm');
             }
-        }).fail(function (xhr) {
-            showErrorToast(xhr.responseJSON?.message || 'Lỗi khi tải thông tin biến thể');
         });
-    }
 
-    function deleteInventory(id) {
-        if (confirm('Bạn có chắc muốn xóa sản phẩm này?')) {
-            $.ajax({
-                url: `/inventory/delete/${id}`,
-                method: 'DELETE',
-                success: function (response) {
-                    if (response.status === 'Ok') {
-                        showSuccessToast('Xóa sản phẩm thành công');
-                        $(`#inventory-row-${id}`).remove();
-                    } else {
-                        showErrorToast(response.message || 'Lỗi khi xóa sản phẩm');
-                    }
-                },
-                error: function (xhr) {
-                    showErrorToast(xhr.responseJSON?.message || 'Lỗi khi xóa sản phẩm');
+        // Xử lý xóa tổ hợp biến thể
+        $(document).on('click', '.delete-variant-combination', function() {
+            $(this).closest('.variant-combination').remove();
+        });
+
+        // Handle select variant button click
+        $(document).on('click', '.select-variant', function() {
+            const $productItem = $(this).closest('.product-item');
+            const typeProductId = $productItem.find('.product-category').val();
+            
+            if (!typeProductId) {
+                alert('Vui lòng chọn danh mục sản phẩm trước khi thêm biến thể');
+                return;
+            }
+
+            // Store reference to current product
+            window.currentProductItem = $productItem;
+            
+            // Open variants page in new window
+            const variantsWindow = window.open('/products/variants?mode=select&typeProductId=' + typeProductId, 'VariantsWindow', 'width=800,height=600');
+            if (variantsWindow) {
+                variantsWindow.focus();
+            } else {
+                alert('Trình duyệt đã chặn popup. Vui lòng cho phép popup để sử dụng tính năng này.');
+            }
+        });
+
+        // Xử lý khi submit form
+        $('#saveBatchBtn').click(function() {
+            const batchInfo = {
+                batch_number: $('#batchNumber').val(),
+                import_date: $('#batchDate').val(),
+                provider_id: $('.product-provider').first().val(),
+                note: $('#batchNote').val()
+            };
+
+            const products = [];
+
+            $('.product-item').each(function() {
+                const $product = $(this);
+                const hasVariants = $product.find('.has-variants').is(':checked');
+                
+                const productData = {
+                    product_name: $product.find('.product-name').val(),
+                    typeProduct_id: $product.find('.product-category').val(),
+                    product_description: '',
+                    unit: 'cái',
+                    hasVariants: hasVariants
+                };
+
+                if (hasVariants) {
+                    const variants = [];
+                    $product.find('.variant-combination').each(function() {
+                        const $combination = $(this);
+                        const attributes = {};
+                        
+                        // Collect all variant data from this combination
+                        $combination.find('.variant-data').each(function() {
+                            const name = $(this).data('variant-name');
+                            const value = $(this).data('variant-value');
+                            attributes[name] = value;
+                        });
+
+                        variants.push({
+                            attributes: attributes,
+                            quantity: Number($combination.find('.variant-quantity').val()),
+                            price: Number($combination.find('.variant-price').val())
+                        });
+                    });
+                    productData.variants = variants;
+                } else {
+                    productData.quantity = Number($product.find('.product-quantity').val());
+                    productData.price = Number($product.find('.product-price').val());
                 }
+
+                products.push(productData);
             });
-        }
-    }
 
-    function openVariantsPage(editing) {
-        isEditing = editing;
-        const typeProductId = editing ? $('#editTypeProduct').val() : $('#addTypeProduct').val();
-        if (!typeProductId) {
-            showErrorToast('Vui lòng chọn danh mục trước!');
-            return;
-        }
-        window.open(`/products/variants?typeProductId=${typeProductId}`, 'Chọn thuộc tính', 'width=1200,height=800,left=100,top=100');
-    }
+            // Validate required fields
+            if (!batchInfo.batch_number || !batchInfo.import_date || !batchInfo.provider_id) {
+                alert('Vui lòng điền đầy đủ thông tin lô hàng');
+                return;
+            }
 
-    function formatAttributes(attributes) {
-        if (!attributes || !Object.keys(attributes).length) return 'Không có thuộc tính';
-        return Object.entries(attributes).map(([key, value]) => `${value}`).join(', ');
-    }
+            if (products.length === 0) {
+                alert('Vui lòng thêm ít nhất một sản phẩm');
+                return;
+            }
 
-    function updateVariantDisplay(selector, variants) {
-        const display = $(selector);
-        display.empty();
-        if (variants?.length) {
-            variants.forEach((variant, index) => {
-                if (!variant.attributes || !Object.keys(variant.attributes).length) {
-                    console.warn(`Biến thể ${index} thiếu thông tin thuộc tính:`, variant);
+            // Validate each product
+            for (const product of products) {
+                if (!product.product_name || !product.typeProduct_id) {
+                    alert('Vui lòng điền đầy đủ thông tin cho tất cả sản phẩm');
                     return;
                 }
-                const attrText = formatAttributes(variant.attributes);
-                const price = Number(variant.price) > 0 ? `${Number(variant.price).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}` : 'Chưa có giá';
-                const quantity = Number(variant.quantity) > 0 ? variant.quantity : 'Chưa có SL';
-                const html = `
-                    <div class="variant-group mb-3 p-3 border rounded">
-                        <div class="mb-2">
-                            <span class="badge bg-info me-1">${attrText}</span>
-                            <span class="badge bg-success me-1">Giá: ${price}</span>
-                            <span class="badge bg-warning text-dark">SL: ${quantity}</span>
-                        </div>
-                        <div class="mt-2">
-                            <button class="btn btn-outline-primary btn-sm" onclick="openVariantPriceModal(${index})">
-                                <i class="fas fa-edit"></i> Nhập giá & số lượng
-                            </button>
-                            <button class="btn btn-outline-danger btn-sm" onclick="removeVariant(${index}, '${selector}')">
-                                <i class="fas fa-trash"></i> Xóa
-                            </button>
-                        </div>
-                    </div>`;
-                display.append(html);
+
+                if (product.hasVariants) {
+                    if (!product.variants || product.variants.length === 0) {
+                        alert('Vui lòng thêm ít nhất một biến thể cho sản phẩm có biến thể');
+                        return;
+                    }
+                    for (const variant of product.variants) {
+                        if (!variant.quantity || !variant.price || !variant.attributes) {
+                            alert('Vui lòng điền đầy đủ thông tin cho tất cả biến thể');
+                            return;
+                        }
+                    }
+                } else {
+                    if (!product.quantity || !product.price) {
+                        alert('Vui lòng điền đầy đủ số lượng và giá cho sản phẩm');
+                        return;
+                    }
+                }
+            }
+
+            // Gửi dữ liệu lên server
+            $.ajax({
+                url: '/inventory/batch-import',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    batchInfo: batchInfo,
+                    products: products
+                }),
+                success: function(response) {
+                    if (response.status === 'Success') {
+                        alert('Nhập lô hàng thành công');
+                        $('#batchImportModal').modal('hide');
+                        location.reload();
+                    } else {
+                        alert(response.message || 'Có lỗi xảy ra khi nhập lô hàng');
+                    }
+                },
+                error: function(xhr) {
+                    const errorMessage = xhr.responseJSON?.message || 'Có lỗi xảy ra khi nhập lô hàng';
+                    alert('Lỗi: ' + errorMessage);
+                }
             });
-            const commonFields = isEditing ? '.edit-common-fields' : '.common-fields';
-            $(commonFields).hide();
-            $(isEditing ? '#editQuantity, #editPrice' : '#addQuantity, #addPrice').prop('required', false);
-        } else {
-            display.html('<p class="text-warning">Chưa chọn biến thể</p>');
-            const commonFields = isEditing ? '.edit-common-fields' : '.common-fields';
-            $(commonFields).show();
-            $(isEditing ? '#editQuantity, #editPrice' : '#addQuantity, #addPrice').prop('required', true);
-        }
-        const hiddenInput = isEditing ? '#editVariantDetails' : '#variantDetails';
-        $(hiddenInput).val(JSON.stringify(variants));
-        if (isEditing) {
-            updateEditSubmitButton();
-        } else {
-            updateAddSubmitButton();
-        }
-    }
+        });
 
-    function removeVariant(index, selector) {
-        selectedVariants.splice(index, 1);
-        updateVariantDisplay(selector, selectedVariants);
-    }
+        // Thêm lại hàm openBatchModal
+        window.openBatchModal = function() {
+            // Reset form
+            $('#batchImportForm')[0].reset();
+            $('#productsList').html(''); // Xóa tất cả sản phẩm cũ
+            
+            // Thêm sản phẩm đầu tiên
+            const $productTemplate = `
+                <div class="product-item card mb-3">
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Tên sản phẩm</label>
+                                <input type="text" class="form-control product-name" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Mã sản phẩm</label>
+                                <input type="text" class="form-control product-code" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Danh mục</label>
+                                <select class="form-select product-category" required>
+                                    <option value="">Chọn danh mục</option>
+                                    <% typeProducts.forEach(function(type) { %>
+                                        <option value="<%= type._id %>"><%= type.name %></option>
+                                    <% }); %>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Nhà cung cấp</label>
+                                <select class="form-select product-provider" required>
+                                    <option value="">Chọn nhà cung cấp</option>
+                                </select>
+                            </div>
+                            
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input has-variants" id="productHasVariants">
+                                    <label class="form-check-label" for="productHasVariants">Sản phẩm có biến thể</label>
+                                </div>
+                            </div>
 
-    function openVariantPriceModal(index) {
-        currentVariantIndex = index;
-        const variant = selectedVariants[index];
-        if (!variant || !variant.attributes || !Object.keys(variant.attributes).length) {
-            showErrorToast('Biến thể không hợp lệ, vui lòng chọn lại thuộc tính');
-            return;
-        }
-        const attrText = formatAttributes(variant.attributes);
-        const html = `
-            <div class="variant-entry">
-                <h6>Biến thể: ${attrText}</h6>
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Giá đơn vị</label>
-                        <input type="number" class="form-control variant-price" value="${variant.price || ''}" min="0.01" step="0.01" required>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Số lượng</label>
-                        <input type="number" class="form-control variant-quantity" value="${variant.quantity || ''}" min="1" step="1" required>
+                            <div class="col-12 common-fields">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Số lượng</label>
+                                        <input type="number" class="form-control product-quantity" min="1" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Giá</label>
+                                        <input type="number" class="form-control product-price" min="0" required>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-12 variants-section d-none">
+                                <div class="card">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0">Biến thể sản phẩm</h6>
+                                        <button type="button" class="btn btn-primary select-variant">
+                                            <i class="fas fa-plus"></i> Chọn thuộc tính
+                                        </button>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="variants-list">
+                                            <!-- Variants will be added here -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <p class="text-danger variant-error" style="display: none;">Giá và số lượng phải là số dương</p>
-            </div>`;
-        $('#variantPriceForm').html(html);
-        updateSaveVariantPricesButton();
-        variantPriceModal.show();
-    }
-
-    $('#saveVariantPricesBtn').click(function () {
-        const index = currentVariantIndex;
-        const price = Number($('.variant-price').val());
-        const quantity = Number($('.variant-quantity').val());
-
-        if (!price || !quantity || price <= 0 || quantity <= 0) {
-            $('.variant-error').show();
-            return;
-        }
-
-        if (!selectedVariants[index]?.attributes || !Object.keys(selectedVariants[index].attributes).length) {
-            showErrorToast('Dữ liệu biến thể không hợp lệ, vui lòng chọn lại');
-            variantPriceModal.hide();
-            return;
-        }
-
-        selectedVariants[index] = {
-            attributes: selectedVariants[index].attributes,
-            price,
-            quantity,
-        };
-
-        const selector = isEditing ? '#editSelectedVariantDisplay' : '#selectedVariantDisplay';
-        updateVariantDisplay(selector, selectedVariants);
-        variantPriceModal.hide();
-    });
-
-    window.addEventListener('message', function (event) {
-        if (event.data?.selectedVariants) {
-            console.log('Nhận được biến thể:', event.data.selectedVariants);
-            let receivedVariants = Array.isArray(event.data.selectedVariants) ? event.data.selectedVariants : [];
+            `;
             
-            // Kiểm tra cấu trúc dữ liệu nhận được
-            if (receivedVariants.length > 0 && Array.isArray(receivedVariants[0])) {
-                // Trường hợp nhận được mảng các mảng thuộc tính
-                selectedVariants = receivedVariants.map(variantGroup => {
-                    // Tạo đối tượng attributes từ mảng các cặp {variantId, value}
-                    const attributes = {};
-                    if (Array.isArray(variantGroup)) {
-                        variantGroup.forEach(attr => {
-                            if (attr && attr.variantId && attr.value) {
-                                attributes[attr.variantId] = attr.value;
-                            }
+            $('#productsList').append($productTemplate);
+            
+            // Hiển thị modal
+            $('#batchImportModal').modal('show');
+        };
+
+        // Xử lý checkbox biến thể
+        $(document).on('change', '.has-variants', function() {
+            const $productItem = $(this).closest('.product-item');
+            const $variantsSection = $productItem.find('.variants-section');
+            const $commonFields = $productItem.find('.common-fields');
+            
+            if ($(this).is(':checked')) {
+                $variantsSection.removeClass('d-none');
+                $commonFields.addClass('d-none');
+            } else {
+                $variantsSection.addClass('d-none');
+                $commonFields.removeClass('d-none');
+            }
+        });
+
+        // Thêm sản phẩm mới
+        $('#addProductBtn').click(function() {
+            const $productTemplate = $('.product-item').first().clone();
+            $productTemplate.find('input, select').val('');
+            $productTemplate.find('.variants-list').empty();
+            $productTemplate.find('.has-variants').prop('checked', false);
+            $productTemplate.find('.variants-section').addClass('d-none');
+            $productTemplate.find('.common-fields').removeClass('d-none');
+            $('#productsList').append($productTemplate);
+        });
+
+        // Function to handle variant selection
+        function openVariantSelection() {
+            const variantWindow = window.open('/variants/select', 'variantSelection', 'width=800,height=600');
+            
+            // Store reference to current window
+            window.variantSelectionOpener = window;
+        }
+
+        // Function to receive variants from the variant selection window
+        function receiveVariants(variants) {
+            if (!variants || !Array.isArray(variants)) {
+                console.error('Invalid variants data received');
+                return;
+            }
+
+            const variantsList = document.getElementById('variantsList');
+            if (!variantsList) {
+                console.error('Variants list container not found');
+                return;
+            }
+
+            variants.forEach(variant => {
+                // Check if variant already exists
+                const existingVariant = variantsList.querySelector(`[data-variant-id="${variant.id}"]`);
+                if (existingVariant) {
+                    return; // Skip if variant already exists
+                }
+
+                // Create variant text from attributes
+                const variantText = Object.entries(variant.attributes)
+                    .map(([key, value]) => `${key}: ${value}`)
+                    .join(', ');
+
+                // Create new variant item
+                const variantItem = document.createElement('div');
+                variantItem.className = 'variant-item mb-3 p-3 border rounded';
+                variantItem.dataset.variantId = variant.id;
+
+                variantItem.innerHTML = `
+                    <div class="row align-items-center">
+                        <div class="col-md-4">
+                            <strong>Thuộc tính:</strong> ${variantText}
+                            <input type="hidden" name="variants[${variant.id}][attributes]" value='${JSON.stringify(variant.attributes)}'>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group mb-0">
+                                <label>Số lượng:</label>
+                                <input type="number" name="variants[${variant.id}][quantity]" class="form-control" required min="0">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group mb-0">
+                                <label>Giá:</label>
+                                <input type="number" name="variants[${variant.id}][price]" class="form-control" required min="0">
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="button" class="btn btn-danger" onclick="removeVariant(this)">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                variantsList.appendChild(variantItem);
+            });
+        }
+
+        function removeVariant(button) {
+            const variantItem = button.closest('.variant-item');
+            if (variantItem) {
+                variantItem.remove();
+            }
+        }
+
+        // Xử lý khi mở modal nhập lô hàng mới
+        $('#batchImportModal').on('show.bs.modal', function() {
+            // Reset form
+            $('#batchImportForm')[0].reset();
+            
+            // Đặt ngày mặc định là ngày hiện tại
+            const today = new Date().toISOString().split('T')[0];
+            $('#batchDate').val(today);
+            
+            // Tạo mã lô hàng mặc định
+            const batchNumber = 'BH' + Date.now().toString().slice(-6);
+            $('#batchNumber').val(batchNumber);
+            
+            // Load danh sách nhà cung cấp nếu chưa có
+            if ($('.product-provider option').length <= 1) {
+                loadProviders();
+            }
+        });
+
+        // Định dạng số theo chuẩn Việt Nam
+        const formatNumber = (number) => {
+            return new Intl.NumberFormat('vi-VN').format(number);
+        };
+
+        // Định dạng tiền tệ theo chuẩn Việt Nam
+        const formatCurrency = (amount) => {
+            return new Intl.NumberFormat('vi-VN', {
+                style: 'currency',
+                currency: 'VND'
+            }).format(amount);
+        };
+
+        // Định nghĩa hàm viewDetails trong phạm vi toàn cục
+        window.viewDetails = async function(productId) {
+            const modal = new bootstrap.Modal(document.getElementById('productDetailModal'));
+            modal.show();
+
+            try {
+                // Gọi API lấy thông tin chi tiết
+                const response = await fetch(`/inventory/${productId}`, {
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Không thể tải thông tin sản phẩm');
+                }
+
+                const data = await response.json();
+                
+                if (data.status === 'Ok' && data.inventory) {
+                    const inventory = data.inventory;
+
+                    // Cập nhật thông tin cơ bản
+                    document.getElementById('detailProductName').textContent = inventory.product_name;
+                    document.getElementById('detailProductCode').textContent = inventory.product_code;
+                    document.getElementById('detailProductType').textContent = inventory.typeProduct_id?.name || 'N/A';
+                    document.getElementById('detailProvider').textContent = inventory.provider_id?.fullName || 'N/A';
+                    document.getElementById('detailBatchNumber').textContent = inventory.batch_number;
+                    document.getElementById('detailBatchDate').textContent = new Date(inventory.batch_date).toLocaleDateString('vi-VN');
+                    document.getElementById('detailTotalQuantity').textContent = new Intl.NumberFormat('vi-VN').format(inventory.total_quantity);
+                    document.getElementById('detailTotalPrice').textContent = new Intl.NumberFormat('vi-VN', {
+                        style: 'currency',
+                        currency: 'VND'
+                    }).format(inventory.total_price);
+
+                    // Xử lý hiển thị biến thể
+                    const variantTable = document.getElementById('variantDetailsTable');
+                    const noVariantsAlert = document.getElementById('noVariantsAlert');
+                    const tbody = variantTable.querySelector('tbody');
+                    tbody.innerHTML = '';
+
+                    if (inventory.variantDetails && inventory.variantDetails.length > 0) {
+                        variantTable.style.display = 'table';
+                        noVariantsAlert.style.display = 'none';
+
+                        inventory.variantDetails.forEach(variant => {
+                            const row = tbody.insertRow();
+                            
+                            // Cột thuộc tính
+                            const attributeCell = row.insertCell();
+                            const attributes = Object.entries(variant.attributes)
+                                .map(([name, value]) => `${name}: ${value}`)
+                                .join(', ');
+                            attributeCell.textContent = attributes;
+
+                            // Cột giá
+                            const priceCell = row.insertCell();
+                            priceCell.textContent = new Intl.NumberFormat('vi-VN', {
+                                style: 'currency',
+                                currency: 'VND'
+                            }).format(variant.price);
+                            priceCell.classList.add('text-end');
+
+                            // Cột số lượng
+                            const quantityCell = row.insertCell();
+                            quantityCell.textContent = new Intl.NumberFormat('vi-VN').format(variant.quantity);
+                            quantityCell.classList.add('text-center');
                         });
+                    } else {
+                        variantTable.style.display = 'none';
+                        noVariantsAlert.style.display = 'block';
                     }
-                    
-                    // Chỉ trả về đối tượng hợp lệ nếu có ít nhất một thuộc tính
-                    if (Object.keys(attributes).length > 0) {
-                        return {
-                            attributes: attributes,
-                            price: null,
-                            quantity: null
-                        };
-                    }
-                    return null;
-                }).filter(Boolean); // Loại bỏ các phần tử null
-            } else {
-                // Xử lý theo cách cũ nếu định dạng khác
-                selectedVariants = receivedVariants
-                    .filter(v => v?.attributes && Object.keys(v.attributes).length > 0)
-                    .map(v => ({
-                        attributes: v.attributes,
-                        price: Number(v.price) || null,
-                        quantity: Number(v.quantity) || null,
-                    }));
+                }
+            } catch (error) {
+                console.error('Lỗi khi tải chi tiết sản phẩm:', error);
+                alert('Có lỗi xảy ra khi tải thông tin sản phẩm. Vui lòng thử lại sau.');
             }
-
-            console.log('selectedVariants sau khi xử lý:', selectedVariants);
-            const selector = isEditing ? '#editSelectedVariantDisplay' : '#selectedVariantDisplay';
-            updateVariantDisplay(selector, selectedVariants);
-            if (selectedVariants.length) {
-                showSuccessToast('Đã chọn biến thể, vui lòng nhập giá và số lượng');
-            } else {
-                showErrorToast('Không có biến thể hợp lệ được chọn');
-            }
-        }
-    });
-
-    $('#addInventoryForm').submit(function (e) {
-        e.preventDefault();
-        const hasVariants = $('#hasVariants').is(':checked');
-        const formData = {
-            product_name: $('#addProductName').val().trim(),
-            product_code: $('#addProductCode').val(),
-            typeProduct_id: $('#addTypeProduct').val(),
-            provider_id: $('#addProvider').val(),
-            unit: $('#addUnit').val().trim(),
-            product_description: $('#addProductDescription').val().trim(),
-            note: $('#addNote').val().trim(),
-            batch_number: $('#addBatchNumber').val().trim(),
-            batch_date: $('#addBatchDate').val(),
-            hasVariants,
-            type: 'import'
         };
 
-        if (hasVariants) {
-            if (!selectedVariants.length) {
-                showErrorToast('Vui lòng chọn ít nhất một biến thể');
-                return;
+        // Khởi tạo các thành phần khi trang đã tải xong
+        document.addEventListener('DOMContentLoaded', function() {
+            // Khởi tạo các toast messages nếu cần
+            const toastElList = [].slice.call(document.querySelectorAll('.toast'));
+            toastElList.map(function(toastEl) {
+                return new bootstrap.Toast(toastEl);
+            });
+        });
+
+        // Lắng nghe sự kiện message từ cửa sổ popup biến thể
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'VARIANTS_SELECTED') {
+                const variants = event.data.variants;
+                handleSelectedVariants(variants);
             }
-            if (selectedVariants.some(v => !v.attributes || !Object.keys(v.attributes).length)) {
-                showErrorToast('Một hoặc nhiều biến thể thiếu thông tin thuộc tính');
-                return;
-            }
-            if (selectedVariants.some(v => !Number(v.price) || !Number(v.quantity) || v.price <= 0 || v.quantity <= 0)) {
-                showErrorToast('Tất cả biến thể phải có giá và số lượng hợp lệ');
-                return;
-            }
-            formData.variantDetails = selectedVariants;
-        } else {
-            formData.price = Number($('#addPrice').val());
-            formData.quantity = Number($('#addQuantity').val());
-            if (!formData.price || !formData.quantity || formData.price <= 0 || formData.quantity <= 0) {
-                showErrorToast('Giá và số lượng phải là số dương');
-                return;
+        });
+
+        // Xử lý dữ liệu biến thể từ trang variants
+        function handleSelectedVariants(event) {
+            if (event.data && event.data.type === 'VARIANTS_SELECTED') {
+                const variants = event.data.variants;
+                if (variants && variants.length > 0) {
+                    // Cập nhật biến thể cho sản phẩm hiện tại
+                    const currentProduct = products[currentProductIndex];
+                    if (currentProduct) {
+                        currentProduct.variants = variants;
+                        currentProduct.hasVariants = true;
+                        updateProductTable();
+                    }
+                } else {
+                    console.error('Không có biến thể nào được chọn');
+                }
             }
         }
 
-        console.log('Gửi dữ liệu:', JSON.stringify(formData, null, 2));
-
-        $.ajax({
-            url: '/inventory/create',
-            type: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify(formData),
-            success: function (response) {
-                if (response.status === 'Ok') {
-                    showSuccessToast('Thêm sản phẩm thành công');
-                    addInventoryModal.hide();
-                    setTimeout(() => location.reload(), 1000);
-                } else {
-                    showErrorToast(response.message || 'Lỗi khi thêm sản phẩm');
+        // Hàm hiển thị toast thông báo
+        function showErrorToast(message) {
+            const toastElement = document.getElementById('errorToast');
+            if (toastElement) {
+                const toastBody = toastElement.querySelector('.toast-body');
+                if (toastBody) {
+                    toastBody.textContent = message;
+                    const toast = new bootstrap.Toast(toastElement);
+                    toast.show();
                 }
-            },
-            error: function (xhr) {
-                showErrorToast(xhr.responseJSON?.message || 'Lỗi khi thêm sản phẩm');
-                console.error('Lỗi AJAX:', xhr.responseJSON);
-            }
-        });
-    });
-
-    $('#editInventoryForm').submit(function (e) {
-        e.preventDefault();
-        const inventoryId = $('#editInventoryId').val();
-        const hasVariants = $('#editHasVariants').is(':checked');
-        const formData = {
-            product_name: $('#editProductName').val().trim(),
-            product_code: $('#editProductCode').val(),
-            product_description: $('#editProductDescription').val().trim(),
-            typeProduct_id: $('#editTypeProduct').val(),
-            provider_id: $('#editProvider').val(),
-            unit: $('#editUnit').val().trim(),
-            note: $('#editNote').val().trim(),
-            batch_number: $('#editBatchNumber').val().trim(),
-            batch_date: $('#editBatchDate').val(),
-            hasVariants,
-            type: 'import'
-        };
-
-        if (hasVariants) {
-            if (!selectedVariants.length) {
-                showErrorToast('Vui lòng chọn ít nhất một biến thể');
-                return;
-            }
-            if (selectedVariants.some(v => !v.attributes || !Object.keys(v.attributes).length)) {
-                showErrorToast('Một hoặc nhiều biến thể thiếu thông tin thuộc tính');
-                return;
-            }
-            if (selectedVariants.some(v => !Number(v.price) || !Number(v.quantity) || v.price <= 0 || v.quantity <= 0)) {
-                showErrorToast('Tất cả biến thể phải có giá và số lượng hợp lệ');
-                return;
-            }
-            formData.variantDetails = selectedVariants;
-        } else {
-            formData.price = Number($('#editPrice').val());
-            formData.quantity = Number($('#editQuantity').val());
-            if (!formData.price || !formData.quantity || formData.price <= 0 || formData.quantity <= 0) {
-                showErrorToast('Giá và số lượng phải là số dương');
-                return;
+            } else {
+                console.error('Toast element not found');
             }
         }
 
-        console.log('Gửi dữ liệu:', JSON.stringify(formData, null, 2));
-
-        $.ajax({
-            url: `/inventory/update/${inventoryId}`,
-            method: 'PUT',
-            contentType: 'application/json',
-            data: JSON.stringify(formData),
-            success: function (response) {
-                if (response.status === 'Ok') {
-                    showSuccessToast('Cập nhật sản phẩm thành công');
-                    editInventoryModal.hide();
-                    setTimeout(() => location.reload(), 1000);
-                } else {
-                    showErrorToast(response.message || 'Lỗi khi cập nhật sản phẩm');
+        function showSuccessToast(message) {
+            const toastElement = document.getElementById('successToast');
+            if (toastElement) {
+                const toastBody = toastElement.querySelector('.toast-body');
+                if (toastBody) {
+                    toastBody.textContent = message;
+                    const toast = new bootstrap.Toast(toastElement);
+                    toast.show();
                 }
-            },
-            error: function (xhr) {
-                showErrorToast(xhr.responseJSON?.message || 'Lỗi khi cập nhật sản phẩm');
-                console.error('Lỗi AJAX:', xhr.responseJSON);
+            } else {
+                console.error('Toast element not found');
             }
-        });
+        }
     });
+    </script>
 
-    function showSuccessToast(message) {
-        $('#successToast .toast-body').text(message);
-        new bootstrap.Toast($('#successToast')).show();
+    <style>
+    .variants-list {
+        max-height: 400px;
+        overflow-y: auto;
+        padding: 10px;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
     }
 
-    function showErrorToast(message) {
-        $('#errorToast .toast-body').text(message);
-        new bootstrap.Toast($('#errorToast')).show();
+    .variant-item {
+        background-color: #f8f9fa;
+        margin-bottom: 10px;
+        padding: 15px;
+        border-radius: 4px;
+        border: 1px solid #dee2e6;
     }
-</script>
+
+    .variant-item:hover {
+        background-color: #e9ecef;
+    }
+
+    .variant-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .card {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+    }
+
+    .card-body {
+        padding: 1.25rem;
+    }
+
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    .product-form {
+        background-color: #fff;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    </style>
+</div>

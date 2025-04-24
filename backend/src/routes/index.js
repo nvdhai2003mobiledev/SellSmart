@@ -14,6 +14,7 @@ const inventoryRouter = require("./inventory");
 const routes = (app) => {
   app.use("/", authRouter);
   app.use("/dashboard", dashboardRouter);
+  app.use("/inventory", inventoryRouter);
   app.use("/products", productRouter);
   app.use("/employees", employeeRouter);
   app.use("/customers", customerRouter);
@@ -23,7 +24,6 @@ const routes = (app) => {
   app.use("/documents", documentRouter);
   app.use("/promotions", promotionRouter);
   app.use("/warranty", warrantyRouter);
-  app.use("/inventory",inventoryRouter);
   return app;
 };
 module.exports = routes;
