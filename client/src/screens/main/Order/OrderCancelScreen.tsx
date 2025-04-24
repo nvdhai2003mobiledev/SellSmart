@@ -61,6 +61,21 @@ const OrderCancelScreen = observer(() => {
       console.log('Kết quả cập nhật trạng thái:', response);
       
       if (response.ok) {
+        // Cập nhật lại danh sách đơn hàng để đảm bảo lý do hủy được cập nhật
+        await rootStore.orders.fetchOrders();
+        
+        // Kiểm tra xem lý do hủy đã được cập nhật trong đơn hàng chưa
+        const updatedOrder = rootStore.orders.orders.find(order => order._id === orderId);
+        if (updatedOrder) {
+          console.log(`Đơn hàng sau khi hủy: ${updatedOrder._id}`);
+          console.log(`Trạng thái: ${updatedOrder.status}`);
+          console.log(`Lý do hủy: ${updatedOrder.cancelReason || 'Không có'}`);
+          
+          if (!updatedOrder.cancelReason) {
+            console.warn('Lý do hủy đơn không được cập nhật trong đơn hàng!');
+          }
+        }
+        
         // Hiển thị thông báo thành công với chi tiết
         Alert.alert(
           'Hủy đơn hàng thành công',
@@ -68,9 +83,8 @@ const OrderCancelScreen = observer(() => {
           [
             {
               text: 'OK',
-              onPress: async () => {
-                // Refresh danh sách đơn hàng để cập nhật trạng thái mới
-                await rootStore.orders.fetchOrders();
+              onPress: () => {
+                // Quay lại màn hình chi tiết đơn hàng
                 navigation.goBack();
               },
             },
@@ -114,7 +128,11 @@ const OrderCancelScreen = observer(() => {
               textAlignVertical="top"
               value={cancelReason}
               onChangeText={setCancelReason}
+              maxLength={200}
             />
+            <DynamicText style={styles.charCount}>
+              {cancelReason.length}/200 ký tự
+            </DynamicText>
           </View>
           
           <View style={styles.infoCard}>
@@ -140,25 +158,23 @@ const OrderCancelScreen = observer(() => {
       
       <View style={styles.footer}>
         <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <DynamicText style={styles.backButtonText}>Quay lại</DynamicText>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[
-            styles.submitButton,
-            (!cancelReason.trim() || isSubmitting) && styles.disabledButton
-          ]}
+          style={[styles.cancelButton, !cancelReason.trim() && styles.disabledButton]}
           onPress={handleCancelOrder}
           disabled={isSubmitting || !cancelReason.trim()}
         >
           {isSubmitting ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
-            <DynamicText style={styles.submitButtonText}>Hủy đơn hàng</DynamicText>
+            <DynamicText style={styles.buttonText}>Hủy đơn hàng</DynamicText>
           )}
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+          disabled={isSubmitting}
+        >
+          <DynamicText style={styles.backButtonText}>Quay lại</DynamicText>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -168,14 +184,13 @@ const OrderCancelScreen = observer(() => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f8f9fa',
   },
   scrollContent: {
     flexGrow: 1,
   },
   mainContent: {
     padding: 16,
-    flex: 1,
   },
   card: {
     backgroundColor: 'white',
@@ -189,89 +204,102 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   title: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
     color: '#333',
-    marginBottom: 16,
   },
   input: {
+    backgroundColor: '#f9f9f9',
+    borderRadius: 4,
+    padding: 12,
+    fontSize: 14,
+    color: '#333',
     borderWidth: 1,
     borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
     height: 120,
-    fontSize: 16,
-    backgroundColor: '#fff',
+  },
+  charCount: {
+    fontSize: 12,
+    color: '#999',
+    textAlign: 'right',
+    marginTop: 4,
   },
   infoCard: {
-    backgroundColor: '#E8F4FD',
-    borderWidth: 1,
-    borderColor: '#B8DAFF',
+    backgroundColor: '#e6f7ff',
     borderRadius: 8,
     padding: 16,
     marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#1890ff',
   },
   infoTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#0A558C',
+    fontWeight: '600',
     marginBottom: 8,
+    color: '#1890ff',
   },
   infoText: {
     fontSize: 14,
-    color: '#0A558C',
-    marginBottom: 6,
+    color: '#555',
+    marginBottom: 8,
     lineHeight: 20,
   },
   warningCard: {
-    backgroundColor: '#FFF3CD',
-    borderWidth: 1,
-    borderColor: '#FFE070',
+    backgroundColor: '#fff2e8',
     borderRadius: 8,
     padding: 16,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#ff4d4f',
   },
   warningText: {
     fontSize: 14,
-    color: '#856404',
+    color: '#ff4d4f',
     lineHeight: 20,
   },
   footer: {
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+    paddingTop: 10,
     backgroundColor: 'white',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     borderTopWidth: 1,
     borderTopColor: '#eee',
-    flexDirection: 'row',
-    padding: 16,
   },
-  backButton: {
-    flex: 1,
-    backgroundColor: '#f1f1f1',
+  cancelButton: {
+    backgroundColor: '#ff4d4f',
     borderRadius: 8,
-    padding: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    flex: 1,
     marginRight: 8,
   },
-  backButtonText: {
-    color: '#333',
-    fontSize: 16,
-    fontWeight: '500',
+  disabledButton: {
+    backgroundColor: '#ffccc7',
   },
-  submitButton: {
-    flex: 1,
-    backgroundColor: '#dc3545',
+  buttonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  backButton: {
+    backgroundColor: 'white',
     borderRadius: 8,
-    padding: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
   },
-  submitButtonText: {
-    color: 'white',
+  backButtonText: {
+    color: '#555',
+    fontWeight: '600',
     fontSize: 16,
-    fontWeight: '500',
-  },
-  disabledButton: {
-    backgroundColor: '#ccc',
   },
 });
 

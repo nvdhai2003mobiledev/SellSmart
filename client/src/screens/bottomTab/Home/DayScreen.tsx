@@ -73,7 +73,7 @@ const DayScreen = observer(() => {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlotData | null>(null);
 
-  // Tính toán số đơn hàng theo từng loại
+  // Tính toán số Hóa đơn theo từng loại
   const getOrderCounts = () => {
     try {
       const today = new Date();
@@ -81,7 +81,7 @@ const DayScreen = observer(() => {
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
 
-      // Lọc đơn hàng trong ngày hôm nay với xử lý lỗi parse ngày
+      // Lọc Hóa đơn trong ngày hôm nay với xử lý lỗi parse ngày
       const todayOrders = rootStore.orders.orders.filter((order: any) => {
         try {
           const orderDate = new Date(order.createdAt);
@@ -92,17 +92,17 @@ const DayScreen = observer(() => {
         }
       });
 
-      // Đơn hàng chưa thanh toán
+      // Hóa đơn chưa thanh toán
       const unpaidOrders = todayOrders.filter(
         (order: any) => order.paymentStatus === 'unpaid' && order.status !== 'canceled',
       );
 
-      // Đơn hàng thanh toán một phần
+      // Hóa đơn thanh toán một phần
       const partlyPaidOrders = todayOrders.filter(
         (order: any) => order.paymentStatus === 'partpaid' && order.status !== 'canceled',
       );
 
-      // Đơn hàng hủy
+      // Hóa đơn hủy
       const canceledOrders = todayOrders.filter(
         (order: any) => order.status === 'canceled',
       );
@@ -286,7 +286,7 @@ const DayScreen = observer(() => {
           </DynamicText>
           <View style={styles.orderInfoRow}>
             <DynamicText style={styles.orderInfoText}>
-              {revenueStats.orderCount} đơn hàng
+              {revenueStats.orderCount} hóa đơn
             </DynamicText>
           </View>
         </TouchableOpacity>
@@ -393,7 +393,7 @@ const DayScreen = observer(() => {
                   color={color.accentColor.whiteColor}
                 />
               }
-              title="Đơn hàng"
+              title="Hóa đơn"
               onPress={() => navigation.navigate(Screen.ORDERSCREEN)}
             />
             <QuickAccessItem
@@ -467,7 +467,7 @@ const DayScreen = observer(() => {
 
       {/* Kết quả kinh doanh - Updated */}
       <View style={styles.resultContainer}>
-        <DynamicText style={styles.resultTitle}>Tóm tắt đơn hàng</DynamicText>
+        <DynamicText style={styles.resultTitle}>Tóm tắt Hóa đơn</DynamicText>
 
         <TouchableOpacity 
           style={styles.resultItem}
@@ -491,7 +491,7 @@ const DayScreen = observer(() => {
               <DocumentText size={20} color="#FFFFFF" variant="Bold" />
             </View>
             <View style={styles.resultLeft}>
-              <DynamicText style={styles.resultItemTitle}>Tổng đơn hàng</DynamicText>
+              <DynamicText style={styles.resultItemTitle}>Tổng Hóa đơn</DynamicText>
               <DynamicText style={styles.resultItemValue}>
                 {orderCounts.total}
               </DynamicText>
@@ -639,7 +639,7 @@ const DayScreen = observer(() => {
                     </View>
                     <View style={styles.modalHeaderRight}>
                       <DynamicText style={styles.modalOrderCount}>
-                        Số đơn hàng: {selectedTimeSlot.orderCount}
+                        Số Hóa đơn: {selectedTimeSlot.orderCount}
                       </DynamicText>
                     </View>
                   </View>

@@ -166,7 +166,7 @@ const FilterOrderScreen = () => {
           ORDER_STATUS_OPTIONS, 
           orderStatus, 
           setOrderStatus, 
-          'Trạng thái đơn hàng'
+          'Trạng thái Hóa đơn'
         )}
 
         {/* Date Range Picker */}

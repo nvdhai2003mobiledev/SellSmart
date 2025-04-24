@@ -119,6 +119,7 @@ export const updateOrderPayment = async (
       paymentStatus: string;
       paymentMethod: string;
       amount?: number;
+      status?: string;
     } = {
       paymentStatus: isPartialPayment ? 'partpaid' : 'paid',
       paymentMethod: paymentMethod
@@ -127,6 +128,14 @@ export const updateOrderPayment = async (
     // Include amount only if provided
     if (amount !== undefined) {
       paymentData.amount = amount;
+    }
+    
+    // Update status to 'waiting' if it's a partial payment or 'processing' if it's fully paid
+    // The backend will handle setting this status based on the order's current state
+    if (isPartialPayment) {
+      paymentData.status = 'waiting';
+    } else {
+      paymentData.status = 'processing';
     }
     
     console.log('Payment data being sent:', paymentData);

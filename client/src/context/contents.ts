@@ -37,8 +37,8 @@ export const contents = {
   },
 
   order: {
-    create_order: 'Tạo đơn hàng ',
-    order: 'Đơn hàng ',
+    create_order: 'Tạo hóa đơn ',
+    order: 'Hóa đơn ',
     order_draft: 'Đơn nháp',
     return_product: 'Trả hàng ',
     ship: 'Vận đơn',

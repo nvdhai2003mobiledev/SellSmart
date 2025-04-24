@@ -29,6 +29,7 @@ export {default as ProfileScreen} from './main/Profile/ProfileScreen';
 export {default as ChooseOrderProduct} from './main/Order/ChooseOrderProduct';
 export {default as CustomerSelection} from './main/Order/CustomerSelection';
 export {default as OrderDetailScreen} from './main/Order/OrderDetailScreen';
+export {default as OrderHistoryScreen} from './main/Order/OrderHistoryScreen';
 export {default as ProductListScreen} from './main/Product/ProductListScreen';
 export {default as PromotionListScreen} from './main/Promotion/PromotionListScreen';
 export {default as AddPromotionScreen} from './main/Promotion/AddPromotionScreen';

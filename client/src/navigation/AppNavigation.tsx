@@ -31,6 +31,7 @@ import {
   ChooseOrderProduct,
   CustomerSelection,
   OrderDetailScreen,
+  OrderHistoryScreen,
   PromotionListScreen,
   AddPromotionScreen,
 } from '../screens';
@@ -138,6 +139,10 @@ export const AppNavigation = observer(() => {
       <RootStack.Screen
         name={Screen.ORDER_CANCEL}
         component={OrderCancelScreen}
+      />
+      <RootStack.Screen
+        name={Screen.ORDER_HISTORY}
+        component={OrderHistoryScreen}
       />
       <RootStack.Screen
         name={Screen.PAYMENT_METHODS}

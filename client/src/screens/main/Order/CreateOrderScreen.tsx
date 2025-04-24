@@ -179,7 +179,7 @@ const CreateOrderScreen = observer(() => {
     if (total < promotion.minOrderValue) {
       Alert.alert(
         'Không đủ điều kiện',
-        `Giá trị đơn hàng phải từ ${formatCurrency(
+        `Giá trị Hóa đơn phải từ ${formatCurrency(
           promotion.minOrderValue,
         )} để áp dụng khuyến mãi này.`,
       );
@@ -287,7 +287,7 @@ const CreateOrderScreen = observer(() => {
     }
 
     try {
-      // Tính toán tổng tiền đơn hàng
+      // Tính toán tổng tiền Hóa đơn
       const total = selectedPromotion
         ? calculateTotal() - calculateDiscount()
         : calculateTotal();
@@ -295,6 +295,7 @@ const CreateOrderScreen = observer(() => {
       // Xác định thông tin thanh toán
       const paidAmount = paymentDetails ? paymentDetails.amount : 0;
       const isFullyPaid = paidAmount >= total;
+      const isPartiallyPaid = paidAmount > 0 && paidAmount < total;
 
       // Xác định trạng thái thanh toán
       const paymentStatus = !paymentDetails
@@ -303,11 +304,18 @@ const CreateOrderScreen = observer(() => {
         ? 'paid'
         : 'partpaid';
 
-      // Trạng thái đơn hàng dựa trên thanh toán
-      const orderStatus = paymentStatus === 'unpaid' ? 'pending' : 'processing';
+      // Trạng thái Hóa đơn dựa trên thanh toán
+      // - 'pending': Chưa thanh toán
+      // - 'waiting': Thanh toán một phần, chờ thanh toán đủ
+      // - 'processing': Đã thanh toán đủ, đang xử lý
+      const orderStatus = paymentStatus === 'unpaid' 
+        ? 'pending' 
+        : paymentStatus === 'partpaid'
+        ? 'waiting'
+        : 'processing';
 
       // Log thông tin thanh toán để debug
-      console.log('===== Thông tin đơn hàng trước khi gửi =====');
+      console.log('===== Thông tin Hóa đơn trước khi gửi =====');
       console.log(`Khách hàng: ${selectedCustomer.fullName}`);
       console.log(`Sản phẩm: ${selectedProducts.length} items`);
       selectedProducts.forEach((product, index) => {
@@ -325,13 +333,14 @@ const CreateOrderScreen = observer(() => {
       console.log(`Tổng tiền: ${total}`);
       console.log(`Số tiền đã thanh toán: ${paidAmount}`);
       console.log(`Đã thanh toán đủ: ${isFullyPaid ? 'Có' : 'Không'}`);
+      console.log(`Thanh toán một phần: ${isPartiallyPaid ? 'Có' : 'Không'}`);
       console.log(
         `Phương thức thanh toán: ${
           paymentDetails ? paymentDetails.method : 'Chưa thanh toán'
         }`,
       );
       console.log(`Trạng thái thanh toán: ${paymentStatus}`);
-      console.log(`Trạng thái đơn hàng: ${orderStatus}`);
+      console.log(`Trạng thái Hóa đơn: ${orderStatus}`);
 
       if (paymentDetails) {
         console.log(
@@ -417,11 +426,11 @@ const CreateOrderScreen = observer(() => {
 
       if (response.ok) {
         console.log(
-          'Phản hồi API tạo đơn hàng:',
+          'Phản hồi API tạo Hóa đơn:',
           JSON.stringify(response.data, null, 2),
         );
 
-        // Lấy ID đơn hàng từ response
+        // Lấy ID Hóa đơn từ response
         // Kiểm tra cả hai định dạng phản hồi có thể có từ API
         let orderId = null;
 
@@ -453,17 +462,17 @@ const CreateOrderScreen = observer(() => {
           }
         }
 
-        console.log('Đơn hàng đã tạo thành công với ID:', orderId);
+        console.log('Hóa đơn đã tạo thành công với ID:', orderId);
 
         // Refresh orders in the store
         await rootStore.orders.fetchOrders();
 
         if (orderId) {
-          // Điều hướng đến trang chi tiết đơn hàng với ID đơn hàng vừa tạo
+          // Điều hướng đến trang chi tiết Hóa đơn với ID Hóa đơn vừa tạo
           navigation.navigate(Screen.ORDER_DETAIL, {orderId});
         } else {
-          // Fallback nếu không lấy được ID đơn hàng
-          Alert.alert('Thành công', 'Đơn hàng đã được tạo thành công', [
+          // Fallback nếu không lấy được ID Hóa đơn
+          Alert.alert('Thành công', 'Hóa đơn đã được tạo thành công', [
             {text: 'OK', onPress: () => navigation.navigate(Screen.ORDERLIST)},
           ]);
         }
@@ -471,7 +480,7 @@ const CreateOrderScreen = observer(() => {
         console.error('Order creation failed with status:', response.status);
         console.error('Response data:', response.data);
 
-        let errorMessage = 'Không thể tạo đơn hàng';
+        let errorMessage = 'Không thể tạo Hóa đơn';
         if (response.data) {
           // Sử dụng any cho response.data
           const errorData = response.data as any;
@@ -483,11 +492,11 @@ const CreateOrderScreen = observer(() => {
     } catch (error) {
       console.error('Error creating order:', error);
       // Show more detailed error message
-      let errorMessage = 'Đã xảy ra lỗi khi tạo đơn hàng';
+      let errorMessage = 'Đã xảy ra lỗi khi tạo Hóa đơn';
       if (error instanceof Error) {
         errorMessage = `Lỗi: ${error.message}`;
       }
-      Alert.alert('Lỗi tạo đơn hàng', errorMessage);
+      Alert.alert('Lỗi tạo Hóa đơn', errorMessage);
     }
   };
 
@@ -555,7 +564,7 @@ const CreateOrderScreen = observer(() => {
   return (
     <BaseLayout>
       <Header
-        title="Tạo đơn hàng"
+        title="Tạo Hóa đơn"
         showBackIcon={true}
         onPressBack={() => navigation.goBack()}
       />
@@ -699,14 +708,14 @@ const CreateOrderScreen = observer(() => {
                   const total = calculateTotal() - calculateDiscount();
 
                   navigation.navigate(Screen.PAYMENT_METHODS, {
-                    orderId: 'new', // Đánh dấu đây là đơn hàng mới
+                    orderId: 'new', // Đánh dấu đây là Hóa đơn mới
                     orderNumber: 'tạm thời',
                     totalAmount: total,
                     isNewOrder: true,
                     onPaymentComplete: (method, amount) => {
                       setPaymentStatus('paid');
                       setPaymentMethod(method);
-                      // Lưu thông tin thanh toán để hiển thị và sử dụng khi tạo đơn hàng
+                      // Lưu thông tin thanh toán để hiển thị và sử dụng khi tạo Hóa đơn
                       setPaymentDetails({
                         method: method,
                         amount: amount,
@@ -826,7 +835,7 @@ const CreateOrderScreen = observer(() => {
         <View style={styles.section}>
           <DynamicText style={styles.sectionTitle}>Ghi chú</DynamicText>
           <Input
-            placeholderText="Nhập ghi chú cho đơn hàng"
+            placeholderText="Nhập ghi chú cho Hóa đơn"
             value={notes}
             onChangeText={setNotes}
             inputContainerStyle={styles.notesInput}
@@ -837,7 +846,7 @@ const CreateOrderScreen = observer(() => {
 
         {/* Order Summary Section */}
         <View style={styles.section}>
-          <DynamicText style={styles.sectionTitle}>Tổng đơn hàng</DynamicText>
+          <DynamicText style={styles.sectionTitle}>Tổng Hóa đơn</DynamicText>
           <View style={styles.summaryContainer}>
             <View style={styles.summaryRow}>
               <DynamicText style={styles.summaryLabel}>Tạm tính:</DynamicText>
@@ -883,7 +892,7 @@ const CreateOrderScreen = observer(() => {
             onPress={handleCreateOrder}
             disabled={!isValidOrder()}>
             <DynamicText style={styles.createOrderButtonText}>
-              Tạo đơn hàng
+              Tạo Hóa đơn
             </DynamicText>
           </TouchableOpacity>
         </View>
@@ -952,7 +961,7 @@ const CreateOrderScreen = observer(() => {
                         } else {
                           Alert.alert(
                             'Không đủ điều kiện',
-                            `Giá trị đơn hàng phải từ ${formatCurrency(
+                            `Giá trị Hóa đơn phải từ ${formatCurrency(
                               item.minOrderValue,
                             )} để áp dụng khuyến mãi này.`,
                           );

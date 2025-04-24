@@ -35,7 +35,7 @@ export const Order = types.model({
   }),
   products: types.array(OrderProduct),
   totalAmount: types.number,
-  status: types.enumeration(['pending', 'processing', 'shipping', 'delivered', 'canceled']),
+  status: types.enumeration(['pending', 'waiting', 'processing', 'shipping', 'delivered', 'canceled']),
   paymentMethod: types.maybeNull(types.enumeration(['cash', 'credit card', 'debit card', 'e-wallet'])),
   paymentStatus: types.enumeration(['paid', 'unpaid', 'refunded', 'partpaid']),
   paidAmount: types.optional(types.number, 0),
