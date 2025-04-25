@@ -6,9 +6,13 @@ const mongoose = require("mongoose");
 // Nhập kho sản phẩm mới
 const importInventory = async (req, res) => {
 	try {
+		console.log("=== Bắt đầu xử lý nhập kho ===");
+		console.log("Request body:", JSON.stringify(req.body, null, 2));
+		
 		const { batchInfo, products } = req.body;
 		
 		if (!batchInfo || !products || !Array.isArray(products) || products.length === 0) {
+			console.error("Dữ liệu nhập kho không hợp lệ:", { batchInfo, products });
 			return res.status(400).json({
 				status: 'Error',
 				message: 'Dữ liệu nhập kho không hợp lệ'
@@ -17,178 +21,101 @@ const importInventory = async (req, res) => {
 
 		// Validate batch info
 		if (!batchInfo.provider_id || !batchInfo.import_date) {
+			console.error("Thông tin lô hàng không đầy đủ:", batchInfo);
 			return res.status(400).json({
 				status: 'Error',
 				message: 'Thông tin lô hàng không đầy đủ'
 			});
 		}
 
-		// Tạo mảng chứa các sản phẩm sẽ được lưu
-		const inventoryItems = [];
-		const updatedItems = [];
+		// Lấy mã sản phẩm cuối cùng
+		const lastInventory = await Inventory.findOne({}, { product_code: 1 })
+			.sort({ product_code: -1 })
+			.collation({ locale: "en_US", numericOrdering: true });
 
-		for (const product of products) {
-			// Kiểm tra xem là sản phẩm mới hay sản phẩm đã tồn tại
-			if (product.existingProductId) {
-				// Xử lý sản phẩm đã tồn tại
-				const existingProduct = await Inventory.findById(product.existingProductId);
-				if (!existingProduct) {
-					continue; // Bỏ qua nếu không tìm thấy sản phẩm
-				}
-
-				const oldQuantity = existingProduct.total_quantity;
-				const oldTotalPrice = existingProduct.total_price;
-				const oldAveragePrice = oldTotalPrice / oldQuantity;
-
-				const newQuantity = Number(product.quantity);
-				const newPrice = Number(product.price);
-
-				if (isNaN(newQuantity) || isNaN(newPrice) || newQuantity <= 0 || newPrice <= 0) {
-					continue;
-				}
-
-				const totalQuantity = oldQuantity + newQuantity;
-				const averagePrice = ((oldAveragePrice * oldQuantity) + (newPrice * newQuantity)) / totalQuantity;
-				const totalPrice = averagePrice * totalQuantity;
-
-				// Cập nhật thông tin sản phẩm
-				if (existingProduct.hasVariants && Array.isArray(existingProduct.variantDetails)) {
-					// Cập nhật số lượng và giá cho từng biến thể theo tỷ lệ
-					existingProduct.variantDetails = existingProduct.variantDetails.map(variant => {
-						const variantRatio = variant.quantity / oldQuantity;
-						const newVariantQuantity = Math.round(newQuantity * variantRatio);
-						return {
-							...variant.toObject(),
-							quantity: variant.quantity + newVariantQuantity,
-							price: averagePrice
-						};
-					});
-				}
-
-				// Cập nhật thông tin chung
-				existingProduct.total_quantity = totalQuantity;
-				existingProduct.total_price = totalPrice;
-
-				// Thêm thông tin lô mới vào batch_info
-				existingProduct.batch_info.push({
-					batch_number: batchInfo.batch_number,
-					batch_date: batchInfo.import_date,
-					quantity: newQuantity,
-					price: newPrice,
-					note: product.note || ''
-				});
-
-				// Lưu thay đổi
-				await existingProduct.save();
-				updatedItems.push(existingProduct);
-			} else {
-				// Xử lý sản phẩm mới (giữ nguyên logic cũ)
-				if (!product.typeProduct_id || !product.product_name) {
-					continue;
-				}
-
-				// Tạo mã sản phẩm mới
-				const lastInventory = await Inventory.findOne({}, { product_code: 1 })
-					.sort({ product_code: -1 })
-					.collation({ locale: "en_US", numericOrdering: true });
-
-				let lastNumber = 0;
-				if (lastInventory) {
-					const match = lastInventory.product_code.match(/^MD(\d+)$/);
-					if (match) {
-						lastNumber = parseInt(match[1]);
-					}
-				}
-				lastNumber++;
-
-				// Chuẩn bị dữ liệu cơ bản cho sản phẩm mới
-				const baseProduct = {
-					product_code: `MD${String(lastNumber).padStart(3, '0')}`,
-					product_name: product.product_name,
-					product_description: product.product_description || '',
-					typeProduct_id: product.typeProduct_id,
-					provider_id: batchInfo.provider_id,
-					batch_number: batchInfo.batch_number,
-					batch_date: batchInfo.import_date,
-					unit: product.unit || 'cái',
-					note: product.note || '',
-					type: 'import',
-					hasVariants: product.hasVariants || false,
-					batch_info: [{
-						batch_number: batchInfo.batch_number,
-						batch_date: batchInfo.import_date,
-						quantity: Number(product.quantity),
-						price: Number(product.price),
-						note: product.note || ''
-					}]
-				};
-
-				if (product.hasVariants && Array.isArray(product.variants)) {
-					// Xử lý sản phẩm mới có biến thể
-					let totalQuantity = 0;
-					let totalPrice = 0;
-					const variantDetails = [];
-
-					for (const variant of product.variants) {
-						if (!variant.quantity || !variant.price || !variant.attributes) {
-							continue;
-						}
-
-						const variantQuantity = Number(variant.quantity);
-						const variantPrice = Number(variant.price);
-
-						if (isNaN(variantQuantity) || isNaN(variantPrice) || variantQuantity <= 0 || variantPrice <= 0) {
-							continue;
-						}
-
-						totalQuantity += variantQuantity;
-						totalPrice += variantQuantity * variantPrice;
-
-						variantDetails.push({
-							attributes: new Map(Object.entries(variant.attributes)),
-							quantity: variantQuantity,
-							price: variantPrice
-						});
-					}
-
-					if (variantDetails.length > 0) {
-						inventoryItems.push({
-							...baseProduct,
-							variantDetails,
-							total_quantity: totalQuantity,
-							total_price: totalPrice
-						});
-					}
-				} else {
-					// Xử lý sản phẩm mới không có biến thể
-					const quantity = Number(product.quantity);
-					const price = Number(product.price);
-
-					if (!isNaN(quantity) && !isNaN(price) && quantity > 0 && price > 0) {
-						inventoryItems.push({
-							...baseProduct,
-							variantDetails: [],
-							total_quantity: quantity,
-							total_price: quantity * price
-						});
-					}
-				}
+		let lastNumber = 0;
+		if (lastInventory) {
+			const match = lastInventory.product_code.match(/^MD(\d+)$/);
+			if (match) {
+				lastNumber = parseInt(match[1]);
 			}
 		}
 
-		// Lưu các sản phẩm mới
-		let savedNewItems = [];
-		if (inventoryItems.length > 0) {
-			savedNewItems = await Inventory.insertMany(inventoryItems);
+		// Tạo mảng chứa các sản phẩm sẽ được lưu
+		const inventoryItems = [];
+
+		for (const product of products) {
+			if (!product.typeProduct_id || !product.product_name) {
+				console.warn("Bỏ qua sản phẩm thiếu thông tin:", product);
+				continue;
+			}
+
+			// Tăng số thứ tự cho mỗi sản phẩm
+			lastNumber++;
+			const productCode = `MD${String(lastNumber).padStart(3, '0')}`;
+
+			const baseProduct = {
+				product_code: productCode,
+				product_name: product.product_name,
+				product_description: product.product_description || '',
+				typeProduct_id: product.typeProduct_id,
+				provider_id: batchInfo.provider_id,
+				batch_number: batchInfo.batch_number,
+				batch_date: batchInfo.import_date,
+				unit: product.unit || 'cái',
+				note: product.note || '',
+				type: 'import',
+				hasVariants: product.hasVariants || false,
+				batch_info: [{
+					batch_number: batchInfo.batch_number,
+					batch_date: batchInfo.import_date,
+					quantity: product.quantity,
+					price: product.price,
+					note: product.note || ''
+				}]
+			};
+
+			if (product.hasVariants && Array.isArray(product.variants)) {
+				console.log("Xử lý sản phẩm có biến thể:", {
+					product_name: product.product_name,
+					variants: product.variants
+				});
+
+				const variantDetails = product.variants.map(variant => ({
+					attributes: new Map(Object.entries(variant.variants.reduce((acc, v) => {
+						acc[v.name] = v.value;
+						return acc;
+					}, {}))),
+					price: variant.price,
+					quantity: variant.quantity
+				}));
+
+				baseProduct.variantDetails = variantDetails;
+				baseProduct.total_quantity = product.quantity;
+				baseProduct.total_price = product.price * product.quantity;
+			} else {
+				baseProduct.variantDetails = [];
+				baseProduct.total_quantity = product.quantity;
+				baseProduct.total_price = product.price * product.quantity;
+			}
+
+			inventoryItems.push(baseProduct);
 		}
 
+		if (inventoryItems.length === 0) {
+			return res.status(400).json({
+				status: 'Error',
+				message: 'Không có sản phẩm hợp lệ để nhập kho'
+			});
+		}
+
+		const savedItems = await Inventory.insertMany(inventoryItems);
+
+		console.log(`Đã lưu ${savedItems.length} sản phẩm vào kho`);
 		res.status(200).json({
 			status: 'Success',
 			message: 'Nhập kho thành công',
-			data: {
-				newItems: savedNewItems,
-				updatedItems: updatedItems
-			}
+			data: savedItems
 		});
 
 	} catch (error) {

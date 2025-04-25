@@ -9,15 +9,15 @@ const getVariantsAsJson = async (req, res) => {
       console.log("Bắt đầu lấy danh sách biến thể dạng JSON", { query: req.query });
       const { page = 1, limit = 10, name, typeProductId } = req.query;
       const query = {};
-      if (name) query.name = { $regex: name, $options: "i" };
+      
+      // Thêm điều kiện tìm kiếm theo tên nếu có
+      if (name) {
+          query.name = { $regex: name, $options: "i" };
+      }
+
+      // Chỉ thêm điều kiện typeProductId nếu nó được cung cấp và hợp lệ
       if (typeProductId && mongoose.Types.ObjectId.isValid(typeProductId)) {
           query.typeProductId = typeProductId;
-      } else if (typeProductId) {
-          console.warn("ID danh mục không hợp lệ trong query", { typeProductId });
-          return res.status(400).json({
-              status: "Error",
-              message: "ID danh mục không hợp lệ",
-          });
       }
 
       const variants = await Variant.find(query)
