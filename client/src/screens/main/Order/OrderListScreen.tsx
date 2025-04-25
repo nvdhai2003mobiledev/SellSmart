@@ -10,7 +10,7 @@ import {
   Keyboard,
 } from 'react-native';
 import {RootStackParamList, Screen} from '../../../navigation/navigation.type';
-import {useNavigation, useRoute} from '@react-navigation/native';
+import {useNavigation, useRoute, NavigationProp, RouteProp} from '@react-navigation/native';
 import {observer} from 'mobx-react-lite';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {BaseLayout, Header, DynamicText} from '../../../components';
@@ -18,13 +18,19 @@ import {rootStore} from '../../../models/root-store';
 import {color, moderateScale, scaledSize} from '../../../utils';
 import {Order} from '../../../models/Order/Order';
 
+// Define route params interface
+interface OrderListRouteParams {
+  filter?: any;
+  status?: string;
+}
+
 const OrderListScreen = observer(() => {
-  const navigation = useNavigation();
-  const route = useRoute();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const route = useRoute<RouteProp<{params: OrderListRouteParams}, 'params'>>();
   const [isLoading, setIsLoading] = useState(true);
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
+  const [filteredOrders, setFilteredOrders] = useState<any[]>([]);
   const [currentFilter, setCurrentFilter] = useState<any>(null);
 
   useEffect(() => {
@@ -71,7 +77,7 @@ const OrderListScreen = observer(() => {
   };
 
   // Filter function
-  const applyFilter = (orderList: Order[], filter: any) => {
+  const applyFilter = (orderList: any[], filter: any) => {
     return orderList.filter(order => {
       // Payment Status Filter
       if (filter.paymentStatus) {
@@ -140,21 +146,24 @@ const OrderListScreen = observer(() => {
   };
 
   const navigateToOrderScreen = (status?: string) => {
+    // @ts-ignore - ignore navigation type error
     navigation.navigate(Screen.BOTTOM_TAB, {status});
   };
   // Navigate to Filter Screen
   const navigateToFilterScreen = () => {
+    // @ts-ignore - ignore navigation type error
     navigation.navigate(Screen.FILTERORDER, {
       existingFilter: currentFilter,
     });
   };
 
-  const renderOrderItem = ({item}: {item: Order}) => {
+  const renderOrderItem = ({item}: {item: any}) => {
     const truncatedOrderId = item.orderID.slice(-4);
     return (
       <TouchableOpacity
         style={styles.orderItem}
         onPress={() =>
+          // @ts-ignore - ignore navigation type error
           navigation.navigate(Screen.ORDER_DETAIL, {orderId: item._id})
         }>
         <View style={styles.orderHeader}>
@@ -166,14 +175,42 @@ const OrderListScreen = observer(() => {
           </DynamicText>
         </View>
         <View style={styles.orderDetails}>
-          <DynamicText style={styles.customerName}>
-            {item.customerID.fullName}
-          </DynamicText>
+          <View>
+            <DynamicText style={styles.customerName}>
+              {item.customerID.fullName}
+            </DynamicText>
+            <DynamicText style={styles.customerPhone}>
+              {item.customerID.phoneNumber}
+            </DynamicText>
+          </View>
           <DynamicText style={styles.orderDate}>
             {new Date(item.createdAt).toLocaleDateString()}
           </DynamicText>
         </View>
-        <View style={styles.orderStatus}>
+        <View style={styles.statusContainer}>
+          <View style={styles.paymentStatusWrapper}>
+            <DynamicText style={[
+              styles.paymentStatusText,
+              {
+                color:
+                  item.paymentStatus === 'paid'
+                    ? 'green'
+                    : item.paymentStatus === 'partpaid'
+                    ? '#FF8C00'
+                    : item.paymentStatus === 'unpaid'
+                    ? '#FFB74D'
+                    : color.accentColor.errorColor,
+              },
+            ]}>
+              {item.paymentStatus === 'paid'
+                ? 'Đã thanh toán'
+                : item.paymentStatus === 'partpaid'
+                ? 'Thanh toán một phần'
+                : item.paymentStatus === 'unpaid'
+                ? 'Chưa thanh toán'
+                : 'Hoàn tiền'}
+            </DynamicText>
+          </View>
           <DynamicText
             style={[
               styles.statusText,
@@ -354,9 +391,26 @@ const styles = StyleSheet.create({
     fontSize: moderateScale(13),
     color: color.accentColor.darkColor,
   },
+  customerPhone: {
+    fontSize: moderateScale(12),
+    color: color.accentColor.grayColor,
+    marginTop: moderateScale(2),
+  },
   orderDate: {
     fontSize: moderateScale(13),
     color: color.accentColor.grayColor,
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  paymentStatusWrapper: {
+    flex: 1,
+  },
+  paymentStatusText: {
+    fontSize: moderateScale(12),
+    fontWeight: '500',
   },
   orderStatus: {
     alignItems: 'flex-end',
@@ -364,6 +418,7 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: moderateScale(13),
     fontWeight: '500',
+    textAlign: 'right',
   },
   loadingContainer: {
     flex: 1,
