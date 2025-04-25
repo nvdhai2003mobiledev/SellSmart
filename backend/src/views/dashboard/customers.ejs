@@ -55,6 +55,7 @@
                 <table class="table table-hover align-middle mb-0">
                     <thead class="bg-light">
                         <tr>
+                            <th class="py-3 px-4">STT</th>
                             <th class="py-3 px-4">Họ Tên</th>
                             <th class="py-3 px-4">Số Điện Thoại</th>
                             <th class="py-3 px-4">Email</th>
@@ -65,42 +66,53 @@
                         </tr>
                     </thead>
                     <tbody id="customerTableBody">
-                    <% customers.forEach(function(customer) { %>
-                        <tr>
-                            <td class="py-3 px-4"><div class="fw-semibold text-dark"><%= customer.fullName %></div></td>
-                            <td class="py-3 px-4"><%= customer.phoneNumber %></td>
-                            <td class="py-3 px-4"><%= customer.email %></td>
-                            <td class="py-3 px-4"><%= customer.address %></td>
-                            <td class="py-3 px-4">
-                                <% if (customer.birthDate && customer.birthDate.getTime() > 0) { %>
-                                    <%= new Date(customer.birthDate).toLocaleDateString() %>
-                                <% } else { %>
-                                    Chưa cập nhật
-                                <% } %>
-                            </td>
-                            <td class="py-3 px-4">
-                                <% if (customer.avatar) { %>
-                                    <img src="<%= customer.avatar %>" alt="Avatar" width="40" height="40" class="rounded-circle">
-                                <% } else { %>
-                                    <div class="avatar-sm bg-light d-flex align-items-center justify-content-center rounded-circle" style="width: 40px; height: 40px;">
-                                        <i class="fas fa-user text-secondary"></i>
-                                    </div>
-                                <% } %>
-                            </td>
-                            <td class="py-3 px-4 text-center">
-                                <button class="btn btn-sm btn-info me-2 edit-customer-btn" 
-                                        data-id="<%= customer._id %>"
-                                        data-fullname="<%= customer.fullName %>"
-                                        data-phone="<%= customer.phoneNumber %>"
-                                        data-email="<%= customer.email %>"
-                                        data-address="<%= customer.address || '' %>"
-                                        data-birthdate="<%= customer.birthDate ? (typeof customer.birthDate.toISOString === 'function' ? customer.birthDate.toISOString().split('T')[0] : customer.birthDate) : '' %>"
-                                        data-avatar="<%= customer.avatar || '' %>">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    <% }); %>
+                        <% if (customers.length === 0) { %>
+                            <tr>
+                                <td colspan="8" class="text-center py-3">Không có khách hàng nào</td>
+                            </tr>
+                        <% } else { %>
+                            <% customers.forEach(function(customer, index) { %>
+                                <tr>
+                                    <td class="py-3 px-4"><%= index + 1 %></td>
+                                    <td class="py-3 px-4"><div class="fw-semibold text-dark"><%= customer.fullName %></div></td>
+                                    <td class="py-3 px-4"><%= customer.phoneNumber %></td>
+                                    <td class="py-3 px-4"><%= customer.email %></td>
+                                    <td class="py-3 px-4"><%= customer.address %></td>
+                                    <td class="py-3 px-4">
+                                        <% if (customer.birthDate && customer.birthDate.getTime() > 0) { %>
+                                            <%= new Date(customer.birthDate).toLocaleDateString() %>
+                                        <% } else { %>
+                                            Chưa cập nhật
+                                        <% } %>
+                                    </td>
+                                    <td class="py-3 px-4">
+                                        <% if (customer.avatar) { %>
+                                            <img src="<%= customer.avatar %>" alt="Avatar" width="40" height="40" class="rounded-circle">
+                                        <% } else { %>
+                                            <div class="avatar-sm bg-light d-flex align-items-center justify-content-center rounded-circle" style="width: 40px; height: 40px;">
+                                                <i class="fas fa-user text-secondary"></i>
+                                            </div>
+                                        <% } %>
+                                    </td>
+                                    <td class="py-3 px-4 text-center">
+                                        <button class="btn btn-sm btn-info me-2 edit-customer-btn" 
+                                                data-id="<%= customer._id %>"
+                                                data-fullname="<%= customer.fullName %>"
+                                                data-phone="<%= customer.phoneNumber %>"
+                                                data-email="<%= customer.email %>"
+                                                data-address="<%= customer.address || '' %>"
+                                                data-birthdate="<%= customer.birthDate ? (typeof customer.birthDate.toISOString === 'function' ? customer.birthDate.toISOString().split('T')[0] : customer.birthDate) : '' %>"
+                                                data-avatar="<%= customer.avatar || '' %>">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-danger delete-customer-btn" 
+                                                data-id="<%= customer._id %>">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            <% }); %>
+                        <% } %>
                     </tbody>
                 </table>
             </div>
@@ -256,6 +268,11 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
+    // Pagination variables
+    let currentPageIndex = 1;
+    let itemsPerPage = 10;
+    let filteredCustomers = [];
+    
     // Save customer (from modal)
     document.getElementById("saveCustomer").addEventListener("click", async function () {
         const form = document.getElementById("addCustomerForm");
@@ -286,7 +303,6 @@
             return;
         }
 
-        // Kiểm tra email trùng
         let isDuplicate = await checkDuplicateEmail(email);
         if (isDuplicate) {
             alert("Email đã tồn tại! Vui lòng nhập email khác.");
@@ -298,19 +314,17 @@
             return;
         }
 
-        // Nếu hợp lệ, gửi form
         form.submit();
     });
 
-    // Hàm kiểm tra email đã tồn tại hay chưa
     async function checkDuplicateEmail(email) {
         try {
             let response = await fetch(`/customers/check-email?email=${encodeURIComponent(email)}`);
             let data = await response.json();
-            return data.exists; // Trả về true nếu email đã tồn tại
+            return data.exists;
         } catch (error) {
             console.error("Lỗi kiểm tra email:", error);
-            return false; // Nếu có lỗi, coi như email chưa tồn tại
+            return false;
         }
     }
 
@@ -355,12 +369,10 @@
         document.getElementById("editBirthDate").value = birthDate;
         document.getElementById("editAvatar").value = avatar;
 
-        // Hiển thị modal
         document.getElementById("editCustomerModal").style.display = "block";
         document.getElementById("editCustomerModal").classList.add("show");
         document.body.classList.add("modal-open");
 
-        // Tạo backdrop cho modal
         let backdrop = document.createElement("div");
         backdrop.className = "modal-backdrop fade show";
         document.body.appendChild(backdrop);
@@ -371,7 +383,6 @@
         document.getElementById("editCustomerModal").classList.remove("show");
         document.body.classList.remove("modal-open");
 
-        // Xóa backdrop
         let backdrop = document.querySelector(".modal-backdrop");
         if (backdrop) {
             backdrop.remove();
@@ -379,10 +390,7 @@
     }
 
     function updateCustomer() {
-        // Get ID from form
         const id = document.getElementById("editCustomerId").value;
-        
-        // Prepare update data
         const customerData = {
             fullName: document.getElementById("editFullName").value.trim(),
             phoneNumber: document.getElementById("editPhoneNumber").value.trim(),
@@ -392,7 +400,6 @@
             avatar: document.getElementById("editAvatar").value.trim()
         };
 
-        // Validate data
         let phoneRegex = /^[0-9]{10}$/;
         let emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         let urlRegex = /^(https?:\/\/.*\.(?:png|jpg|jpeg|gif|webp))$/i;
@@ -417,7 +424,6 @@
             return;
         }
 
-        // Send update request
         fetch(`/customers/customers/${id}`, {
             method: 'PUT',
             headers: {
@@ -435,7 +441,6 @@
             .then(data => {
                 alert("Cập nhật khách hàng thành công!");
                 closeEditModal();
-                // Reload the page to show updated information
                 location.reload();
             })
             .catch(error => {
@@ -444,42 +449,88 @@
             });
     }
     
-    // Search functionality
-    $('#applyFilter').click(function() {
-        const searchText = $('#phoneSearch').val().toLowerCase();
+    function updateCustomerDisplay() {
+        const rows = $('#customerTableBody tr');
+        filteredCustomers = [];
         
-        // Create a filter function for the pagination
-        const filterFn = function(item) {
-            const row = $(item);
-            const customerText = row.text().toLowerCase();
-            return !searchText || customerText.includes(searchText);
-        };
+        rows.each(function() {
+            const row = $(this);
+            if (row.css('display') !== 'none') {
+                filteredCustomers.push(row);
+            }
+        });
         
-        // Use the pagination library to filter the customers
-        customerPagination.filterItems(filterFn);
+        $('#totalItems').text(filteredCustomers.length);
+        
+        const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage);
+        
+        rows.hide();
+        
+        const start = (currentPageIndex - 1) * itemsPerPage;
+        const end = Math.min(start + itemsPerPage, filteredCustomers.length);
+        
+        for (let i = start; i < end; i++) {
+            $(filteredCustomers[i]).show();
+        }
+        
+        $('#prevPage').toggleClass('disabled', currentPageIndex === 1);
+        $('#nextPage').toggleClass('disabled', currentPageIndex === totalPages || totalPages === 0);
+        $('#currentPage').text(currentPageIndex);
+    }
+    
+    $('#itemsPerPage').change(function() {
+        itemsPerPage = parseInt($(this).val());
+        currentPageIndex = 1;
+        updateCustomerDisplay();
     });
     
-    // Initialize pagination system
-    const customerPagination = initializePagination({
-        itemSelector: '#customerTableBody tr',
-        itemsPerPageSelector: '#itemsPerPage',
-        prevPageSelector: '#prevPage',
-        nextPageSelector: '#nextPage',
-        currentPageSelector: '#currentPage',
-        totalItemsSelector: '#totalItems',
-        itemNameSingular: 'khách hàng',
-        itemNamePlural: 'khách hàng',
-        onPageChange: function(state) {
-            // Update index numbers if needed
-            const visibleRows = $('#customerTableBody tr:visible');
-            visibleRows.each(function(index) {
-                const startIndex = (state.currentPageIndex - 1) * state.itemsPerPage;
-                $(this).find('td:first').text(startIndex + index + 1);
-            });
+    $('#prevPage').click(function(e) {
+        e.preventDefault();
+        if (currentPageIndex > 1) {
+            currentPageIndex--;
+            updateCustomerDisplay();
         }
     });
     
-    // Use data attributes for edit and delete buttons
+    $('#nextPage').click(function(e) {
+        e.preventDefault();
+        const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage);
+        if (currentPageIndex < totalPages) {
+            currentPageIndex++;
+            updateCustomerDisplay();
+        }
+    });
+    
+    $('#applyFilter').click(function() {
+        const searchText = $('#phoneSearch').val().toLowerCase();
+        
+        $('#customerTableBody tr').each(function() {
+            const row = $(this);
+            const rowText = row.text().toLowerCase();
+            
+            if (rowText.includes(searchText)) {
+                row.show();
+            } else {
+                row.hide();
+            }
+        });
+        
+        currentPageIndex = 1;
+        updateCustomerDisplay();
+    });
+    
+    $('#phoneSearch').on('input', function() {
+        if (this.value.length >= 3 || this.value.length === 0) {
+            $('#applyFilter').click();
+        }
+    });
+    
+    $(document).ready(function() {
+        const totalCustomers = $('#customerTableBody tr').length;
+        $('#totalItems').text(totalCustomers);
+        updateCustomerDisplay();
+    });
+
     $(document).on('click', '.edit-customer-btn', function() {
         const btn = $(this);
         editCustomer(
@@ -495,5 +546,24 @@
 
     $(document).on('click', '.delete-customer-btn', function() {
         deleteCustomer($(this).data('id'));
+    });  
+
+    // Initialize pagination system
+    const customerPagination = initializePagination({
+        itemSelector: '#customerTableBody tr',
+        itemsPerPageSelector: '#itemsPerPage',
+        prevPageSelector: '#prevPage',
+        nextPageSelector: '#nextPage',
+        currentPageSelector: '#currentPage',
+        totalItemsSelector: '#totalItems',
+        itemNameSingular: 'khách hàng',
+        itemNamePlural: 'khách hàng',
+        onPageChange: function(state) {
+            const visibleRows = $('#customerTableBody tr:visible');
+            visibleRows.each(function(index) {
+                const startIndex = (state.currentPageIndex - 1) * state.itemsPerPage;
+                $(this).find('td:eq(0)').text(startIndex + index + 1);
+            });
+        }
     });
 </script>

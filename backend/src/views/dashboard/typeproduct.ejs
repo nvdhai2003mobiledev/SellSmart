@@ -142,11 +142,11 @@
 <script>
     let addTypeModal, editTypeModal;
 
-    document.addEventListener('DOMContentLoaded', function() {
+    $(document).ready(function() {
         // Khởi tạo modals
         addTypeModal = new bootstrap.Modal(document.getElementById('addTypeModal'));
         editTypeModal = new bootstrap.Modal(document.getElementById('editTypeModal'));
-        
+
         // Khởi tạo phân trang
         const typePagination = initializePagination({
             itemSelector: '#typeProductTableBody tr',
@@ -158,22 +158,9 @@
             itemNameSingular: 'danh mục',
             itemNamePlural: 'danh mục'
         });
-        
-        // Hàm mở modal thêm loại sản phẩm
-        function openAddModal() {
-            $('#addTypeName').val('');
-            addTypeModal.show();
-        }
-
-        // Hàm chỉnh sửa loại sản phẩm
-        function editType(id, name) {
-            $('#editTypeId').val(id);
-            $('#editTypeName').val(name);
-            editTypeModal.show();
-        }
 
         // Xử lý thêm loại sản phẩm
-        $('#addTypeForm').submit(function(e) {
+        $('#addTypeForm').off('submit').on('submit', function(e) {
             e.preventDefault();
             const name = $('#addTypeName').val().trim();
             if (!name || name.length < 2) {
@@ -200,7 +187,7 @@
         });
 
         // Xử lý chỉnh sửa loại sản phẩm
-        $('#editTypeForm').submit(function(e) {
+        $('#editTypeForm').off('submit').on('submit', function(e) {
             e.preventDefault();
             const id = $('#editTypeId').val();
             const name = $('#editTypeName').val().trim();
@@ -227,17 +214,30 @@
                 error: xhr => showErrorToast('Lỗi khi cập nhật loại sản phẩm: ' + (xhr.responseJSON?.message || 'Vui lòng thử lại!'))
             });
         });
-
-        // Hàm hiển thị toast thông báo thành công
-        function showSuccessToast(message) {
-            $('#successToast .toast-body').text(message);
-            new bootstrap.Toast($('#successToast')).show();
-        }
-
-        // Hàm hiển thị toast thông báo lỗi
-        function showErrorToast(message) {
-            $('#errorToast .toast-body').text(message);
-            new bootstrap.Toast($('#errorToast')).show();
-        }
     });
+
+    // Hàm mở modal thêm loại sản phẩm
+    function openAddModal() {
+        $('#addTypeName').val('');
+        addTypeModal.show();
+    }
+
+    // Hàm chỉnh sửa loại sản phẩm
+    function editType(id, name) {
+        $('#editTypeId').val(id);
+        $('#editTypeName').val(name);
+        editTypeModal.show();
+    }
+
+    // Hàm hiển thị toast thông báo thành công
+    function showSuccessToast(message) {
+        $('#successToast .toast-body').text(message);
+        new bootstrap.Toast($('#successToast')).show();
+    }
+
+    // Hàm hiển thị toast thông báo lỗi
+    function showErrorToast(message) {
+        $('#errorToast .toast-body').text(message);
+        new bootstrap.Toast($('#errorToast')).show();
+    }
 </script>
