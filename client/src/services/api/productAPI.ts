@@ -44,7 +44,8 @@ export const fetchProducts = async () => {
 
     // Tạo instance API mới không yêu cầu token
     const publicApi = create({
-      baseURL: "http://10.0.2.2:5000/",
+      // baseURL: "http://10.0.2.2:5000/", // Cho Android Emulator
+      baseURL: "http://192.168.50.241:5000/", // Cho máy tablet có ip wifi
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -214,12 +215,39 @@ export const fetchInventoriesForProductSelection = async () => {
     // Use the API instance to get inventory data
     const response = await Api.get(`/inventory/available?_=${timestamp}`);
     
-    if (response.ok && response.data) {
-      console.log('Successfully fetched inventory data for product selection');
-      return response.data.data || [];
+    console.log('Inventory API response:', {
+      status: response.status,
+      ok: response.ok,
+      problem: response.problem,
+      data: response.data
+    });
+    
+    if (!response.ok) {
+      console.error('API Error:', response.problem, response.data);
+      throw new Error(
+        (response.data as any)?.message || 
+        `API error: ${response.problem}`
+      );
+    }
+
+    // Handle different response formats
+    const data = response.data as any;
+    
+    if (data && data.success && Array.isArray(data.data)) {
+      console.log('Successfully fetched inventory data');
+      return data.data;
+    } else if (data && Array.isArray(data.data)) {
+      console.log('Successfully fetched inventory data (alternative format)');
+      return data.data;
+    } else if (data && data.status === 'Ok' && Array.isArray(data.data)) {
+      console.log('Successfully fetched inventory data (Ok format)');
+      return data.data;
+    } else if (Array.isArray(data)) {
+      console.log('Successfully fetched inventory data (direct array)');
+      return data;
     } else {
-      console.error('Failed to fetch inventory data:', response.problem);
-      throw new Error(response.data?.message || 'Failed to fetch inventory data');
+      console.error('Invalid response format:', data);
+      throw new Error('Invalid response format from server');
     }
   } catch (error) {
     console.error('Exception in fetchInventoriesForProductSelection:', error);

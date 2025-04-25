@@ -102,9 +102,10 @@ const alternativePorts = [3000, 8000, 8080];
 let currentPortIndex = 0;
 
 function startServer(port) {
-  const server = app.listen(port)
+  const server = app.listen(port, '0.0.0.0')
     .on('listening', () => {
       console.log(`🚀 Server is running on http://localhost:${port}`);
+      console.log(`🌐 Server is also accessible on your network at http://your-local-ip:${port}`);
     })
     .on('error', (err) => {
       if (err.code === 'EADDRINUSE') {
