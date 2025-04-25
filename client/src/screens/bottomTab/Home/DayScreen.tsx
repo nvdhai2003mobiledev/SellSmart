@@ -376,93 +376,6 @@ const DayScreen = observer(() => {
             </View>
           </View>
         </View>
-        
-        <View style={styles.quickAccessContainer}>
-          <View style={styles.chartHeader}>
-            <Activity size={20} color={color.accentColor.darkColor} />
-            <DynamicText style={styles.chartTitle}>Truy cập nhanh</DynamicText>
-          </View>
-          <View
-            style={[styles.quickAccessContent, {marginTop: moderateScale(10)}]}>
-            <QuickAccessItem
-              backgroundColor={color.primaryColor}
-              icon={
-                <DocumentText
-                  size={scaledSize(34)}
-                  variant="Bold"
-                  color={color.accentColor.whiteColor}
-                />
-              }
-              title="Hóa đơn"
-              onPress={() => navigation.navigate(Screen.ORDERSCREEN)}
-            />
-            <QuickAccessItem
-              backgroundColor={'#EE0033'}
-              icon={
-                <Box
-                  size={scaledSize(34)}
-                  variant="Bold"
-                  color={color.accentColor.whiteColor}
-                />
-              }
-              title="Sản phẩm"
-              onPress={() => navigation.navigate(Screen.ORDERSCREEN)}
-            />
-            <QuickAccessItem
-              backgroundColor={'#00CC6A'}
-              icon={
-                <Profile2User
-                  size={scaledSize(34)}
-                  variant="Bold"
-                  color={color.accentColor.whiteColor}
-                />
-              }
-              title="Nhà cung cấp"
-              onPress={() => {
-                navigation.navigate(Screen.PROVIDER);
-              }}
-            />
-          </View>
-          <View
-            style={[styles.quickAccessContent, {marginTop: moderateScale(12)}]}>
-            <QuickAccessItem
-              backgroundColor="#37BCAC"
-              icon={
-                <PercentageSquare
-                  size={scaledSize(34)}
-                  variant="Bold"
-                  color={color.accentColor.whiteColor}
-                />
-              }
-              title="Khuyến mãi"
-              onPress={() => {navigation.navigate(Screen.PROMOTION_LIST)}}
-            />
-            <QuickAccessItem
-              backgroundColor="#2D4982"
-              icon={
-                <Profile2User
-                  size={scaledSize(34)}
-                  variant="Bold"
-                  color={color.accentColor.whiteColor}
-                />
-              }
-              title="Khách hàng"
-              onPress={() => {navigation.navigate(Screen.CUSTOMERS)}}
-            />
-            <QuickAccessItem
-              backgroundColor={color.accentColor.grayColor}
-              icon={
-                <Add
-                  size={scaledSize(40)}
-                  variant="Linear"
-                  color={color.accentColor.whiteColor}
-                />
-              }
-              title="Thêm"
-              onPress={() => {}}
-            />
-          </View>
-        </View>
       </View>
 
       {/* Kết quả kinh doanh - Updated */}
@@ -807,7 +720,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.Inter_SemiBold,
   },
   chartContainer: {
-    flex: 0.85,
+    flex: 1,
     backgroundColor: color.accentColor.whiteColor,
     borderRadius: moderateScale(12),
     padding: moderateScale(16),
