@@ -3,12 +3,9 @@
 <div class="main-content">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="mb-0">Quản lý tài liệu</h1>
-    </div>
-    <div class="mb-4 text-end">
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addDocumentModal">
             <i class="fas fa-plus-circle me-2"></i>Thêm tài liệu mới
         </button>
-      
     </div>
 
     <!-- Thông báo -->
@@ -85,6 +82,7 @@
                 <table id="documentTable" class="table table-hover align-middle mb-0">
                     <thead class="bg-light">
                         <tr>
+                            <th class="py-3 px-4">STT</th>
                             <th class="py-3 px-4">Tiêu đề</th>
                             <th class="py-3 px-4">Mô tả</th>
                             <th class="py-3 px-4">Sản phẩm</th>
@@ -95,8 +93,9 @@
                         </tr>
                     </thead>
                     <tbody id="documentTableBody">
-                        <% documents.forEach(doc => { %>
+                        <% documents.forEach((doc, index) => { %>
                             <tr data-id="<%= doc._id %>" class="document-row">
+                                <td class="py-3 px-4"><%= index + 1 %></td>
                                 <td class="py-3 px-4"><div class="fw-semibold"><%= doc.title %></div></td>
                                 <td class="py-3 px-4 description-cell" title="<%= doc.description %>">
                                     <%= doc.description %>
@@ -314,11 +313,11 @@
         allDocuments = Array.from(tableRows).map(row => {
             return {
                 id: row.getAttribute('data-id'),
-                title: row.cells[0].textContent.trim(),
-                description: row.cells[1].textContent.trim(),
-                product_id: row.cells[2].getAttribute('data-product-id'),
-                user_id: row.cells[3].getAttribute('data-user-id'),
-                date: new Date(row.cells[4].textContent),
+                title: row.cells[1].textContent.trim(),
+                description: row.cells[2].textContent.trim(),
+                product_id: row.cells[3].getAttribute('data-product-id'),
+                user_id: row.cells[4].getAttribute('data-user-id'),
+                date: new Date(row.cells[5].textContent),
                 element: row
             };
         });
@@ -373,26 +372,23 @@
     
     // Function to update document display based on pagination
     function updateDocumentDisplay() {
-        // Get all document rows
         const rows = document.querySelectorAll('.document-row');
         
-        // Hide all rows initially
         rows.forEach(row => {
             row.style.display = 'none';
         });
         
-        // Calculate total pages
         const totalPages = Math.ceil(filteredDocuments.length / itemsPerPage);
-        
-        // Show only rows for current page
         const start = (currentPageIndex - 1) * itemsPerPage;
         const end = Math.min(start + itemsPerPage, filteredDocuments.length);
         
         for (let i = start; i < end; i++) {
-            filteredDocuments[i].element.style.display = '';
+            const row = filteredDocuments[i].element;
+            row.style.display = '';
+            const sttCell = row.querySelector('td:first-child');
+            sttCell.textContent = i + 1;
         }
         
-        // Update pagination buttons state
         const prevPageBtn = document.getElementById('prevPage');
         const nextPageBtn = document.getElementById('nextPage');
         
@@ -413,7 +409,7 @@
         const fromDateObj = fromDate ? new Date(fromDate) : null;
         const toDateObj = toDate ? new Date(toDate) : null;
         if (toDateObj) {
-            toDateObj.setHours(23, 59, 59, 999); // Include the end date fully
+            toDateObj.setHours(23, 59, 59, 999);
         }
         
         filteredDocuments = allDocuments.filter(doc => {
@@ -434,10 +430,7 @@
             return matchTitle && matchDescription && matchProduct && matchUser && matchDate;
         });
         
-        // Update total count
         document.getElementById('totalItems').textContent = filteredDocuments.length;
-        
-        // Reset to page 1 after filtering
         currentPageIndex = 1;
         updateDocumentDisplay();
     }
@@ -461,23 +454,19 @@
     function openEditModal(docId) {
         const doc = allDocuments.find(d => d.id === docId);
         if (doc) {
-            // Get row from document table
             const row = doc.element;
             
             document.getElementById('edit_title').value = doc.title;
             document.getElementById('edit_description').value = doc.description;
-            document.getElementById('edit_product_id').value = row.cells[2].getAttribute('data-product-id') || '';
-            document.getElementById('edit_user_id').value = row.cells[3].getAttribute('data-user-id') || '';
+            document.getElementById('edit_product_id').value = row.cells[3].getAttribute('data-product-id') || '';
+            document.getElementById('edit_user_id').value = row.cells[4].getAttribute('data-user-id') || '';
             
-            // Get media URL if exists
-            const mediaLink = row.cells[5].querySelector('a');
+            const mediaLink = row.cells[6].querySelector('a');
             document.getElementById('edit_media').value = mediaLink ? mediaLink.href : '';
             
-            // Set form action
             const form = document.getElementById('editDocumentForm');
             form.action = `/documents/edit/${docId}?_method=PUT`;
             
-            // Show modal
             const modal = new bootstrap.Modal(document.getElementById('editDocumentModal'));
             modal.show();
         }
