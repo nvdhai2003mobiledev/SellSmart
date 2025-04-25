@@ -632,7 +632,7 @@ const styles = StyleSheet.create({
   },
   bottomContainer: {
     position: 'absolute',
-    bottom: 120,
+    bottom: 90,
     left: 0,
     right: 0,
     padding: scaleWidth(16),
@@ -643,6 +643,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     height: scaleHeight(150),
+
   },
   selectedInfo: {
     flex: 1,

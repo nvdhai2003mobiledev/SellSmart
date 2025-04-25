@@ -8,7 +8,7 @@ import { rootStore } from '../../../models/root-store';
 import { format } from 'date-fns';
 import { updateOrderStatus } from '../../../services/api/ordersApi';
 import { Screen } from '../../../navigation/navigation.type';
-import { More, CloseCircle, Timer, ReceiptItem } from 'iconsax-react-native';
+import { More, CloseCircle, Timer, ReceiptItem, Printer } from 'iconsax-react-native';
 
 const OrderDetailScreen = observer(() => {
   const navigation = useNavigation();
@@ -35,6 +35,7 @@ const OrderDetailScreen = observer(() => {
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showActions, setShowActions] = useState(false);
+  const [showPrintMenu, setShowPrintMenu] = useState(false);
   
   // Define loadOrderDetails with useCallback to prevent it from changing on every render
   const loadOrderDetails = useCallback(async () => {
@@ -267,6 +268,23 @@ const OrderDetailScreen = observer(() => {
     }
   };
   
+  // Xử lý in hóa đơn
+  const handlePrint = () => {
+    setShowPrintMenu(true);
+  };
+
+  // Xử lý lựa chọn phương thức in
+  const handlePrintMethod = (method: 'wire' | 'wifi') => {
+    setShowPrintMenu(false);
+    
+    // Điều hướng đến màn hình PrintInformation với thông tin hóa đơn và phương thức in
+    navigateToScreen(Screen.PRINT_INFORMATION, {
+      order: order,
+      printMethod: method,
+      orderNumber: order.orderID.slice(-4),
+    });
+  };
+  
   if (loading) {
     return (
       <BaseLayout>
@@ -275,8 +293,16 @@ const OrderDetailScreen = observer(() => {
           showBackIcon
           onPressBack={navigateBack}
           showRightIcon
-          RightIcon={<More size={24} color={color.accentColor.darkColor} />}
-          onPressRight={toggleActions}
+          RightIcon={
+            <View style={styles.headerRightContainer}>
+              <TouchableOpacity style={styles.headerIconButton} onPress={handlePrint}>
+                <Printer size={24} color={color.accentColor.darkColor} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.headerIconButton} onPress={toggleActions}>
+                <More size={24} color={color.accentColor.darkColor} />
+              </TouchableOpacity>
+            </View>
+          }
         />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={color.primaryColor} />
@@ -293,8 +319,16 @@ const OrderDetailScreen = observer(() => {
           showBackIcon
           onPressBack={navigateBack}
           showRightIcon
-          RightIcon={<More size={24} color={color.accentColor.darkColor} />}
-          onPressRight={toggleActions}
+          RightIcon={
+            <View style={styles.headerRightContainer}>
+              <TouchableOpacity style={styles.headerIconButton} onPress={handlePrint}>
+                <Printer size={24} color={color.accentColor.darkColor} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.headerIconButton} onPress={toggleActions}>
+                <More size={24} color={color.accentColor.darkColor} />
+              </TouchableOpacity>
+            </View>
+          }
         />
         <View style={styles.emptyContainer}>
           <DynamicText style={styles.emptyText}>Không tìm thấy thông tin Hóa đơn</DynamicText>
@@ -318,8 +352,16 @@ const OrderDetailScreen = observer(() => {
         showBackIcon
         onPressBack={navigateBack}
         showRightIcon
-        RightIcon={<More size={24} color={color.accentColor.darkColor} />}
-        onPressRight={toggleActions}
+        RightIcon={
+          <View style={styles.headerRightContainer}>
+            <TouchableOpacity style={styles.headerIconButton} onPress={handlePrint}>
+              <Printer size={24} color={color.accentColor.darkColor} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.headerIconButton} onPress={toggleActions}>
+              <More size={24} color={color.accentColor.darkColor} />
+            </TouchableOpacity>
+          </View>
+        }
       />
       
       <ScrollView style={styles.scrollView}>
@@ -501,21 +543,37 @@ const OrderDetailScreen = observer(() => {
         {/* Danh sách sản phẩm */}
         <View style={styles.section}>
           <DynamicText style={styles.sectionTitle}>Sản phẩm ({order.products.length})</DynamicText>
+          
+          {/* Table Header */}
+          <View style={styles.tableHeader}>
+            <DynamicText style={[styles.tableHeaderCell, styles.productNameColumnHeader]}>Sản phẩm</DynamicText>
+            <DynamicText style={[styles.tableHeaderCell, styles.textCenter, styles.priceCellHeader]}>Đơn giá</DynamicText>
+            <DynamicText style={[styles.tableHeaderCell, styles.textCenter, styles.quantityCellHeader]}>SL</DynamicText>
+            <DynamicText style={[styles.tableHeaderCell, styles.textRight, styles.totalCellHeader]}>Thành tiền</DynamicText>
+          </View>
+          
+          {/* Table Content */}
           {order.products.map((product: any, index: number) => (
-            <View key={index} style={styles.productItem}>
-              <View style={styles.productInfo}>
-                <DynamicText style={styles.productName}>{product.name}</DynamicText>
-                <DynamicText style={styles.productVariants}>
-                  {product.attributes.map((attr: any) => 
-                    `${attr.name}: ${Array.isArray(attr.value) ? attr.value.join(', ') : attr.value}`
-                  ).join(' | ')}
-                </DynamicText>
-                <DynamicText style={styles.productPrice}>{formatCurrency(product.price)}</DynamicText>
+            <View key={index} style={styles.tableRow}>
+              <View style={styles.productNameColumn}>
+                <DynamicText style={styles.productName} numberOfLines={1}>{product.name}</DynamicText>
+                {product.attributes.length > 0 && (
+                  <DynamicText style={styles.productVariants} numberOfLines={1}>
+                    {product.attributes.map((attr: any) => 
+                      `${attr.name}: ${Array.isArray(attr.value) ? attr.value.join(', ') : attr.value}`
+                    ).join(' | ')}
+                  </DynamicText>
+                )}
               </View>
-              <View style={styles.productQuantity}>
-                <DynamicText style={styles.quantityText}>x{product.quantity}</DynamicText>
-                <DynamicText style={styles.itemTotal}>{formatCurrency(product.price * product.quantity)}</DynamicText>
-              </View>
+              <DynamicText style={[styles.tableCellStyle, styles.textCenter, styles.priceCell]}>
+                {formatCurrency(product.price)}
+              </DynamicText>
+              <DynamicText style={[styles.tableCellStyle, styles.textCenter, styles.quantityCell]}>
+                {product.quantity}
+              </DynamicText>
+              <DynamicText style={[styles.tableCellStyle, styles.textRight, styles.totalCell]}>
+                {formatCurrency(product.price * product.quantity)}
+              </DynamicText>
             </View>
           ))}
         </View>
@@ -580,6 +638,33 @@ const OrderDetailScreen = observer(() => {
             </View>
           </TouchableOpacity>
         </>
+      )}
+      
+      {/* Print Menu */}
+      {showPrintMenu && (
+        <TouchableOpacity 
+          style={styles.actionSheetOverlay}
+          activeOpacity={1} 
+          onPress={() => setShowPrintMenu(false)}
+        >
+          <View style={[styles.actionSheet, styles.printMenu]}>
+            <DynamicText style={styles.printMenuTitle}>Chọn phương thức in</DynamicText>
+            
+            <TouchableOpacity 
+              style={styles.actionItem} 
+              onPress={() => handlePrintMethod('wire')}
+            >
+              <DynamicText style={styles.actionText}>In qua cổng USB/Bluetooth</DynamicText>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.actionItem} 
+              onPress={() => handlePrintMethod('wifi')}
+            >
+              <DynamicText style={styles.actionText}>In qua WiFi</DynamicText>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
       )}
       
       {/* Nút xử lý Hóa đơn */}
@@ -1016,6 +1101,101 @@ const styles = StyleSheet.create({
     paddingVertical: moderateScale(12),
     borderRadius: moderateScale(8),
     marginRight: moderateScale(8),
+  },
+  headerRightContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingEnd: moderateScale(36),
+  },
+  headerIconButton: {
+    marginLeft: moderateScale(16),
+    padding: moderateScale(4),
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+    paddingVertical: moderateScale(8),
+    backgroundColor: '#F5F5F5',
+    borderRadius: moderateScale(4),
+    paddingHorizontal: moderateScale(8),
+    marginBottom: moderateScale(4),
+  },
+  tableHeaderCell: {
+    fontSize: moderateScale(13),
+    fontWeight: 'bold',
+    color: color.accentColor.darkColor,
+  },
+  productNameColumnHeader: {
+    flex: 3,
+    paddingRight: moderateScale(8),
+  },
+  priceCellHeader: {
+    flex: 2,
+  },
+  quantityCellHeader: {
+    flex: 1,
+  },
+  totalCellHeader: {
+    flex: 2,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEEEEE',
+    paddingVertical: moderateScale(8),
+    alignItems: 'center',
+    paddingHorizontal: moderateScale(8),
+  },
+  productNameColumn: {
+    flex: 3,
+    paddingRight: moderateScale(8),
+  },
+  priceCell: {
+    flex: 2,
+    color: color.primaryColor,
+  },
+  quantityCell: {
+    flex: 1,
+  },
+  totalCell: {
+    flex: 2,
+    fontWeight: 'bold',
+  },
+  tableCellStyle: {
+    fontSize: moderateScale(13),
+    color: color.accentColor.darkColor,
+  },
+  textCenter: {
+    textAlign: 'center',
+  },
+  textRight: {
+    textAlign: 'right',
+  },
+  printMenu: {
+    position: 'absolute',
+    top: 270, // Position below the header
+    right: 16,
+    width: 'auto',
+    minWidth: moderateScale(250),
+    borderRadius: moderateScale(8),
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  printMenuTitle: {
+    fontSize: moderateScale(16),
+    fontWeight: 'bold',
+    color: color.accentColor.darkColor,
+    paddingHorizontal: moderateScale(16),
+    paddingVertical: moderateScale(12),
+    borderBottomWidth: 1,
+    borderBottomColor: '#eeeeee',
   },
 });
 
