@@ -167,9 +167,7 @@ export const BottomNavigation = () => {
             IconComponent = focused ? Note : Note1;
           } else if (route.name === Screen.PRODUCT) {
             IconComponent = focused ? Box : Box1;
-          } else if (route.name === Screen.STATISTICAL) {
-            IconComponent = ChartCircle;
-          } else if (route.name === Screen.MENU) {
+          }  else if (route.name === Screen.MENU) {
             IconComponent = Category;
           }
 
@@ -202,10 +200,6 @@ export const BottomNavigation = () => {
       <BottomTab.Screen name={Screen.HOME} component={HomeScreen} />
       <BottomTab.Screen name={Screen.ORDER} component={OrderScreen} />
       <BottomTab.Screen name={Screen.PRODUCT} component={ProductScreen} />
-      <BottomTab.Screen
-        name={Screen.STATISTICAL}
-        component={StatisticalScreen}
-      />
       <BottomTab.Screen name={Screen.MENU} component={MenuScreen} />
     </BottomTab.Navigator>
   );
