@@ -12,6 +12,16 @@
         </button>
     </div>
 
+    <!-- Phần hiển thị dữ liệu biến thể -->
+    <div id="variantDataDisplay" class="card mb-4 d-none">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Dữ liệu biến thể đã chọn</h5>
+        </div>
+        <div class="card-body">
+            <div id="variantDataContent"></div>
+        </div>
+    </div>
+
     <!-- Danh sách sản phẩm trong kho -->
     <div>
         <table id="inventoryTable" class="table table-hover">
@@ -550,7 +560,20 @@
         </div>
     </div>
 
-    
+    <!-- Toast Messages -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div id="successToast" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body"></div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+        <div id="errorToast" class="toast align-items-center text-white bg-danger border-0" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body"></div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
     </div>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -669,60 +692,99 @@
 
         // Thêm event listener để nhận message từ trang variants
         window.addEventListener('message', function(event) {
-            console.log('Nhận được dữ liệu từ trang variants:', event.data);
+            console.log('Received message in inventory.ejs:', event.data);
             
-            if (event.data && event.data.selectedVariants) {
-                const variants = event.data.selectedVariants;
-                if (window.currentProductItem) {
-                    const $variantsList = window.currentProductItem.find('.variants-list');
-                    $variantsList.empty(); // Xóa các biến thể cũ
+            if (event.data && event.data.type === 'VARIANTS_SELECTED') {
+                console.log('Selected variants data:', event.data.variants);
+                console.log('Current product item:', window.currentProductItem);
+                
+                const variants = event.data.variants;
+                if (!window.currentProductItem) {
+                    console.error('No current product item found');
+                    return;
+                }
+
+                const $variantsList = window.currentProductItem.find('.variants-list');
+                console.log('Variants list element:', $variantsList);
+                
+                if ($variantsList.length === 0) {
+                    console.error('Variants list element not found');
+                    return;
+                }
+
+                // Log before clearing variants list
+                console.log('Current variants list content:', $variantsList.html());
+                $variantsList.empty();
+                console.log('Cleared variants list');
+
+                // Process each variant combination
+                variants.forEach((combination, index) => {
+                    console.log(`Processing variant combination ${index}:`, combination);
                     
-                    variants.forEach(variant => {
-                        // Check if variant already exists
-                        const existingVariant = $variantsList.find(`[data-variant-id="${variant.id}"]`);
-                        if (existingVariant.length > 0) {
-                            return; // Skip if already exists
-                        }
-
-                        // Create variant text from attributes
-                        const variantText = Object.entries(variant.attributes)
-                            .map(([key, value]) => `${key}: ${value}`)
-                            .join(', ');
-
-                        // Create new variant item
-                        const variantItem = document.createElement('div');
-                        variantItem.className = 'variant-item mb-3 p-3 border rounded';
-                        variantItem.dataset.variantId = variant.id;
-
-                        variantItem.innerHTML = `
-                            <div class="row align-items-center">
-                                <div class="col-md-4">
-                                    <strong>Thuộc tính:</strong> ${variantText}
-                                    <input type="hidden" name="variants[${variant.id}][attributes]" value='${JSON.stringify(variant.attributes)}'>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="form-group mb-0">
-                                        <label>Số lượng:</label>
-                                        <input type="number" name="variants[${variant.id}][quantity]" class="form-control" required min="0">
+                    // Tạo chuỗi hiển thị cho tổ hợp biến thể
+                    const variantDisplay = combination.map(variant => 
+                        `${variant.name}: ${variant.value}`
+                    ).join(' - ');
+                    
+                    // Tạo input ẩn để lưu thông tin biến thể
+                    const variantData = combination.map(variant => ({
+                        id: variant.id,
+                        name: variant.name,
+                        value: variant.value
+                    }));
+                    
+                    const variantHtml = `
+                        <div class="variant-combination mb-3">
+                            <div class="card">
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-12 mb-2">
+                                            <h6 class="variant-title">${variantDisplay}</h6>
+                                            <input type="hidden" name="variant_combinations[${index}][variants]" 
+                                                   value='${JSON.stringify(variantData)}'>
+                                        </div>
+                                        <div class="col-md-5">
+                                            <div class="form-group">
+                                                <label class="form-label">Giá cho tổ hợp này</label>
+                                                <input type="number" 
+                                                       name="variant_combinations[${index}][price]" 
+                                                       class="form-control variant-price" 
+                                                       min="0" 
+                                                       step="1000" 
+                                                       required>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-5">
+                                            <div class="form-group">
+                                                <label class="form-label">Số lượng cho tổ hợp này</label>
+                                                <input type="number" 
+                                                       name="variant_combinations[${index}][quantity]" 
+                                                       class="form-control variant-quantity" 
+                                                       min="1" 
+                                                       required>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="button" 
+                                                    class="btn btn-danger btn-sm mt-4" 
+                                                    onclick="$(this).closest('.variant-combination').remove()">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="form-group mb-0">
-                                        <label>Giá:</label>
-                                        <input type="number" name="variants[${variant.id}][price]" class="form-control" required min="0">
-                                    </div>
-                                </div>
-                                <div class="col-md-2">
-                                    <button type="button" class="btn btn-danger" onclick="removeVariant(this)">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
                                 </div>
                             </div>
-                        `;
+                        </div>
+                    `;
+                    
+                    $variantsList.append(variantHtml);
+                    console.log('Added variant combination HTML to list');
+                });
 
-                        $variantsList.append(variantItem);
-                    });
-                }
+                // Show variants section and hide common fields
+                window.currentProductItem.find('.variants-section').removeClass('d-none');
+                window.currentProductItem.find('.common-fields').addClass('d-none');
+                window.currentProductItem.find('.has-variants').prop('checked', true);
             }
         });
 
@@ -733,23 +795,28 @@
 
         // Handle select variant button click
         $(document).on('click', '.select-variant', function() {
+            console.log('Opening variant selection for button:', this);
             const $productItem = $(this).closest('.product-item');
+            console.log('Found product item:', $productItem);
+            
+            window.currentProductItem = $productItem;
+            console.log('Stored current product item:', window.currentProductItem);
+            
             const typeProductId = $productItem.find('.product-category').val();
             
-            if (!typeProductId) {
-                alert('Vui lòng chọn danh mục sản phẩm trước khi thêm biến thể');
-                return;
+            // Tạo URL với query parameter
+            let variantUrl = '/products/variants';
+            if (typeProductId) {
+                variantUrl += `?typeProductId=${typeProductId}`;
             }
-
-            // Store reference to current product
-            window.currentProductItem = $productItem;
             
-            // Open variants page in new window
-            const variantsWindow = window.open('/products/variants?mode=select&typeProductId=' + typeProductId, 'VariantsWindow', 'width=800,height=600');
-            if (variantsWindow) {
-                variantsWindow.focus();
+            // Mở cửa sổ chọn biến thể
+            const variantWindow = window.open(variantUrl, 'variantSelection', 'width=800,height=600');
+            if (variantWindow) {
+                console.log('Variant selection window opened successfully');
             } else {
-                alert('Trình duyệt đã chặn popup. Vui lòng cho phép popup để sử dụng tính năng này.');
+                console.error('Failed to open variant selection window');
+                alert('Vui lòng cho phép trình duyệt mở cửa sổ pop-up để chọn biến thể');
             }
         });
 
@@ -773,73 +840,78 @@
                     typeProduct_id: $product.find('.product-category').val(),
                     product_description: '',
                     unit: 'cái',
-                    hasVariants: hasVariants
+                    hasVariants: hasVariants,
+                    note: $product.find('.product-note').val() || ''
                 };
 
                 if (hasVariants) {
+                    // Lấy dữ liệu biến thể
                     const variants = [];
                     $product.find('.variant-combination').each(function() {
                         const $combination = $(this);
-                        const attributes = {};
-                        
-                        // Collect all variant data from this combination
-                        $combination.find('.variant-data').each(function() {
-                            const name = $(this).data('variant-name');
-                            const value = $(this).data('variant-value');
-                            attributes[name] = value;
-                        });
+                        const variantData = JSON.parse($combination.find('input[name^="variant_combinations"][name$="[variants]"]').val() || '[]');
+                        const price = parseFloat($combination.find('.variant-price').val());
+                        const quantity = parseFloat($combination.find('.variant-quantity').val() || $product.find('.product-quantity').val());
 
-                        variants.push({
-                            attributes: attributes,
-                            quantity: Number($combination.find('.variant-quantity').val()),
-                            price: Number($combination.find('.variant-price').val())
-                        });
+                        if (variantData && price && quantity) {
+                            variants.push({
+                                variants: variantData,
+                                price: price,
+                                quantity: quantity
+                            });
+                        }
                     });
-                    productData.variants = variants;
+
+                    if (variants.length > 0) {
+                        productData.variants = variants;
+                        // Tính tổng số lượng và giá
+                        productData.quantity = variants.reduce((sum, v) => sum + v.quantity, 0);
+                        productData.price = variants.reduce((sum, v) => sum + (v.price * v.quantity), 0) / productData.quantity;
+                    }
                 } else {
-                    productData.quantity = Number($product.find('.product-quantity').val());
-                    productData.price = Number($product.find('.product-price').val());
+                    productData.quantity = parseFloat($product.find('.product-quantity').val());
+                    productData.price = parseFloat($product.find('.product-price').val());
                 }
 
                 products.push(productData);
             });
 
-            // Validate required fields
+            // Kiểm tra dữ liệu trước khi gửi
             if (!batchInfo.batch_number || !batchInfo.import_date || !batchInfo.provider_id) {
-                alert('Vui lòng điền đầy đủ thông tin lô hàng');
+                showErrorToast('Vui lòng điền đầy đủ thông tin lô hàng');
                 return;
             }
 
             if (products.length === 0) {
-                alert('Vui lòng thêm ít nhất một sản phẩm');
+                showErrorToast('Vui lòng thêm ít nhất một sản phẩm');
                 return;
             }
 
-            // Validate each product
-            for (const product of products) {
+            // Kiểm tra từng sản phẩm
+            let isValid = true;
+            products.forEach((product, index) => {
                 if (!product.product_name || !product.typeProduct_id) {
-                    alert('Vui lòng điền đầy đủ thông tin cho tất cả sản phẩm');
-                    return;
+                    showErrorToast(`Vui lòng điền đầy đủ thông tin cho sản phẩm ${index + 1}`);
+                    isValid = false;
+                    return false;
                 }
 
                 if (product.hasVariants) {
                     if (!product.variants || product.variants.length === 0) {
-                        alert('Vui lòng thêm ít nhất một biến thể cho sản phẩm có biến thể');
-                        return;
-                    }
-                    for (const variant of product.variants) {
-                        if (!variant.quantity || !variant.price || !variant.attributes) {
-                            alert('Vui lòng điền đầy đủ thông tin cho tất cả biến thể');
-                            return;
-                        }
+                        showErrorToast(`Vui lòng thêm ít nhất một biến thể cho sản phẩm ${index + 1}`);
+                        isValid = false;
+                        return false;
                     }
                 } else {
                     if (!product.quantity || !product.price) {
-                        alert('Vui lòng điền đầy đủ số lượng và giá cho sản phẩm');
-                        return;
+                        showErrorToast(`Vui lòng điền đầy đủ số lượng và giá cho sản phẩm ${index + 1}`);
+                        isValid = false;
+                        return false;
                     }
                 }
-            }
+            });
+
+            if (!isValid) return;
 
             // Gửi dữ liệu lên server
             $.ajax({
@@ -851,19 +923,138 @@
                     products: products
                 }),
                 success: function(response) {
-                    if (response.status === 'Success') {
-                        alert('Nhập lô hàng thành công');
-                        $('#batchImportModal').modal('hide');
-                        location.reload();
-                    } else {
-                        alert(response.message || 'Có lỗi xảy ra khi nhập lô hàng');
+                    try {
+                        if (response.status === 'Success' || response.status === 'Ok') {
+                            showSuccessToast('Nhập lô hàng thành công');
+                            setTimeout(() => {
+                                $('#batchImportModal').modal('hide');
+                                location.reload();
+                            }, 1500);
+                        } else {
+                            showErrorToast(response.message || 'Có lỗi xảy ra khi nhập lô hàng');
+                        }
+                    } catch (error) {
+                        console.error('Error handling success response:', error);
+                        alert('Nhập lô hàng thành công'); // Fallback message
+                        setTimeout(() => {
+                            $('#batchImportModal').modal('hide');
+                            location.reload();
+                        }, 1500);
                     }
                 },
                 error: function(xhr) {
-                    const errorMessage = xhr.responseJSON?.message || 'Có lỗi xảy ra khi nhập lô hàng';
-                    alert('Lỗi: ' + errorMessage);
+                    try {
+                        const errorMessage = xhr.responseJSON?.message || 'Có lỗi xảy ra khi nhập lô hàng';
+                        showErrorToast('Lỗi: ' + errorMessage);
+                    } catch (error) {
+                        console.error('Error handling error response:', error);
+                        alert('Lỗi: ' + (xhr.responseJSON?.message || 'Có lỗi xảy ra khi nhập lô hàng'));
+                    }
                 }
             });
+        });
+
+        // Thêm hàm hiển thị thông báo lỗi và thành công
+        function showErrorToast(message) {
+            try {
+                const errorToastEl = document.getElementById('errorToast');
+                if (errorToastEl) {
+                    const toastBody = errorToastEl.querySelector('.toast-body');
+                    if (toastBody) {
+                        toastBody.textContent = message;
+                        if (errorToast) {
+                            errorToast.show();
+                        } else {
+                            errorToast = new bootstrap.Toast(errorToastEl);
+                            errorToast.show();
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error showing error toast:', error);
+                alert(message); // Fallback to alert if toast fails
+            }
+        }
+
+        function showSuccessToast(message) {
+            try {
+                const successToastEl = document.getElementById('successToast');
+                if (successToastEl) {
+                    const toastBody = successToastEl.querySelector('.toast-body');
+                    if (toastBody) {
+                        toastBody.textContent = message;
+                        if (successToast) {
+                            successToast.show();
+                        } else {
+                            successToast = new bootstrap.Toast(successToastEl);
+                            successToast.show();
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error showing success toast:', error);
+                alert(message); // Fallback to alert if toast fails
+            }
+        }
+
+        // Xử lý khi nhận dữ liệu biến thể từ cửa sổ variants
+        window.addEventListener('message', function(event) {
+            if (event.data.type === 'VARIANTS_SELECTED') {
+                const variants = event.data.variants;
+                const $currentProduct = $('.product-item.active');
+                
+                if (variants && variants.length > 0 && $currentProduct.length) {
+                    const variantsList = $currentProduct.find('.variants-list');
+                    variantsList.empty();
+
+                    variants.forEach((variantGroup, groupIndex) => {
+                        const variantNames = variantGroup.map(v => `${v.name}: ${v.value}`).join(', ');
+                        
+                        const variantHtml = `
+                            <div class="variant-combination mb-3">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-12 mb-2">
+                                                <h6 class="variant-title">Tổ hợp: ${variantNames}</h6>
+                                                <input type="hidden" name="variant_combinations[${groupIndex}][variants]" 
+                                                       value='${JSON.stringify(variantGroup)}'>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-group">
+                                                    <label class="form-label">Số lượng</label>
+                                                    <input type="number" 
+                                                           name="variant_combinations[${groupIndex}][quantity]" 
+                                                           class="form-control variant-quantity" 
+                                                           min="1" 
+                                                           required>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-group">
+                                                    <label class="form-label">Giá</label>
+                                                    <input type="number" 
+                                                           name="variant_combinations[${groupIndex}][price]" 
+                                                           class="form-control variant-price" 
+                                                           min="0" 
+                                                           required>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        
+                        variantsList.append(variantHtml);
+                    });
+
+                    // Hiển thị phần biến thể
+                    $currentProduct.find('.variants-section').removeClass('d-none');
+                    // Ẩn phần nhập thông tin chung
+                    $currentProduct.find('.common-fields').addClass('d-none');
+                }
+            }
         });
 
         // Thêm lại hàm openBatchModal
@@ -974,11 +1165,25 @@
         });
 
         // Function to handle variant selection
-        function openVariantSelection() {
-            const variantWindow = window.open('/variants/select', 'variantSelection', 'width=800,height=600');
+        function openVariantSelection(productItem) {
+            console.log('Opening variant selection window');
+            window.currentProductItem = $(productItem).closest('.product-item');
+            const typeProductId = window.currentProductItem.find('.product-category').val();
             
-            // Store reference to current window
-            window.variantSelectionOpener = window;
+            // Tạo URL với query parameter
+            let variantUrl = '/products/variants';
+            if (typeProductId) {
+                variantUrl += `?typeProductId=${typeProductId}`;
+            }
+            
+            // Mở cửa sổ chọn biến thể
+            const variantWindow = window.open(variantUrl, 'variantSelection', 'width=800,height=600');
+            if (variantWindow) {
+                console.log('Variant selection window opened successfully');
+            } else {
+                console.error('Failed to open variant selection window');
+                alert('Vui lòng cho phép trình duyệt mở cửa sổ pop-up để chọn biến thể');
+            }
         }
 
         // Function to receive variants from the variant selection window
@@ -1159,69 +1364,31 @@
             }
         };
 
-        // Khởi tạo các thành phần khi trang đã tải xong
-        document.addEventListener('DOMContentLoaded', function() {
-            // Khởi tạo các toast messages nếu cần
-            const toastElList = [].slice.call(document.querySelectorAll('.toast'));
-            toastElList.map(function(toastEl) {
-                return new bootstrap.Toast(toastEl);
-            });
-        });
+        // Khởi tạo các toast một lần khi trang được load
+        let successToast;
+        let errorToast;
 
-        // Lắng nghe sự kiện message từ cửa sổ popup biến thể
-        window.addEventListener('message', function(event) {
-            if (event.data && event.data.type === 'VARIANTS_SELECTED') {
-                const variants = event.data.variants;
-                handleSelectedVariants(variants);
+        $(document).ready(function() {
+            // Khởi tạo các toast
+            const successToastEl = document.getElementById('successToast');
+            const errorToastEl = document.getElementById('errorToast');
+            
+            if (successToastEl) {
+                successToast = new bootstrap.Toast(successToastEl, {
+                    animation: true,
+                    autohide: true,
+                    delay: 3000
+                });
+            }
+            
+            if (errorToastEl) {
+                errorToast = new bootstrap.Toast(errorToastEl, {
+                    animation: true,
+                    autohide: true,
+                    delay: 5000
+                });
             }
         });
-
-        // Xử lý dữ liệu biến thể từ trang variants
-        function handleSelectedVariants(event) {
-            if (event.data && event.data.type === 'VARIANTS_SELECTED') {
-                const variants = event.data.variants;
-                if (variants && variants.length > 0) {
-                    // Cập nhật biến thể cho sản phẩm hiện tại
-                    const currentProduct = products[currentProductIndex];
-                    if (currentProduct) {
-                        currentProduct.variants = variants;
-                        currentProduct.hasVariants = true;
-                        updateProductTable();
-                    }
-                } else {
-                    console.error('Không có biến thể nào được chọn');
-                }
-            }
-        }
-
-        // Hàm hiển thị toast thông báo
-        function showErrorToast(message) {
-            const toastElement = document.getElementById('errorToast');
-            if (toastElement) {
-                const toastBody = toastElement.querySelector('.toast-body');
-                if (toastBody) {
-                    toastBody.textContent = message;
-                    const toast = new bootstrap.Toast(toastElement);
-                    toast.show();
-                }
-            } else {
-                console.error('Toast element not found');
-            }
-        }
-
-        function showSuccessToast(message) {
-            const toastElement = document.getElementById('successToast');
-            if (toastElement) {
-                const toastBody = toastElement.querySelector('.toast-body');
-                if (toastBody) {
-                    toastBody.textContent = message;
-                    const toast = new bootstrap.Toast(toastElement);
-                    toast.show();
-                }
-            } else {
-                console.error('Toast element not found');
-            }
-        }
     });
     </script>
 
