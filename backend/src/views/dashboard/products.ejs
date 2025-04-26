@@ -407,34 +407,24 @@
                             </div>
                         </div>
                         <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="originalPriceDisplay" class="form-label fw-bold">Giá gốc từ kho (VNĐ)</label>
-                                <input type="text" class="form-control bg-light" id="originalPriceDisplay" placeholder="Tự động điền từ kho" readonly>
-                                <input type="hidden" id="original_price" name="original_price">
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="price" class="form-label fw-bold">Giá bán (VNĐ) <span class="text-danger">*</span></label>
-                                <input type="number" class="form-control" id="price" name="price" min="0" required>
-                                <small class="text-muted">Nhập giá bán để tính lợi nhuận</small>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="inventoryDisplay" class="form-label fw-bold">Tồn kho</label>
-                                <input type="text" class="form-control bg-light" id="inventoryDisplay" placeholder="Tự động điền từ kho" readonly>
-                                <input type="hidden" id="inventory" name="inventory">
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="profitDisplay" class="form-label fw-bold">Lợi nhuận dự kiến</label>
-                                <input type="text" class="form-control bg-light text-success" id="profitDisplay" placeholder="Tự động tính" readonly>
-                            </div>
-                        </div>
-                        <div class="row">
                             <div class="col-md-12 mb-3">
-                                <label class="form-label fw-bold">Thuộc tính</label>
-                                <input type="hidden" id="variantDetails" name="variantDetails">
-                                <div id="selectedVariantDisplay" class="p-3 border rounded bg-light">
-                                    <p class="text-muted mb-0">Thông tin biến thể sẽ được lấy từ kho hàng</p>
+                                <label class="form-label fw-bold">Thuộc tính và giá bán</label>
+                                <div id="variantTableContainer" class="table-responsive">
+                                    <table class="table table-bordered table-hover">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Thuộc tính</th>
+                                                <th>Giá gốc</th>
+                                                <th>Giá bán (VNĐ)</th>
+                                                <th>Số lượng</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="variantTableBody">
+                                            <tr>
+                                                <td colspan="4" class="text-center text-muted">Chọn sản phẩm từ kho để hiển thị biến thể</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
@@ -788,22 +778,10 @@
                             $('#providerDisplay').val(selectedItem.provider_id?.fullName || 'Chưa có');
                             $('#hasVariants').val(selectedItem.hasVariants);
                             
-                            // Xử lý giá và tồn kho
+                            // Xử lý biến thể
                             if (selectedItem.hasVariants && selectedItem.variantDetails && selectedItem.variantDetails.length > 0) {
-                                const minPrice = selectedItem.variantDetails.reduce((min, v) => Math.min(min, v.price), Infinity);
-                                const maxPrice = selectedItem.variantDetails.reduce((max, v) => Math.max(max, v.price), 0);
-                                
-                                if (minPrice === maxPrice) {
-                                    $('#originalPriceDisplay').val(new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(minPrice));
-                                    $('#original_price').val(minPrice);
-                                } else {
-                                    $('#originalPriceDisplay').val(`${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(minPrice)} - ${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(maxPrice)}`);
-                                    $('#original_price').val(minPrice);
-                                }
-                                
-                                // Hiển thị thông tin biến thể
-                                let variantHTML = '<div class="alert alert-info mb-0">';
-                                selectedItem.variantDetails.slice(0, 3).forEach((variant, index) => {
+                                let variantHTML = '';
+                                selectedItem.variantDetails.forEach((variant, index) => {
                                     let attributes = variant.attributes;
                                     let attributeStr = '';
                                     
@@ -818,30 +796,65 @@
                                     }
                                     
                                     attributeStr = attributeStr.slice(0, -2); // Remove trailing comma and space
-                                    variantHTML += `<div>${attributeStr} - ${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(variant.price)} (SL: ${variant.quantity})</div>`;
+                                    
+                                    variantHTML += `
+                                        <tr>
+                                            <td>${attributeStr}</td>
+                                            <td>${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(variant.price)}</td>
+                                            <td>
+                                                <input type="number" class="form-control variant-price" 
+                                                       data-variant-index="${index}" 
+                                                       min="${variant.price}" 
+                                                       value="${variant.price}" 
+                                                       required>
+                                            </td>
+                                            <td>
+                                                <input type="number" class="form-control variant-quantity" 
+                                                       data-variant-index="${index}" 
+                                                       min="1" 
+                                                       value="${variant.quantity}" 
+                                                       required>
+                                            </td>
+                                        </tr>
+                                    `;
                                 });
                                 
-                                if (selectedItem.variantDetails.length > 3) {
-                                    variantHTML += `<div>+${selectedItem.variantDetails.length - 3} biến thể khác</div>`;
-                                }
-                                
-                                variantHTML += '</div>';
-                                $('#selectedVariantDisplay').html(variantHTML);
+                                $('#variantTableBody').html(variantHTML);
                                 
                                 // Lưu thông tin biến thể vào input hidden
                                 $('#variantDetails').val(JSON.stringify(selectedItem.variantDetails));
                             } else {
                                 // Sản phẩm không có biến thể
                                 const price = selectedItem.total_price / (selectedItem.total_quantity || 1);
-                                $('#originalPriceDisplay').val(new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price));
-                                $('#original_price').val(price);
-                                $('#selectedVariantDisplay').html('<p class="text-muted mb-0">Sản phẩm không có biến thể</p>');
-                                $('#variantDetails').val('[]');
+                                const quantity = selectedItem.total_quantity || 0;
+                                
+                                $('#variantTableBody').html(`
+                                    <tr>
+                                        <td>Không có biến thể</td>
+                                        <td>${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price)}</td>
+                                        <td>
+                                            <input type="number" class="form-control variant-price" 
+                                                   data-variant-index="0" 
+                                                   min="${price}" 
+                                                   value="${price}" 
+                                                   required>
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control variant-quantity" 
+                                                   data-variant-index="0" 
+                                                   min="1" 
+                                                   value="${quantity}" 
+                                                   required>
+                                        </td>
+                                    </tr>
+                                `);
+                                
+                                $('#variantDetails').val(JSON.stringify([{
+                                    attributes: {},
+                                    price: price,
+                                    quantity: quantity
+                                }]));
                             }
-                            
-                            // Hiển thị tồn kho
-                            $('#inventoryDisplay').val(selectedItem.total_quantity);
-                            $('#inventory').val(selectedItem.total_quantity);
                         }
                     } else {
                         // Reset form nếu không chọn sản phẩm
@@ -850,19 +863,56 @@
                         $('#category').val('');
                         $('#providerDisplay').val('');
                         $('#providerId').val('');
+                        $('#hasVariants').val('');
                         $('#originalPriceDisplay').val('');
                         $('#original_price').val('');
-                        $('#inventoryDisplay').val('');
-                        $('#inventory').val('');
-                        $('#selectedVariantDisplay').html('<p class="text-muted mb-0">Thông tin biến thể sẽ được lấy từ kho hàng</p>');
-                        $('#variantDetails').val('');
+                        $('#variantTableBody').html('<tr><td colspan="4" class="text-center text-muted">Chọn sản phẩm từ kho để hiển thị biến thể</td></tr>');
+                        $('#variantDetails').val('[]');
                     }
                 });
-            } else {
-                showToast('error', `Lỗi khi tải danh sách sản phẩm từ kho: ${response.message}`);
             }
-        }).fail(() => showToast('error', 'Lỗi khi tải danh sách sản phẩm từ kho!'));
+        });
     }
+
+    // Xử lý khi submit form
+    $('#addProductForm').submit(function(e) {
+        e.preventDefault();
+        
+        // Lấy thông tin biến thể từ bảng
+        const variantDetails = [];
+        $('.variant-price').each(function() {
+            const index = $(this).data('variant-index');
+            const price = parseFloat($(this).val());
+            const quantity = parseInt($(`.variant-quantity[data-variant-index="${index}"]`).val());
+            
+            // Lấy thông tin biến thể gốc
+            const originalVariants = $('#variantDetails').val() ? JSON.parse($('#variantDetails').val()) : [];
+            const originalVariant = originalVariants[index] || {};
+            
+            variantDetails.push({
+                attributes: originalVariant.attributes || {},
+                price: price,
+                quantity: quantity
+            });
+        });
+        
+        // Cập nhật giá trị variantDetails
+        $('#variantDetails').val(JSON.stringify(variantDetails));
+        
+        // Tạo FormData và gửi request
+        const formData = new FormData(this);
+        sendAjaxRequest(
+            '/products/create',  // Sửa lại đường dẫn API
+            'POST',
+            formData,
+            'Phát hành sản phẩm thành công',
+            '#addProductModal',
+            function() {
+                $('#addProductModal').modal('hide');
+                setTimeout(() => location.reload(), 1000);
+            }
+        );
+    });
 
     // Mở trang biến thể
     function openVariantsPage(editMode = false) {
@@ -1163,26 +1213,6 @@
             }
         });
     }
-
-    // Thêm sản phẩm
-    $('#addProductForm').submit(function(event) {
-        event.preventDefault();
-        
-        // Kiểm tra xem đã chọn sản phẩm từ kho chưa
-        if (!$('#inventoryId').val()) {
-            showToast('error', 'Vui lòng chọn sản phẩm từ kho!');
-            return;
-        }
-        
-        // Kiểm tra xem đã chọn ảnh chưa
-        if (!$('#thumbnail').val() && !$('#thumbnailPreview').attr('src')) {
-            showToast('warning', 'Bạn chưa chọn ảnh cho sản phẩm!');
-        }
-
-        const formData = new FormData(this);
-        console.log('Gửi yêu cầu thêm sản phẩm:', Object.fromEntries(formData.entries()));
-        sendAjaxRequest('/products/create', 'POST', formData, 'Thêm sản phẩm thành công!', '#addProductModal', () => setTimeout(() => location.reload(), 1500));
-    });
 
     // Sửa sản phẩm
     function editProduct(id) {
