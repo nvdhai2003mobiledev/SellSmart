@@ -11,6 +11,12 @@ interface ApiResponse<T> {
   status?: string;
 }
 
+// Định nghĩa interface cho Category
+interface Category {
+  _id: string;
+  name: string;
+}
+
 // Định nghĩa interface cho Product
 interface Product {
   _id: string;
@@ -34,108 +40,41 @@ interface Product {
   detailsVariants?: Array<any>;
 }
 
+// Tạo instance API public không yêu cầu token
+const publicApi = create({
+  baseURL: "http://10.0.2.2:5000/",
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0'
+  },
+  timeout: 15000
+});
+
 // Hàm lấy danh sách sản phẩm
 export const fetchProducts = async () => {
   try {
     console.log('Đang lấy danh sách sản phẩm...');
-
-    // Tạo timestamp để tránh cache
+    
     const timestamp = Date.now();
-
-    // Tạo instance API mới không yêu cầu token
-    const publicApi = create({
-      // baseURL: "http://10.0.2.2:5000/", // Cho Android Emulator
-      baseURL: "http://192.168.50.241:5000/", // Cho máy tablet có ip wifi
+    const response = await publicApi.get<ApiResponse<Product[]>>('/products/json', {}, {
       headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0',
         'X-Request-Time': timestamp.toString()
-      },
-      timeout: 15000 // Tăng timeout lên 15 giây
-    });
-
-    // Kiểm tra kết nối trước khi lấy dữ liệu
-    let connectionRetries = 3; // Tăng số lần thử
-    let connected = false;
-    let response;
-    
-    while (connectionRetries > 0 && !connected) {
-      try {
-        // Thử ping server với timeout ngắn để kiểm tra kết nối
-        console.log(`Thử kết nối lần ${4 - connectionRetries}...`);
-        const pingResponse = await publicApi.get('ping', {}, { timeout: 5000 });
-        if (pingResponse.ok) {
-          connected = true;
-          console.log('Kết nối thành công, tiếp tục lấy dữ liệu...');
-        } else {
-          console.log(`Không thể kết nối tới server, thử lại (còn ${connectionRetries - 1} lần)`);
-          connectionRetries--;
-          // Đợi 2 giây trước khi thử lại
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        }
-      } catch (pingError) {
-        console.log(`Lỗi kết nối: ${pingError}`);
-        connectionRetries--;
-        if (connectionRetries > 0) {
-          console.log(`Thử lại sau 2 giây (còn ${connectionRetries} lần)...`);
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        }
       }
-    }
-    
-    if (!connected) {
-      console.error('Không thể kết nối tới server sau nhiều lần thử');
-      throw new Error('Không thể kết nối tới server, vui lòng kiểm tra kết nối mạng');
-    }
-
-    try {
-      // Sử dụng đường dẫn API chính xác từ ApiEndpoint với tham số timestamp để tránh cache
-      response = await publicApi.get<ApiResponse<Product[]>>(`${ApiEndpoint.PRODUCTS}?_=${timestamp}`);
-    } catch (fetchError) {
-      console.error('Lỗi trong quá trình lấy dữ liệu:', fetchError);
-      throw new Error('Không thể kết nối tới server, vui lòng kiểm tra kết nối mạng');
-    }
-    
-    console.log('Response từ API sản phẩm:', {
-      status: response.status,
-      ok: response.ok
     });
 
-    if (response.ok && response.data?.success) {
-      console.log('Lấy sản phẩm thành công (format success)');
+    if (response.ok && response.data?.status === 'Ok') {
+      console.log('Lấy sản phẩm thành công');
       return response.data.data || [];
-    } else if (response.ok && Array.isArray(response.data?.data)) {
-      // API trả về theo format cũ
-      console.log('Lấy sản phẩm thành công (format array)');
-      return response.data.data || [];
-    } else if (response.ok && response.data?.status === 'Ok') {
-      // API trả về theo format status: 'Ok'
-      console.log('Lấy sản phẩm thành công (format Ok)');
-      return response.data.data || [];
-    } else if (response.ok && Array.isArray(response.data)) {
-      // API trả về mảng trực tiếp
-      console.log('Lấy sản phẩm thành công (format array direct)');
-      return response.data || [];
     } else {
-      console.error('Không thể lấy danh sách sản phẩm:', response.problem, response.data);
-      if (response.problem === 'NETWORK_ERROR') {
-        throw new Error('Không thể kết nối tới server, vui lòng kiểm tra kết nối mạng');
-      } else if (response.problem === 'TIMEOUT_ERROR') {
-        throw new Error('Máy chủ phản hồi quá chậm, vui lòng thử lại sau');
-      } else if (response.problem === 'SERVER_ERROR') {
-        throw new Error('Máy chủ gặp sự cố, vui lòng thử lại sau');
-      } else {
-        throw new Error(response.data?.message || 'Không thể lấy danh sách sản phẩm');
-      }
+      console.error('Không thể lấy danh sách sản phẩm:', response.problem);
+      throw new Error('Không thể lấy danh sách sản phẩm');
     }
   } catch (error) {
     console.error('Lỗi trong fetchProducts:', error);
-    throw error instanceof Error
-      ? new Error(`Exception in fetchProducts: ${error.message}`)
-      : new Error('Không thể kết nối tới server, vui lòng kiểm tra kết nối mạng');
+    throw error;
   }
 };
 
@@ -185,13 +124,14 @@ export const fetchCategories = async () => {
   try {
     console.log('Đang lấy danh sách danh mục sản phẩm...');
     
-    // Tạo timestamp để tránh cache
     const timestamp = Date.now();
+    const response = await publicApi.get<ApiResponse<Category[]>>('/typeproduct/json', {}, {
+      headers: {
+        'X-Request-Time': timestamp.toString()
+      }
+    });
     
-    // Sử dụng đường dẫn API chính xác 
-    const response = await Api.get(`/typeproduct?_=${timestamp}`);
-    
-    if (response.ok && response.data) {
+    if (response.ok && response.data?.status === 'Ok') {
       console.log('Lấy danh mục thành công');
       return response.data.data || [];
     } else {
@@ -204,53 +144,61 @@ export const fetchCategories = async () => {
   }
 };
 
+// Hàm lấy danh sách nhà cung cấp
+export const fetchProviders = async () => {
+  try {
+    console.log('Đang lấy danh sách nhà cung cấp...');
+    
+    const timestamp = Date.now();
+    const response = await publicApi.get<ApiResponse<any[]>>('/providers/json', {}, {
+      headers: {
+        'X-Request-Time': timestamp.toString()
+      }
+    });
+    
+    if (response.ok && response.data?.status === 'Ok') {
+      console.log('Lấy nhà cung cấp thành công');
+      return response.data.data || [];
+    } else {
+      console.error('Không thể lấy danh sách nhà cung cấp:', response.problem);
+      throw new Error('Không thể lấy danh sách nhà cung cấp');
+    }
+  } catch (error) {
+    console.error('Lỗi trong fetchProviders:', error);
+    throw error;
+  }
+};
+
 // Add a new function to fetch inventory data for product selection
 export const fetchInventoriesForProductSelection = async () => {
   try {
-    console.log('Fetching inventory data for product selection...');
+    console.log('Đang lấy dữ liệu tồn kho...');
     
-    // Create timestamp to avoid cache
     const timestamp = Date.now();
-    
-    // Use the API instance to get inventory data
-    const response = await Api.get(`/inventory/available?_=${timestamp}`);
-    
-    console.log('Inventory API response:', {
-      status: response.status,
-      ok: response.ok,
-      problem: response.problem,
-      data: response.data
+    const publicApi = create({
+      baseURL: "http://10.0.2.2:5000/",
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'X-Request-Time': timestamp.toString()
+      },
+      timeout: 15000
     });
-    
-    if (!response.ok) {
-      console.error('API Error:', response.problem, response.data);
-      throw new Error(
-        (response.data as any)?.message || 
-        `API error: ${response.problem}`
-      );
-    }
 
-    // Handle different response formats
-    const data = response.data as any;
+    const response = await publicApi.get<ApiResponse<any[]>>('/inventory/available/json');
     
-    if (data && data.success && Array.isArray(data.data)) {
-      console.log('Successfully fetched inventory data');
-      return data.data;
-    } else if (data && Array.isArray(data.data)) {
-      console.log('Successfully fetched inventory data (alternative format)');
-      return data.data;
-    } else if (data && data.status === 'Ok' && Array.isArray(data.data)) {
-      console.log('Successfully fetched inventory data (Ok format)');
-      return data.data;
-    } else if (Array.isArray(data)) {
-      console.log('Successfully fetched inventory data (direct array)');
-      return data;
+    if (response.ok && response.data?.status === 'Ok') {
+      console.log('Lấy dữ liệu tồn kho thành công');
+      return response.data.data || [];
     } else {
-      console.error('Invalid response format:', data);
-      throw new Error('Invalid response format from server');
+      console.error('Không thể lấy dữ liệu tồn kho:', response.problem);
+      throw new Error(response.data?.message || 'Không thể lấy dữ liệu tồn kho');
     }
   } catch (error) {
-    console.error('Exception in fetchInventoriesForProductSelection:', error);
+    console.error('Lỗi trong fetchInventoriesForProductSelection:', error);
     throw error;
   }
 };
@@ -259,5 +207,6 @@ export default {
   fetchProducts,
   addProduct,
   fetchCategories,
+  fetchProviders,
   fetchInventoriesForProductSelection,
 };
