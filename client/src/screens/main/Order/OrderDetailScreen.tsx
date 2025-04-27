@@ -8,7 +8,7 @@ import { rootStore } from '../../../models/root-store';
 import { format } from 'date-fns';
 import { updateOrderStatus } from '../../../services/api/ordersApi';
 import { Screen } from '../../../navigation/navigation.type';
-import { More, CloseCircle, Timer, ReceiptItem } from 'iconsax-react-native';
+import { More, CloseCircle, Timer, ReceiptItem, Printer } from 'iconsax-react-native';
 
 const OrderDetailScreen = observer(() => {
   const navigation = useNavigation();
@@ -35,20 +35,21 @@ const OrderDetailScreen = observer(() => {
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showActions, setShowActions] = useState(false);
+  const [showPrintMenu, setShowPrintMenu] = useState(false);
   
   // Define loadOrderDetails with useCallback to prevent it from changing on every render
   const loadOrderDetails = useCallback(async () => {
     try {
       setLoading(true);
-      // Tìm đơn hàng từ store
+      // Tìm Hóa đơn từ store
       const foundOrder = rootStore.orders.orders.find((o: any) => o._id === orderId);
       
       if (foundOrder) {
-        console.log('=== CHI TIẾT ĐƠN HÀNG ===');
+        console.log('=== CHI TIẾT Hóa đơn ===');
         console.log(`ID: ${foundOrder._id}`);
-        console.log(`Mã đơn hàng: ${foundOrder.orderID}`);
+        console.log(`Mã Hóa đơn: ${foundOrder.orderID}`);
         console.log(`Trạng thái: ${foundOrder.status}`);
-        console.log(`Lý do hủy đơn hàng: ${foundOrder.cancelReason || 'Không có'}`);
+        console.log(`Lý do hủy Hóa đơn: ${foundOrder.cancelReason || 'Không có'}`);
         console.log(`Trạng thái thanh toán: ${foundOrder.paymentStatus}`);
         console.log(`Số tiền tổng: ${foundOrder.totalAmount}`);
         console.log(`Giá gốc: ${foundOrder.originalAmount !== undefined ? foundOrder.originalAmount : 'không có thông tin'}`);
@@ -89,22 +90,22 @@ const OrderDetailScreen = observer(() => {
         }
         
         setOrder(foundOrder);
-        console.log('=== KIỂM TRA DỮ LIỆU ĐƠN HÀNG ===');
-        console.log('Trạng thái đơn hàng:', foundOrder.status);
+        console.log('=== KIỂM TRA DỮ LIỆU Hóa đơn ===');
+        console.log('Trạng thái Hóa đơn:', foundOrder.status);
         console.log('Lý do hủy:', foundOrder.cancelReason);
-        console.log('Chi tiết đơn hàng:', JSON.stringify(foundOrder, null, 2));
+        console.log('Chi tiết Hóa đơn:', JSON.stringify(foundOrder, null, 2));
       } else {
         // Nếu không tìm thấy, có thể fetch lại từ server
-        console.log(`Không tìm thấy đơn hàng ID ${orderId} trong store, tiến hành fetch lại từ server...`);
+        console.log(`Không tìm thấy Hóa đơn ID ${orderId} trong store, tiến hành fetch lại từ server...`);
         await rootStore.orders.fetchOrders();
         const refreshedOrder = rootStore.orders.orders.find((o: any) => o._id === orderId);
         
         if (refreshedOrder) {
-          console.log('=== CHI TIẾT ĐƠN HÀNG SAU KHI FETCH LẠI ===');
+          console.log('=== CHI TIẾT Hóa đơn SAU KHI FETCH LẠI ===');
           console.log(`ID: ${refreshedOrder._id}`);
-          console.log(`Mã đơn hàng: ${refreshedOrder.orderID}`);
+          console.log(`Mã Hóa đơn: ${refreshedOrder.orderID}`);
           console.log(`Trạng thái: ${refreshedOrder.status}`);
-          console.log(`Lý do hủy đơn hàng: ${refreshedOrder.cancelReason || 'Không có'}`);
+          console.log(`Lý do hủy Hóa đơn: ${refreshedOrder.cancelReason || 'Không có'}`);
           console.log(`Trạng thái thanh toán: ${refreshedOrder.paymentStatus}`);
           console.log(`Số tiền tổng: ${refreshedOrder.totalAmount}`);
           console.log(`Số tiền đã thanh toán: ${refreshedOrder.paidAmount !== undefined ? refreshedOrder.paidAmount : 'không có thông tin'}`);
@@ -117,18 +118,18 @@ const OrderDetailScreen = observer(() => {
           }
           
           setOrder(refreshedOrder);
-          console.log('=== KIỂM TRA DỮ LIỆU ĐƠN HÀNG SAU KHI REFRESH ===');
-          console.log('Trạng thái đơn hàng:', refreshedOrder.status);
+          console.log('=== KIỂM TRA DỮ LIỆU Hóa đơn SAU KHI REFRESH ===');
+          console.log('Trạng thái Hóa đơn:', refreshedOrder.status);
           console.log('Lý do hủy:', refreshedOrder.cancelReason);
-          console.log('Chi tiết đơn hàng:', JSON.stringify(refreshedOrder, null, 2));
+          console.log('Chi tiết Hóa đơn:', JSON.stringify(refreshedOrder, null, 2));
         } else {
-          console.error(`Không thể tìm thấy đơn hàng ID ${orderId} sau khi refresh`);
-          Alert.alert('Lỗi', 'Không tìm thấy thông tin đơn hàng');
+          console.error(`Không thể tìm thấy Hóa đơn ID ${orderId} sau khi refresh`);
+          Alert.alert('Lỗi', 'Không tìm thấy thông tin Hóa đơn');
         }
       }
     } catch (error) {
       console.error('Error loading order details:', error);
-      Alert.alert('Lỗi', 'Đã xảy ra lỗi khi tải thông tin đơn hàng');
+      Alert.alert('Lỗi', 'Đã xảy ra lỗi khi tải thông tin Hóa đơn');
     } finally {
       setLoading(false);
     }
@@ -159,6 +160,29 @@ const OrderDetailScreen = observer(() => {
       remainingAmount: remainingAmount,
       isPartialPayment: isPartial,
       isNewOrder: false,
+      onPaymentComplete: async (method: string, amount: number) => {
+        // Kiểm tra xem đã thanh toán đủ chưa
+        const newPaidAmount = (order.paidAmount || 0) + amount;
+        const isFullyPaid = newPaidAmount >= order.totalAmount;
+        
+        if (isFullyPaid && order.status === 'waiting') {
+          // Nếu đã thanh toán đủ và status đang là waiting, chuyển sang processing
+          try {
+            const response = await updateOrderStatus(order._id, 'processing');
+            if (response.ok) {
+              console.log('Đã chuyển trạng thái đơn hàng sang processing sau khi thanh toán đủ');
+            } else {
+              console.error('Lỗi khi chuyển trạng thái đơn hàng:', response.data);
+            }
+          } catch (error) {
+            console.error('Exception khi cập nhật trạng thái đơn hàng:', error);
+          }
+        }
+        
+        // Refresh order data
+        await rootStore.orders.fetchOrders();
+        await loadOrderDetails();
+      }
     });
   };
   
@@ -169,34 +193,34 @@ const OrderDetailScreen = observer(() => {
   const handleProcessOrder = async () => {
     try {
       setLoading(true);
-      console.log(`Bắt đầu xử lý đơn hàng ${orderId}`);
+      console.log(`Bắt đầu xử lý Hóa đơn ${orderId}`);
 
       Alert.alert(
         'Xác nhận',
-        'Xử lý đơn hàng này sẽ cập nhật trạng thái và giảm tồn kho tương ứng. Bạn có chắc chắn muốn tiếp tục?',
+        'Xử lý Hóa đơn này sẽ cập nhật trạng thái và giảm tồn kho tương ứng. Bạn có chắc chắn muốn tiếp tục?',
         [
           {
             text: 'Hủy',
             style: 'cancel',
             onPress: () => {
-              console.log('Người dùng đã hủy xử lý đơn hàng');
+              console.log('Người dùng đã hủy xử lý Hóa đơn');
               setLoading(false);
             }
           },
           {
             text: 'Xác nhận',
             onPress: async () => {
-              console.log(`Đang gửi yêu cầu cập nhật trạng thái đơn hàng ${orderId} thành processing`);
+              console.log(`Đang gửi yêu cầu cập nhật trạng thái Hóa đơn ${orderId} thành processing`);
               const response = await updateOrderStatus(orderId, 'processing');
               console.log('Kết quả cập nhật trạng thái:', response);
 
               if (response.ok) {
-                Alert.alert('Thành công', 'Đơn hàng đã được xử lý và cập nhật tồn kho');
+                Alert.alert('Thành công', 'Hóa đơn đã được xử lý và cập nhật tồn kho');
                 await rootStore.orders.fetchOrders();
                 await loadOrderDetails();
               } else {
                 const errorData = response.data as { message?: string } | undefined;
-                const errorMessage = errorData?.message || 'Không thể xử lý đơn hàng';
+                const errorMessage = errorData?.message || 'Không thể xử lý Hóa đơn';
                 Alert.alert('Lỗi', errorMessage);
                 console.error('Lỗi cập nhật trạng thái:', errorMessage);
               }
@@ -207,7 +231,7 @@ const OrderDetailScreen = observer(() => {
       );
     } catch (error) {
       console.error('Error processing order:', error);
-      Alert.alert('Lỗi', 'Đã xảy ra lỗi khi xử lý đơn hàng');
+      Alert.alert('Lỗi', 'Đã xảy ra lỗi khi xử lý Hóa đơn');
       setLoading(false);
     }
   };
@@ -221,36 +245,64 @@ const OrderDetailScreen = observer(() => {
     setShowActions(false);
     
     if (action === 'cancel') {
-      // Kiểm tra xem đơn hàng đã bị hủy chưa
+      // Kiểm tra xem Hóa đơn đã bị hủy chưa
       if (order?.status === 'canceled') {
-        Alert.alert('Thông báo', 'Đơn hàng này đã bị hủy');
+        Alert.alert('Thông báo', 'Hóa đơn này đã bị hủy');
         return;
       }
       
-      // Điều hướng đến màn hình hủy đơn hàng với thông tin ID đơn hàng
+      // Điều hướng đến màn hình hủy Hóa đơn với thông tin ID Hóa đơn
       navigateToScreen(Screen.ORDER_CANCEL, { 
         orderId: order?._id,
         orderNumber: order?.orderID.slice(-4) // Gửi mã đơn ngắn gọn để hiển thị
       });
     } else if (action === 'history') {
-      // TODO: Implement order history view
-      Alert.alert('Thông báo', 'Tính năng đang được phát triển');
+      // Điều hướng đến màn hình lịch sử hóa đơn
+      navigateToScreen(Screen.ORDER_HISTORY, { 
+        orderId: order?._id,
+        orderNumber: order?.orderID.slice(-4)
+      });
     } else if (action === 'archive') {
       // TODO: Implement order archiving
       Alert.alert('Thông báo', 'Tính năng đang được phát triển');
     }
   };
   
+  // Xử lý in hóa đơn
+  const handlePrint = () => {
+    setShowPrintMenu(true);
+  };
+
+  // Xử lý lựa chọn phương thức in
+  const handlePrintMethod = (method: 'wire' | 'wifi') => {
+    setShowPrintMenu(false);
+    
+    // Điều hướng đến màn hình PrintInformation với thông tin hóa đơn và phương thức in
+    navigateToScreen(Screen.PRINT_INFORMATION, {
+      order: order,
+      printMethod: method,
+      orderNumber: order.orderID.slice(-4),
+    });
+  };
+  
   if (loading) {
     return (
       <BaseLayout>
         <Header
-          title="Chi tiết đơn hàng"
+          title="Chi tiết Hóa đơn"
           showBackIcon
           onPressBack={navigateBack}
           showRightIcon
-          RightIcon={<More size={24} color={color.accentColor.darkColor} />}
-          onPressRight={toggleActions}
+          RightIcon={
+            <View style={styles.headerRightContainer}>
+              <TouchableOpacity style={styles.headerIconButton} onPress={handlePrint}>
+                <Printer size={24} color={color.accentColor.darkColor} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.headerIconButton} onPress={toggleActions}>
+                <More size={24} color={color.accentColor.darkColor} />
+              </TouchableOpacity>
+            </View>
+          }
         />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={color.primaryColor} />
@@ -263,15 +315,23 @@ const OrderDetailScreen = observer(() => {
     return (
       <BaseLayout>
         <Header
-          title="Chi tiết đơn hàng"
+          title="Chi tiết Hóa đơn"
           showBackIcon
           onPressBack={navigateBack}
           showRightIcon
-          RightIcon={<More size={24} color={color.accentColor.darkColor} />}
-          onPressRight={toggleActions}
+          RightIcon={
+            <View style={styles.headerRightContainer}>
+              <TouchableOpacity style={styles.headerIconButton} onPress={handlePrint}>
+                <Printer size={24} color={color.accentColor.darkColor} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.headerIconButton} onPress={toggleActions}>
+                <More size={24} color={color.accentColor.darkColor} />
+              </TouchableOpacity>
+            </View>
+          }
         />
         <View style={styles.emptyContainer}>
-          <DynamicText style={styles.emptyText}>Không tìm thấy thông tin đơn hàng</DynamicText>
+          <DynamicText style={styles.emptyText}>Không tìm thấy thông tin Hóa đơn</DynamicText>
         </View>
       </BaseLayout>
     );
@@ -282,22 +342,30 @@ const OrderDetailScreen = observer(() => {
   const orderDate = new Date(order.createdAt);
   const formattedDate = format(orderDate, 'dd/MM/yyyy HH:mm');
   
-  // Lấy tên người tạo đơn hàng từ thông tin đăng nhập
+  // Lấy tên người tạo Hóa đơn từ thông tin đăng nhập
   const employeeName = order.employeeID?.fullName || rootStore.auth.userFullName || 'Admin';
   
   return (
     <BaseLayout>
       <Header
-        title="Chi tiết đơn hàng"
+        title="Chi tiết Hóa đơn"
         showBackIcon
         onPressBack={navigateBack}
         showRightIcon
-        RightIcon={<More size={24} color={color.accentColor.darkColor} />}
-        onPressRight={toggleActions}
+        RightIcon={
+          <View style={styles.headerRightContainer}>
+            <TouchableOpacity style={styles.headerIconButton} onPress={handlePrint}>
+              <Printer size={24} color={color.accentColor.darkColor} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.headerIconButton} onPress={toggleActions}>
+              <More size={24} color={color.accentColor.darkColor} />
+            </TouchableOpacity>
+          </View>
+        }
       />
       
       <ScrollView style={styles.scrollView}>
-        {/* Thông tin đơn hàng */}
+        {/* Thông tin Hóa đơn */}
         <View style={styles.orderInfoSection}>
           <View style={styles.orderIdRow}>
             <DynamicText style={[
@@ -307,12 +375,14 @@ const OrderDetailScreen = observer(() => {
             <View style={[
               styles.statusBadge,
               order.status === 'pending' ? styles.statusPending :
+              order.status === 'waiting' ? styles.statusWaiting :
               order.status === 'processing' ? styles.statusProcessing :
               order.status === 'canceled' ? styles.statusCanceled :
               styles.statusDelivered
             ]}>
               <DynamicText style={styles.statusText}>
                 {order.status === 'pending' ? 'Chưa xử lý' :
+                 order.status === 'waiting' ? 'Chờ xử lý' :
                  order.status === 'processing' ? 'Đã xử lý' :
                  order.status === 'shipping' ? 'Đang giao' :
                  order.status === 'delivered' ? 'Đã giao' :
@@ -436,7 +506,7 @@ const OrderDetailScreen = observer(() => {
           </View>
         </View>
         
-        {/* Phần thanh toán - Chỉ hiển thị khi đơn hàng chưa thanh toán hoặc thanh toán một phần */}
+        {/* Phần thanh toán - Chỉ hiển thị khi Hóa đơn chưa thanh toán hoặc thanh toán một phần */}
         {(order.paymentStatus === 'unpaid' || order.paymentStatus === 'partpaid') && order.status !== 'canceled' && (
           <View style={styles.section}>
             <DynamicText style={styles.sectionTitle}>
@@ -444,7 +514,7 @@ const OrderDetailScreen = observer(() => {
             </DynamicText>
             <DynamicText style={styles.paymentDescription}>
               {order.paymentStatus === 'unpaid' 
-                ? 'Đơn hàng này chưa được thanh toán. Hãy nhận thanh toán để tiếp tục xử lý.' 
+                ? 'Hóa đơn này chưa được thanh toán. Hãy nhận thanh toán để tiếp tục xử lý.' 
                 : `Khách hàng đã thanh toán ${formatCurrency(order.paidAmount || 0)}. Số tiền còn lại: ${formatCurrency(order.totalAmount - (order.paidAmount || 0))}`
               }
             </DynamicText>
@@ -473,21 +543,37 @@ const OrderDetailScreen = observer(() => {
         {/* Danh sách sản phẩm */}
         <View style={styles.section}>
           <DynamicText style={styles.sectionTitle}>Sản phẩm ({order.products.length})</DynamicText>
+          
+          {/* Table Header */}
+          <View style={styles.tableHeader}>
+            <DynamicText style={[styles.tableHeaderCell, styles.productNameColumnHeader]}>Sản phẩm</DynamicText>
+            <DynamicText style={[styles.tableHeaderCell, styles.textCenter, styles.priceCellHeader]}>Đơn giá</DynamicText>
+            <DynamicText style={[styles.tableHeaderCell, styles.textCenter, styles.quantityCellHeader]}>SL</DynamicText>
+            <DynamicText style={[styles.tableHeaderCell, styles.textRight, styles.totalCellHeader]}>Thành tiền</DynamicText>
+          </View>
+          
+          {/* Table Content */}
           {order.products.map((product: any, index: number) => (
-            <View key={index} style={styles.productItem}>
-              <View style={styles.productInfo}>
-                <DynamicText style={styles.productName}>{product.name}</DynamicText>
-                <DynamicText style={styles.productVariants}>
-                  {product.attributes.map((attr: any) => 
-                    `${attr.name}: ${Array.isArray(attr.value) ? attr.value.join(', ') : attr.value}`
-                  ).join(' | ')}
-                </DynamicText>
-                <DynamicText style={styles.productPrice}>{formatCurrency(product.price)}</DynamicText>
+            <View key={index} style={styles.tableRow}>
+              <View style={styles.productNameColumn}>
+                <DynamicText style={styles.productName} numberOfLines={1}>{product.name}</DynamicText>
+                {product.attributes.length > 0 && (
+                  <DynamicText style={styles.productVariants} numberOfLines={1}>
+                    {product.attributes.map((attr: any) => 
+                      `${attr.name}: ${Array.isArray(attr.value) ? attr.value.join(', ') : attr.value}`
+                    ).join(' | ')}
+                  </DynamicText>
+                )}
               </View>
-              <View style={styles.productQuantity}>
-                <DynamicText style={styles.quantityText}>x{product.quantity}</DynamicText>
-                <DynamicText style={styles.itemTotal}>{formatCurrency(product.price * product.quantity)}</DynamicText>
-              </View>
+              <DynamicText style={[styles.tableCellStyle, styles.textCenter, styles.priceCell]}>
+                {formatCurrency(product.price)}
+              </DynamicText>
+              <DynamicText style={[styles.tableCellStyle, styles.textCenter, styles.quantityCell]}>
+                {product.quantity}
+              </DynamicText>
+              <DynamicText style={[styles.tableCellStyle, styles.textRight, styles.totalCell]}>
+                {formatCurrency(product.price * product.quantity)}
+              </DynamicText>
             </View>
           ))}
         </View>
@@ -500,7 +586,7 @@ const OrderDetailScreen = observer(() => {
           </View>
         )}
         
-        {/* Lý do hủy đơn - Chỉ hiển thị khi đơn hàng đã bị hủy */}
+        {/* Lý do hủy đơn - Chỉ hiển thị khi Hóa đơn đã bị hủy */}
         {order.status === 'canceled' && (
           <View style={styles.section}>
             <DynamicText style={[styles.sectionTitle, { color: color.accentColor.errorColor }]}>
@@ -510,7 +596,7 @@ const OrderDetailScreen = observer(() => {
               <DynamicText style={styles.cancelReason}>{order.cancelReason}</DynamicText>
             ) : (
               <DynamicText style={styles.cancelReasonNotAvailable}>
-                Không có thông tin về lý do hủy đơn hàng
+                Không có thông tin về lý do hủy Hóa đơn
               </DynamicText>
             )}
           </View>
@@ -531,7 +617,7 @@ const OrderDetailScreen = observer(() => {
                 onPress={() => handleActionSelected('cancel')}
               >
                 <CloseCircle size={24} color={color.accentColor.errorColor} />
-                <DynamicText style={[styles.actionText, styles.cancelText]}>Hủy đơn hàng</DynamicText>
+                <DynamicText style={[styles.actionText, styles.cancelText]}>Hủy Hóa đơn</DynamicText>
               </TouchableOpacity>
               
               <TouchableOpacity 
@@ -539,7 +625,7 @@ const OrderDetailScreen = observer(() => {
                 onPress={() => handleActionSelected('history')}
               >
                 <ReceiptItem size={24} color={color.accentColor.darkColor} />
-                <DynamicText style={styles.actionText}>Lịch sử đơn hàng</DynamicText>
+                <DynamicText style={styles.actionText}>Lịch sử Hóa đơn</DynamicText>
               </TouchableOpacity>
               
               <TouchableOpacity 
@@ -554,7 +640,34 @@ const OrderDetailScreen = observer(() => {
         </>
       )}
       
-      {/* Nút xử lý đơn hàng */}
+      {/* Print Menu */}
+      {showPrintMenu && (
+        <TouchableOpacity 
+          style={styles.actionSheetOverlay}
+          activeOpacity={1} 
+          onPress={() => setShowPrintMenu(false)}
+        >
+          <View style={[styles.actionSheet, styles.printMenu]}>
+            <DynamicText style={styles.printMenuTitle}>Chọn phương thức in</DynamicText>
+            
+            <TouchableOpacity 
+              style={styles.actionItem} 
+              onPress={() => handlePrintMethod('wire')}
+            >
+              <DynamicText style={styles.actionText}>In qua cổng USB/Bluetooth</DynamicText>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.actionItem} 
+              onPress={() => handlePrintMethod('wifi')}
+            >
+              <DynamicText style={styles.actionText}>In qua WiFi</DynamicText>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      )}
+      
+      {/* Nút xử lý Hóa đơn */}
       <View style={styles.buttonContainer}>
         {(order.paymentStatus === 'unpaid' || order.paymentStatus === 'partpaid') && order.status !== 'canceled' && (
           <Button
@@ -565,10 +678,10 @@ const OrderDetailScreen = observer(() => {
           />
         )}
         
-        {/* Chỉ hiển thị nút này nếu đơn hàng có trạng thái pending và đã thanh toán */}
-        {order.status === 'pending' && order.paymentStatus === 'paid' && (
+        {/* Chỉ hiển thị nút này nếu Hóa đơn có trạng thái pending hoặc waiting và đã thanh toán đủ */}
+        {(order.status === 'pending' || order.status === 'waiting') && order.paymentStatus === 'paid' && (
           <Button
-            title="Xử lý đơn hàng"
+            title="Xử lý Hóa đơn"
             buttonContainerStyle={styles.processOrderButton}
             titleStyle={styles.buttonText}
             onPress={handleProcessOrder}
@@ -592,8 +705,8 @@ const OrderDetailScreen = observer(() => {
             titleStyle={styles.buttonText}
             onPress={() => {
               Alert.alert(
-                "Lý do hủy đơn hàng",
-                order.cancelReason || "Không có thông tin về lý do hủy đơn hàng",
+                "Lý do hủy Hóa đơn",
+                order.cancelReason || "Không có thông tin về lý do hủy Hóa đơn",
                 [{ text: "Đóng", style: "cancel" }]
               );
             }}
@@ -649,6 +762,9 @@ const styles = StyleSheet.create({
   },
   statusPending: {
     backgroundColor: '#FFD700',
+  },
+  statusWaiting: {
+    backgroundColor: '#FFB74D', // Orange color for waiting status
   },
   statusProcessing: {
     backgroundColor: '#87CEEB',
@@ -985,6 +1101,101 @@ const styles = StyleSheet.create({
     paddingVertical: moderateScale(12),
     borderRadius: moderateScale(8),
     marginRight: moderateScale(8),
+  },
+  headerRightContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingEnd: moderateScale(36),
+  },
+  headerIconButton: {
+    marginLeft: moderateScale(16),
+    padding: moderateScale(4),
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+    paddingVertical: moderateScale(8),
+    backgroundColor: '#F5F5F5',
+    borderRadius: moderateScale(4),
+    paddingHorizontal: moderateScale(8),
+    marginBottom: moderateScale(4),
+  },
+  tableHeaderCell: {
+    fontSize: moderateScale(13),
+    fontWeight: 'bold',
+    color: color.accentColor.darkColor,
+  },
+  productNameColumnHeader: {
+    flex: 3,
+    paddingRight: moderateScale(8),
+  },
+  priceCellHeader: {
+    flex: 2,
+  },
+  quantityCellHeader: {
+    flex: 1,
+  },
+  totalCellHeader: {
+    flex: 2,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEEEEE',
+    paddingVertical: moderateScale(8),
+    alignItems: 'center',
+    paddingHorizontal: moderateScale(8),
+  },
+  productNameColumn: {
+    flex: 3,
+    paddingRight: moderateScale(8),
+  },
+  priceCell: {
+    flex: 2,
+    color: color.primaryColor,
+  },
+  quantityCell: {
+    flex: 1,
+  },
+  totalCell: {
+    flex: 2,
+    fontWeight: 'bold',
+  },
+  tableCellStyle: {
+    fontSize: moderateScale(13),
+    color: color.accentColor.darkColor,
+  },
+  textCenter: {
+    textAlign: 'center',
+  },
+  textRight: {
+    textAlign: 'right',
+  },
+  printMenu: {
+    position: 'absolute',
+    top: 270, // Position below the header
+    right: 16,
+    width: 'auto',
+    minWidth: moderateScale(250),
+    borderRadius: moderateScale(8),
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  printMenuTitle: {
+    fontSize: moderateScale(16),
+    fontWeight: 'bold',
+    color: color.accentColor.darkColor,
+    paddingHorizontal: moderateScale(16),
+    paddingVertical: moderateScale(12),
+    borderBottomWidth: 1,
+    borderBottomColor: '#eeeeee',
   },
 });
 

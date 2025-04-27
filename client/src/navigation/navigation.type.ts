@@ -37,7 +37,9 @@ export enum Screen {
   CUSTOMER_SELECTION = 'CUSTOMER_SELECTION',
   ORDER_DETAIL = 'ORDER_DETAIL',
   ORDER_CANCEL = 'ORDER_CANCEL',
+  ORDER_HISTORY = 'ORDER_HISTORY',
   PAYMENT_METHODS = 'PAYMENT_METHODS',
+  PRINT_INFORMATION = 'PRINT_INFORMATION',
   PROMOTION_LIST = 'PROMOTION_LIST',
   PROMOTION_DETAIL = 'PROMOTION_DETAIL',
   ADD_PROMOTION = 'ADD_PROMOTION',
@@ -106,6 +108,10 @@ export type RootStackParamList = {
     paymentStatus: string;
     orderStatus: string;
   };
+  [Screen.ORDER_HISTORY]: {
+    orderId: string;
+    orderNumber: string;
+  };
   [Screen.PAYMENT_METHODS]: {
     orderId: string;
     orderNumber: string;
@@ -114,6 +120,11 @@ export type RootStackParamList = {
     isPartialPayment?: boolean;
     isNewOrder?: boolean;
     onPaymentComplete?: (method: string, amount: number) => void;
+  };
+  [Screen.PRINT_INFORMATION]: {
+    order: any;
+    printMethod: 'wire' | 'wifi';
+    orderNumber: string;
   };
   [Screen.PROMOTION_LIST]: undefined;
   [Screen.PROMOTION_DETAIL]: {

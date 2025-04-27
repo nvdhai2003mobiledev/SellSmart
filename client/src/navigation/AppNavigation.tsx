@@ -31,13 +31,16 @@ import {
   ChooseOrderProduct,
   CustomerSelection,
   OrderDetailScreen,
+  OrderHistoryScreen,
   PromotionListScreen,
   AddPromotionScreen,
+  CustomerScreen,
 } from '../screens';
 
 // Trực tiếp import các màn hình không được export từ index
 import OrderCancelScreen from '../screens/main/Order/OrderCancelScreen';
 import PaymentMethods from '../screens/main/Order/PaymentMethods';
+import PrintInformation from '../screens/main/Order/PrintInformation';
 import AddProviderScreen from '../screens/main/Provider/AddProviderScreen';
 import DetailProviderScreen from '../screens/main/Provider/DetailProviderScreen';
 import ProviderScreen from '../screens/main/Provider/ProviderScreen';
@@ -95,6 +98,7 @@ export const AppNavigation = observer(() => {
         component={CreateOrderScreen}
       />
       <RootStack.Screen name={Screen.PROVIDER} component={ProviderScreen} />
+      <RootStack.Screen name={Screen.CUSTOMERS} component={CustomerScreen} />
       <RootStack.Screen
         name={Screen.DETAIL_PROVIDER}
         component={DetailProviderScreen}
@@ -140,8 +144,16 @@ export const AppNavigation = observer(() => {
         component={OrderCancelScreen}
       />
       <RootStack.Screen
+        name={Screen.ORDER_HISTORY}
+        component={OrderHistoryScreen}
+      />
+      <RootStack.Screen
         name={Screen.PAYMENT_METHODS}
         component={PaymentMethods}
+      />
+      <RootStack.Screen
+        name={Screen.PRINT_INFORMATION}
+        component={PrintInformation}
       />
       <RootStack.Screen
         name={Screen.PROMOTION_LIST}

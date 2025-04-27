@@ -76,6 +76,33 @@ router.get("/", async (req, res) => {
 // Route lấy danh sách sản phẩm trong kho (JSON) - Không cần xác thực
 router.get("/json", InventoryController.getInventoryList);
 
+// API endpoint cho mobile app - Lấy sản phẩm có sẵn
+router.get("/available", async (req, res) => {
+    try {
+        console.log("=== Bắt đầu lấy danh sách kho có sẵn cho API ===");
+
+        // Lấy danh sách sản phẩm từ database với status="available"
+        const inventories = await Inventory.find({ status: "available" })
+            .populate({ path: "typeProduct_id", select: "name" })
+            .populate({ path: "provider_id", select: "fullName" })
+            .sort({ createdAt: -1 })
+            .lean();
+
+        console.log(`Tìm thấy ${inventories.length} sản phẩm có sẵn`);
+
+        return res.json({
+            success: true,
+            data: inventories
+        });
+    } catch (error) {
+        console.error("Lỗi khi lấy danh sách kho có sẵn:", error);
+        res.status(500).json({
+            success: false,
+            message: `Lỗi server: ${error.message}`,
+        });
+    }
+});
+
 // Route lấy danh sách tất cả sản phẩm duy nhất để nhập lô hàng mới
 router.get("/products-for-batch", InventoryController.getProductsForBatch);
 

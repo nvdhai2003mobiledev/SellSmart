@@ -3,14 +3,14 @@ import {rootStore} from '../../models/root-store';
 import {ApiEndpoint} from './api-endpoint';
 import {EmployeeResponse} from '../../models/employee/employee';
 
+// Cấu hình BASE_URL
+// Sử dụng IP máy chủ trong mạng nội bộ
+const BASE_URL = 'http://192.168.50.241:5000/';
 
-
-// const BASE_URL = 'http://192.168.1.100:3000/';
-// const BASE_URL = 'http://10.0.2.2:3000/';
-const BASE_URL = 'http://10.0.2.2:5000/';
-
-// const BASE_URL = "http://10.0.2.2:3000/";
-
+// Các tùy chọn khác (để khi cần thay đổi)
+// const BASE_URL = 'http://10.0.2.2:3000/'; // Cho Android Emulator
+// const BASE_URL = 'http://10.0.2.2:5000/'; // Cho Android Emulator
+// const BASE_URL = 'http://localhost:5000/'; // Cho máy local
 
 // API response types
 export interface GeneralApiResponse {
@@ -174,12 +174,7 @@ export const ApiService = {
       if (problem) return problem;
     }
 
-    try {
-      return {kind: 'ok'};
-    } catch (error: any) {
-      if (__DEV__) console.log(error.message);
-      return {kind: 'bad-data'};
-    }
+    return {kind: 'ok'};
   },
 
   async updateEmployee(id: string, employeeData: any): Promise<GeneralApiResult> {
@@ -193,12 +188,7 @@ export const ApiService = {
       if (problem) return problem;
     }
 
-    try {
-      return {kind: 'ok'};
-    } catch (error: any) {
-      if (__DEV__) console.log(error.message);
-      return {kind: 'bad-data'};
-    }
+    return {kind: 'ok'};
   },
 
   async deleteEmployee(id: string): Promise<GeneralApiResult> {
@@ -211,12 +201,7 @@ export const ApiService = {
       if (problem) return problem;
     }
 
-    try {
-      return {kind: 'ok'};
-    } catch (error: any) {
-      if (__DEV__) console.log(error.message);
-      return {kind: 'bad-data'};
-    }
+    return {kind: 'ok'};
   }
 };
 

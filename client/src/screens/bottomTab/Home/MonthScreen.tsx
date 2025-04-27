@@ -350,7 +350,7 @@ const MonthScreen: React.FC = observer(() => {
           </DynamicText>
           <View style={styles.orderInfoRow}>
             <DynamicText style={styles.orderInfoText}>
-              {revenueStats.orderCount} đơn hàng
+              {revenueStats.orderCount} hóa đơn
             </DynamicText>
           </View>
         </TouchableOpacity>
@@ -440,97 +440,11 @@ const MonthScreen: React.FC = observer(() => {
             </View>
           </View>
         </View>
-
-        {/* Quick Access Container */}
-        <View style={styles.quickAccessContainer}>
-          <View style={styles.chartHeader}>
-            <Activity size={20} color={color.accentColor.darkColor} />
-            <DynamicText style={styles.chartTitle}>Truy cập nhanh</DynamicText>
-          </View>
-          <View
-            style={[styles.quickAccessContent, {marginTop: moderateScale(10)}]}>
-            <QuickAccessItem
-              backgroundColor={color.primaryColor}
-              icon={
-                <DocumentText
-                  size={scaledSize(34)}
-                  variant="Bold"
-                  color={color.accentColor.whiteColor}
-                />
-              }
-              title="Đơn hàng"
-              onPress={() => {}}
-            />
-            <QuickAccessItem
-              backgroundColor={'#EE0033'}
-              icon={
-                <Box
-                  size={scaledSize(34)}
-                  variant="Bold"
-                  color={color.accentColor.whiteColor}
-                />
-              }
-              title="Sản phẩm"
-              onPress={() => {}}
-            />
-            <QuickAccessItem
-              backgroundColor={'#00CC6A'}
-              icon={
-                <Profile2User
-                  size={scaledSize(34)}
-                  variant="Bold"
-                  color={color.accentColor.whiteColor}
-                />
-              }
-              title="Nhà cung cấp"
-              onPress={() => {}}
-            />
-          </View>
-          <View
-            style={[styles.quickAccessContent, {marginTop: moderateScale(12)}]}>
-            <QuickAccessItem
-              backgroundColor="#37BCAC"
-              icon={
-                <PercentageSquare
-                  size={scaledSize(34)}
-                  variant="Bold"
-                  color={color.accentColor.whiteColor}
-                />
-              }
-              title="Khuyến mãi"
-              onPress={() => {}}
-            />
-            <QuickAccessItem
-              backgroundColor="#2D4982"
-              icon={
-                <Profile2User
-                  size={scaledSize(34)}
-                  variant="Bold"
-                  color={color.accentColor.whiteColor}
-                />
-              }
-              title="Khách hàng"
-              onPress={() => {}}
-            />
-            <QuickAccessItem
-              backgroundColor={color.accentColor.grayColor}
-              icon={
-                <Add
-                  size={scaledSize(40)}
-                  variant="Linear"
-                  color={color.accentColor.whiteColor}
-                />
-              }
-              title="Thêm"
-              onPress={() => {}}
-            />
-          </View>
-        </View>
       </View>
 
       {/* Order Summary Section */}
       <View style={styles.resultContainer}>
-        <DynamicText style={styles.resultTitle}>Tóm tắt đơn hàng</DynamicText>
+        <DynamicText style={styles.resultTitle}>Tóm tắt Hóa đơn</DynamicText>
 
         <TouchableOpacity 
           style={styles.resultItem}
@@ -559,7 +473,7 @@ const MonthScreen: React.FC = observer(() => {
               <DocumentText size={20} color="#FFFFFF" variant="Bold" />
             </View>
             <View style={styles.resultLeft}>
-              <DynamicText style={styles.resultItemTitle}>Tổng đơn hàng</DynamicText>
+              <DynamicText style={styles.resultItemTitle}>Tổng Hóa đơn</DynamicText>
               <DynamicText style={styles.resultItemValue}>
                 {orderCounts.total}
               </DynamicText>
@@ -721,7 +635,7 @@ const MonthScreen: React.FC = observer(() => {
                     </View>
                     <View style={styles.modalHeaderRight}>
                       <DynamicText style={styles.modalOrderCount}>
-                        Số đơn hàng: {selectedWeek.orderCount}
+                        Số Hóa đơn: {selectedWeek.orderCount}
                       </DynamicText>
                     </View>
                   </View>
@@ -898,7 +812,7 @@ const styles = StyleSheet.create({
     marginBottom: moderateScale(16),
   },
   chartContainer: {
-    flex: 0.85,
+    flex: 1,
     backgroundColor: 'white',
     borderRadius: moderateScale(12),
     padding: moderateScale(16),
