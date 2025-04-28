@@ -28,6 +28,10 @@ const ProductSchema = new Schema({
         type: Boolean,
         default: false,
     },
+    isPublished: {
+        type: Boolean,
+        default: false,
+    },
     price: {
         type: Number,
         min: 0, // Giá bán
@@ -49,8 +53,10 @@ const ProductSchema = new Schema({
         type: String,
     },
     detailsVariants: [{
-        type: Schema.Types.ObjectId,
-        ref: 'DetailsVariant', // Tham chiếu đến các biến thể cụ thể của sản phẩm
+        attributes: Schema.Types.Mixed,
+        price: Number,          // Giá bán
+        original_price: Number, // Giá nhập
+        inventory: Number
     }],
 }, { timestamps: true });
 

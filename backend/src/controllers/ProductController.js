@@ -20,8 +20,8 @@ const getProduct = async (req, res) => {
             acceptHeader: req.headers.accept,
         });
         
-        // Lấy danh sách sản phẩm từ Product model, không phải từ Inventory
-        let products = await Product.find()
+        // Lấy danh sách sản phẩm từ Product model, chỉ lấy sản phẩm đã phát hành
+        let products = await Product.find({ isPublished: true })
             .populate("category")
             .populate("providerId")
             .populate("inventoryId")
@@ -130,7 +130,7 @@ const getProductAsJson = async (req, res) => {
             headers: req.headers,
         });
 
-        // Lấy danh sách sản phẩm từ Inventory
+        // Lấy danh sách sản phẩm từ Inventory, chỉ lấy sản phẩm đã phát hành
         const inventoryItems = await Inventory.find()
             .populate("typeProduct_id")
             .populate("provider_id")
@@ -146,15 +146,16 @@ const getProductAsJson = async (req, res) => {
                 providerId: item.provider_id,
                 status: item.status,
                 hasVariants: item.hasVariants,
+                isPublished: item.isPublished || false,
                 price: item.hasVariants ? 
                     (item.variantDetails && item.variantDetails.length > 0 ? 
                         item.variantDetails.reduce((min, v) => Math.min(min, v.price), Infinity) : 0) : 
-                    item.total_price / (item.total_quantity || 1),
+                    item.total_price,
                 inventory: item.total_quantity,
                 inventoryId: item._id,
                 variantDetails: item.variantDetails
             };
-        });
+        }).filter(product => product.isPublished); // Chỉ lấy sản phẩm đã phát hành
 
         console.log(`Đã xử lý xong ${products.length} sản phẩm, trả về response`);
         res.status(200).json({
@@ -336,6 +337,9 @@ const addProduct = async (req, res) => {
             variantDetails
         } = req.body;
 
+        // Thêm log kiểm tra dữ liệu variantDetails gửi lên từ frontend
+        console.log("[LOG] Dữ liệu variantDetails gửi lên từ frontend:", variantDetails);
+
         // Kiểm tra sản phẩm đã tồn tại
         const existingProduct = await Product.findOne({ inventoryId });
         if (existingProduct) {
@@ -370,8 +374,44 @@ const addProduct = async (req, res) => {
             const totalPrice = inventoryItem.variantDetails.reduce((sum, variant) => sum + (variant.price || 0), 0);
             originalPrice = totalPrice / inventoryItem.variantDetails.length;
         } else {
-            // Nếu không có biến thể, lấy giá trực tiếp
-            originalPrice = inventoryItem.total_price / (inventoryItem.total_quantity || 1);
+            // Nếu không có biến thể, lấy giá nhập gần nhất từ batch_info hoặc total_price nếu không có batch_info
+            if (Array.isArray(inventoryItem.batch_info) && inventoryItem.batch_info.length > 0) {
+                originalPrice = inventoryItem.batch_info[inventoryItem.batch_info.length - 1].price;
+            } else {
+                originalPrice = inventoryItem.total_price;
+            }
+        }
+
+        // Xử lý detailsVariants: luôn lưu nếu inventory có biến thể
+        let detailsVariants = [];
+        if (
+            (hasVariants === true || hasVariants === "true" || inventoryItem.hasVariants) &&
+            inventoryItem.variantDetails &&
+            inventoryItem.variantDetails.length > 0
+        ) {
+            let parsedVariants = [];
+            try {
+                parsedVariants = typeof variantDetails === 'string' ? JSON.parse(variantDetails) : variantDetails;
+            } catch (e) {
+                parsedVariants = [];
+            }
+            if (Array.isArray(parsedVariants) && parsedVariants.length > 0) {
+                // Ưu tiên lấy từ form nếu có
+                detailsVariants = parsedVariants.map((v, idx) => ({
+                    attributes: v.attributes,
+                    price: v.price, // Giá bán nhập từ form
+                    original_price: inventoryItem.variantDetails[idx]?.price || 0, // Giá nhập từ kho
+                    inventory: v.inventory
+                }));
+            } else {
+                // Nếu không có dữ liệu form, lấy từ inventory
+                detailsVariants = inventoryItem.variantDetails.map(v => ({
+                    attributes: v.attributes,
+                    price: v.price, // Giá nhập (nếu chưa nhập giá bán)
+                    original_price: v.price, // Giá nhập
+                    inventory: v.quantity
+                }));
+            }
         }
 
         // Tạo sản phẩm mới
@@ -386,7 +426,9 @@ const addProduct = async (req, res) => {
             inventory: inventoryItem.total_quantity,
             inventoryId: inventoryItem._id,
             product_code: inventoryItem.product_code,
-            status: status || 'available'
+            status: status || 'available',
+            isPublished: true, // Luôn phát hành khi tạo mới
+            detailsVariants
         });
 
         // Lưu sản phẩm mới
@@ -1021,6 +1063,48 @@ const getEmployeePerformance = async (req, res) => {
     }
 };
 
+// Thêm hàm phát hành sản phẩm
+const publishProduct = async (req, res) => {
+    try {
+        const { productId } = req.params;
+        console.log("Bắt đầu phát hành sản phẩm", { productId });
+
+        if (!mongoose.Types.ObjectId.isValid(productId)) {
+            return res.status(400).json({
+                status: "Error",
+                message: "ID sản phẩm không hợp lệ",
+            });
+        }
+
+        // Tìm sản phẩm cần phát hành
+        const product = await Product.findById(productId);
+        if (!product) {
+            console.log("Không tìm thấy sản phẩm với ID:", productId);
+            return res.status(404).json({
+                status: "Error",
+                message: "Không tìm thấy sản phẩm",
+            });
+        }
+
+        // Cập nhật trạng thái phát hành
+        product.isPublished = true;
+        await product.save();
+        console.log("Đã phát hành sản phẩm:", productId);
+
+        res.status(200).json({
+            status: "Ok",
+            message: "Phát hành sản phẩm thành công",
+            data: product,
+        });
+    } catch (error) {
+        console.error("Lỗi khi phát hành sản phẩm:", error);
+        res.status(500).json({
+            status: "Error",
+            message: "Lỗi khi phát hành sản phẩm: " + error.message,
+        });
+    }
+};
+
 module.exports = {
     getProduct,
     getProductAsJson,
@@ -1032,5 +1116,6 @@ module.exports = {
     getProductSales,
     getDashboardStats,
     getOrderDistribution,
-    getEmployeePerformance
+    getEmployeePerformance,
+    publishProduct
 };
