@@ -126,7 +126,7 @@ const SelectDropdown = ({
               ) : (
                 options.map((option, index) => (
                   <TouchableOpacity
-                    key={`option-${index}`}
+                    key={index}
                     style={[
                       styles.optionItem,
                       selectedValue === option.value &&
@@ -186,6 +186,7 @@ interface Product {
   }>;
   warrantyPeriod?: number;
   inventoryId: string;
+  isPublished: boolean;
 }
 
 // Thêm interface cho Source type
@@ -346,7 +347,7 @@ const ProductScreen = observer(() => {
   // ]);
 
   // Tạm thời bỏ filter để test
-  const filteredProducts = store.products;
+  const filteredProducts = useMemo(() => store.products, [store.products]);
 
   // Log dữ liệu để kiểm tra
   console.log('store.products:', store.products);
@@ -590,7 +591,6 @@ const ProductScreen = observer(() => {
       setIsLoading(true);
       setError(null);
 
-      // Sử dụng instance API đã được cấu hình
       const response = await fetch('http://10.0.2.2:5000/api/products/json', {
         method: 'GET',
         headers: {
@@ -600,21 +600,19 @@ const ProductScreen = observer(() => {
       });
 
       const data = await response.json();
+      console.log('API /products/json data:', data);
 
       if (data.status === 'Ok' && data.data) {
-        // Lọc sản phẩm có giá và tồn kho
-        const validProducts = data.data.productsWithPriceAndInventory?.filter((product: Product) => {
-          if (product.hasVariants && product.variantDetails && product.variantDetails.length > 0) {
-            return product.variantDetails.some(variant => 
-              variant.price && variant.price > 0 && variant.quantity && variant.quantity > 0
-            );
-          }
-          return Boolean(product.price && product.price > 0 && product.inventory && product.inventory > 0);
-        }) || [];
-
-        setProducts(validProducts);
-        setHiddenProducts(data.data.productsWithoutPriceOrInventory || []);
-        console.log(`Loaded ${validProducts.length} valid products`);
+        if (Array.isArray(data.data)) {
+          setProducts(data.data);
+          console.log('setProducts with array:', data.data);
+        } else if (data.data.productsWithPriceAndInventory) {
+          setProducts(data.data.productsWithPriceAndInventory);
+          console.log('setProducts with productsWithPriceAndInventory:', data.data.productsWithPriceAndInventory);
+        } else {
+          setProducts([]);
+          console.log('setProducts with empty array');
+        }
       } else {
         throw new Error(data.message || 'Không thể lấy danh sách sản phẩm');
       }
@@ -625,6 +623,14 @@ const ProductScreen = observer(() => {
       setIsLoading(false);
       setRefreshing(false);
     }
+  };
+
+  // Hàm lấy giá bán hiển thị
+  const getDisplayPrice = (item: any) => {
+    if (item.hasVariants && Array.isArray(item.detailsVariants) && item.detailsVariants.length > 0) {
+      return Math.min(...item.detailsVariants.map((v: any) => v.price));
+    }
+    return item.price;
   };
 
   const renderItem = ({item}: {item: Product}) => {
@@ -692,16 +698,23 @@ const ProductScreen = observer(() => {
             </View>
           </View>
           
-          {hasVariants ? (
+          {hasVariants && Array.isArray((item as any).detailsVariants) && (item as any).detailsVariants.length > 0 ? (
             <View>
-              <Text style={styles.variantText}>{item.variantDetails?.length} biến thể</Text>
+              <Text style={styles.variantText}>{(item as any).detailsVariants.length} biến thể</Text>
               <Text style={styles.priceText}>
-                Từ: {item.variantDetails?.reduce((min, v) => Math.min(min, v.price), Infinity).toLocaleString('vi-VN')}đ
+                Từ: {Math.min(...((item as any).detailsVariants as any[]).map((v: any) => v.price)).toLocaleString('vi-VN')}đ
+              </Text>
+            </View>
+          ) : hasVariants && Array.isArray((item as any).variantDetails) && (item as any).variantDetails.length > 0 ? (
+            <View>
+              <Text style={styles.variantText}>{(item as any).variantDetails.length} biến thể</Text>
+              <Text style={styles.priceText}>
+                Từ: {Math.min(...((item as any).variantDetails as any[]).map((v: any) => v.price)).toLocaleString('vi-VN')}đ
               </Text>
             </View>
           ) : (
             <Text style={styles.priceText}>
-              {item.price?.toLocaleString('vi-VN')}đ
+              {getDisplayPrice(item)?.toLocaleString('vi-VN')}đ
             </Text>
           )}
           
@@ -735,9 +748,7 @@ const ProductScreen = observer(() => {
 
           if (variantId) {
             // Product with variant
-            const variant = product.detailsVariants.find(
-              v => v._id === variantId,
-            );
+            const variant = product.detailsVariants[Number(variantId)];
             if (!variant) return null;
 
             return {
@@ -746,7 +757,7 @@ const ProductScreen = observer(() => {
               price: variant.price,
               quantity,
               thumbnail: product.thumbnail,
-              variantId: variant._id,
+              variantId: variantId,
               variant: getVariantName(variant),
             };
           } else {
@@ -771,7 +782,11 @@ const ProductScreen = observer(() => {
 
   return (
     <BaseLayout style={styles.container}>
-      <Header title="Sản phẩm" />
+      {/* Header Title */}
+      <View style={styles.headerTitleWrapper}>
+        <Text style={styles.headerTitleText}>Sản phẩm</Text>
+      </View>
+
       {/* Search and Filter Bar */}
       <View style={styles.searchContainer}>
         <View style={styles.searchInputContainer}>
@@ -789,6 +804,19 @@ const ProductScreen = observer(() => {
           <Filter color={color.accentColor.whiteColor} size={24} />
         </TouchableOpacity>
       </View>
+
+      {/* Checkout Button Below Search/Filter */}
+      {totalCartItems > 0 && (
+        <View style={styles.checkoutButtonWrapperFixed}>
+          <TouchableOpacity style={styles.checkoutButtonFullFixed} onPress={handleCheckout}>
+            <ShoppingCart size={scaledSize(24)} color="#fff" variant="Bold" />
+            <Text style={styles.checkoutButtonTextFullFixed}>Thanh toán</Text>
+            <View style={styles.cartBadgeFullFixed}>
+              <Text style={styles.cartBadgeTextFullFixed}>{totalCartItems}</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Active Filters Display */}
       {(selectedFilter !== 'all' || selectedProvider !== 'all') && (
@@ -839,7 +867,7 @@ const ProductScreen = observer(() => {
         ) : (
           <>
             <FlatList
-              data={filteredProducts}
+              data={filteredProducts as any}
               renderItem={renderItem}
               keyExtractor={item => item._id}
               numColumns={4}
@@ -1014,7 +1042,7 @@ const ProductScreen = observer(() => {
                           {selectedProduct.detailsVariants.map(
                             (variant: any, index: number) => (
                               <View
-                                key={variant._id || index}
+                                key={index}
                                 style={styles.variantItem}>
                                 <Text style={styles.variantName}>
                                   {getVariantName(variant)}
@@ -1110,7 +1138,7 @@ const ProductScreen = observer(() => {
                     selectedProduct.detailsVariants.map(
                       (variant: any, index: number) => (
                         <TouchableOpacity
-                          key={variant._id || index}
+                          key={index}
                           style={[
                             styles.variantSelectItem,
                             selectedVariant === variant &&
@@ -1774,7 +1802,7 @@ const styles = StyleSheet.create({
   },
   floatingCheckoutContainer: {
     width: '100%',
-    marginTop: moderateScale(20),
+    marginTop: moderateScale(28),
     marginBottom: moderateScale(30),
     paddingVertical: moderateScale(12),
     paddingHorizontal: moderateScale(16),
@@ -1970,5 +1998,70 @@ const styles = StyleSheet.create({
     fontSize: moderateScale(12),
     color: color.accentColor.grayColor,
     marginBottom: moderateScale(2),
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: moderateScale(16),
+    marginTop: moderateScale(10),
+    marginBottom: moderateScale(10),
+  },
+  checkoutButtonWrapperFixed: {
+    width: '100%',
+    alignItems: 'center',
+    marginTop: moderateScale(28),
+    marginBottom: moderateScale(10),
+    zIndex: 1,
+  },
+  checkoutButtonFullFixed: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: color.primaryColor,
+    borderRadius: moderateScale(20),
+    paddingVertical: moderateScale(8),
+    paddingHorizontal: moderateScale(20),
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    position: 'relative',
+  },
+  checkoutButtonTextFullFixed: {
+    color: color.accentColor.whiteColor,
+    fontSize: moderateScale(15),
+    fontFamily: Fonts.Inter_SemiBold,
+    marginLeft: moderateScale(8),
+    marginRight: moderateScale(8),
+  },
+  cartBadgeFullFixed: {
+    position: 'absolute',
+    top: -7,
+    right: -7,
+    backgroundColor: '#FF3B30',
+    width: moderateScale(18),
+    height: moderateScale(18),
+    borderRadius: moderateScale(9),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cartBadgeTextFullFixed: {
+    color: color.accentColor.whiteColor,
+    fontSize: moderateScale(10),
+    fontFamily: Fonts.Inter_Bold,
+  },
+  headerTitleWrapper: {
+    width: '100%',
+    alignItems: 'center',
+    marginTop: moderateScale(16),
+    marginBottom: moderateScale(8),
+  },
+  headerTitleText: {
+    fontSize: moderateScale(24),
+    fontFamily: Fonts.Inter_Bold,
+    color: color.accentColor.darkColor,
+    textAlign: 'center',
   },
 });

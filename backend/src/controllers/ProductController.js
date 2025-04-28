@@ -130,32 +130,11 @@ const getProductAsJson = async (req, res) => {
             headers: req.headers,
         });
 
-        // Lấy danh sách sản phẩm từ Inventory, chỉ lấy sản phẩm đã phát hành
-        const inventoryItems = await Inventory.find()
-            .populate("typeProduct_id")
-            .populate("provider_id")
+        // Lấy danh sách sản phẩm đã phát hành từ bảng Product
+        const products = await Product.find({ isPublished: true })
+            .populate("category")
+            .populate("providerId")
             .lean();
-            
-        // Chuyển đổi dữ liệu từ Inventory sang định dạng Product
-        const products = inventoryItems.map(item => {
-            return {
-                _id: item._id,
-                name: item.product_name,
-                product_code: item.product_code,
-                category: item.typeProduct_id,
-                providerId: item.provider_id,
-                status: item.status,
-                hasVariants: item.hasVariants,
-                isPublished: item.isPublished || false,
-                price: item.hasVariants ? 
-                    (item.variantDetails && item.variantDetails.length > 0 ? 
-                        item.variantDetails.reduce((min, v) => Math.min(min, v.price), Infinity) : 0) : 
-                    item.total_price,
-                inventory: item.total_quantity,
-                inventoryId: item._id,
-                variantDetails: item.variantDetails
-            };
-        }).filter(product => product.isPublished); // Chỉ lấy sản phẩm đã phát hành
 
         console.log(`Đã xử lý xong ${products.length} sản phẩm, trả về response`);
         res.status(200).json({

@@ -94,6 +94,7 @@ export const ProductStore = types
         try {
           console.log('Bắt đầu tải danh sách sản phẩm...');
           const productsData = yield fetchProducts();
+          console.log('Dữ liệu trả về từ API:', productsData);
 
           if (Array.isArray(productsData)) {
             self.products = cast(productsData);
