@@ -152,10 +152,18 @@
                                             <% } %>
                                         </td>
                                         <td class="py-3 px-4 text-end">
-                                            <% if (product.hasVariants && product.variantDetails && product.variantDetails.length > 0) { %>
+                                            <% 
+                                            // Ưu tiên lấy từ detailsVariants nếu có
+                                            let variants = (product.detailsVariants && product.detailsVariants.length > 0) 
+                                                ? product.detailsVariants 
+                                                : (product.variantDetails && product.variantDetails.length > 0) 
+                                                    ? product.variantDetails 
+                                                    : [];
+                                            %>
+                                            <% if (product.hasVariants && variants.length > 0) { %>
                                                 <span class="fw-medium">
-                                                    <%= new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(product.variantDetails.reduce((min, v) => Math.min(min, v.price), Infinity)) %> - 
-                                                    <%= new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(product.variantDetails.reduce((max, v) => Math.max(max, v.price), 0)) %>
+                                                    <%= new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(variants.reduce((min, v) => Math.min(min, v.price), Infinity)) %> - 
+                                                    <%= new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(variants.reduce((max, v) => Math.max(max, v.price), 0)) %>
                                                 </span>
                                             <% } else { %>
                                                 <span class="fw-medium">
@@ -358,6 +366,7 @@
                 </div>
                 <div class="modal-body">
                     <form id="addProductForm" enctype="multipart/form-data">
+                        <input type="hidden" id="variantDetails" name="variantDetails">
                         <div class="row mb-3">
                             <div class="col-md-12">
                                 <label for="inventoryId" class="form-label fw-bold">Chọn sản phẩm từ kho</label>
@@ -489,7 +498,7 @@
                         <div class="row">
                             <div class="col-md-12 mb-3" id="editPriceInventoryFields">
                                 <label for="editPrice" class="form-label fw-bold">Giá (VNĐ)</label>
-                                <input type="number" class="form-control" id="editPrice" name="price" min="0" placeholder="Nhập giá">
+                                <input type="number" class="form-control" id="editPrice" name="price" min="0" step="any" placeholder="Nhập giá">
                                 <label for="editInventory" class="form-label fw-bold mt-2">Tồn kho</label>
                                 <input type="number" class="form-control" id="editInventory" name="inventory" min="0" placeholder="Nhập số lượng">
                             </div>
@@ -804,8 +813,9 @@
                                             <td>
                                                 <input type="number" class="form-control variant-price" 
                                                        data-variant-index="${index}" 
-                                                       min="${variant.price}" 
-                                                       value="${variant.price}" 
+                                                       min="${Number(variant.price).toFixed(2)}" 
+                                                       value="${Number(variant.price).toFixed(2)}" 
+                                                       step="0.01"
                                                        required>
                                             </td>
                                             <td>
@@ -835,8 +845,9 @@
                                         <td>
                                             <input type="number" class="form-control variant-price" 
                                                    data-variant-index="0" 
-                                                   min="${price}" 
-                                                   value="${price}" 
+                                                   min="${Number(price).toFixed(2)}" 
+                                                   value="${Number(price).toFixed(2)}" 
+                                                   step="0.01"
                                                    required>
                                         </td>
                                         <td>
@@ -877,32 +888,27 @@
     // Xử lý khi submit form
     $('#addProductForm').submit(function(e) {
         e.preventDefault();
-        
         // Lấy thông tin biến thể từ bảng
         const variantDetails = [];
         $('.variant-price').each(function() {
             const index = $(this).data('variant-index');
             const price = parseFloat($(this).val());
             const quantity = parseInt($(`.variant-quantity[data-variant-index="${index}"]`).val());
-            
             // Lấy thông tin biến thể gốc
             const originalVariants = $('#variantDetails').val() ? JSON.parse($('#variantDetails').val()) : [];
             const originalVariant = originalVariants[index] || {};
-            
             variantDetails.push({
                 attributes: originalVariant.attributes || {},
-                price: price,
-                quantity: quantity
+                price: price, // Giá bán nhập từ form
+                inventory: quantity // Số lượng nhập từ form
             });
         });
-        
         // Cập nhật giá trị variantDetails
         $('#variantDetails').val(JSON.stringify(variantDetails));
-        
         // Tạo FormData và gửi request
         const formData = new FormData(this);
         sendAjaxRequest(
-            '/products/create',  // Sửa lại đường dẫn API
+            '/products/create',
             'POST',
             formData,
             'Phát hành sản phẩm thành công',

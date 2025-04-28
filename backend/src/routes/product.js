@@ -19,6 +19,7 @@ router.get("/inventory", protect, statisticsController.getInventoryProducts); //
 router.post("/create", protect, productController.addProduct); // Tạo sản phẩm mới
 router.put("/update/:productId", protect, productController.updateProduct); // Cập nhật sản phẩm
 router.delete("/delete/:productId", protect, productController.deleteProduct); // Xóa sản phẩm
+router.put("/publish/:productId", protect, productController.publishProduct); // Phát hành sản phẩm
 
 // 🚀 Routes cho Variant (Biến thể)
 router.get("/variants", protect, productController.getVariantsPage); // Trang biến thể (view)
