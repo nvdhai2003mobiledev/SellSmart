@@ -56,24 +56,18 @@ const publicApi = create({
 // Hàm lấy danh sách sản phẩm
 export const fetchProducts = async () => {
   try {
-    console.log('Đang lấy danh sách sản phẩm...');
-    
-    const timestamp = Date.now();
-    const response = await publicApi.get<ApiResponse<Product[]>>('/products/json', {}, {
-      headers: {
-        'X-Request-Time': timestamp.toString()
-      }
-    });
-
+    const response = await publicApi.get<ApiResponse<Product[]>>('/products/json');
     if (response.ok && response.data?.status === 'Ok') {
-      console.log('Lấy sản phẩm thành công');
-      return response.data.data || [];
-    } else {
-      console.error('Không thể lấy danh sách sản phẩm:', response.problem);
-      throw new Error('Không thể lấy danh sách sản phẩm');
+      if (Array.isArray(response.data.data)) {
+        return response.data.data;
+      }
+      if ((response.data.data as any)?.productsWithPriceAndInventory) {
+        return (response.data.data as any).productsWithPriceAndInventory;
+      }
+      return [];
     }
+    throw new Error('Không thể lấy danh sách sản phẩm');
   } catch (error) {
-    console.error('Lỗi trong fetchProducts:', error);
     throw error;
   }
 };
