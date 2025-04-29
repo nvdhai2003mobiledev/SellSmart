@@ -105,10 +105,6 @@
                                                 data-avatar="<%= customer.avatar || '' %>">
                                             <i class="fas fa-edit"></i>
                                         </button>
-                                        <button class="btn btn-sm btn-danger delete-customer-btn" 
-                                                data-id="<%= customer._id %>">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
                                     </td>
                                 </tr>
                             <% }); %>
@@ -543,10 +539,6 @@
             btn.data('avatar')
         );
     });
-
-    $(document).on('click', '.delete-customer-btn', function() {
-        deleteCustomer($(this).data('id'));
-    });  
 
     // Initialize pagination system
     const customerPagination = initializePagination({

@@ -6,6 +6,7 @@
   <title>Danh sách sản phẩm và tài liệu</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
   <style>
     :root {
@@ -40,32 +41,21 @@
       padding: 3rem 2rem;
     }
 
-    .page-header {
+    .app-logo {
       text-align: center;
       margin-bottom: 3rem;
     }
 
-    h1 {
-      color: var(--primary-color);
-      font-size: 2.8rem;
+    .app-logo img {
+      height: 80px;
+    }
+
+    .app-logo .brand-text {
+      font-size: 2rem;
       font-weight: 700;
-      margin-bottom: 1rem;
-    }
-
-    .header-underline {
+      color: var(--primary-color);
+      margin-top: 0.5rem;
       display: block;
-      width: 80px;
-      height: 4px;
-      background: var(--primary-color);
-      margin: 0 auto;
-      border-radius: 2px;
-    }
-
-    .header-description {
-      max-width: 600px;
-      margin: 1.5rem auto 0;
-      color: var(--text-muted);
-      font-size: 1.1rem;
     }
 
     .products-grid {
@@ -126,7 +116,7 @@
     .social-buttons {
       position: fixed;
       right: 1rem;
-      bottom: 6rem; /* Di chuyển lên cao hơn để tạo không gian cho chatbot */
+      bottom: 6rem;
       display: flex;
       flex-direction: column;
       gap: 1rem;
@@ -151,6 +141,10 @@
       transform: scale(1.1);
     }
 
+    .social-button.warranty {
+      background-color: #ff9800;
+    }
+
     .social-button.phone {
       background-color: #4CAF50;
     }
@@ -166,21 +160,82 @@
       object-fit: contain;
       display: block;
     }
-    
-    /* Đảm bảo chatbot hiển thị đúng */
-    #chatling-iframe-wrapper {
-      z-index: 99 !important;
-      bottom: 20px !important;
-      right: 20px !important;
+
+    /* Header styles */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 30px;
+      background-color: #fff;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      margin: 0 auto;
+    }
+
+    .logo {
+      height: 40px;
+      margin-right: 10px;
+    }
+
+    .brand-text {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--primary-color);
+    }
+
+    /* Modal styles */
+    .modal-title {
+      color: var(--primary-color);
+      font-weight: 600;
+    }
+
+    .form-label {
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+    }
+
+    .text-danger {
+      color: #dc3545;
+    }
+
+    .btn-primary {
+      background-color: var(--primary-color);
+      border-color: var(--primary-color);
+    }
+
+    .btn-primary:hover {
+      background-color: var(--primary-hover);
+      border-color: var(--primary-hover);
+    }
+
+    .invalid-feedback {
+      display: none;
+      width: 100%;
+      margin-top: 0.25rem;
+      font-size: 0.875em;
+      color: #dc3545;
     }
   </style>
 </head>
 <body>
+  <!-- Header with Logo -->
+  <div class="header">
+    <div class="logo-container">
+      <img src="/images/logo.png" alt="Logo" class="logo">
+      <span class="brand-text">SellSmart</span>
+    </div>
+  </div>
+
   <div class="container">
-    <div class="page-header">
-      <h1>Danh sách sản phẩm</h1>
-      <span class="header-underline"></span>
-      <p class="header-description">Chọn sản phẩm để xem tài liệu chi tiết</p>
+    <div class="app-logo">
     </div>
 
     <div class="products-grid">
@@ -216,7 +271,11 @@
     </div>
   </div>
 
+  <!-- Warranty Support Button -->
   <div class="social-buttons">
+    <div class="social-button warranty" onclick="openWarrantyModal()">
+      <i class="fas fa-shield-alt"></i>
+    </div>
     <a href="tel:0777006786" class="social-button phone">
       <i class="fas fa-phone"></i>
     </a>
@@ -225,35 +284,204 @@
     </a>
   </div>
 
-  <!-- Chatbot -->
-  <script> 
-    window.chtlConfig = { 
-      chatbotId: "4595193593",
-      position: "bottom-right"
-    }
-  </script>
-  <script 
-    async 
-    data-id="4595193593" 
-    id="chatling-embed-script" 
-    type="text/javascript" 
-    src="https://chatling.ai/js/embed.js">
-  </script>
+  <!-- Warranty Support Modal -->
+  <div class="modal fade" id="warrantyModal" tabindex="-1" aria-labelledby="warrantyModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="warrantyModalLabel">Yêu cầu hỗ trợ bảo hành</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="warrantyRequestForm" action="/warranty-support/request" method="POST" novalidate>
+            <div class="mb-3">
+              <label for="customerName" class="form-label">Họ và tên <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="customerName" name="customerName" required minlength="3" pattern=".{3,}">
+              <div class="invalid-feedback">Họ và tên phải có ít nhất 3 ký tự.</div>
+            </div>
+            <div class="mb-3">
+              <label for="customerPhone" class="form-label">Số điện thoại <span class="text-danger">*</span></label>
+              <input type="tel" class="form-control" id="customerPhone" name="customerPhone" required pattern="^0\d{9,10}$">
+              <div class="invalid-feedback">Số điện thoại phải bắt đầu bằng số 0 và có từ 10 đến 11 chữ số.</div>
+            </div>
+            <div class="mb-3">
+              <label for="customerEmail" class="form-label">Email <span class="text-danger">*</span></label>
+              <input type="email" class="form-control" id="customerEmail" name="customerEmail" required>
+              <div class="invalid-feedback">Vui lòng nhập email hợp lệ.</div>
+            </div>
+            <div class="mb-3">
+              <label for="product" class="form-label">Sản phẩm cần bảo hành <span class="text-danger">*</span></label>
+              <select class="form-select" id="product" name="productId" required>
+                <option value="">Chọn sản phẩm</option>
+                <% Object.entries(productDocs).forEach(([productId, product]) => { %>
+                  <option value="<%= productId %>"><%= product.name %></option>
+                <% }); %>
+              </select>
+              <div class="invalid-feedback">Vui lòng chọn sản phẩm cần bảo hành.</div>
+            </div>
+            <div class="mb-3">
+              <label for="supportDate" class="form-label">Ngày cần hỗ trợ <span class="text-danger">*</span></label>
+              <input type="date" class="form-control" id="supportDate" name="supportDate" required>
+              <div class="invalid-feedback">Vui lòng chọn ngày cần hỗ trợ.</div>
+            </div>
+            <div class="mb-3">
+              <label for="issue" class="form-label">Mô tả vấn đề <span class="text-danger">*</span></label>
+              <textarea class="form-control" id="issue" name="issue" rows="3" required minlength="10"></textarea>
+              <div class="invalid-feedback">Vui lòng mô tả vấn đề với ít nhất 10 ký tự.</div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+          <button type="button" class="btn btn-primary" id="submitWarrantyRequest">Gửi yêu cầu</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
+  <!-- Success Modal -->
+  <div class="modal fade" id="successModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Gửi yêu cầu thành công</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p>Yêu cầu hỗ trợ bảo hành của bạn đã được gửi thành công.</p>
+          <p>Chúng tôi sẽ liên hệ với bạn sớm nhất có thể.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Đồng ý</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+  
   <script>
     function goToDocumentPage(productId) {
       window.location.href = `/public/product/${productId}/documents`;
     }
 
-    // Đảm bảo chatbot hiển thị đúng vị trí
-    document.addEventListener('DOMContentLoaded', function() {
-      setTimeout(function() {
-        const chatbotFrame = document.querySelector('#chatling-iframe-wrapper');
-        if (chatbotFrame) {
-          chatbotFrame.style.bottom = '20px';
-          chatbotFrame.style.zIndex = '99';
+    // Open warranty modal
+    function openWarrantyModal() {
+      const modal = new bootstrap.Modal(document.getElementById('warrantyModal'));
+      modal.show();
+    }
+
+    // Handle warranty request submission
+    document.getElementById('submitWarrantyRequest').addEventListener('click', function() {
+      const form = document.getElementById('warrantyRequestForm');
+      
+      // Reset validation styles
+      form.querySelectorAll('.is-invalid').forEach(el => {
+        el.classList.remove('is-invalid');
+      });
+      
+      // Manual validation
+      let isValid = true;
+      
+      // Validate name (min 3 characters)
+      const nameInput = form.querySelector('#customerName');
+      if (!nameInput.value || nameInput.value.length < 3) {
+        nameInput.classList.add('is-invalid');
+        isValid = false;
+      }
+      
+      // Validate phone (starts with 0, 10-11 digits)
+      const phoneInput = form.querySelector('#customerPhone');
+      const phonePattern = /^0\d{9,10}$/;
+      if (!phonePattern.test(phoneInput.value)) {
+        phoneInput.classList.add('is-invalid');
+        isValid = false;
+      }
+      
+      // Validate email
+      const emailInput = form.querySelector('#customerEmail');
+      const emailPattern = /\S+@\S+\.\S+/;
+      if (!emailPattern.test(emailInput.value)) {
+        emailInput.classList.add('is-invalid');
+        isValid = false;
+      }
+      
+      // Validate product
+      const productInput = form.querySelector('#product');
+      if (!productInput.value) {
+        productInput.classList.add('is-invalid');
+        isValid = false;
+      }
+      
+      // Validate support date
+      const dateInput = form.querySelector('#supportDate');
+      if (!dateInput.value) {
+        dateInput.classList.add('is-invalid');
+        isValid = false;
+      }
+      
+      // Validate issue description (min 10 characters)
+      const issueInput = form.querySelector('#issue');
+      if (!issueInput.value || issueInput.value.length < 10) {
+        issueInput.classList.add('is-invalid');
+        isValid = false;
+      }
+      
+      // If the form is not valid, stop submission
+      if (!isValid) {
+        return;
+      }
+      
+      // Get form data and convert to JSON
+      const formData = new FormData(form);
+      const formJson = {};
+      formData.forEach((value, key) => {
+        formJson[key] = value;
+      });
+      
+      fetch(form.action, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(formJson)
+      })
+      .then(response => {
+        if (response.ok) {
+          return response.json();
         }
-      }, 1500);
+        throw new Error('Network response was not ok');
+      })
+      .then(data => {
+        // Hide warranty modal
+        const warrantyModal = bootstrap.Modal.getInstance(document.getElementById('warrantyModal'));
+        warrantyModal.hide();
+        
+        // Show success modal
+        const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+        successModal.show();
+        
+        // Reset form
+        form.reset();
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('Có lỗi xảy ra khi gửi yêu cầu. Vui lòng thử lại sau.');
+      });
+    });
+
+    // Set default support date to tomorrow
+    document.addEventListener('DOMContentLoaded', function() {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      const supportDateInput = document.getElementById('supportDate');
+      if (supportDateInput) {
+        supportDateInput.min = tomorrow.toISOString().split('T')[0];
+        supportDateInput.value = tomorrow.toISOString().split('T')[0];
+      }
     });
   </script>
 </body>

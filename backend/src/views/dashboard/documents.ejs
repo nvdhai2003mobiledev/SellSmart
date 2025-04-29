@@ -40,15 +40,6 @@
                     </select>
                 </div>
                 <div class="col-md-4">
-                    <label for="searchUser" class="form-label">Người dùng</label>
-                    <select id="searchUser" class="form-select">
-                        <option value="">Tất cả người dùng</option>
-                        <% users.forEach(user => { %>
-                            <option value="<%= user._id %>"><%= user.fullName %></option>
-                        <% }) %>
-                    </select>
-                </div>
-                <div class="col-md-4">
                     <label for="searchDescription" class="form-label">Mô tả</label>
                     <input type="text" id="searchDescription" class="form-control" placeholder="Nhập mô tả...">
                 </div>
@@ -86,7 +77,6 @@
                             <th class="py-3 px-4">Tiêu đề</th>
                             <th class="py-3 px-4">Mô tả</th>
                             <th class="py-3 px-4">Sản phẩm</th>
-                            <th class="py-3 px-4">Người tạo</th>
                             <th class="py-3 px-4">Ngày tạo</th>
                             <th class="py-3 px-4">Media</th>
                             <th class="py-3 px-4 text-center">Hành động</th>
@@ -102,9 +92,6 @@
                                 </td>
                                 <td class="py-3 px-4" data-product-id="<%= doc.product_id ? doc.product_id._id : '' %>">
                                     <%= doc.product_id ? doc.product_id.name : 'Không xác định' %>
-                                </td>
-                                <td class="py-3 px-4" data-user-id="<%= doc.user_id ? doc.user_id._id : '' %>">
-                                    <%= doc.user_id ? doc.user_id.fullName : 'Không xác định' %>
                                 </td>
                                 <td class="py-3 px-4"><%= doc.date.toISOString().split('T')[0] %></td>
                                 <td class="py-3 px-4">
@@ -195,15 +182,6 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label for="add_user_id" class="form-label">Người dùng <span class="text-danger">*</span></label>
-                        <select name="user_id" id="add_user_id" class="form-select" required>
-                            <option value="">Chọn người dùng</option>
-                            <% users.forEach(user => { %>
-                                <option value="<%= user._id %>"><%= user.fullName %></option>
-                            <% }) %>
-                        </select>
-                    </div>
-                    <div class="mb-3">
                         <label for="add_media" class="form-label">Link media (tùy chọn)</label>
                         <input type="url" name="media" id="add_media" class="form-control" placeholder="https://example.com/resource">
                     </div>
@@ -242,15 +220,6 @@
                             <option value="">Chọn sản phẩm</option>
                             <% products.forEach(product => { %>
                                 <option value="<%= product._id %>"><%= product.name %></option>
-                            <% }) %>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="edit_user_id" class="form-label">Người dùng <span class="text-danger">*</span></label>
-                        <select name="user_id" id="edit_user_id" class="form-select" required>
-                            <option value="">Chọn người dùng</option>
-                            <% users.forEach(user => { %>
-                                <option value="<%= user._id %>"><%= user.fullName %></option>
                             <% }) %>
                         </select>
                     </div>
@@ -316,8 +285,7 @@
                 title: row.cells[1].textContent.trim(),
                 description: row.cells[2].textContent.trim(),
                 product_id: row.cells[3].getAttribute('data-product-id'),
-                user_id: row.cells[4].getAttribute('data-user-id'),
-                date: new Date(row.cells[5].textContent),
+                date: new Date(row.cells[4].textContent),
                 element: row
             };
         });
@@ -402,7 +370,6 @@
         const title = document.getElementById('searchTitle').value.trim().toLowerCase();
         const description = document.getElementById('searchDescription').value.trim().toLowerCase();
         const productId = document.getElementById('searchProduct').value;
-        const userId = document.getElementById('searchUser').value;
         const fromDate = document.getElementById('searchFromDate').value;
         const toDate = document.getElementById('searchToDate').value;
         
@@ -416,7 +383,6 @@
             let matchTitle = !title || doc.title.toLowerCase().includes(title);
             let matchDescription = !description || doc.description.toLowerCase().includes(description);
             let matchProduct = !productId || doc.product_id === productId;
-            let matchUser = !userId || doc.user_id === userId;
             let matchDate = true;
             
             if (fromDateObj && toDateObj) {
@@ -427,7 +393,7 @@
                 matchDate = doc.date <= toDateObj;
             }
             
-            return matchTitle && matchDescription && matchProduct && matchUser && matchDate;
+            return matchTitle && matchDescription && matchProduct && matchDate;
         });
         
         document.getElementById('totalItems').textContent = filteredDocuments.length;
@@ -440,7 +406,6 @@
         document.getElementById('searchTitle').value = '';
         document.getElementById('searchDescription').value = '';
         document.getElementById('searchProduct').value = '';
-        document.getElementById('searchUser').value = '';
         document.getElementById('searchFromDate').value = '';
         document.getElementById('searchToDate').value = '';
         
@@ -459,9 +424,8 @@
             document.getElementById('edit_title').value = doc.title;
             document.getElementById('edit_description').value = doc.description;
             document.getElementById('edit_product_id').value = row.cells[3].getAttribute('data-product-id') || '';
-            document.getElementById('edit_user_id').value = row.cells[4].getAttribute('data-user-id') || '';
             
-            const mediaLink = row.cells[6].querySelector('a');
+            const mediaLink = row.cells[5].querySelector('a');
             document.getElementById('edit_media').value = mediaLink ? mediaLink.href : '';
             
             const form = document.getElementById('editDocumentForm');

@@ -1,0 +1,230 @@
+<%- include('../layouts/main.ejs') %>
+<div class="main-content">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">Hỗ trợ Bảo Hành</h1>
+    </div>
+
+    <!-- Thông báo -->
+    <% if (success_msg && success_msg.length > 0) { %>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <%= success_msg %>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    <% } %>
+    <% if (error_msg && error_msg.length > 0) { %>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <%= error_msg %>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    <% } %>
+
+    <!-- Bảng danh sách yêu cầu hỗ trợ bảo hành -->
+    <div class="card">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <div>
+                <i class="fas fa-shield-alt me-2"></i>Danh sách yêu cầu hỗ trợ bảo hành
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="py-3 px-4">STT</th>
+                            <th class="py-3 px-4">Khách hàng</th>
+                            <th class="py-3 px-4">Liên hệ</th>
+                            <th class="py-3 px-4">Sản phẩm</th>
+                            <th class="py-3 px-4">Ngày yêu cầu</th>
+                            <th class="py-3 px-4">Ngày hỗ trợ</th>
+                            <th class="py-3 px-4">Trạng thái</th>
+                            <th class="py-3 px-4 text-center">Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% if (warrantyRequests.length === 0) { %>
+                            <tr>
+                                <td colspan="8" class="text-center py-4">Không có yêu cầu hỗ trợ bảo hành nào</td>
+                            </tr>
+                        <% } else { %>
+                            <% warrantyRequests.forEach((request, index) => { %>
+                                <tr>
+                                    <td class="py-3 px-4"><%= index + 1 %></td>
+                                    <td class="py-3 px-4"><%= request.customerName %></td>
+                                    <td class="py-3 px-4">
+                                        <div><i class="fas fa-phone-alt me-1 text-secondary"></i> <%= request.customerPhone %></div>
+                                        <div><i class="fas fa-envelope me-1 text-secondary"></i> <%= request.customerEmail %></div>
+                                    </td>
+                                    <td class="py-3 px-4"><%= request.productId ? request.productId.name : 'Không xác định' %></td>
+                                    <td class="py-3 px-4"><%= new Date(request.createdAt).toLocaleDateString('vi-VN') %></td>
+                                    <td class="py-3 px-4"><%= new Date(request.supportDate).toLocaleDateString('vi-VN') %></td>
+                                    <td class="py-3 px-4">
+                                        <% let statusClass = ''; %>
+                                        <% let statusText = ''; %>
+                                        <% if (request.status === 'pending') { %>
+                                            <% statusClass = 'bg-warning text-dark'; %>
+                                            <% statusText = 'Chờ xử lý'; %>
+                                        <% } else if (request.status === 'processing') { %>
+                                            <% statusClass = 'bg-info text-white'; %>
+                                            <% statusText = 'Đang xử lý'; %>
+                                        <% } else if (request.status === 'completed') { %>
+                                            <% statusClass = 'bg-success text-white'; %>
+                                            <% statusText = 'Hoàn thành'; %>
+                                        <% } else if (request.status === 'cancelled') { %>
+                                            <% statusClass = 'bg-danger text-white'; %>
+                                            <% statusText = 'Đã hủy'; %>
+                                        <% } %>
+                                        <span class="badge <%= statusClass %>"><%= statusText %></span>
+                                    </td>
+                                    <td class="py-3 px-4 text-center">
+                                        <button class="btn btn-sm btn-info" onclick="openDetailModal('<%= request._id %>','<%= request.customerName %>','<%= request.customerPhone %>','<%= request.customerEmail %>','<%= request.productId ? request.productId.name : 'Không xác định' %>','<%= request.issue %>','<%= request.status %>','<%= request.notes %>','<%= new Date(request.supportDate).toISOString().split('T')[0] %>')">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" onclick="confirmDelete('<%= request._id %>','<%= request.customerName %>')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            <% }); %>
+                        <% } %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Chi tiết và cập nhật -->
+<div class="modal fade" id="detailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="fas fa-info-circle me-2"></i>Chi tiết yêu cầu bảo hành</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5 class="border-bottom pb-2">Thông tin khách hàng</h5>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Họ và tên:</label>
+                            <div id="detailCustomerName"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Số điện thoại:</label>
+                            <div id="detailCustomerPhone"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Email:</label>
+                            <div id="detailCustomerEmail"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h5 class="border-bottom pb-2">Thông tin yêu cầu</h5>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Sản phẩm:</label>
+                            <div id="detailProduct"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Ngày hỗ trợ:</label>
+                            <div id="detailSupportDate"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Mô tả vấn đề:</label>
+                            <div id="detailIssue"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <form id="updateRequestForm" action="" method="POST">
+                    <input type="hidden" name="_method" value="PUT">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="updateStatus" class="form-label fw-bold">Cập nhật trạng thái:</label>
+                                <select class="form-select" id="updateStatus" name="status">
+                                    <option value="pending">Chờ xử lý</option>
+                                    <option value="processing">Đang xử lý</option>
+                                    <option value="completed">Hoàn thành</option>
+                                    <option value="cancelled">Đã hủy</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="updateNotes" class="form-label fw-bold">Ghi chú:</label>
+                                <textarea class="form-control" id="updateNotes" name="notes" rows="3"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-primary" id="updateRequestBtn">Cập nhật</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Xác nhận xóa -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="fas fa-exclamation-triangle me-2"></i>Xác nhận xóa</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Bạn có chắc chắn muốn xóa yêu cầu bảo hành của khách hàng "<span id="deleteRequestName"></span>"?</p>
+                <form id="deleteRequestForm" action="" method="POST">
+                    <input type="hidden" name="_method" value="DELETE">
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Xác nhận xóa</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Hiển thị modal chi tiết
+    function openDetailModal(id, customerName, customerPhone, customerEmail, product, issue, status, notes, supportDate) {
+        document.getElementById('detailCustomerName').textContent = customerName;
+        document.getElementById('detailCustomerPhone').textContent = customerPhone;
+        document.getElementById('detailCustomerEmail').textContent = customerEmail;
+        document.getElementById('detailProduct').textContent = product;
+        document.getElementById('detailSupportDate').textContent = new Date(supportDate).toLocaleDateString('vi-VN');
+        document.getElementById('detailIssue').textContent = issue || 'Không có mô tả';
+        
+        document.getElementById('updateStatus').value = status;
+        document.getElementById('updateNotes').value = notes || '';
+        
+        document.getElementById('updateRequestForm').action = `/warranty-support/${id}?_method=PUT`;
+        
+        const modal = new bootstrap.Modal(document.getElementById('detailModal'));
+        modal.show();
+    }
+    
+    // Hiển thị modal xác nhận xóa
+    function confirmDelete(id, customerName) {
+        document.getElementById('deleteRequestName').textContent = customerName;
+        document.getElementById('deleteRequestForm').action = `/warranty-support/${id}?_method=DELETE`;
+        
+        const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+        modal.show();
+    }
+    
+    // Cập nhật yêu cầu
+    document.getElementById('updateRequestBtn').addEventListener('click', function() {
+        document.getElementById('updateRequestForm').submit();
+    });
+    
+    // Xác nhận xóa
+    document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+        document.getElementById('deleteRequestForm').submit();
+    });
+</script>
