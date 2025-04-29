@@ -22,6 +22,70 @@
         </div>
     </div>
 
+    <!-- Bộ lọc sản phẩm -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Bộ lọc sản phẩm</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Tên sản phẩm</label>
+                    <input type="text" class="form-control" id="filterName" placeholder="Tìm theo tên">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Mã sản phẩm</label>
+                    <input type="text" class="form-control" id="filterCode" placeholder="Tìm theo mã">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Danh mục</label>
+                    <select class="form-select" id="filterCategory">
+                        <option value="">Tất cả danh mục</option>
+                        <% typeProducts.forEach(type => { %>
+                            <option value="<%= type.name %>"><%= type.name %></option>
+                        <% }); %>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Trạng thái</label>
+                    <select class="form-select" id="filterStatus">
+                        <option value="">Tất cả trạng thái</option>
+                        <option value="available">Còn hàng</option>
+                        <option value="outofstock">Hết hàng</option>
+                    </select>
+                </div>
+            </div>
+            <div class="row g-3 mt-2">
+                <div class="col-md-6">
+                    <label class="form-label">Giá (VNĐ)</label>
+                    <div class="d-flex align-items-center">
+                        <input type="number" class="form-control" id="filterMinPrice" placeholder="Giá tối thiểu">
+                        <span class="mx-2">-</span>
+                        <input type="number" class="form-control" id="filterMaxPrice" placeholder="Giá tối đa">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Tồn kho</label>
+                    <div class="d-flex align-items-center">
+                        <input type="number" class="form-control" id="filterMinStock" placeholder="Tối thiểu" min="0">
+                        <span class="mx-2">-</span>
+                        <input type="number" class="form-control" id="filterMaxStock" placeholder="Tối đa" min="0">
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-12 text-end">
+                    <button type="button" class="btn btn-secondary" id="resetFilter">
+                        <i class="fas fa-undo me-1"></i>Đặt lại
+                    </button>
+                    <button type="button" class="btn btn-primary" id="applyFilter">
+                        <i class="fas fa-filter me-1"></i>Lọc
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Danh sách sản phẩm trong kho -->
     <div>
         <table id="inventoryTable" class="table table-hover">
@@ -181,11 +245,8 @@
 
                         <!-- Danh sách sản phẩm -->
                         <div class="card">
-                            <div class="card-header d-flex justify-content-between align-items-center">
+                            <div class="card-header">
                                 <h6 class="mb-0">Danh sách sản phẩm</h6>
-                                <button type="button" class="btn btn-primary btn-sm" id="addProductBtn">
-                                    <i class="fas fa-plus"></i> Thêm sản phẩm
-                                </button>
                             </div>
                             <div class="card-body">
                                 <div id="productsList">
@@ -265,6 +326,11 @@
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+                            <div class="card-footer text-start">
+                                <button type="button" class="btn btn-primary" id="addProductBtn">
+                                    <i class="fas fa-plus"></i> Thêm sản phẩm
+                                </button>
                             </div>
                         </div>
                     </form>
@@ -1445,6 +1511,104 @@
         function openVariantSelection() {
             // Implement variant selection functionality here
             console.log('Open variant selection');
+        }
+
+        // Xử lý lọc dữ liệu
+        $('#applyFilter').click(function() {
+            applyFilters();
+        });
+
+        // Đặt lại bộ lọc
+        $('#resetFilter').click(function() {
+            $('#filterName').val('');
+            $('#filterCode').val('');
+            $('#filterCategory').val('');
+            $('#filterStatus').val('');
+            $('#filterMinPrice').val('');
+            $('#filterMaxPrice').val('');
+            $('#filterMinStock').val('');
+            $('#filterMaxStock').val('');
+            applyFilters();
+        });
+
+        // Thêm sự kiện input để lọc theo tên và mã khi gõ
+        $('#filterName, #filterCode').on('input', function() {
+            applyFilters();
+        });
+
+        // Thêm sự kiện input để lọc theo giá
+        $('#filterMinPrice, #filterMaxPrice').on('input', function() {
+            applyFilters();
+        });
+
+        // Thêm sự kiện input để lọc theo tồn kho
+        $('#filterMinStock, #filterMaxStock').on('input', function() {
+            applyFilters();
+        });
+
+        // Thêm sự kiện change cho select box
+        $('#filterCategory, #filterStatus').change(function() {
+            applyFilters();
+        });
+
+        // Hàm áp dụng bộ lọc
+        function applyFilters() {
+            const nameFilter = $('#filterName').val().toLowerCase();
+            const codeFilter = $('#filterCode').val().toLowerCase();
+            const statusFilter = $('#filterStatus').val();
+            const minPrice = $('#filterMinPrice').val() ? parseFloat($('#filterMinPrice').val()) : 0;
+            const maxPrice = $('#filterMaxPrice').val() ? parseFloat($('#filterMaxPrice').val()) : Infinity;
+            const minStock = $('#filterMinStock').val() ? parseInt($('#filterMinStock').val()) : 0;
+            const maxStock = $('#filterMaxStock').val() ? parseInt($('#filterMaxStock').val()) : Infinity;
+
+            $('#inventoryTable tbody tr').each(function() {
+                const $row = $(this);
+                const name = $row.find('td:nth-child(2)').text().toLowerCase();
+                const code = $row.find('td:nth-child(3)').text().toLowerCase();
+                const category = $row.find('td:nth-child(4)').text();
+                const stockText = $row.find('td:nth-child(6) .badge').text().trim();
+                const stockQuantity = parseInt(stockText.split(' ')[0]);
+                const statusBadge = $row.find('td:nth-child(8) .badge');
+                const status = statusBadge.hasClass('bg-success') ? 'available' : 'outofstock';
+                
+                // Xuất giá từ text của cột giá
+                let priceText = $row.find('td:nth-child(7)').text().trim();
+                // Lấy số từ chuỗi giá
+                let price;
+                
+                if (priceText.includes('-')) {
+                    // Nếu là khoảng giá, lấy giá thấp nhất
+                    const priceParts = priceText.split('-');
+                    price = parseFloat(priceParts[0].replace(/[^0-9]/g, ''));
+                } else {
+                    // Nếu là một giá đơn
+                    price = parseFloat(priceText.replace(/[^0-9]/g, ''));
+                }
+
+                const nameMatch = name.includes(nameFilter);
+                const codeMatch = code.includes(codeFilter);
+                const categoryMatch = !$('#filterCategory').val() || category === $('#filterCategory').val();
+                const statusMatch = !statusFilter || status === statusFilter;
+                const priceMatch = (!minPrice || price >= minPrice) && (!maxPrice || price <= maxPrice);
+                const stockMatch = (!minStock || stockQuantity >= minStock) && (!maxStock || stockQuantity <= maxStock);
+
+                if (nameMatch && codeMatch && categoryMatch && statusMatch && priceMatch && stockMatch) {
+                    $row.show();
+                } else {
+                    $row.hide();
+                }
+            });
+
+            // Cập nhật số thứ tự cho các hàng đang hiển thị
+            updateVisibleRowNumbers();
+        }
+
+        // Cập nhật số thứ tự cho các hàng đang hiển thị
+        function updateVisibleRowNumbers() {
+            let visibleIndex = 1;
+            $('#inventoryTable tbody tr:visible').each(function() {
+                $(this).find('td:first-child').text(visibleIndex++);
+            });
         }
     </script>
 
