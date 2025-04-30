@@ -67,6 +67,147 @@ export const fetchOrders = async () => {
   }
 };
 
+export const fetchPaginatedOrders = async (page: number = 1, limit: number = 15, filters: any = {}) => {
+  try {
+    console.log(`Fetching paginated orders: page ${page}, limit ${limit}`);
+    
+    // Construct the endpoint with query parameters
+    let endpoint = `${ApiEndpoint.ORDERS}/mobile/list?page=${page}&limit=${limit}`;
+    
+    // Add any filters to the request if they exist
+    if (filters) {
+      if (filters.status) {
+        endpoint += `&status=${filters.status}`;
+      } else if (!('includeDrafts' in filters) || !filters.includeDrafts) {
+        // Explicitly exclude draft orders by default unless requested
+        endpoint += `&excludeStatus=draft`;
+      }
+      
+      if (filters.paymentStatus) {
+        endpoint += `&paymentStatus=${filters.paymentStatus}`;
+      }
+      if (filters.startDate) {
+        endpoint += `&startDate=${filters.startDate}`;
+      }
+      if (filters.endDate) {
+        endpoint += `&endDate=${filters.endDate}`;
+      }
+      // Add more filters as needed
+    } else {
+      // Default behavior: exclude draft orders
+      endpoint += `&excludeStatus=draft`;
+    }
+    
+    console.log(`API endpoint: ${endpoint}`);
+    const response = await Api.get(endpoint);
+    
+    if (response.ok && response.data) {
+      console.log('Paginated orders fetch successful:', response.data);
+      
+      // Handle different response formats
+      let orders: any[] = [];
+      let totalPages = 0;
+      let totalOrders = 0;
+      
+      if (Array.isArray(response.data)) {
+        // Simple array response - we don't have pagination info in this case
+        orders = response.data;
+        // Return with estimated pagination data
+        return {
+          orders,
+          page,
+          totalPages: page + (orders.length >= limit ? 1 : 0), // Assume there's more if we got a full page
+          totalOrders: page * limit + (orders.length >= limit ? limit : 0),
+          hasMore: orders.length >= limit
+        };
+      } else if (typeof response.data === 'object' && response.data !== null) {
+        // Try to extract pagination info from the response
+        const responseData = response.data as Record<string, any>;
+        
+        if ('data' in responseData) {
+          // Format: { data: [...orders], totalPages, totalOrders, currentPage }
+          if (Array.isArray(responseData.data)) {
+            orders = responseData.data;
+          } else if (responseData.data && typeof responseData.data === 'object' && 'orders' in responseData.data) {
+            const dataObj = responseData.data as Record<string, any>;
+            if (Array.isArray(dataObj.orders)) {
+              orders = dataObj.orders;
+            }
+          }
+          
+          totalPages = responseData.totalPages || 
+                      (responseData.data && typeof responseData.data === 'object' ? 
+                       (responseData.data as Record<string, any>).totalPages : 0) || 0;
+                       
+          totalOrders = responseData.totalOrders || 
+                      (responseData.data && typeof responseData.data === 'object' ? 
+                       (responseData.data as Record<string, any>).totalOrders : 0) || 0;
+          
+          return {
+            orders,
+            page: responseData.currentPage || page,
+            totalPages,
+            totalOrders,
+            hasMore: page < totalPages
+          };
+        } else {
+          // If we don't have a clear data structure, try to make our best guess
+          // Format might be { orders: [...], totalPages, totalOrders }
+          if ('orders' in responseData && Array.isArray(responseData.orders)) {
+            orders = responseData.orders;
+            totalPages = responseData.totalPages || 0;
+            totalOrders = responseData.totalOrders || 0;
+          } else {
+            // Attempt to find an array in the response
+            const possibleArrays = Object.values(responseData).filter(value => Array.isArray(value));
+            if (possibleArrays.length > 0) {
+              orders = possibleArrays[0] as any[];
+            }
+          }
+          
+          return {
+            orders,
+            page,
+            totalPages: totalPages || page + (orders.length >= limit ? 1 : 0),
+            totalOrders: totalOrders || page * limit + (orders.length >= limit ? limit : 0),
+            hasMore: totalPages ? page < totalPages : orders.length >= limit
+          };
+        }
+      }
+      
+      // Fallback to a simple response
+      return {
+        orders: [],
+        page,
+        totalPages: 0,
+        totalOrders: 0,
+        hasMore: false
+      };
+    } else {
+      console.error('Failed to fetch paginated orders:', response.problem);
+      if (response.data) {
+        console.error('Error response data:', response.data);
+      }
+      return {
+        orders: [],
+        page,
+        totalPages: 0,
+        totalOrders: 0,
+        hasMore: false
+      };
+    }
+  } catch (error) {
+    console.error('Exception in fetchPaginatedOrders:', error);
+    return {
+      orders: [],
+      page,
+      totalPages: 0, 
+      totalOrders: 0,
+      hasMore: false
+    };
+  }
+};
+
 export const deleteOrder = async (id: string) => {
   try {
     const response = await Api.delete(`${ApiEndpoint.ORDERS}/${id}`);

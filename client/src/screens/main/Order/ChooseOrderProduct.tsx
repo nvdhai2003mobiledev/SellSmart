@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useState, useCallback} from 'react';
 import {
   View,
   FlatList,
@@ -31,7 +31,7 @@ import {
   scaleWidth,
 } from '../../../utils';
 import {
-  fetchInventoriesForProductSelection,
+  fetchProductsfororder,
 } from '../../../services/api/productAPI';
 import AsyncImage from '../../bottomTab/Product/AsyncImage';
 import {Fonts} from '../../../assets';
@@ -67,6 +67,180 @@ const ChooseOrderProduct = () => {
     [],
   );
   const [loading, setLoading] = useState(true);
+
+  // Helper function to map variant IDs to human-readable names
+  const mapVariantIdToName = (variantId: string): string => {
+    // Map common variant IDs to their proper names
+    const variantIdMap: {[key: string]: string} = {
+      '6800b2361185e9116e44520b': 'Màu sắc',
+      '6803cd9047ead40c2b03a4a7': 'Dung lượng'
+    };
+    
+    return variantIdMap[variantId] || 'Thuộc tính';
+  };
+
+  // Define fetchProductData with useCallback to prevent unnecessary re-renders
+  const fetchProductData = useCallback(async () => {
+    setLoading(true);
+    try {
+      // Fetch products using fetchProductsfororder instead of inventory data
+      const products = await fetchProductsfororder();
+
+      if (products && Array.isArray(products)) {
+        console.log(`Fetched ${products.length} products from API`);
+        
+        // Process products to match our format
+        const processedProducts: ProductVariant[] = [];
+
+        products.forEach((product: any) => {
+          console.log('Processing product:', product.name, {
+            hasVariants: product.hasVariants || false,
+            variantsCount: product.detailsVariants?.length || 0,
+            productId: product._id
+          });
+          
+          // Get thumbnail from product data
+          const thumbnailUrl = product.thumbnail || '';
+          
+          // Check if product has variants
+          if (
+            product.hasVariants &&
+            Array.isArray(product.detailsVariants) &&
+            product.detailsVariants.length > 0
+          ) {
+            // Process each variant as a separate product
+            product.detailsVariants.forEach((variant: any, index: number) => {
+              // Skip if inventory is 0
+              if (!variant || variant.inventory <= 0) {
+                return;
+              }
+
+              console.log(`Processing variant ${index} for ${product.name}:`, {
+                price: variant.price,
+                inventory: variant.inventory,
+                variantDetails: variant.variantDetails
+              });
+
+              // Extract attributes from the variant
+              const attributes: Array<{name: string; value: string}> = [];
+              
+              // Handle variant details when they come as variantDetails array
+              if (variant.variantDetails && Array.isArray(variant.variantDetails)) {
+                variant.variantDetails.forEach((detail: any) => {
+                  if (detail.name && detail.value) {
+                    attributes.push({
+                      name: detail.name,
+                      value: String(detail.value)
+                    });
+                  } else if (detail.variantId && detail.value) {
+                    // Try to map known variant IDs to names
+                    attributes.push({
+                      name: mapVariantIdToName(detail.variantId),
+                      value: String(detail.value)
+                    });
+                  }
+                });
+              }
+              
+              // Handle variant attributes in direct attributes object format (as seen in MongoDB data)
+              if (variant.attributes && typeof variant.attributes === 'object') {
+                // Process attributes object
+                Object.entries(variant.attributes).forEach(([key, value]) => {
+                  if (key === 'Color' || key.toLowerCase() === 'color' || key === 'Màu sắc') {
+                    attributes.push({
+                      name: 'Màu sắc',
+                      value: String(value)
+                    });
+                  } else if (key === 'Dung lượng' || key.toLowerCase() === 'capacity') {
+                    attributes.push({
+                      name: 'Dung lượng',
+                      value: String(value)
+                    });
+                  } else {
+                    attributes.push({
+                      name: key,
+                      value: String(value)
+                    });
+                  }
+                });
+              }
+
+              // If no attributes were processed but we know it's a variant,
+              // add a generic attribute to differentiate it
+              if (attributes.length === 0 && product.hasVariants) {
+                attributes.push({
+                  name: 'Biến thể',
+                  value: `#${index + 1}`
+                });
+              }
+
+              // Create the processed product variant
+              processedProducts.push({
+                _id: product._id,
+                variantId: variant._id || `variant-${index}`,
+                name: product.name,
+                thumbnail: thumbnailUrl,
+                price: variant.price || 0,
+                inventory: variant.inventory || 0,
+                product_code: product.product_code || '',
+                attributes: attributes,
+                quantity: 1, // Default quantity
+                isVariant: true,
+              });
+            });
+          } else {
+            // Product without variants
+            // Skip if no inventory or price is not available
+            if (!product.inventory || product.inventory <= 0 || !product.price) {
+              return;
+            }
+
+            processedProducts.push({
+              _id: product._id,
+              name: product.name,
+              thumbnail: thumbnailUrl,
+              price: product.price || 0,
+              inventory: product.inventory || 0,
+              product_code: product.product_code || '',
+              attributes: [],
+              quantity: 1, // Default quantity
+              isVariant: false,
+            });
+          }
+        });
+
+        console.log(`Processed ${processedProducts.length} products`);
+        
+        // Sort products by name and then by price
+        processedProducts.sort((a, b) => {
+          // First sort by name
+          const nameComparison = a.name.localeCompare(b.name);
+          if (nameComparison !== 0) {
+            return nameComparison;
+          }
+          
+          // Then by variant status (non-variants first)
+          if (a.isVariant !== b.isVariant) {
+            return a.isVariant ? 1 : -1;
+          }
+          
+          // Then by price
+          return a.price - b.price;
+        });
+        
+        setAllProducts(processedProducts);
+        setFilteredProducts(processedProducts);
+      } else {
+        console.error('Failed to fetch products: Invalid response format');
+        Alert.alert('Error', 'Failed to load product data. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error fetching product data:', error);
+      Alert.alert('Error', 'An unexpected error occurred while loading product data.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   // Initialize selected products from route params if available
   useEffect(() => {
@@ -105,8 +279,8 @@ const ChooseOrderProduct = () => {
       setSelectedProducts(processedProducts);
     }
 
-    fetchInventoryData();
-  }, [routeParams]);
+    fetchProductData();
+  }, [routeParams, fetchProductData]);
 
   // Filter products when search query changes
   useEffect(() => {
@@ -120,151 +294,6 @@ const ChooseOrderProduct = () => {
       setFilteredProducts(filtered);
     }
   }, [searchQuery, allProducts]);
-
-  const fetchInventoryData = async () => {
-    setLoading(true);
-    try {
-      // Fetch inventory data instead of products
-      const inventories = await fetchInventoriesForProductSelection();
-
-      if (inventories && Array.isArray(inventories)) {
-        // Process inventory items to be used as products
-        const processedProducts: ProductVariant[] = [];
-
-        inventories.forEach((inventory: any) => {
-          console.log('Processing inventory item:', inventory.product_name, {
-            hasVariants: inventory.hasVariants,
-            variantsCount: inventory.variantDetails?.length || 0,
-            inventoryId: inventory._id
-          });
-          
-          // Get thumbnail from inventory data if available
-          const thumbnailUrl = inventory.productThumbnail || '';
-          
-          // Check if inventory has variants
-          if (
-            inventory.hasVariants &&
-            Array.isArray(inventory.variantDetails) &&
-            inventory.variantDetails.length > 0
-          ) {
-            // Process each variant as a separate product
-            inventory.variantDetails.forEach((variant: any, index: number) => {
-              // Skip if quantity is 0
-              if (!variant || variant.quantity <= 0) {
-                return;
-              }
-
-              console.log(`Processing variant ${index} for ${inventory.product_name}:`, {
-                price: variant.price,
-                quantity: variant.quantity,
-                attributes: variant.attributes
-              });
-
-              // Extract attributes from the variant
-              const attributes: Array<{name: string; value: string}> = [];
-              
-              // Handle different attribute formats in the inventory collection
-              if (variant.attributes && typeof variant.attributes === 'object') {
-                // Get attribute entries from the object
-                Object.entries(variant.attributes).forEach(([key, value]) => {
-                  // Map known variant IDs to their proper names based on the database data
-                  if (key === '6800b2361185e9116e44520b') {
-                    // This is the Color variant ID
-                    attributes.push({
-                      name: 'Màu sắc',
-                      value: String(value)
-                    });
-                  } else if (key === '6803cd9047ead40c2b03a4a7') {
-                    // This is the Capacity variant ID
-                    attributes.push({
-                      name: 'Dung lượng',
-                      value: String(value)
-                    });
-                  } else {
-                    // For other attribute keys, use the key as name
-                    attributes.push({
-                      name: key,
-                      value: String(value)
-                    });
-                  }
-                });
-              }
-
-              // If no attributes were processed but we know it's a variant,
-              // add a generic attribute to differentiate it
-              if (attributes.length === 0 && inventory.hasVariants) {
-                attributes.push({
-                  name: 'Biến thể',
-                  value: `#${index + 1}`
-                });
-              }
-
-              // Create the processed product variant
-              processedProducts.push({
-                _id: inventory._id,
-                variantId: variant._id || `variant-${index}`,
-                name: inventory.product_name,
-                thumbnail: thumbnailUrl,
-                price: variant.price || 0,
-                inventory: variant.quantity || 0,
-                product_code: inventory.product_code || '',
-                attributes: attributes,
-                quantity: 1, // Default quantity
-                isVariant: true,
-              });
-            });
-          } else {
-            // Product without variants
-            if (inventory.total_quantity <= 0) {
-              return; // Skip if no inventory
-            }
-
-            processedProducts.push({
-              _id: inventory._id,
-              name: inventory.product_name,
-              thumbnail: thumbnailUrl,
-              price: inventory.total_price / inventory.total_quantity || 0, // Calculate unit price
-              inventory: inventory.total_quantity || 0,
-              product_code: inventory.product_code || '',
-              attributes: [],
-              quantity: 1, // Default quantity
-              isVariant: false,
-            });
-          }
-        });
-
-        console.log(`Processed ${processedProducts.length} products from inventory`);
-        
-        // Sort products by name and then by price
-        processedProducts.sort((a, b) => {
-          // First sort by name
-          const nameComparison = a.name.localeCompare(b.name);
-          if (nameComparison !== 0) {
-            return nameComparison;
-          }
-          
-          // Then by variant status (non-variants first)
-          if (a.isVariant !== b.isVariant) {
-            return a.isVariant ? 1 : -1;
-          }
-          
-          // Then by price
-          return a.price - b.price;
-        });
-        
-        setAllProducts(processedProducts);
-        setFilteredProducts(processedProducts);
-      } else {
-        console.error('Failed to fetch inventory data: Invalid response format');
-        Alert.alert('Error', 'Failed to load inventory data. Please try again.');
-      }
-    } catch (error) {
-      console.error('Error fetching inventory data:', error);
-      Alert.alert('Error', 'An unexpected error occurred while loading inventory data.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const toggleProductSelection = (product: ProductVariant) => {
     // Check if product is already selected

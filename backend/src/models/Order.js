@@ -22,7 +22,7 @@ const OrderSchema = new mongoose.Schema({
     }
   ],
   totalAmount: { type: Number, required: true, min: 0 },
-  status: { type: String, enum: ['pending','waiting', 'processing', 'canceled'], default: 'pending' },
+  status: { type: String, enum: ['pending','waiting', 'processing', 'canceled','draft'], default: 'pending' },
   paymentMethod: { type: String, enum: ['cash', 'credit card', 'debit card', 'e-wallet', null], required: function() {
     return this.paymentStatus === 'paid' || this.paymentStatus === 'partpaid'; // Required if payment status is 'paid' or 'partpaid'
   } },

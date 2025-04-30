@@ -500,9 +500,128 @@ const CreateOrderScreen = observer(() => {
     }
   };
 
-  const saveAsDraft = () => {
-    // Implement save as draft functionality
-    Alert.alert('Thông báo', 'Chức năng lưu nháp đang được phát triển');
+  const saveAsDraft = async () => {
+    if (paymentStatus === 'paid') {
+      Alert.alert('Thông báo', 'Không thể lưu nháp đơn hàng đã thanh toán');
+      return;
+    }
+
+    if (selectedProducts.length === 0) {
+      Alert.alert('Cảnh báo', 'Vui lòng chọn ít nhất một sản phẩm');
+      return;
+    }
+
+    try {
+      // Tính toán tổng tiền Hóa đơn
+      const total = selectedPromotion
+        ? calculateTotal() - calculateDiscount()
+        : calculateTotal();
+      
+      // Xác định thông tin thanh toán
+      const paidAmount = paymentDetails ? paymentDetails.amount : 0;
+      const isFullyPaid = paidAmount >= total;
+      const isPartiallyPaid = paidAmount > 0 && paidAmount < total;
+
+      // Xác định trạng thái thanh toán
+      const paymentStatus = !paymentDetails
+        ? 'unpaid'
+        : isFullyPaid
+        ? 'paid'
+        : 'partpaid';
+
+      // Map products for the order data
+      const orderData = {
+        customerID: selectedCustomer?._id || null,
+        products: selectedProducts.map(product => {
+          let productID = product._id;
+          let variantID = product.variantId;
+          
+          if (!product.originalProductId && typeof product._id === 'string' && product._id.includes('-')) {
+            const parts = product._id.split('-');
+            productID = parts[0];
+            variantID = parts[1] || variantID;
+          }
+          
+          if (variantID && typeof variantID === 'object' && variantID._id) {
+            variantID = variantID._id.toString();
+          } else if (variantID) {
+            variantID = variantID.toString();
+          }
+          
+          return {
+            productID: productID,
+            name: product.name,
+            quantity: product.quantity,
+            price: product.price,
+            inventory: product.inventory || Math.max(1, product.quantity),
+            attributes: product.attributes || [],
+            variantID: variantID || undefined,
+            product_code: product.product_code || undefined
+          };
+        }),
+        totalAmount: total,
+        paymentMethod: paymentDetails ? paymentDetails.method : null,
+        paymentStatus: paymentStatus,
+        paidAmount: paidAmount,
+        paymentDetails: paymentDetails
+          ? [
+              {
+                method: paymentDetails.method,
+                amount: paymentDetails.amount,
+                date: new Date(),
+              },
+            ]
+          : [],
+        status: 'draft',
+        shippingAddress: selectedCustomer?.address || 'Nhận hàng tại cửa hàng',
+        employeeID: rootStore.auth.userId,
+        notes,
+        promotionID: selectedPromotion?._id || null,
+        promotionDetails: selectedPromotion
+          ? {
+              name: selectedPromotion.name,
+              discount: selectedPromotion.discount,
+              discountAmount: calculateDiscount(),
+            }
+          : null,
+      };
+
+      // Create draft order using API
+      const response = await createOrder(orderData);
+
+      if (response.ok) {
+        // Refresh orders in the store
+        await rootStore.orders.fetchOrders();
+
+        // Get the order ID from response
+        let orderId = null;
+        if (response.data) {
+          const responseData = response.data as any;
+          if (responseData.order && responseData.order._id) {
+            orderId = responseData.order._id;
+          } else if (responseData.data && responseData.data._id) {
+            orderId = responseData.data._id;
+          } else if (responseData._id) {
+            orderId = responseData._id;
+          }
+        }
+
+        if (orderId) {
+          // Navigate to order detail screen
+          navigation.navigate(Screen.ORDER_DETAIL, {orderId});
+        } else {
+          Alert.alert('Thành công', 'Đơn hàng đã được lưu nháp', [
+            {text: 'OK', onPress: () => navigation.navigate(Screen.ORDERLIST)},
+          ]);
+        }
+      } else {
+        console.error('Draft order creation failed:', response.status);
+        Alert.alert('Lỗi', 'Không thể lưu nháp đơn hàng');
+      }
+    } catch (error) {
+      console.error('Error creating draft order:', error);
+      Alert.alert('Lỗi', 'Đã xảy ra lỗi khi lưu nháp đơn hàng');
+    }
   };
 
   // Render product item in the list
@@ -881,8 +1000,13 @@ const CreateOrderScreen = observer(() => {
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
           <TouchableOpacity
-            style={[styles.button, styles.saveDraftButton]}
-            onPress={saveAsDraft}>
+            style={[
+              styles.button,
+              styles.saveDraftButton,
+              paymentStatus === 'paid' && styles.disabledButton
+            ]}
+            onPress={saveAsDraft}
+            disabled={paymentStatus === 'paid'}>
             <DynamicText style={styles.saveDraftButtonText}>
               Lưu nháp
             </DynamicText>
@@ -1477,6 +1601,9 @@ const styles = StyleSheet.create({
   },
   notesInput: {
     marginTop: moderateScale(8),
+  },
+  disabledButton: {
+    opacity: 0.5,
   },
 });
 

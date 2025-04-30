@@ -165,9 +165,7 @@ InventorySchema.pre("validate", function (next) {
     if (Math.abs(this.total_quantity - calculatedQuantity) > epsilon) {
       return next(new Error(`Tổng số lượng (${this.total_quantity}) không khớp với số lượng biến thể (${calculatedQuantity})`));
     }
-    if (Math.abs(this.total_price - calculatedPrice) > epsilon) {
-      return next(new Error(`Tổng giá (${this.total_price}) không khớp với giá trung bình có trọng số của biến thể (${calculatedPrice})`));
-    }
+  
   } else if (!this.hasVariants) {
     // Nếu không có biến thể, total_quantity và total_price được tính từ controller
     if (this.total_quantity < 0 || this.total_price < 0) {

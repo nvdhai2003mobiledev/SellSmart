@@ -116,7 +116,88 @@ const OrderScreen = () => {
               <View>
                 <DynamicText style={styles.gridTitle}>Hóa đơn</DynamicText>
                 <DynamicText style={styles.gridSubtitle}>
-                  {rootStore.orders?.orders?.length || 0} đơn
+                  {rootStore.orders?.orders?.filter((order: any) => order.status !== 'draft').length || 0} đơn
+                </DynamicText>
+              </View>
+            </View>
+            <ArrowRight2
+              size={20}
+              color={color.accentColor.grayColor}
+              variant="Linear"
+            />
+          </TouchableOpacity>
+
+          {/* Đơn nháp */}
+          <TouchableOpacity
+            style={styles.gridItem}
+            onPress={() => navigateToOrderList('draft')}>
+            <View style={styles.gridItemContent}>
+              <View
+                style={[styles.iconContainer, {backgroundColor: '#FFF3E0'}]}>
+                <Calendar
+                  size={scaledSize(24)}
+                  color="#FFA000"
+                  variant="Bold"
+                />
+              </View>
+              <View>
+                <DynamicText style={styles.gridTitle}>Đơn nháp</DynamicText>
+                <DynamicText style={styles.gridSubtitle}>
+                  {rootStore.orders?.orders?.filter((order: any) => order.status === 'draft').length || 0} đơn
+                </DynamicText>
+              </View>
+            </View>
+            <ArrowRight2
+              size={20}
+              color={color.accentColor.grayColor}
+              variant="Linear"
+            />
+          </TouchableOpacity>
+
+          {/* Hóa đơn chưa thanh toán */}
+          <TouchableOpacity
+            style={styles.gridItem}
+            onPress={() => navigateToOrderList('unpaid')}>
+            <View style={styles.gridItemContent}>
+              <View
+                style={[styles.iconContainer, {backgroundColor: '#FFF0F0'}]}>
+                <CloseCircle
+                  size={scaledSize(24)}
+                  color="#FF3B30"
+                  variant="Bold"
+                />
+              </View>
+              <View>
+                <DynamicText style={styles.gridTitle}>Đơn chưa thanh toán</DynamicText>
+                <DynamicText style={styles.gridSubtitle}>
+                  {rootStore.orders?.orders?.filter((order: any) => order.paymentStatus === 'unpaid' && order.status !== 'canceled').length || 0} đơn
+                </DynamicText>
+              </View>
+            </View>
+            <ArrowRight2
+              size={20}
+              color={color.accentColor.grayColor}
+              variant="Linear"
+            />
+          </TouchableOpacity>
+
+          {/* Hóa đơn thanh toán một phần */}
+          <TouchableOpacity
+            style={styles.gridItem}
+            onPress={() => navigateToOrderList('partpaid')}>
+            <View style={styles.gridItemContent}>
+              <View
+                style={[styles.iconContainer, {backgroundColor: '#FFF3E0'}]}>
+                <CloseCircle
+                  size={scaledSize(24)}
+                  color="#FFA000"
+                  variant="Bold"
+                />
+              </View>
+              <View>
+                <DynamicText style={styles.gridTitle}>Đơn thanh toán một phần</DynamicText>
+                <DynamicText style={styles.gridSubtitle}>
+                  {rootStore.orders?.orders?.filter((order: any) => order.paymentStatus === 'partpaid' && order.status !== 'canceled').length || 0} đơn
                 </DynamicText>
               </View>
             </View>

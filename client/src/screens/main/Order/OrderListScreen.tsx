@@ -1,22 +1,21 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useState, useCallback} from 'react';
 import {
   View,
-  Text,
   FlatList,
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
   TextInput,
   Keyboard,
+  RefreshControl,
 } from 'react-native';
 import {RootStackParamList, Screen} from '../../../navigation/navigation.type';
 import {useNavigation, useRoute, NavigationProp, RouteProp} from '@react-navigation/native';
 import {observer} from 'mobx-react-lite';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {BaseLayout, Header, DynamicText} from '../../../components';
-import {rootStore} from '../../../models/root-store';
-import {color, moderateScale, scaledSize} from '../../../utils';
-import {Order} from '../../../models/Order/Order';
+import {color, moderateScale} from '../../../utils';
+import { fetchPaginatedOrders } from '../../../services/api/ordersApi';
 
 // Define route params interface
 interface OrderListRouteParams {
@@ -32,6 +31,112 @@ const OrderListScreen = observer(() => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredOrders, setFilteredOrders] = useState<any[]>([]);
   const [currentFilter, setCurrentFilter] = useState<any>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const ITEMS_PER_PAGE = 15;
+
+  const fetchOrders = useCallback(async (loadMore = false) => {
+    try {
+      if (!loadMore) {
+        setIsLoading(true);
+        setPage(1);
+      } else {
+        setLoadingMore(true);
+      }
+
+      // Get the current page to fetch
+      const pageToFetch = loadMore ? page + 1 : 1;
+      
+      // Prepare filters based on route params
+      const apiFilters: any = {
+        // By default we exclude draft orders unless specifically requested
+        includeDrafts: false
+      };
+      
+      // If viewing draft orders specifically
+      if (route.params?.status === 'draft') {
+        // If looking specifically for drafts, set status filter
+        apiFilters.status = 'draft';
+        // And include drafts in the results
+        apiFilters.includeDrafts = true;
+      } 
+      // For all other cases, exclude draft orders and check for payment status
+      else {
+        // Check for payment status parameter
+        if (route.params?.status) {
+          apiFilters.paymentStatus = route.params.status;
+        }
+        // Apply full filter if exists
+        else if (route.params?.filter) {
+          // Map route filter to API filter format
+          if (route.params.filter.paymentStatus) {
+            apiFilters.paymentStatus = route.params.filter.paymentStatus;
+          }
+          if (route.params.filter.orderStatus) {
+            apiFilters.status = route.params.filter.orderStatus;
+          }
+          if (route.params.filter.startDate) {
+            apiFilters.startDate = route.params.filter.startDate;
+          }
+          if (route.params.filter.endDate) {
+            apiFilters.endDate = route.params.filter.endDate;
+          }
+        }
+      }
+
+      console.log(`Fetching orders with filters:`, apiFilters);
+      
+      // Fetch paginated orders from the API
+      const result = await fetchPaginatedOrders(pageToFetch, ITEMS_PER_PAGE, apiFilters);
+      
+      console.log(`Received ${result.orders.length} orders. Page ${result.page} of ${result.totalPages}. Has more: ${result.hasMore}`);
+      
+      if (result.orders.length === 0 && pageToFetch > 1) {
+        // If we didn't get any orders but we're past page 1, there might be a pagination issue
+        console.log("No orders returned for this page, setting hasMore to false");
+        setHasMore(false);
+        setLoadingMore(false);
+        return;
+      }
+      
+      // Update pagination state
+      setPage(result.page);
+      setHasMore(result.hasMore);
+      
+      // Handle search if there's a search query
+      let displayedOrders = result.orders;
+      if (searchQuery.trim()) {
+        displayedOrders = result.orders.filter(
+          order => 
+            order.orderID.slice(-4).includes(searchQuery.trim()) ||
+            (order.customerID?.fullName || '').toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
+            (order.customerID?.phoneNumber || '').includes(searchQuery.trim())
+        );
+      }
+      
+      if (loadMore) {
+        // Append new orders to existing filtered orders
+        setFilteredOrders(prev => [...prev, ...displayedOrders]);
+        // Also update the full orders list
+        setOrders(prev => [...prev, ...result.orders]);
+      } else {
+        // Replace orders with new results
+        setFilteredOrders(displayedOrders);
+        // Also update the full orders list
+        setOrders(result.orders);
+      }
+
+      setIsLoading(false);
+      setLoadingMore(false);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      setIsLoading(false);
+      setLoadingMore(false);
+      setHasMore(false); // Stop trying to load more on error
+    }
+  }, [page, route.params, searchQuery]);
 
   useEffect(() => {
     // Check for filter from navigation params
@@ -40,115 +145,100 @@ const OrderListScreen = observer(() => {
       setCurrentFilter(filterFromParams);
     }
 
+    // Chỉ gọi fetch khi khởi tạo màn hình
     fetchOrders();
+    // Loại bỏ fetchOrders để không tự động gọi lại mỗi khi route.params thay đổi
   }, [route.params?.filter]);
 
-  const fetchOrders = async () => {
-    try {
-      await rootStore.orders.fetchOrders();
-
-      // Sort orders by creation date in descending order (newest first)
-      const sortedOrders = [...rootStore.orders.orders].sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      );
-
-      // Apply filter if exists
-      let processedOrders = sortedOrders;
-
-      // Check for status parameter (for canceled orders)
-      if (route.params?.status) {
-        processedOrders = sortedOrders.filter(
-          order => order.status === route.params?.status,
+  useEffect(() => {
+    // When search query changes, filter the already fetched orders locally
+    // instead of fetching from server
+    if (orders.length > 0) {
+      if (!searchQuery.trim()) {
+        // If search is cleared, show all orders from current page
+        setFilteredOrders(orders);
+      } else {
+        // Filter based on search query
+        const filtered = orders.filter(
+          order => 
+            (order.orderID && order.orderID.slice(-4).includes(searchQuery.trim())) ||
+            (order.customerID?.fullName || '').toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
+            (order.customerID?.phoneNumber || '').includes(searchQuery.trim())
         );
+        setFilteredOrders(filtered);
       }
-      // Apply full filter if exists
-      else if (route.params?.filter) {
-        processedOrders = applyFilter(sortedOrders, route.params.filter);
-      }
+    }
+  }, [searchQuery, orders]);
 
-      setOrders(sortedOrders);
-      setFilteredOrders(processedOrders);
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-      setIsLoading(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchOrders();
+    setRefreshing(false);
+  }, [fetchOrders]);
+
+  const loadMoreOrders = () => {
+    if (!loadingMore && hasMore) {
+      fetchOrders(true);
     }
   };
 
-  // Filter function
-  const applyFilter = (orderList: any[], filter: any) => {
-    return orderList.filter(order => {
-      // Payment Status Filter
-      if (filter.paymentStatus) {
-        // Check if payment status matches exactly what we're looking for
-        if (order.paymentStatus !== filter.paymentStatus) {
-          return false;
-        }
-      }
-
-      // Order Status Filter
-      if (filter.orderStatus) {
-        if (order.status !== filter.orderStatus) {
-          return false;
-        }
-      }
-
-      // Date Range Filter
-      const orderDate = new Date(order.createdAt);
-      if (filter.startDate) {
-        const startDate = new Date(filter.startDate);
-        startDate.setHours(0, 0, 0, 0); // Set to start of day
-        if (orderDate < startDate) return false;
-      }
-      if (filter.endDate) {
-        const endDate = new Date(filter.endDate);
-        endDate.setHours(23, 59, 59, 999); // Set to end of day
-        if (orderDate > endDate) return false;
-      }
-
-      return true;
-    });
+  const renderFooter = () => {
+    if (loadingMore) {
+      return (
+        <View style={styles.footerContainer}>
+          <ActivityIndicator size="small" color={color.primaryColor} />
+        </View>
+      );
+    }
+    
+    if (hasMore) {
+      return (
+        <View style={styles.footerContainer}>
+          <TouchableOpacity
+            style={styles.loadMoreButton}
+            onPress={() => {
+              console.log('Load more button pressed');
+              loadMoreOrders();
+            }}>
+            <DynamicText style={styles.loadMoreText}>Xem thêm</DynamicText>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    
+    // Don't render anything if there's no more data
+    return null;
   };
 
   const handleSearch = () => {
     // Dismiss keyboard
     Keyboard.dismiss();
-
-    // If search query is empty, show filtered orders
+    
+    // Tìm kiếm cục bộ từ danh sách đã có
     if (!searchQuery.trim()) {
-      setFilteredOrders(
-        currentFilter ? applyFilter(orders, currentFilter) : orders,
+      // Nếu xóa tìm kiếm, hiển thị lại tất cả đơn hàng hiện tại
+      setFilteredOrders(orders);
+    } else {
+      // Lọc dựa trên từ khóa tìm kiếm
+      const filtered = orders.filter(
+        order => 
+          (order.orderID && order.orderID.slice(-4).includes(searchQuery.trim())) ||
+          (order.customerID?.fullName || '').toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
+          (order.customerID?.phoneNumber || '').includes(searchQuery.trim())
       );
-      return;
+      setFilteredOrders(filtered);
     }
-
-    // Convert search query to lowercase for case-insensitive search
-    const query = searchQuery.trim().toLowerCase();
-
-    // Filter orders based on various criteria
-    const searchResult = orders.filter(
-      order =>
-        // Search by last 4 digits of orderID
-        order.orderID.slice(-4).includes(query) ||
-        // Search by customer name (case-insensitive)
-        order.customerID.fullName.toLowerCase().includes(query) ||
-        // Search by customer phone number
-        order.customerID.phoneNumber.includes(query),
-    );
-
-    // Apply additional filter if exists
-    const finalFilteredOrders = currentFilter
-      ? applyFilter(searchResult, currentFilter)
-      : searchResult;
-
-    setFilteredOrders(finalFilteredOrders);
+    
+    // Không cần reset trang hoặc tải lại từ API
+    // setPage(1);
+    // fetchOrders();
   };
 
   const navigateToOrderScreen = (status?: string) => {
     // @ts-ignore - ignore navigation type error
     navigation.navigate(Screen.BOTTOM_TAB, {status});
   };
+  
   // Navigate to Filter Screen
   const navigateToFilterScreen = () => {
     // @ts-ignore - ignore navigation type error
@@ -300,6 +390,17 @@ const OrderListScreen = observer(() => {
         data={filteredOrders}
         renderItem={renderOrderItem}
         keyExtractor={item => item._id}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[color.primaryColor]}
+            tintColor={color.primaryColor}
+          />
+        }
+        onEndReached={null}
+        onEndReachedThreshold={0.3}
+        ListFooterComponent={renderFooter}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <DynamicText style={styles.emptyText}>
@@ -434,6 +535,21 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: moderateScale(13),
     color: color.accentColor.grayColor,
+  },
+  footerContainer: {
+    paddingVertical: moderateScale(20),
+    alignItems: 'center',
+  },
+  loadMoreButton: {
+    paddingHorizontal: moderateScale(20),
+    paddingVertical: moderateScale(10),
+    backgroundColor: color.primaryColor,
+    borderRadius: moderateScale(8),
+  },
+  loadMoreText: {
+    color: 'white',
+    fontSize: moderateScale(14),
+    fontWeight: '500',
   },
 });
 
