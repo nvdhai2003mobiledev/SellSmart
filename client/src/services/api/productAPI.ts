@@ -56,18 +56,74 @@ const publicApi = create({
 // Hàm lấy danh sách sản phẩm
 export const fetchProducts = async () => {
   try {
+    console.log('=== ĐANG GỌI API LẤY DANH SÁCH SẢN PHẨM ===');
     const response = await publicApi.get<ApiResponse<Product[]>>('/products/json');
+    
+    console.log('=== PHẢN HỒI TỪ API ===', {
+      status: response.status,
+      ok: response.ok,
+      problem: response.problem,
+      headers: response.headers
+    });
+    
     if (response.ok && response.data?.status === 'Ok') {
+      console.log('=== DỮ LIỆU API TRẢ VỀ ===', JSON.stringify(response.data, null, 2));
+      
       if (Array.isArray(response.data.data)) {
+        console.log('=== DỮ LIỆU SẢN PHẨM (MẢNG) ===');
+        // Log chi tiết về cấu trúc dữ liệu sản phẩm
+        response.data.data.forEach((product, index) => {
+          if (index < 2) { // Chỉ log 2 sản phẩm đầu tiên để tránh quá nhiều
+            console.log(`Sản phẩm ${index}:`, JSON.stringify(product, null, 2));
+            
+            // Log chi tiết về biến thể nếu có
+            if (product.hasVariants && product.detailsVariants) {
+              console.log(`Chi tiết biến thể của sản phẩm ${index}:`);
+              product.detailsVariants.forEach((variant: any, vIndex: number) => {
+                console.log(`Biến thể ${vIndex}:`, JSON.stringify(variant, null, 2));
+                // Kiểm tra cấu trúc của thuộc tính biến thể
+                console.log(`Loại dữ liệu của attributes:`, typeof variant.attributes);
+                console.log(`Các key trong biến thể:`, Object.keys(variant));
+              });
+            }
+          }
+        });
         return response.data.data;
       }
+      
       if ((response.data.data as any)?.productsWithPriceAndInventory) {
-        return (response.data.data as any).productsWithPriceAndInventory;
+        console.log('=== DỮ LIỆU SẢN PHẨM (OBJECT) ===');
+        const products = (response.data.data as any).productsWithPriceAndInventory;
+        
+        // Log chi tiết về cấu trúc dữ liệu sản phẩm
+        products.forEach((product: any, index: number) => {
+          if (index < 2) { // Chỉ log 2 sản phẩm đầu tiên để tránh quá nhiều
+            console.log(`Sản phẩm ${index}:`, JSON.stringify(product, null, 2));
+            
+            // Log chi tiết về biến thể nếu có
+            if (product.hasVariants && product.detailsVariants) {
+              console.log(`Chi tiết biến thể của sản phẩm ${index}:`);
+              product.detailsVariants.forEach((variant: any, vIndex: number) => {
+                console.log(`Biến thể ${vIndex}:`, JSON.stringify(variant, null, 2));
+                // Kiểm tra cấu trúc của thuộc tính biến thể
+                console.log(`Loại dữ liệu của attributes:`, typeof variant.attributes);
+                console.log(`Các key trong biến thể:`, Object.keys(variant));
+              });
+            }
+          }
+        });
+        
+        return products;
       }
+      
+      console.log('=== KHÔNG CÓ DỮ LIỆU SẢN PHẨM ===');
       return [];
     }
+    
+    console.error('=== LỖI KHI LẤY DỮ LIỆU SẢN PHẨM ===', response.data);
     throw new Error('Không thể lấy danh sách sản phẩm');
   } catch (error) {
+    console.error('=== LỖI KHI GỌI API ===', error);
     throw error;
   }
 };

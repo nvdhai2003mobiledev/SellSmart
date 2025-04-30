@@ -3,14 +3,15 @@ import {
   View,
   StyleSheet,
   FlatList,
+  Text,
   TouchableOpacity,
   Modal,
-  Text,
-  ActivityIndicator,
   ScrollView,
-  RefreshControl,
   Dimensions,
+  RefreshControl,
   Image,
+  Platform,
+  ActivityIndicator,
 } from 'react-native';
 import {
   ShoppingCart,
@@ -242,41 +243,128 @@ const ProductScreen = observer(() => {
   // Lọc danh sách sản phẩm dựa trên điều kiện tìm kiếm và bộ lọc
   const filterProducts = useCallback(
     (products: any[], search: string, category: string, provider: string) => {
+      // Đảm bảo products là mảng
+      if (!Array.isArray(products)) {
+        console.warn('products không phải là mảng:', products);
+        return [];
+      }
+      
+      // Tạo bản sao của mảng để tránh thay đổi mảng gốc
       let filtered = [...products];
+      console.log(`Bắt đầu lọc ${filtered.length} sản phẩm`);
 
-      // Apply search filter
-      if (search.trim()) {
+      // Apply search filter - tìm kiếm theo tên, mã sản phẩm hoặc mã code
+      if (search && search.trim()) {
         const searchLower = search.toLowerCase().trim();
+        console.log(`Đang tìm kiếm với từ khóa: "${searchLower}"`);
+        
         filtered = filtered.filter(item => {
-          const name =
-            typeof item.name === 'string' ? item.name.toLowerCase() : '';
+          if (!item) return false;
+          
+          // Tìm theo tên sản phẩm
+          const name = typeof item.name === 'string' ? item.name.toLowerCase() : '';
+          
+          // Tìm theo ID sản phẩm
           const id = item._id ? item._id.toLowerCase() : '';
-          return name.includes(searchLower) || id.includes(searchLower);
+          
+          // Tìm theo mã sản phẩm (product_code)
+          const productCode = item.product_code ? item.product_code.toLowerCase() : '';
+          
+          // Kiểm tra các trường cơ bản
+          if (name.includes(searchLower) || id.includes(searchLower) || productCode.includes(searchLower)) {
+            return true;
+          }
+          
+          // Tìm trong các thuộc tính biến thể nếu có
+          if (item.hasVariants && item.detailsVariants && Array.isArray(item.detailsVariants)) {
+            for (const variant of item.detailsVariants) {
+              if (!variant) continue;
+              
+              // Kiểm tra attributes
+              if (variant.attributes) {
+                // Nếu attributes là MobX Map
+                if (variant.attributes.entries && typeof variant.attributes.entries === 'function') {
+                  try {
+                    // Sử dụng for...of thay vì forEach để tránh lỗi
+                    for (const key of variant.attributes.keys()) {
+                      const value = variant.attributes.get(key);
+                      if (typeof value === 'string' && value.toLowerCase().includes(searchLower)) {
+                        return true;
+                      }
+                    }
+                  } catch (error) {
+                    console.error('Lỗi khi tìm kiếm trong attributes:', error);
+                  }
+                }
+                // Nếu attributes là object thông thường
+                else if (typeof variant.attributes === 'object' && variant.attributes !== null) {
+                  const values = Object.values(variant.attributes);
+                  for (const value of values) {
+                    if (typeof value === 'string' && value.toLowerCase().includes(searchLower)) {
+                      return true;
+                    }
+                  }
+                }
+              }
+            }
+          }
+          
+          return false;
         });
+        
+        console.log(`Sau khi tìm kiếm: ${filtered.length} sản phẩm`);
       }
 
       // Apply category filter
-      if (category !== 'all') {
+      if (category && category !== 'all') {
+        console.log(`Đang lọc theo danh mục: ${category}`);
+        
         filtered = filtered.filter(item => {
+          if (!item || !item.category) return false;
+          
           const categoryName =
             typeof item.category === 'string'
               ? item.category
               : item.category?.name || '';
           return categoryName === category;
         });
+        
+        console.log(`Sau khi lọc danh mục: ${filtered.length} sản phẩm`);
       }
 
       // Apply provider filter
-      if (provider !== 'all') {
+      if (provider && provider !== 'all') {
+        console.log(`Đang lọc theo nhà cung cấp: ${provider}`);
+        
         filtered = filtered.filter(item => {
+          if (!item || !item.providerId) return false;
+          
           const providerName =
             typeof item.providerId === 'string'
               ? item.providerId
               : item.providerId?.fullName || '';
           return providerName === provider;
         });
+        
+        console.log(`Sau khi lọc nhà cung cấp: ${filtered.length} sản phẩm`);
       }
 
+      // Sắp xếp sản phẩm: ưu tiên sản phẩm có tồn kho > 0
+      filtered.sort((a, b) => {
+        if (!a || !b) return 0;
+        
+        const aInventory = a.inventory || 0;
+        const bInventory = b.inventory || 0;
+        
+        // Ưu tiên sản phẩm có tồn kho
+        if (aInventory > 0 && bInventory === 0) return -1;
+        if (aInventory === 0 && bInventory > 0) return 1;
+        
+        // Nếu cùng trạng thái tồn kho, sắp xếp theo tên
+        return (a.name || '').localeCompare(b.name || '');
+      });
+
+      console.log(`Kết quả cuối cùng: ${filtered.length} sản phẩm`);
       return filtered;
     },
     [],
@@ -331,23 +419,36 @@ const ProductScreen = observer(() => {
   }, [getUniqueProviders]);
 
   // Danh sách products đã được lọc theo bộ lọc hiện tại
-  // const filteredProducts = useMemo(() => {
-  //   return filterProducts(
-  //     store.products,
-  //     searchText,
-  //     selectedFilter,
-  //     selectedProvider,
-  //   );
-  // }, [
-  //   store.products,
-  //   searchText,
-  //   selectedFilter,
-  //   selectedProvider,
-  //   filterProducts,
-  // ]);
-
-  // Tạm thời bỏ filter để test
-  const filteredProducts = useMemo(() => store.products, [store.products]);
+  const filteredProducts = useMemo(() => {
+    // Nếu không có sản phẩm, trả về mảng rỗng
+    if (!store.products || store.products.length === 0) {
+      return [];
+    }
+    
+    // Lọc sản phẩm theo các điều kiện
+    const filtered = filterProducts(
+      Array.from(store.products), // Đảm bảo chuyển đổi MST array sang mảng JavaScript thông thường
+      searchText,
+      selectedFilter,
+      selectedProvider,
+    );
+    
+    console.log('Lọc sản phẩm:', {
+      tổng: store.products.length,
+      sau_khi_lọc: filtered.length,
+      từ_khóa: searchText,
+      danh_mục: selectedFilter,
+      nhà_cung_cấp: selectedProvider
+    });
+    
+    return filtered;
+  }, [
+    store.products,
+    searchText,
+    selectedFilter,
+    selectedProvider,
+    filterProducts,
+  ]);
 
   // Log dữ liệu để kiểm tra
   console.log('store.products:', store.products);
@@ -522,15 +623,15 @@ const ProductScreen = observer(() => {
 
   // Reset filters
   const resetFilters = () => {
-    setSearchText('');
     setSelectedFilter('all');
     setSelectedProvider('all');
-    setFilterVisible(false);
+    setSearchText('');
+    // Thêm các bộ lọc khác nếu có
   };
 
   // Toggle filter modal
   const toggleFilterModal = () => {
-    setFilterVisible(!filterVisible);
+    setIsFilterModalVisible(!isFilterModalVisible);
   };
 
   const addToCart = (productId: string, variant?: any) => {
@@ -575,15 +676,234 @@ const ProductScreen = observer(() => {
   };
 
   const showProductDetails = (item: any) => {
+    // Log dữ liệu gốc để debug
+    console.log('=== DỮ LIỆU GỐC SẢN PHẨM ===');
+    console.log(JSON.stringify(item, null, 2));
+    
+    // Tạo đối tượng để lưu thông tin chi tiết về biến thể
+    const variantInfo = item.hasVariants && item.detailsVariants ? 
+      item.detailsVariants.map((variant: any, index: number) => {
+        // Log từng biến thể để debug với định dạng đẹp hơn
+        console.log(`=== CHI TIẾT BIẾN THỂ ${index} ===`);
+        console.log(JSON.stringify(variant, null, 2));
+        
+        // Xử lý trường hợp attributes có thể là undefined, null, hoặc object
+        const attributesObj: Record<string, string> = {};
+        let variantNameStr = '';
+        
+        // Kiểm tra cấu trúc của biến thể
+        console.log(`Các key trong biến thể ${index}:`, Object.keys(variant));
+        
+        // Vấn đề chính: Có sự khác biệt giữa mô hình trong product.ts và dữ liệu thực tế từ API
+        // Mô hình mong đợi variantDetails, nhưng dữ liệu thực tế có attributes
+        
+        // Trường hợp 1: Biến thể có trường attributes
+        if (variant.attributes) {
+          console.log(`Tìm thấy trường attributes trong biến thể ${index}:`, variant.attributes);
+          
+          // Kiểm tra nếu attributes là MobX Map (có phương thức entries, keys, get)
+          if (variant.attributes.entries && typeof variant.attributes.entries === 'function') {
+            try {
+              // Đây là MobX Map
+              // Sử dụng toán tử as để đảm bảo TypeScript hiểu đây là MobX Map
+              const mobxMap = variant.attributes as {
+                keys: () => IterableIterator<string>;
+                get: (key: string) => string;
+              };
+              
+              // Lấy danh sách các key
+              const keys: string[] = [];
+              for (const key of mobxMap.keys()) {
+                keys.push(key);
+              }
+              console.log(`Các key trong MobX Map attributes:`, keys);
+              
+              // Tạo object từ MobX Map
+              for (const key of keys) {
+                const value = mobxMap.get(key);
+                if (typeof value === 'string') {
+                  attributesObj[key] = value;
+                }
+              }
+              
+              // Tạo tên biến thể từ attributes
+              const nameFragments: string[] = [];
+              for (const key of keys) {
+                if (key !== '_id') {
+                  const value = mobxMap.get(key);
+                  nameFragments.push(`${key}: ${value}`);
+                }
+              }
+              variantNameStr = nameFragments.join(', ');
+            } catch (error) {
+              console.error('Lỗi khi xử lý MobX Map:', error);
+            }
+          } 
+          // Nếu attributes là object thông thường
+          else if (typeof variant.attributes === 'object' && variant.attributes !== null) {
+            try {
+              // Sao chép các thuộc tính từ object
+              Object.entries(variant.attributes).forEach(([key, value]) => {
+                if (typeof value === 'string') {
+                  attributesObj[key] = value;
+                }
+              });
+              
+              // Tạo tên biến thể từ attributes
+              variantNameStr = Object.entries(attributesObj)
+                .filter(([key, value]) => key !== '_id' && value) // Loại bỏ _id và các giá trị null/undefined
+                .map(([key, value]) => `${key}: ${value}`)
+                .join(', ');
+            } catch (error) {
+              console.error('Lỗi khi xử lý attributes object:', error);
+            }
+          }
+        }
+        
+        // Trường hợp 2: Biến thể có trường variantDetails (theo mô hình product.ts)
+        if (!variantNameStr && variant.variantDetails && Array.isArray(variant.variantDetails)) {
+          console.log(`Tìm thấy trường variantDetails trong biến thể ${index}:`, variant.variantDetails);
+          
+          try {
+            // Tạo tên biến thể từ variantDetails
+            const details = variant.variantDetails.filter((detail: any) => detail && detail.value);
+            if (details.length > 0) {
+              variantNameStr = details
+                .map((detail: any) => detail.value)
+                .join(', ');
+            }
+          } catch (error) {
+            console.error('Lỗi khi xử lý variantDetails:', error);
+          }
+        }
+        
+        // Trường hợp 3: Thuộc tính được lưu trực tiếp trong biến thể
+        if (!variantNameStr) {
+          // Danh sách các key cần loại trừ (không phải thuộc tính)
+          const excludedKeys = ['price', 'original_price', 'inventory', '_id', 'attributes', 'variantDetails', '__v'];
+          
+          try {
+            // Kiểm tra cụ thể các trường hợp đặc biệt
+            const variantAny = variant as any;
+            
+            if (variantAny['Loại Máy'] || variantAny['Chất Liệu']) {
+              console.log(`Tìm thấy thuộc tính trực tiếp trong biến thể ${index}`);
+              
+              if (variantAny['Loại Máy']) {
+                attributesObj['Loại Máy'] = variantAny['Loại Máy'];
+                variantNameStr += (variantNameStr ? ', ' : '') + `Loại Máy: ${variantAny['Loại Máy']}`;
+              }
+              
+              if (variantAny['Chất Liệu']) {
+                attributesObj['Chất Liệu'] = variantAny['Chất Liệu'];
+                variantNameStr += (variantNameStr ? ', ' : '') + `Chất Liệu: ${variantAny['Chất Liệu']}`;
+              }
+            } else {
+              // Thu thập tất cả các key không phải là thuộc tính hệ thống
+              Object.keys(variant).forEach(key => {
+                if (!excludedKeys.includes(key) && typeof variantAny[key] === 'string') {
+                  const attrValue = variantAny[key];
+                  attributesObj[key] = attrValue;
+                  variantNameStr += (variantNameStr ? ', ' : '') + `${key}: ${attrValue}`;
+                }
+              });
+            }
+          } catch (error) {
+            console.error('Lỗi khi xử lý thuộc tính trực tiếp:', error);
+          }
+        }
+        
+        // Trường hợp 4: Sử dụng các thuộc tính đặc biệt nếu có
+        if (!variantNameStr && variant._id) {
+          variantNameStr = `ID: ${variant._id}`;
+        }
+        
+        // Nếu vẫn không có tên biến thể
+        if (!variantNameStr) {
+          variantNameStr = 'Biến thể không tên';
+        }
+        
+        // Log kết quả xử lý biến thể
+        console.log(`Kết quả xử lý biến thể ${index}:`, {
+          attributes: attributesObj,
+          variantName: variantNameStr
+        });
+        
+        return {
+          attributes: attributesObj,
+          price: variant.price || 0,
+          original_price: variant.original_price || 0,
+          quantity: variant.inventory || 0,
+          _id: variant._id || '',
+          variantName: variantNameStr || 'Biến thể không tên'
+        };
+      }) : [];
+    
+    // Tính tổng số lượng hàng tồn kho
+    const totalInventory = item.hasVariants && item.detailsVariants
+      ? item.detailsVariants.reduce((sum: number, variant: any) => sum + (variant.inventory || 0), 0)
+      : (item.inventory || 0);
+      
+    // Tạo đối tượng provider chi tiết
+    const providerDetail = typeof item.providerId === 'string'
+      ? { id: item.providerId, name: item.providerId }
+      : { id: item.providerId?._id, name: item.providerId?.fullName };
+      
+    // Tạo đối tượng category chi tiết
+    const categoryDetail = typeof item.category === 'string'
+      ? { id: item.category, name: item.category }
+      : { id: item.category?._id, name: item.category?.name };
+    
+    // Tạo object chi tiết sản phẩm để log
+    const productDetails = {
+      id: item._id,
+      inventoryId: item.inventoryId,
+      product_code: item.product_code,
+      name: item.name,
+      category: categoryDetail,
+      provider: providerDetail,
+      hasVariants: item.hasVariants,
+      basePrice: item.price,
+      original_price: item.original_price,
+      totalInventory: totalInventory,
+      status: item.status,
+      isPublished: item.isPublished,
+      warrantyPeriod: item.warrantyPeriod,
+      thumbnail: item.thumbnail,
+      variants: variantInfo,
+      batchInfo: item.batch_info || [],
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+      viewedAt: new Date().toISOString(),
+      viewedBy: 'user', // Có thể thay thế bằng thông tin người dùng thực tế nếu có
+      deviceInfo: {
+        width: Dimensions.get('window').width,
+        height: Dimensions.get('window').height,
+        isTablet: Dimensions.get('window').width > 768
+      }
+    };
+    
+    // Log chi tiết sản phẩm với định dạng đẹp hơn
+    console.log('=== CHI TIẾT SẢN PHẨM ===');
+    console.log(JSON.stringify(productDetails, null, 2));
+    
     setSelectedProduct(item);
     setModalVisible(true);
   };
 
   const getVariantName = (variant: any) => {
-    if (!variant || !variant.variantDetails) {
+    if (!variant || !variant.attributes) {
       return '';
     }
-    return variant.variantDetails.map((detail: any) => detail.value).join(', ');
+    // Xử lý trường hợp attributes là object
+    if (typeof variant.attributes === 'object' && variant.attributes !== null) {
+      // Chuyển đổi object attributes thành chuỗi dạng "key: value, key2: value2"
+      return Object.entries(variant.attributes)
+        .filter(([key, value]) => key !== '_id' && value) // Loại bỏ _id và các giá trị null/undefined
+        .map(([key, value]) => `${key}: ${value}`)
+        .join(', ');
+    }
+    return '';
   };
 
   const fetchProducts = async () => {
@@ -634,6 +954,12 @@ const ProductScreen = observer(() => {
   };
 
   const renderItem = ({item}: {item: Product}) => {
+    // Kiểm tra item có hợp lệ không
+    if (!item) {
+      console.warn('renderItem nhận item không hợp lệ:', item);
+      return null;
+    }
+    
     // Chỉ hiển thị sản phẩm đã có giá bán (price > 0)
     if (!item.price || item.price <= 0) {
       return null;
@@ -916,51 +1242,64 @@ const ProductScreen = observer(() => {
       <Modal
         animationType="slide"
         transparent={true}
-        visible={filterVisible}
-        onRequestClose={() => setFilterVisible(false)}>
+        visible={isFilterModalVisible}
+        onRequestClose={() => setIsFilterModalVisible(false)}>
         <View style={styles.modalContainer}>
-          <View
-            style={[
-              styles.modalContent,
-              styles.filterModalContent,
-              isTablet && styles.tabletFilterModal,
-            ]}>
+          <View style={[styles.modalContent, styles.filterModalContent]}>
             <View style={styles.filterModalHeader}>
-              <Text style={styles.filterModalTitle}>Lọc sản phẩm</Text>
+              <Text style={styles.filterModalTitle}>Bộ lọc sản phẩm</Text>
               <TouchableOpacity
                 style={styles.closeButton}
-                onPress={() => setFilterVisible(false)}>
+                onPress={() => setIsFilterModalVisible(false)}>
                 <CloseCircle size={24} color="#666" variant="Bold" />
               </TouchableOpacity>
             </View>
 
             <ScrollView style={styles.filterScrollView}>
-              {/* Categories Filter with Select Dropdown */}
               <View style={styles.filterSection}>
                 <View style={styles.filterSectionHeader}>
-                  <Category2 size={20} color={color.accentColor.darkColor} />
+                  <Category2 size={20} color="#333" />
                   <Text style={styles.filterSectionTitle}>Danh mục</Text>
                 </View>
                 <SelectDropdown
-                  options={productCategories}
-                  selectedValue={selectedCategory}
-                  onSelect={setSelectedCategory}
+                  options={[
+                    {label: 'Tất cả', value: 'all'},
+                    ...productCategories,
+                  ]}
+                  selectedValue={selectedFilter}
+                  onSelect={value => setSelectedFilter(value)}
                   placeholder="Chọn danh mục"
                 />
               </View>
 
-              {/* Providers Filter with Select Dropdown */}
               <View style={styles.filterSection}>
                 <View style={styles.filterSectionHeader}>
-                  <Profile2User size={20} color={color.accentColor.darkColor} />
+                  <Profile2User size={20} color="#333" />
                   <Text style={styles.filterSectionTitle}>Nhà cung cấp</Text>
                 </View>
                 <SelectDropdown
-                  options={productProviders}
+                  options={[
+                    {label: 'Tất cả', value: 'all'},
+                    ...productProviders,
+                  ]}
                   selectedValue={selectedProvider}
-                  onSelect={setSelectedProvider}
+                  onSelect={value => setSelectedProvider(value)}
                   placeholder="Chọn nhà cung cấp"
                 />
+              </View>
+
+              <View style={styles.filterSection}>
+                <View style={styles.filterSectionHeader}>
+                  <Ionicons name="options-outline" size={20} color="#333" />
+                  <Text style={styles.filterSectionTitle}>Tùy chọn hiển thị</Text>
+                </View>
+                <TouchableOpacity 
+                  style={styles.optionRow}
+                  onPress={() => {}}
+                >
+                  <TickSquare size={24} color="#007AFF" variant="Bold" />
+                  <Text style={styles.optionText}>Chỉ hiển thị sản phẩm có tồn kho</Text>
+                </TouchableOpacity>
               </View>
             </ScrollView>
 
@@ -973,7 +1312,7 @@ const ProductScreen = observer(() => {
               />
               <Button
                 buttonContainerStyle={styles.applyFiltersButton}
-                onPress={() => setFilterVisible(false)}
+                onPress={() => setIsFilterModalVisible(false)}
                 title="Áp dụng"
                 titleStyle={styles.applyFiltersText}
               />
@@ -1040,27 +1379,77 @@ const ProductScreen = observer(() => {
                             Biến thể sản phẩm
                           </Text>
                           {selectedProduct.detailsVariants.map(
-                            (variant: any, index: number) => (
-                              <View
-                                key={index}
-                                style={styles.variantItem}>
-                                <Text style={styles.variantName}>
-                                  {getVariantName(variant)}
-                                </Text>
-                                <Text style={styles.variantPrice}>
-                                  {variant.price.toLocaleString('vi-VN')} đ
-                                </Text>
-                                <TouchableOpacity
-                                  style={styles.addVariantButton}
-                                  onPress={() =>
-                                    addToCart(selectedProduct._id, variant)
-                                  }>
-                                  <Text style={styles.addVariantButtonText}>
-                                    Thêm
+                            (variant: any, index: number) => {
+                              // Xử lý tên biến thể
+                              let variantNameText = '';
+                              
+                              // Nếu đã có variantName đã được xử lý trước đó
+                              if (variant.variantName && typeof variant.variantName === 'string') {
+                                variantNameText = variant.variantName;
+                              }
+                              // Nếu có attributes dạng MobX Map
+                              else if (variant.attributes && variant.attributes.entries && typeof variant.attributes.entries === 'function') {
+                                try {
+                                  const mobxMap = variant.attributes as {
+                                    keys: () => IterableIterator<string>;
+                                    get: (key: string) => string;
+                                  };
+                                  
+                                  const keys: string[] = [];
+                                  for (const key of mobxMap.keys()) {
+                                    if (key !== '_id') keys.push(key);
+                                  }
+                                  
+                                  variantNameText = keys
+                                    .map(key => `${key}: ${mobxMap.get(key)}`)
+                                    .join(', ');
+                                } catch (error) {
+                                  console.error('Lỗi khi xử lý attributes:', error);
+                                }
+                              }
+                              // Nếu có attributes dạng object thông thường
+                              else if (variant.attributes && typeof variant.attributes === 'object') {
+                                try {
+                                  variantNameText = Object.entries(variant.attributes)
+                                    .filter(([key, value]) => key !== '_id' && value)
+                                    .map(([key, value]) => `${key}: ${value}`)
+                                    .join(', ');
+                                } catch (error) {
+                                  console.error('Lỗi khi xử lý attributes object:', error);
+                                }
+                              }
+                              // Nếu không có cách nào khác, sử dụng hàm getVariantName
+                              else {
+                                variantNameText = getVariantName(variant) || 'Biến thể không tên';
+                              }
+                              
+                              // Đảm bảo luôn có tên biến thể
+                              if (!variantNameText) {
+                                variantNameText = 'Biến thể không tên';
+                              }
+                              
+                              return (
+                                <View
+                                  key={index}
+                                  style={styles.variantItem}>
+                                  <Text style={styles.variantName}>
+                                    {variantNameText}
                                   </Text>
-                                </TouchableOpacity>
-                              </View>
-                            ),
+                                  <Text style={styles.variantPrice}>
+                                    {variant.price.toLocaleString('vi-VN')} đ
+                                  </Text>
+                                  <TouchableOpacity
+                                    style={styles.addVariantButton}
+                                    onPress={() =>
+                                      addToCart(selectedProduct._id, variant)
+                                    }>
+                                    <Text style={styles.addVariantButtonText}>
+                                      Thêm
+                                    </Text>
+                                  </TouchableOpacity>
+                                </View>
+                              );
+                            }
                           )}
                         </>
                       )}
