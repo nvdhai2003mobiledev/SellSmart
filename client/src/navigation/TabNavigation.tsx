@@ -96,7 +96,7 @@ const TabNav = () => {
       
       {/* Quick Access Buttons Row */}
       <View style={styles.quickAccessRow}>
-        <TouchableOpacity style={styles.quickButton} onPress={() => navigation.navigate(Screen.ORDERSCREEN as any)}>
+        <TouchableOpacity style={styles.quickButton} onPress={() => navigation.navigate(Screen.CREATEORDER as any)}>
           <View style={[styles.quickIconContainer, {backgroundColor: color.primaryColor}]}>
             <DocumentText size={20} color="#FFFFFF" variant="Bold" />
           </View>

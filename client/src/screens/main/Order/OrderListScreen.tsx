@@ -1,22 +1,21 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useState, useCallback} from 'react';
 import {
   View,
-  Text,
   FlatList,
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
   TextInput,
   Keyboard,
+  RefreshControl,
 } from 'react-native';
 import {RootStackParamList, Screen} from '../../../navigation/navigation.type';
 import {useNavigation, useRoute, NavigationProp, RouteProp} from '@react-navigation/native';
 import {observer} from 'mobx-react-lite';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {BaseLayout, Header, DynamicText} from '../../../components';
+import {color, moderateScale} from '../../../utils';
 import {rootStore} from '../../../models/root-store';
-import {color, moderateScale, scaledSize} from '../../../utils';
-import {Order} from '../../../models/Order/Order';
 
 // Define route params interface
 interface OrderListRouteParams {
@@ -32,6 +31,75 @@ const OrderListScreen = observer(() => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredOrders, setFilteredOrders] = useState<any[]>([]);
   const [currentFilter, setCurrentFilter] = useState<any>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const ITEMS_PER_PAGE = 15;
+
+  const fetchOrders = useCallback(async (loadMore = false) => {
+    try {
+      if (!loadMore) {
+        setIsLoading(true);
+        setPage(1);
+      } else {
+        setLoadingMore(true);
+      }
+
+      await rootStore.orders.fetchOrders();
+
+      // Sort orders by creation date in descending order (newest first)
+      const sortedOrders = [...rootStore.orders.orders].sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      );
+
+      // Filter orders based on status
+      let processedOrders = sortedOrders;
+
+      // If viewing draft orders specifically
+      if (route.params?.status === 'draft') {
+        processedOrders = sortedOrders.filter(order => order.status === 'draft');
+      } 
+      // For all other cases, exclude draft orders
+      else {
+        // Filter out draft orders first
+        processedOrders = sortedOrders.filter(order => order.status !== 'draft');
+
+        // Check for payment status parameter
+        if (route.params?.status) {
+          processedOrders = processedOrders.filter(
+            order => order.paymentStatus === route.params?.status,
+          );
+        }
+        // Apply full filter if exists
+        else if (route.params?.filter) {
+          processedOrders = applyFilter(processedOrders, route.params.filter);
+        }
+      }
+
+      // Pagination logic
+      const startIndex = 0;
+      const endIndex = loadMore ? (page + 1) * ITEMS_PER_PAGE : ITEMS_PER_PAGE;
+      const paginatedOrders = processedOrders.slice(startIndex, endIndex);
+
+      setHasMore(paginatedOrders.length < processedOrders.length);
+      
+      if (loadMore) {
+        setFilteredOrders(prev => [...prev, ...paginatedOrders]);
+      } else {
+        setOrders(processedOrders);
+        setFilteredOrders(paginatedOrders);
+      }
+
+      setIsLoading(false);
+      setLoadingMore(false);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      setIsLoading(false);
+      setLoadingMore(false);
+    }
+  }, [page, route.params?.status, route.params?.filter]);
 
   useEffect(() => {
     // Check for filter from navigation params
@@ -41,39 +109,37 @@ const OrderListScreen = observer(() => {
     }
 
     fetchOrders();
-  }, [route.params?.filter]);
+  }, [route.params?.filter, fetchOrders]);
 
-  const fetchOrders = async () => {
-    try {
-      await rootStore.orders.fetchOrders();
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchOrders();
+    setRefreshing(false);
+  }, [fetchOrders]);
 
-      // Sort orders by creation date in descending order (newest first)
-      const sortedOrders = [...rootStore.orders.orders].sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      );
-
-      // Apply filter if exists
-      let processedOrders = sortedOrders;
-
-      // Check for status parameter (for canceled orders)
-      if (route.params?.status) {
-        processedOrders = sortedOrders.filter(
-          order => order.status === route.params?.status,
-        );
-      }
-      // Apply full filter if exists
-      else if (route.params?.filter) {
-        processedOrders = applyFilter(sortedOrders, route.params.filter);
-      }
-
-      setOrders(sortedOrders);
-      setFilteredOrders(processedOrders);
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-      setIsLoading(false);
+  const loadMoreOrders = () => {
+    if (!loadingMore && hasMore) {
+      setPage(prev => prev + 1);
+      fetchOrders(true);
     }
+  };
+
+  const renderFooter = () => {
+    if (!hasMore) return null;
+    
+    return (
+      <View style={styles.footerContainer}>
+        {loadingMore ? (
+          <ActivityIndicator size="small" color={color.primaryColor} />
+        ) : (
+          <TouchableOpacity
+            style={styles.loadMoreButton}
+            onPress={loadMoreOrders}>
+            <DynamicText style={styles.loadMoreText}>Xem thêm</DynamicText>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
   };
 
   // Filter function
@@ -300,6 +366,15 @@ const OrderListScreen = observer(() => {
         data={filteredOrders}
         renderItem={renderOrderItem}
         keyExtractor={item => item._id}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[color.primaryColor]}
+            tintColor={color.primaryColor}
+          />
+        }
+        ListFooterComponent={renderFooter}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <DynamicText style={styles.emptyText}>
@@ -434,6 +509,21 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: moderateScale(13),
     color: color.accentColor.grayColor,
+  },
+  footerContainer: {
+    paddingVertical: moderateScale(20),
+    alignItems: 'center',
+  },
+  loadMoreButton: {
+    paddingHorizontal: moderateScale(20),
+    paddingVertical: moderateScale(10),
+    backgroundColor: color.primaryColor,
+    borderRadius: moderateScale(8),
+  },
+  loadMoreText: {
+    color: 'white',
+    fontSize: moderateScale(14),
+    fontWeight: '500',
   },
 });
 

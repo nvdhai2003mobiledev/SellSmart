@@ -3,7 +3,7 @@ import { View, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicato
 import { observer } from 'mobx-react-lite';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { BaseLayout, Header, Button, DynamicText } from '../../../components';
-import { color, moderateScale } from '../../../utils';
+import { color, moderateScale, scaleHeight } from '../../../utils';
 import { rootStore } from '../../../models/root-store';
 import { format } from 'date-fns';
 import { updateOrderStatus } from '../../../services/api/ordersApi';
@@ -186,53 +186,21 @@ const OrderDetailScreen = observer(() => {
     });
   };
   
-  const handleShipping = () => {
-    Alert.alert('Thông báo', 'Chức năng giao hàng đang được phát triển');
-  };
-  
-  const handleProcessOrder = async () => {
+  const handleCreateOrder = async () => {
     try {
-      setLoading(true);
-      console.log(`Bắt đầu xử lý Hóa đơn ${orderId}`);
-
-      Alert.alert(
-        'Xác nhận',
-        'Xử lý Hóa đơn này sẽ cập nhật trạng thái và giảm tồn kho tương ứng. Bạn có chắc chắn muốn tiếp tục?',
-        [
-          {
-            text: 'Hủy',
-            style: 'cancel',
-            onPress: () => {
-              console.log('Người dùng đã hủy xử lý Hóa đơn');
-              setLoading(false);
-            }
-          },
-          {
-            text: 'Xác nhận',
-            onPress: async () => {
-              console.log(`Đang gửi yêu cầu cập nhật trạng thái Hóa đơn ${orderId} thành processing`);
-              const response = await updateOrderStatus(orderId, 'processing');
-              console.log('Kết quả cập nhật trạng thái:', response);
-
-              if (response.ok) {
-                Alert.alert('Thành công', 'Hóa đơn đã được xử lý và cập nhật tồn kho');
-                await rootStore.orders.fetchOrders();
-                await loadOrderDetails();
-              } else {
-                const errorData = response.data as { message?: string } | undefined;
-                const errorMessage = errorData?.message || 'Không thể xử lý Hóa đơn';
-                Alert.alert('Lỗi', errorMessage);
-                console.error('Lỗi cập nhật trạng thái:', errorMessage);
-              }
-              setLoading(false);
-            }
-          }
-        ]
-      );
+      const response = await updateOrderStatus(order._id, 'pending');
+      if (response.ok) {
+        console.log('Đã chuyển trạng thái đơn hàng từ nháp sang pending');
+        // Refresh order data
+        await rootStore.orders.fetchOrders();
+        await loadOrderDetails();
+      } else {
+        console.error('Lỗi khi chuyển trạng thái đơn hàng:', response.data);
+        Alert.alert('Lỗi', 'Không thể tạo đơn hàng. Vui lòng thử lại sau.');
+      }
     } catch (error) {
-      console.error('Error processing order:', error);
-      Alert.alert('Lỗi', 'Đã xảy ra lỗi khi xử lý Hóa đơn');
-      setLoading(false);
+      console.error('Exception khi cập nhật trạng thái đơn hàng:', error);
+      Alert.alert('Lỗi', 'Đã xảy ra lỗi. Vui lòng thử lại sau.');
     }
   };
   
@@ -506,8 +474,8 @@ const OrderDetailScreen = observer(() => {
           </View>
         </View>
         
-        {/* Phần thanh toán - Chỉ hiển thị khi Hóa đơn chưa thanh toán hoặc thanh toán một phần */}
-        {(order.paymentStatus === 'unpaid' || order.paymentStatus === 'partpaid') && order.status !== 'canceled' && (
+        {/* Phần thanh toán - Chỉ hiển thị khi Hóa đơn chưa thanh toán hoặc thanh toán một phần và không phải đơn nháp */}
+        {(order.paymentStatus === 'unpaid' || order.paymentStatus === 'partpaid') && order.status !== 'canceled' && order.status !== 'draft' && (
           <View style={styles.section}>
             <DynamicText style={styles.sectionTitle}>
               {order.paymentStatus === 'unpaid' ? 'Xử lý thanh toán' : 'Thanh toán số tiền còn lại'}
@@ -541,7 +509,7 @@ const OrderDetailScreen = observer(() => {
         </View>
         
         {/* Danh sách sản phẩm */}
-        <View style={styles.section}>
+        <View style={styles.section2}>
           <DynamicText style={styles.sectionTitle}>Sản phẩm ({order.products.length})</DynamicText>
           
           {/* Table Header */}
@@ -667,52 +635,17 @@ const OrderDetailScreen = observer(() => {
         </TouchableOpacity>
       )}
       
-      {/* Nút xử lý Hóa đơn */}
-      <View style={styles.buttonContainer}>
-        {(order.paymentStatus === 'unpaid' || order.paymentStatus === 'partpaid') && order.status !== 'canceled' && (
+      {/* Nút xử lý Hóa đơn - Chỉ hiển thị cho đơn nháp */}
+      {order.status === 'draft' && (
+        <View style={styles.buttonContainer}>
           <Button
-            title={order.paymentStatus === 'unpaid' ? "Nhận thanh toán" : "Thanh toán phần còn lại"}
-            buttonContainerStyle={styles.receivePaymentButton}
+            title="Tạo đơn"
+            buttonContainerStyle={styles.createOrderButton}
             titleStyle={styles.buttonText}
-            onPress={handleReceivePayment}
+            onPress={handleCreateOrder}
           />
-        )}
-        
-        {/* Chỉ hiển thị nút này nếu Hóa đơn có trạng thái pending hoặc waiting và đã thanh toán đủ */}
-        {(order.status === 'pending' || order.status === 'waiting') && order.paymentStatus === 'paid' && (
-          <Button
-            title="Xử lý Hóa đơn"
-            buttonContainerStyle={styles.processOrderButton}
-            titleStyle={styles.buttonText}
-            onPress={handleProcessOrder}
-          />
-        )}
-        
-        {order.status === 'processing' && order.status !== 'canceled' && (
-          <Button
-            title="Giao hàng"
-            buttonContainerStyle={styles.shippingButton}
-            titleStyle={styles.buttonText}
-            onPress={handleShipping}
-          />
-        )}
-        
-        {/* Nút hiển thị lý do hủy đơn */}
-        {order.status === 'canceled' && (
-          <Button
-            title={order.cancelReason ? "Xem lý do hủy đơn" : "Không có lý do hủy đơn"}
-            buttonContainerStyle={styles.cancelReasonButton}
-            titleStyle={styles.buttonText}
-            onPress={() => {
-              Alert.alert(
-                "Lý do hủy Hóa đơn",
-                order.cancelReason || "Không có thông tin về lý do hủy Hóa đơn",
-                [{ text: "Đóng", style: "cancel" }]
-              );
-            }}
-          />
-        )}
-      </View>
+        </View>
+      )}
     </BaseLayout>
   );
 });
@@ -834,6 +767,12 @@ const styles = StyleSheet.create({
     padding: moderateScale(16),
     marginBottom: moderateScale(16),
   },
+  section2: {
+    backgroundColor: '#ffffff',
+    borderRadius: moderateScale(8),
+    padding: moderateScale(16),
+    marginBottom: moderateScale(50),
+  },
   sectionTitle: {
     fontSize: moderateScale(16),
     fontWeight: 'bold',
@@ -914,11 +853,18 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   buttonContainer: {
-    flexDirection: 'row',
-    padding: moderateScale(16),
-    backgroundColor: '#ffffff',
+    position: 'absolute',
+    bottom: 90,
+    left: 0,
+    right: 0,
+    backgroundColor: 'white',
     borderTopWidth: 1,
-    borderTopColor: '#eeeeee',
+    borderTopColor: '#eee',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    height: scaleHeight(150),
+
   },
   receivePaymentButton: {
     flex: 1,
@@ -1196,6 +1142,12 @@ const styles = StyleSheet.create({
     paddingVertical: moderateScale(12),
     borderBottomWidth: 1,
     borderBottomColor: '#eeeeee',
+  },
+  createOrderButton: {
+    flex: 1,
+    backgroundColor: color.primaryColor,
+    borderRadius: moderateScale(8),
+    marginRight: moderateScale(8),
   },
 });
 

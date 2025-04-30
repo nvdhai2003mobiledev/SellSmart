@@ -44,8 +44,8 @@ export const fetchProducts = async () => {
 
     // Tạo instance API mới không yêu cầu token
     const publicApi = create({
-      // baseURL: "http://10.0.2.2:5000/", // Cho Android Emulator
-      baseURL: "http://192.168.50.241:5000/", // Cho máy tablet có ip wifi
+      baseURL: "http://10.0.2.2:5000/", // Cho Android Emulator
+      // baseURL: "http://192.168.50.241:5000/", // Cho máy tablet có ip wifi
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
