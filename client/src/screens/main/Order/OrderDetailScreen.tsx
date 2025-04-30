@@ -5,7 +5,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { BaseLayout, Header, Button, DynamicText } from '../../../components';
 import { color, moderateScale, scaleHeight } from '../../../utils';
 import { rootStore } from '../../../models/root-store';
-import { format } from 'date-fns';
+import { format, differenceInMinutes } from 'date-fns';
 import { updateOrderStatus } from '../../../services/api/ordersApi';
 import { Screen } from '../../../navigation/navigation.type';
 import { More, CloseCircle, Timer, ReceiptItem, Printer } from 'iconsax-react-native';
@@ -37,6 +37,9 @@ const OrderDetailScreen = observer(() => {
   const [showActions, setShowActions] = useState(false);
   const [showPrintMenu, setShowPrintMenu] = useState(false);
   
+  // Add a state to track if the order can be canceled
+  const [canCancelOrder, setCanCancelOrder] = useState(true);
+  
   // Define loadOrderDetails with useCallback to prevent it from changing on every render
   const loadOrderDetails = useCallback(async () => {
     try {
@@ -55,6 +58,21 @@ const OrderDetailScreen = observer(() => {
         console.log(`Giá gốc: ${foundOrder.originalAmount !== undefined ? foundOrder.originalAmount : 'không có thông tin'}`);
         console.log(`Số tiền đã thanh toán: ${foundOrder.paidAmount !== undefined ? foundOrder.paidAmount : 'không có thông tin'}`);
         console.log(`Phương thức thanh toán: ${foundOrder.paymentMethod || 'không có'}`);
+        
+        // Check if order can be canceled (created less than 1 hour ago)
+        const orderDate = new Date(foundOrder.createdAt);
+        const now = new Date();
+        const minutesDifference = differenceInMinutes(now, orderDate);
+        console.log(`Thời gian tạo đơn: ${orderDate}`);
+        console.log(`Thời gian hiện tại: ${now}`);
+        console.log(`Đơn hàng đã tạo được ${minutesDifference} phút`);
+        
+        // Set canCancelOrder based on time difference and status
+        const isLessThanOneHour = minutesDifference < 60;
+        setCanCancelOrder(isLessThanOneHour && foundOrder.status !== 'canceled');
+        
+        // Log information about cancellation eligibility
+        console.log(`Có thể hủy đơn: ${isLessThanOneHour ? 'Có' : 'Không'} (đơn hàng ${isLessThanOneHour ? 'dưới' : 'trên'} 1 giờ)`);
         
         // Log thông tin khuyến mãi chi tiết
         if (foundOrder.promotionID) {
@@ -216,6 +234,15 @@ const OrderDetailScreen = observer(() => {
       // Kiểm tra xem Hóa đơn đã bị hủy chưa
       if (order?.status === 'canceled') {
         Alert.alert('Thông báo', 'Hóa đơn này đã bị hủy');
+        return;
+      }
+      
+      // Kiểm tra thời gian tạo đơn
+      if (!canCancelOrder) {
+        Alert.alert(
+          'Không thể hủy đơn', 
+          'Đơn hàng đã được tạo quá 1 giờ nên không thể hủy. Vui lòng liên hệ quản lý để được hỗ trợ.'
+        );
         return;
       }
       
@@ -581,11 +608,23 @@ const OrderDetailScreen = observer(() => {
           >
             <View style={styles.actionSheet}>
               <TouchableOpacity 
-                style={styles.actionItem} 
+                style={[
+                  styles.actionItem, 
+                  !canCancelOrder && styles.disabledActionItem
+                ]} 
                 onPress={() => handleActionSelected('cancel')}
+                disabled={!canCancelOrder}
               >
-                <CloseCircle size={24} color={color.accentColor.errorColor} />
-                <DynamicText style={[styles.actionText, styles.cancelText]}>Hủy Hóa đơn</DynamicText>
+                <CloseCircle size={24} color={canCancelOrder ? color.accentColor.errorColor : '#CCCCCC'} />
+                <DynamicText 
+                  style={[
+                    styles.actionText, 
+                    styles.cancelText,
+                    !canCancelOrder && styles.disabledText
+                  ]}
+                >
+                  {canCancelOrder ? 'Hủy Hóa đơn' : 'Hủy Hóa đơn (quá thời hạn 1 giờ)'}
+                </DynamicText>
               </TouchableOpacity>
               
               <TouchableOpacity 
@@ -1148,6 +1187,12 @@ const styles = StyleSheet.create({
     backgroundColor: color.primaryColor,
     borderRadius: moderateScale(8),
     marginRight: moderateScale(8),
+  },
+  disabledActionItem: {
+    opacity: 0.5,
+  },
+  disabledText: {
+    color: '#CCCCCC',
   },
 });
 

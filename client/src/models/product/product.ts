@@ -1,5 +1,5 @@
 import { types, Instance, flow, cast } from 'mobx-state-tree';
-import { fetchProducts } from '../../services/api/productAPI';
+import { fetchProducts, fetchProductsfororder } from '../../services/api/productAPI';
 
 // Variant Detail model
 const VariantDetail = types.model({

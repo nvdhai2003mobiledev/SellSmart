@@ -185,12 +185,12 @@ const createOrder = async (req, res) => {
 };
 
 /**
- * Cập nhật tồn kho cho đơn hàng
+ * Cập nhật tồn kho cho đơn hàng và cập nhật số lượng trong bảng products
  * @param {Object} order - Đơn hàng đã được tạo
  */
 const updateInventoryForOrder = async (order) => {
   try {
-    console.log(`===== BẮT ĐẦU CẬP NHẬT TỒN KHO =====`);
+    console.log(`===== BẮT ĐẦU CẬP NHẬT TỒN KHO VÀ SẢN PHẨM =====`);
     console.log(`Đơn hàng: ${order._id}, Trạng thái: ${order.status}, Thanh toán: ${order.paymentStatus}`);
     
     if (!order.products || order.products.length === 0) {
@@ -287,7 +287,86 @@ const updateInventoryForOrder = async (order) => {
       console.log(`Biến thể ID (đã xử lý): ${variantID || 'Không có'}`);
       
       try {
-        // Tìm kiếm trong Inventory thay vì DetailsVariant
+        // 1. Tìm kiếm và cập nhật sản phẩm trong bảng Product trước
+        if (productID && mongoose.Types.ObjectId.isValid(productID)) {
+          console.log(`Cập nhật sản phẩm trong database: ${productID}`);
+          
+          // Tìm sản phẩm trong database
+          const product = await Product.findById(productID);
+          
+          if (product) {
+            console.log(`Tìm thấy sản phẩm: ${product.name}`);
+            console.log(`Tồn kho hiện tại (sản phẩm): ${product.inventory}`);
+            console.log(`Có biến thể: ${product.hasVariants ? 'Có' : 'Không'}`);
+            
+            // Nếu sản phẩm có biến thể và có variantID
+            if (product.hasVariants && variantID) {
+              console.log(`Tìm biến thể ${variantID} trong sản phẩm`);
+              
+              // Tìm chi tiết biến thể trong sản phẩm
+              let updated = false;
+              
+              if (product.detailsVariants && product.detailsVariants.length > 0) {
+                for (let i = 0; i < product.detailsVariants.length; i++) {
+                  const variant = product.detailsVariants[i];
+                  
+                  // Kiểm tra xem đây có phải là biến thể cần cập nhật không
+                  if (variant._id.toString() === variantID) {
+                    console.log(`Tìm thấy biến thể trong sản phẩm: ${variant._id}`);
+                    console.log(`Tồn kho biến thể hiện tại: ${variant.inventory}`);
+                    
+                    // Cập nhật tồn kho biến thể
+                    const oldInventory = variant.inventory;
+                    if (variant.inventory >= quantity) {
+                      product.detailsVariants[i].inventory -= quantity;
+                      
+                      // Cập nhật tổng tồn kho của sản phẩm
+                      if (product.inventory) {
+                        product.inventory -= quantity;
+                      }
+                      
+                      await product.save();
+                      
+                      console.log(`Đã cập nhật tồn kho biến thể trong sản phẩm: ${oldInventory} -> ${product.detailsVariants[i].inventory}`);
+                      console.log(`Tổng tồn kho sản phẩm sau cập nhật: ${product.inventory}`);
+                      updated = true;
+                    } else {
+                      console.log(`Cảnh báo: Không đủ tồn kho biến thể trong sản phẩm (cần ${quantity}, hiện có ${variant.inventory})`);
+                    }
+                    break;
+                  }
+                }
+              }
+              
+              if (!updated) {
+                console.log(`Không tìm thấy biến thể ${variantID} trong sản phẩm, thử cập nhật tồn kho tổng`);
+                // Nếu không tìm thấy biến thể cụ thể, cập nhật tồn kho tổng
+                if (product.inventory && product.inventory >= quantity) {
+                  product.inventory -= quantity;
+                  await product.save();
+                  console.log(`Đã cập nhật tồn kho tổng sản phẩm: ${product.inventory + quantity} -> ${product.inventory}`);
+                } else {
+                  console.log(`Cảnh báo: Không đủ tồn kho sản phẩm (cần ${quantity}, hiện có ${product.inventory || 0})`);
+                }
+              }
+            } 
+            // Sản phẩm không có biến thể, cập nhật trực tiếp tồn kho
+            else if (!product.hasVariants && product.inventory) {
+              if (product.inventory >= quantity) {
+                const oldInventory = product.inventory;
+                product.inventory -= quantity;
+                await product.save();
+                console.log(`Đã cập nhật tồn kho sản phẩm: ${oldInventory} -> ${product.inventory}`);
+              } else {
+                console.log(`Cảnh báo: Không đủ tồn kho sản phẩm (cần ${quantity}, hiện có ${product.inventory})`);
+              }
+            }
+          } else {
+            console.log(`Không tìm thấy sản phẩm với ID: ${productID}`);
+          }
+        }
+        
+        // 2. Tiếp tục cập nhật trong bảng Inventory
         // Tạo query để tìm sản phẩm trong kho bằng nhiều cách khác nhau
         const query = { $or: [] };
         
@@ -331,10 +410,39 @@ const updateInventoryForOrder = async (order) => {
         if (inventoryItem.hasVariants && inventoryItem.variantDetails && inventoryItem.variantDetails.length > 0 && variantID) {
           console.log(`Sản phẩm có biến thể, tìm biến thể ID: ${variantID}`);
           
-          // Tìm biến thể dựa vào ID
-          const variantIndex = inventoryItem.variantDetails.findIndex(v => 
+          // Tìm biến thể dựa vào ID - Phương pháp 1: Tìm chính xác theo _id
+          let variantIndex = inventoryItem.variantDetails.findIndex(v => 
             v._id && v._id.toString() === variantID
           );
+          
+          // Phương pháp 2: Tìm theo trường _id trong dữ liệu
+          if (variantIndex < 0) {
+            variantIndex = inventoryItem.variantDetails.findIndex(v => 
+              v._id && v._id.toString() === variantID
+            );
+          }
+          
+          // Phương pháp 3: Tìm theo trường variantId nếu có
+          if (variantIndex < 0) {
+            variantIndex = inventoryItem.variantDetails.findIndex(v => 
+              v.variantId && v.variantId.toString() === variantID
+            );
+          }
+          
+          // Phương pháp 4: Tìm theo bất kỳ trường nào có thể là id 
+          if (variantIndex < 0) {
+            for (let i = 0; i < inventoryItem.variantDetails.length; i++) {
+              const variant = inventoryItem.variantDetails[i];
+              for (const key in variant) {
+                if (variant[key] && variant[key].toString && variant[key].toString() === variantID) {
+                  variantIndex = i;
+                  console.log(`Tìm thấy biến thể qua trường: ${key}`);
+                  break;
+                }
+              }
+              if (variantIndex >= 0) break;
+            }
+          }
           
           if (variantIndex >= 0) {
             const variant = inventoryItem.variantDetails[variantIndex];
@@ -367,87 +475,169 @@ const updateInventoryForOrder = async (order) => {
             console.log(`Tổng tồn kho sau cập nhật: ${inventoryItem.total_quantity}`);
           } else {
             // Nếu không tìm thấy biến thể theo ID, thử tìm theo thuộc tính...
-            // (giữ nguyên phần tìm theo thuộc tính như đã cập nhật)
-          }
-        } else if (inventoryItem.hasVariants && inventoryItem.variantDetails && inventoryItem.variantDetails.length > 0) {
-          // Nếu sản phẩm có biến thể nhưng không có ID biến thể, tìm theo thuộc tính
-          if (orderProduct.attributes && orderProduct.attributes.length > 0) {
-            // Lọc các thuộc tính có giá trị
-            const productAttributes = orderProduct.attributes.filter(attr => 
-              attr.value && (Array.isArray(attr.value) ? attr.value.length > 0 : true)
-            );
+            console.log(`Không tìm thấy biến thể với ID ${variantID}, thử tìm theo thuộc tính...`);
             
-            if (productAttributes.length > 0) {
-              console.log(`Thuộc tính cần tìm:`, JSON.stringify(productAttributes));
-              
-              // Tìm biến thể phù hợp với thuộc tính
-              let matchedVariantIndex = -1;
-              let bestMatchCount = 0;
-              
-              // Tìm biến thể khớp nhất dựa trên thuộc tính
-              inventoryItem.variantDetails.forEach((variant, idx) => {
-                // Xử lý thuộc tính như đã cập nhật trước đó
-                // (Giữ nguyên đoạn code tìm biến thể dựa trên thuộc tính)
+            if (orderProduct.attributes && orderProduct.attributes.length > 0) {
+              // Tạo một bản đồ thuộc tính đơn giản cho dễ so sánh
+              const attributeMap = {};
+              orderProduct.attributes.forEach(attr => {
+                if (attr.name && attr.value) {
+                  let value = attr.value;
+                  if (Array.isArray(value)) {
+                    value = value[0]; // Lấy giá trị đầu tiên nếu là mảng
+                  }
+                  attributeMap[attr.name.toLowerCase()] = value.toString().toLowerCase();
+                }
               });
               
-              // Xử lý kết quả tìm kiếm biến thể khớp thuộc tính
-              // (Giữ nguyên phần xử lý như đã cập nhật)
+              console.log(`Bản đồ thuộc tính từ đơn hàng:`, attributeMap);
+              
+              // Tìm biến thể phù hợp với thuộc tính
+              let bestMatch = null;
+              let bestMatchScore = 0;
+              
+              inventoryItem.variantDetails.forEach((variant, idx) => {
+                let matchScore = 0;
+                
+                // Tạo bản đồ thuộc tính của biến thể
+                const variantAttrMap = {};
+                
+                // Xử lý nhiều định dạng thuộc tính có thể có
+                if (variant.attributes && typeof variant.attributes === 'object') {
+                  // Format 1: { Color: "Red", Size: "L" }
+                  Object.entries(variant.attributes).forEach(([key, value]) => {
+                    variantAttrMap[key.toLowerCase()] = value.toString().toLowerCase();
+                  });
+                }
+                
+                // Nếu có thuộc tính trong biến thể, kiểm tra sự khớp
+                if (Object.keys(variantAttrMap).length > 0) {
+                  // Kiểm tra từng thuộc tính trong đơn hàng
+                  for (const [key, value] of Object.entries(attributeMap)) {
+                    for (const [varKey, varValue] of Object.entries(variantAttrMap)) {
+                      // Kiểm tra tên thuộc tính
+                      const keyMatch = 
+                        key === varKey || 
+                        key.includes(varKey) || 
+                        varKey.includes(key) ||
+                        // Đặc biệt xử lý cho một số tên thuộc tính thông dụng
+                        (key === 'màu sắc' && (varKey === 'color' || varKey === 'màu')) ||
+                        (key === 'dung lượng' && (varKey === 'capacity' || varKey === 'size'));
+                      
+                      // Kiểm tra giá trị thuộc tính
+                      const valueMatch = 
+                        value === varValue ||
+                        value.includes(varValue) ||
+                        varValue.includes(value);
+                      
+                      if (keyMatch && valueMatch) {
+                        matchScore += 2; // Khớp cả tên và giá trị
+                      } else if (keyMatch) {
+                        matchScore += 1; // Chỉ khớp tên
+                      } else if (valueMatch) {
+                        matchScore += 0.5; // Chỉ khớp giá trị
+                      }
+                    }
+                  }
+                }
+                
+                console.log(`Biến thể #${idx} - Điểm khớp: ${matchScore}`);
+                
+                if (matchScore > bestMatchScore) {
+                  bestMatchScore = matchScore;
+                  bestMatch = { index: idx, variant };
+                }
+              });
+              
+              if (bestMatch && bestMatchScore > 0) {
+                console.log(`Tìm thấy biến thể phù hợp nhất: ${bestMatch.index} với điểm ${bestMatchScore}`);
+                
+                const variant = bestMatch.variant;
+                
+                // Kiểm tra tồn kho
+                if (variant.quantity < quantity) {
+                  console.log(`Cảnh báo: Không đủ tồn kho (cần ${quantity}, hiện có ${variant.quantity})`);
+                  continue;
+                }
+                
+                // Cập nhật tồn kho biến thể
+                const oldQuantity = variant.quantity;
+                inventoryItem.variantDetails[bestMatch.index].quantity -= quantity;
+                
+                // Cập nhật tổng số lượng của sản phẩm
+                inventoryItem.total_quantity -= quantity;
+                
+                // Cập nhật tổng giá
+                inventoryItem.total_price = inventoryItem.variantDetails.reduce(
+                  (sum, v) => sum + (v.price * v.quantity),
+                  0
+                );
+                
+                // Lưu thay đổi
+                await inventoryItem.save();
+                
+                console.log(`Đã cập nhật tồn kho biến thể: ${oldQuantity} -> ${inventoryItem.variantDetails[bestMatch.index].quantity}`);
+                console.log(`Tổng tồn kho sau cập nhật: ${inventoryItem.total_quantity}`);
+              } else {
+                console.log(`Không tìm thấy biến thể phù hợp với thuộc tính, sử dụng biến thể đầu tiên...`);
+                
+                // Sử dụng biến thể đầu tiên nếu có
+                if (inventoryItem.variantDetails.length > 0) {
+                  const firstVariant = inventoryItem.variantDetails[0];
+                  
+                  if (firstVariant.quantity < quantity) {
+                    console.log(`Cảnh báo: Không đủ tồn kho (cần ${quantity}, hiện có ${firstVariant.quantity})`);
+                    continue;
+                  }
+                  
+                  // Cập nhật tồn kho biến thể
+                  const oldQuantity = firstVariant.quantity;
+                  inventoryItem.variantDetails[0].quantity -= quantity;
+                  
+                  // Cập nhật tổng số lượng của sản phẩm
+                  inventoryItem.total_quantity -= quantity;
+                  
+                  // Cập nhật tổng giá
+                  inventoryItem.total_price = inventoryItem.variantDetails.reduce(
+                    (sum, v) => sum + (v.price * v.quantity),
+                    0
+                  );
+                  
+                  // Lưu thay đổi
+                  await inventoryItem.save();
+                  
+                  console.log(`Đã cập nhật tồn kho biến thể đầu tiên: ${oldQuantity} -> ${inventoryItem.variantDetails[0].quantity}`);
+                  console.log(`Tổng tồn kho sau cập nhật: ${inventoryItem.total_quantity}`);
+                }
+              }
             }
-          } else {
-            // Nếu không có thuộc tính, trừ vào biến thể đầu tiên nếu có
-            const firstVariant = inventoryItem.variantDetails[0];
-            console.log(`Không có thuộc tính để tìm kiếm biến thể - sử dụng biến thể đầu tiên: ${firstVariant.name || 'Không tên'}`);
-            
-            if (firstVariant.quantity < quantity) {
-              console.log(`Cảnh báo: Không đủ tồn kho (cần ${quantity}, hiện có ${firstVariant.quantity})`);
-              continue;
-            }
-            
-            // Cập nhật tồn kho biến thể
-            const oldQuantity = firstVariant.quantity;
-            inventoryItem.variantDetails[0].quantity -= quantity;
-            
-            // Cập nhật tổng số lượng của sản phẩm
-            inventoryItem.total_quantity -= quantity;
-            
-            // Cập nhật tổng giá
-            inventoryItem.total_price = inventoryItem.variantDetails.reduce(
-              (sum, v) => sum + (v.price * v.quantity),
-              0
-            );
-            
-            // Lưu thay đổi
-            await inventoryItem.save();
-            
-            console.log(`Đã cập nhật tồn kho biến thể đầu tiên: ${oldQuantity} -> ${inventoryItem.variantDetails[0].quantity}`);
-            console.log(`Tổng tồn kho sau cập nhật: ${inventoryItem.total_quantity}`);
           }
         } else {
-          // Sản phẩm không có biến thể, cập nhật trực tiếp tổng số lượng
-          if (inventoryItem.total_quantity < quantity) {
-            console.log(`Cảnh báo: Không đủ tồn kho (cần ${quantity}, hiện có ${inventoryItem.total_quantity})`);
-            continue;
+          // Sản phẩm không có biến thể hoặc không tìm thấy biến thể, cập nhật trực tiếp tổng tồn kho
+          console.log(`Sản phẩm không có biến thể hoặc không tìm được biến thể, cập nhật trực tiếp tổng tồn kho`);
+          
+          try {
+            // Cập nhật trực tiếp vào MongoDB
+            const updateResult = await Inventory.updateOne(
+              { _id: inventoryItem._id },
+              { $inc: { 'total_quantity': quantity } }
+            );
+            
+            console.log(`Đã hoàn trả ${quantity} vào tổng tồn kho`);
+            console.log(`Kết quả cập nhật: ${JSON.stringify(updateResult)}`);
+          } catch (error) {
+            console.error(`Lỗi khi cập nhật tổng tồn kho: ${error.message}`);
           }
-          
-          // Cập nhật tồn kho
-          const oldQuantity = inventoryItem.total_quantity;
-          inventoryItem.total_quantity -= quantity;
-          
-          // Lưu thay đổi
-          await inventoryItem.save();
-          
-          console.log(`Đã cập nhật tồn kho: ${oldQuantity} -> ${inventoryItem.total_quantity}`);
         }
       } catch (error) {
-        console.error(`LỖI CẬP NHẬT TỒN KHO: ${error.message}`);
-        console.error(error);
+        console.error(`Lỗi khi tìm kiếm sản phẩm trong kho: ${error.message}`);
       }
     }
     
-    console.log(`===== KẾT THÚC CẬP NHẬT TỒN KHO =====`);
+    console.log(`===== KẾT THÚC CẬP NHẬT TỒN KHO VÀ SẢN PHẨM =====`);
   } catch (error) {
-    console.error(`LỖI CẬP NHẬT TỒN KHO: ${error.message}`);
-    console.error(error);
+    console.error(`Lỗi khi cập nhật tồn kho và sản phẩm: ${error.message}`);
+    console.error(error.stack);
   }
 };
 
@@ -748,12 +938,108 @@ const getAllOrders = async (req, res) => {
 // Endpoint mới cho mobile để lấy danh sách đơn hàng
 const getMobileOrdersList = async (req, res) => {
   try {
-    const orders = await orderService.getMobileOrders();
+    console.log('Fetching mobile orders with query params:', req.query);
+    
+    // Parse pagination parameters
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 15;
+    const skip = (page - 1) * limit;
+    
+    // Build filter query
+    const query = {};
+    
+    // Status filter
+    if (req.query.status) {
+      query.status = req.query.status;
+    } else if (req.query.excludeStatus) {
+      // Exclude specific status (like 'draft')
+      query.status = { $ne: req.query.excludeStatus };
+    }
+    
+    // Payment status filter
+    if (req.query.paymentStatus) {
+      query.paymentStatus = req.query.paymentStatus;
+    }
+    
+    // Date range filter
+    if (req.query.startDate && req.query.endDate) {
+      const startDate = new Date(req.query.startDate);
+      const endDate = new Date(req.query.endDate);
+      endDate.setHours(23, 59, 59, 999); // End of day
+      
+      query.createdAt = {
+        $gte: startDate,
+        $lte: endDate
+      };
+    }
+    
+    console.log('Query filters:', query);
+    
+    // Count total matching documents for pagination
+    const totalOrders = await Order.countDocuments(query);
+    
+    // Calculate total pages
+    const totalPages = Math.ceil(totalOrders / limit);
+    
+    // Fetch filtered and paginated orders
+    const orders = await Order.find(query)
+      .populate('customerID', 'fullName phoneNumber email address')
+      .populate('employeeID', 'fullName position')
+      .populate('products.productID', 'name price')
+      .populate('promotionID', 'name discount maxDiscount')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+    
+    console.log(`Found ${orders.length} orders (page ${page}/${totalPages}, total: ${totalOrders})`);
+    
+    // Transform orders for mobile display
+    const transformedOrders = orders.map(order => ({
+      _id: order._id.toString(),
+      orderID: order.orderID,
+      customerID: {
+        _id: order.customerID ? order.customerID._id.toString() : 'unknown',
+        fullName: order.customerID ? order.customerID.fullName : 'Khách hàng',
+        phoneNumber: order.customerID ? order.customerID.phoneNumber : '',
+        email: order.customerID ? order.customerID.email : '',
+        address: order.customerID ? order.customerID.address : ''
+      },
+      products: order.products.map(product => ({
+        productID: product.productID ? product.productID._id.toString() : '',
+        name: product.productID ? product.productID.name : product.name,
+        inventory: product.inventory || 0,
+        price: product.price || 0,
+        quantity: product.quantity || 1,
+        attributes: product.attributes || []
+      })),
+      totalAmount: order.totalAmount || 0,
+      status: order.status || 'pending',
+      paymentMethod: order.paymentMethod || null,
+      paymentStatus: order.paymentStatus || 'unpaid',
+      shippingAddress: order.shippingAddress || 'Nhận hàng tại cửa hàng',
+      employeeID: order.employeeID ? {
+        _id: order.employeeID._id.toString(),
+        fullName: order.employeeID.fullName,
+        position: order.employeeID.position
+      } : null,
+      notes: order.notes || '',
+      paidAmount: order.paidAmount || 0,
+      paymentDetails: order.paymentDetails || [],
+      promotionID: order.promotionID ? order.promotionID._id.toString() : null,
+      promotionDetails: order.promotionDetails || null,
+      originalAmount: order.originalAmount || order.totalAmount,
+      createdAt: order.createdAt.toISOString(),
+      updatedAt: order.updatedAt.toISOString()
+    }));
     
     res.json({
       success: true,
-      count: orders.length,
-      data: orders
+      count: transformedOrders.length,
+      data: transformedOrders,
+      totalOrders,
+      totalPages,
+      currentPage: page
     });
   } catch (error) {
     console.error("🔥 Lỗi server khi lấy danh sách đơn hàng cho mobile:", error);
@@ -1655,7 +1941,7 @@ const getDailyRevenue = async (req, res) => {
  */
 const restoreInventoryForOrder = async (order) => {
   try {
-    console.log(`===== BẮT ĐẦU KHÔI PHỤC TỒN KHO CHO ĐƠN HÀNG BỊ HỦY =====`);
+    console.log(`===== BẮT ĐẦU KHÔI PHỤC TỒN KHO VÀ SẢN PHẨM CHO ĐƠN HÀNG BỊ HỦY =====`);
     console.log(`Đơn hàng: ${order._id}, Trạng thái: ${order.status}`);
     
     if (!order.products || order.products.length === 0) {
@@ -1668,29 +1954,30 @@ const restoreInventoryForOrder = async (order) => {
     
     // Import các model cần thiết
     const Inventory = mongoose.model('Inventory');
+    const Product = mongoose.model('Product');
     
     // Xử lý từng sản phẩm trong đơn hàng
     for (const orderProduct of order.products) {
       console.log(`\n------ Khôi phục sản phẩm: ${orderProduct.name} ------`);
       
       // Lấy thông tin sản phẩm
-      let inventoryId = null;
+      let productID = null;
       
       // Trích xuất productID từ nhiều định dạng có thể có
       if (orderProduct.productID) {
         if (typeof orderProduct.productID === 'object' && orderProduct.productID?._id) {
-          inventoryId = orderProduct.productID._id.toString();
+          productID = orderProduct.productID._id.toString();
         } else if (typeof orderProduct.productID === 'string') {
-          inventoryId = orderProduct.productID;
+          productID = orderProduct.productID;
         } else if (orderProduct.productID.toString) {
-          inventoryId = orderProduct.productID.toString();
+          productID = orderProduct.productID.toString();
         }
-        console.log(`ProductID trong đơn hàng: ${inventoryId}`);
+        console.log(`ProductID trong đơn hàng: ${productID}`);
       }
       
       const quantity = orderProduct.quantity || 0;
       
-      console.log(`ID Inventory (productID): ${inventoryId || 'Không có'}`);
+      console.log(`ID sản phẩm: ${productID || 'Không có'}`);
       console.log(`Số lượng cần hoàn trả: ${quantity}`);
       
       if (quantity <= 0) {
@@ -1698,13 +1985,107 @@ const restoreInventoryForOrder = async (order) => {
         continue;
       }
       
+      // Lấy variantID từ đơn hàng
+      let variantID = null;
+      if (orderProduct.variantID) {
+        if (typeof orderProduct.variantID === 'object' && orderProduct.variantID?._id) {
+          variantID = orderProduct.variantID._id.toString();
+        } else if (typeof orderProduct.variantID === 'string') {
+          variantID = orderProduct.variantID;
+        } else if (orderProduct.variantID.toString) {
+          variantID = orderProduct.variantID.toString();
+        }
+        console.log(`Biến thể ID trong đơn hàng: ${variantID || 'Không có'}`);
+      }
+      
+      // 1. Khôi phục số lượng trong bảng Product
+      if (productID && mongoose.Types.ObjectId.isValid(productID)) {
+        try {
+          console.log(`Tìm kiếm sản phẩm trong database để khôi phục: ${productID}`);
+          
+          // Tìm sản phẩm trong database
+          const product = await Product.findById(productID);
+          
+          if (product) {
+            console.log(`Tìm thấy sản phẩm: ${product.name}`);
+            console.log(`Tồn kho hiện tại (sản phẩm): ${product.inventory || 0}`);
+            console.log(`Có biến thể: ${product.hasVariants ? 'Có' : 'Không'}`);
+            
+            // Nếu sản phẩm có biến thể và có variantID
+            if (product.hasVariants && variantID && product.detailsVariants && product.detailsVariants.length > 0) {
+              console.log(`Tìm biến thể ${variantID} trong sản phẩm`);
+              
+              // Tìm chi tiết biến thể trong sản phẩm
+              let updated = false;
+              
+              for (let i = 0; i < product.detailsVariants.length; i++) {
+                const variant = product.detailsVariants[i];
+                
+                // Kiểm tra xem đây có phải là biến thể cần cập nhật không
+                if (variant._id.toString() === variantID) {
+                  console.log(`Tìm thấy biến thể trong sản phẩm: ${variant._id}`);
+                  console.log(`Tồn kho biến thể hiện tại: ${variant.inventory}`);
+                  
+                  // Cập nhật tồn kho biến thể
+                  const oldInventory = variant.inventory;
+                  product.detailsVariants[i].inventory += quantity;
+                  
+                  // Cập nhật tổng tồn kho của sản phẩm
+                  if (product.inventory !== undefined) {
+                    product.inventory += quantity;
+                  }
+                  
+                  await product.save();
+                  
+                  console.log(`Đã khôi phục tồn kho biến thể trong sản phẩm: ${oldInventory} -> ${product.detailsVariants[i].inventory}`);
+                  console.log(`Tổng tồn kho sản phẩm sau khôi phục: ${product.inventory}`);
+                  updated = true;
+                  break;
+                }
+              }
+              
+              if (!updated) {
+                console.log(`Không tìm thấy biến thể ${variantID} trong sản phẩm, khôi phục tồn kho tổng`);
+                // Nếu không tìm thấy biến thể cụ thể, cập nhật tồn kho tổng
+                if (product.inventory !== undefined) {
+                  const oldInventory = product.inventory;
+                  product.inventory += quantity;
+                  await product.save();
+                  console.log(`Đã khôi phục tồn kho tổng sản phẩm: ${oldInventory} -> ${product.inventory}`);
+                } else {
+                  console.log(`Sản phẩm không có trường inventory, không thể khôi phục tồn kho tổng`);
+                }
+              }
+            } 
+            // Sản phẩm không có biến thể, cập nhật trực tiếp tồn kho
+            else if (!product.hasVariants) {
+              if (product.inventory !== undefined) {
+                const oldInventory = product.inventory;
+                product.inventory += quantity;
+                await product.save();
+                console.log(`Đã khôi phục tồn kho sản phẩm: ${oldInventory} -> ${product.inventory}`);
+              } else {
+                console.log(`Sản phẩm không có trường inventory, không thể khôi phục tồn kho`);
+              }
+            } else {
+              console.log(`Sản phẩm có biến thể nhưng không tìm thấy biến thể ID hoặc không có biến thể`);
+            }
+          } else {
+            console.log(`Không tìm thấy sản phẩm với ID: ${productID}`);
+          }
+        } catch (error) {
+          console.error(`Lỗi khi khôi phục sản phẩm trong bảng Product: ${error.message}`);
+        }
+      }
+      
+      // 2. Khôi phục số lượng trong bảng Inventory
       // Tạo query để tìm sản phẩm trong kho
       const query = { $or: [] };
       
       // Thêm tìm kiếm theo ID nếu có
-      if (inventoryId && mongoose.Types.ObjectId.isValid(inventoryId)) {
-        query.$or.push({ _id: inventoryId });
-        console.log(`Tìm kiếm theo ID: ${inventoryId}`);
+      if (productID && mongoose.Types.ObjectId.isValid(productID)) {
+        query.$or.push({ _id: productID });
+        console.log(`Tìm kiếm theo ID: ${productID}`);
       }
       
       // Thêm tìm kiếm theo mã sản phẩm nếu có
@@ -1740,199 +2121,237 @@ const restoreInventoryForOrder = async (order) => {
         console.log(`Tìm thấy sản phẩm trong kho: ${inventoryItem.product_name}`);
         console.log(`Tồn kho hiện tại: ${inventoryItem.total_quantity}`);
         
-        // Lấy variantID từ đơn hàng
-        let variantId = null;
-        if (orderProduct.variantID) {
-          if (typeof orderProduct.variantID === 'object' && orderProduct.variantID?._id) {
-            variantId = orderProduct.variantID._id.toString();
-          } else if (typeof orderProduct.variantID === 'string') {
-            variantId = orderProduct.variantID;
-          } else if (orderProduct.variantID.toString) {
-            variantId = orderProduct.variantID.toString();
-          }
-          console.log(`Biến thể ID trong đơn hàng: ${variantId || 'Không có'}`);
-        }
-        
         // Xử lý khôi phục tồn kho cho sản phẩm có biến thể
-        if (inventoryItem.hasVariants && inventoryItem.variantDetails && inventoryItem.variantDetails.length > 0 && variantId) {
-          console.log(`Sản phẩm có biến thể, tìm biến thể ID: ${variantId}`);
+        if (inventoryItem.hasVariants && inventoryItem.variantDetails && inventoryItem.variantDetails.length > 0 && variantID) {
+          console.log(`Sản phẩm có biến thể, tìm biến thể ID: ${variantID}`);
           
-          // Tìm biến thể chính xác theo ID
-          const exactVariantIndex = inventoryItem.variantDetails.findIndex(
-            v => v._id && v._id.toString() === variantId
+          // Tìm biến thể trong sản phẩm
+          let variantIndex = -1;
+          
+          // Tìm kiếm theo nhiều phương pháp để đảm bảo tìm thấy biến thể
+          // Phương pháp 1: Tìm theo _id
+          variantIndex = inventoryItem.variantDetails.findIndex(v => 
+            v._id && v._id.toString() === variantID
           );
           
-          if (exactVariantIndex >= 0) {
-            console.log(`Tìm thấy biến thể chính xác theo ID ở vị trí ${exactVariantIndex}`);
-            const matchedVariant = inventoryItem.variantDetails[exactVariantIndex];
-            
-            try {
-              // Cập nhật trực tiếp vào MongoDB
-              const updateResult = await Inventory.updateOne(
-                { 
-                  _id: inventoryItem._id,
-                  'variantDetails._id': matchedVariant._id 
-                },
-                { 
-                  $inc: { 
-                    'variantDetails.$.quantity': quantity,
-                    'total_quantity': quantity 
-                  } 
+          // Phương pháp 2: Tìm theo trường _id khác
+          if (variantIndex < 0) {
+            variantIndex = inventoryItem.variantDetails.findIndex(v => 
+              v._id && v._id.toString() === variantID
+            );
+          }
+          
+          // Phương pháp 3: Tìm theo trường variantId
+          if (variantIndex < 0) {
+            variantIndex = inventoryItem.variantDetails.findIndex(v => 
+              v.variantId && v.variantId.toString() === variantID
+            );
+          }
+          
+          // Phương pháp 4: Tìm theo bất kỳ trường nào có thể là id
+          if (variantIndex < 0) {
+            for (let i = 0; i < inventoryItem.variantDetails.length; i++) {
+              const variant = inventoryItem.variantDetails[i];
+              for (const key in variant) {
+                if (variant[key] && variant[key].toString && variant[key].toString() === variantID) {
+                  variantIndex = i;
+                  console.log(`Tìm thấy biến thể qua trường: ${key}`);
+                  break;
                 }
-              );
-              
-              console.log(`Đã hoàn trả ${quantity} vào biến thể ID ${variantId}`);
-              console.log(`Kết quả cập nhật: ${JSON.stringify(updateResult)}`);
-              continue; // Xử lý xong sản phẩm này
-            } catch (error) {
-              console.error(`Lỗi khi cập nhật biến thể theo ID: ${error.message}`);
+              }
+              if (variantIndex >= 0) break;
             }
-          } else if (orderProduct.attributes && orderProduct.attributes.length > 0) {
-            // Nếu không tìm thấy biến thể theo ID, thử tìm theo thuộc tính
-            console.log(`Không tìm thấy biến thể theo ID, thử tìm theo thuộc tính...`);
+          }
+          
+          if (variantIndex >= 0) {
+            console.log(`Tìm thấy biến thể tại vị trí ${variantIndex}`);
             
-            // Lọc các thuộc tính có giá trị
-            const productAttributes = orderProduct.attributes.filter(attr => 
-              attr.value && (Array.isArray(attr.value) ? attr.value.length > 0 : true)
+            // Cập nhật số lượng biến thể
+            const variant = inventoryItem.variantDetails[variantIndex];
+            const oldQuantity = variant.quantity;
+            inventoryItem.variantDetails[variantIndex].quantity += quantity;
+            
+            // Cập nhật tổng số lượng
+            inventoryItem.total_quantity += quantity;
+            
+            // Cập nhật tổng giá
+            inventoryItem.total_price = inventoryItem.variantDetails.reduce(
+              (sum, v) => sum + (v.price * v.quantity),
+              0
             );
             
-            if (productAttributes.length > 0) {
-              console.log(`Thuộc tính cần tìm:`, JSON.stringify(productAttributes));
-              
-              // Tìm biến thể phù hợp với thuộc tính
-              let bestMatchIndex = -1;
-              let bestMatchCount = 0;
-              
-              // Tìm biến thể khớp nhất dựa trên thuộc tính
-              inventoryItem.variantDetails.forEach((variant, idx) => {
-                if (!variant.attributes || !Array.isArray(variant.attributes)) {
-                  return;
-                }
-                
-                let matchCount = 0;
-                
-                // Đếm số thuộc tính khớp
-                productAttributes.forEach(prodAttr => {
-                  const variantAttr = variant.attributes.find(vAttr => 
-                    vAttr.name.toLowerCase() === prodAttr.name.toLowerCase()
-                  );
-                  
-                  if (variantAttr) {
-                    // Nếu thuộc tính sản phẩm là mảng
-                    if (Array.isArray(prodAttr.value)) {
-                      // Kiểm tra xem giá trị của biến thể có trong mảng giá trị của sản phẩm không
-                      const variantValues = Array.isArray(variantAttr.value) 
-                        ? variantAttr.value 
-                        : [variantAttr.value];
-                      
-                      for (const val of variantValues) {
-                        if (prodAttr.value.includes(val)) {
-                          matchCount++;
-                          break;
-                        }
-                      }
-                    } 
-                    // Nếu thuộc tính sản phẩm là string
-                    else {
-                      const variantValues = Array.isArray(variantAttr.value)
-                        ? variantAttr.value.map(v => v.toString().toLowerCase())
-                        : [variantAttr.value.toString().toLowerCase()];
-                        
-                      if (variantValues.includes(prodAttr.value.toString().toLowerCase())) {
-                        matchCount++;
-                      }
-                    }
+            // Lưu thay đổi
+            await inventoryItem.save();
+            
+            console.log(`Đã khôi phục tồn kho biến thể: ${oldQuantity} -> ${inventoryItem.variantDetails[variantIndex].quantity}`);
+            console.log(`Tổng tồn kho sau khôi phục: ${inventoryItem.total_quantity}`);
+          } else {
+            console.log(`Không tìm thấy biến thể với ID ${variantID}, thử tìm theo thuộc tính...`);
+            
+            // Tìm kiếm theo thuộc tính nếu có
+            if (orderProduct.attributes && orderProduct.attributes.length > 0) {
+              // Tạo bản đồ thuộc tính từ đơn hàng
+              const attributeMap = {};
+              orderProduct.attributes.forEach(attr => {
+                if (attr.name && attr.value) {
+                  let value = attr.value;
+                  if (Array.isArray(value)) {
+                    value = value[0]; // Lấy giá trị đầu tiên nếu là mảng
                   }
-                });
-                
-                // Cập nhật biến thể khớp nhất
-                if (matchCount > bestMatchCount) {
-                  bestMatchCount = matchCount;
-                  bestMatchIndex = idx;
+                  attributeMap[attr.name.toLowerCase()] = value.toString().toLowerCase();
                 }
               });
               
-              if (bestMatchIndex >= 0) {
-                const matchedVariant = inventoryItem.variantDetails[bestMatchIndex];
-                console.log(`Tìm thấy biến thể khớp theo thuộc tính ở vị trí ${bestMatchIndex}`);
+              console.log(`Thuộc tính từ đơn hàng:`, attributeMap);
+              
+              // Tìm biến thể phù hợp với thuộc tính
+              let bestMatch = null;
+              let bestScore = 0;
+              
+              inventoryItem.variantDetails.forEach((variant, idx) => {
+                let score = 0;
                 
-                try {
-                  // Cập nhật trực tiếp vào MongoDB
-                  const updateResult = await Inventory.updateOne(
-                    { 
-                      _id: inventoryItem._id,
-                      'variantDetails._id': matchedVariant._id 
-                    },
-                    { 
-                      $inc: { 
-                        'variantDetails.$.quantity': quantity,
-                        'total_quantity': quantity 
-                      } 
+                // Tạo bản đồ thuộc tính của biến thể
+                const variantAttrs = {};
+                
+                // Xử lý nhiều cách lưu trữ thuộc tính
+                if (variant.attributes && typeof variant.attributes === 'object') {
+                  // Dạng { Color: "Red", Size: "L" }
+                  Object.entries(variant.attributes).forEach(([key, value]) => {
+                    variantAttrs[key.toLowerCase()] = value.toString().toLowerCase();
+                  });
+                }
+                
+                // So sánh thuộc tính
+                for (const [key, value] of Object.entries(attributeMap)) {
+                  for (const [vKey, vValue] of Object.entries(variantAttrs)) {
+                    // So sánh tên thuộc tính
+                    const keyMatch = 
+                      key === vKey || 
+                      key.includes(vKey) || 
+                      vKey.includes(key) ||
+                      (key === 'màu sắc' && (vKey === 'color' || vKey === 'màu')) ||
+                      (key === 'dung lượng' && (vKey === 'capacity' || vKey === 'size'));
+                    
+                    // So sánh giá trị
+                    const valueMatch = 
+                      value === vValue ||
+                      value.includes(vValue) ||
+                      vValue.includes(value);
+                    
+                    if (keyMatch && valueMatch) {
+                      score += 2;
+                    } else if (keyMatch) {
+                      score += 1;
+                    } else if (valueMatch) {
+                      score += 0.5;
                     }
+                  }
+                }
+                
+                if (score > bestScore) {
+                  bestScore = score;
+                  bestMatch = { index: idx, variant };
+                }
+              });
+              
+              if (bestMatch && bestScore > 0) {
+                console.log(`Tìm thấy biến thể phù hợp: #${bestMatch.index} với điểm ${bestScore}`);
+                
+                // Cập nhật số lượng
+                const oldQuantity = bestMatch.variant.quantity;
+                inventoryItem.variantDetails[bestMatch.index].quantity += quantity;
+                
+                // Cập nhật tổng số lượng
+                inventoryItem.total_quantity += quantity;
+                
+                // Cập nhật tổng giá
+                inventoryItem.total_price = inventoryItem.variantDetails.reduce(
+                  (sum, v) => sum + (v.price * v.quantity),
+                  0
+                );
+                
+                await inventoryItem.save();
+                
+                console.log(`Đã khôi phục tồn kho biến thể: ${oldQuantity} -> ${inventoryItem.variantDetails[bestMatch.index].quantity}`);
+                console.log(`Tổng tồn kho sau khôi phục: ${inventoryItem.total_quantity}`);
+              } else {
+                // Nếu không tìm thấy, thử khôi phục vào biến thể đầu tiên
+                if (inventoryItem.variantDetails.length > 0) {
+                  const variant = inventoryItem.variantDetails[0];
+                  const oldQuantity = variant.quantity;
+                  
+                  inventoryItem.variantDetails[0].quantity += quantity;
+                  inventoryItem.total_quantity += quantity;
+                  inventoryItem.total_price = inventoryItem.variantDetails.reduce(
+                    (sum, v) => sum + (v.price * v.quantity),
+                    0
                   );
                   
-                  console.log(`Đã hoàn trả ${quantity} vào biến thể khớp theo thuộc tính`);
-                  console.log(`Kết quả cập nhật: ${JSON.stringify(updateResult)}`);
-                  continue; // Xử lý xong sản phẩm này
-                } catch (error) {
-                  console.error(`Lỗi khi cập nhật biến thể theo thuộc tính: ${error.message}`);
+                  await inventoryItem.save();
+                  
+                  console.log(`Khôi phục vào biến thể đầu tiên: ${oldQuantity} -> ${inventoryItem.variantDetails[0].quantity}`);
+                  console.log(`Tổng tồn kho sau khôi phục: ${inventoryItem.total_quantity}`);
+                } else {
+                  console.log(`Không tìm thấy biến thể phù hợp và không có biến thể đầu tiên để khôi phục`);
                 }
+              }
+            } else {
+              // Nếu không có thuộc tính để tìm, khôi phục vào biến thể đầu tiên
+              if (inventoryItem.variantDetails.length > 0) {
+                const variant = inventoryItem.variantDetails[0];
+                const oldQuantity = variant.quantity;
+                
+                inventoryItem.variantDetails[0].quantity += quantity;
+                inventoryItem.total_quantity += quantity;
+                inventoryItem.total_price = inventoryItem.variantDetails.reduce(
+                  (sum, v) => sum + (v.price * v.quantity),
+                  0
+                );
+                
+                await inventoryItem.save();
+                
+                console.log(`Khôi phục vào biến thể đầu tiên: ${oldQuantity} -> ${inventoryItem.variantDetails[0].quantity}`);
+                console.log(`Tổng tồn kho sau khôi phục: ${inventoryItem.total_quantity}`);
               }
             }
           }
-          
-          // 3. Nếu vẫn không tìm được biến thể phù hợp, cập nhật vào biến thể đầu tiên
+        } else if (inventoryItem.hasVariants && inventoryItem.variantDetails && inventoryItem.variantDetails.length > 0) {
+          // Có biến thể nhưng không có variantID - thử tìm theo thuộc tính hoặc khôi phục vào biến thể đầu tiên
           if (inventoryItem.variantDetails.length > 0) {
-            console.log(`Cập nhật vào biến thể đầu tiên`);
-            const firstVariant = inventoryItem.variantDetails[0];
+            const variant = inventoryItem.variantDetails[0];
+            const oldQuantity = variant.quantity;
             
-            try {
-              // Cập nhật trực tiếp vào MongoDB
-              const updateResult = await Inventory.updateOne(
-                { 
-                  _id: inventoryItem._id,
-                  'variantDetails._id': firstVariant._id 
-                },
-                { 
-                  $inc: { 
-                    'variantDetails.$.quantity': quantity,
-                    'total_quantity': quantity 
-                  } 
-                }
-              );
-              
-              console.log(`Đã hoàn trả ${quantity} vào biến thể đầu tiên`);
-              console.log(`Kết quả cập nhật: ${JSON.stringify(updateResult)}`);
-            } catch (error) {
-              console.error(`Lỗi khi cập nhật biến thể đầu tiên: ${error.message}`);
-            }
-          }
-        } else {
-          // Sản phẩm không có biến thể hoặc không tìm thấy biến thể, cập nhật trực tiếp tổng tồn kho
-          console.log(`Sản phẩm không có biến thể hoặc không tìm được biến thể, cập nhật trực tiếp tổng tồn kho`);
-          
-          try {
-            // Cập nhật trực tiếp vào MongoDB
-            const updateResult = await Inventory.updateOne(
-              { _id: inventoryItem._id },
-              { $inc: { 'total_quantity': quantity } }
+            inventoryItem.variantDetails[0].quantity += quantity;
+            inventoryItem.total_quantity += quantity;
+            inventoryItem.total_price = inventoryItem.variantDetails.reduce(
+              (sum, v) => sum + (v.price * v.quantity),
+              0
             );
             
-            console.log(`Đã hoàn trả ${quantity} vào tổng tồn kho`);
-            console.log(`Kết quả cập nhật: ${JSON.stringify(updateResult)}`);
-          } catch (error) {
-            console.error(`Lỗi khi cập nhật tổng tồn kho: ${error.message}`);
+            await inventoryItem.save();
+            
+            console.log(`Khôi phục vào biến thể đầu tiên: ${oldQuantity} -> ${inventoryItem.variantDetails[0].quantity}`);
+            console.log(`Tổng tồn kho sau khôi phục: ${inventoryItem.total_quantity}`);
           }
+        } else {
+          // Sản phẩm không có biến thể, khôi phục trực tiếp tổng số lượng
+          const oldQuantity = inventoryItem.total_quantity;
+          inventoryItem.total_quantity += quantity;
+          
+          await inventoryItem.save();
+          
+          console.log(`Đã khôi phục tồn kho: ${oldQuantity} -> ${inventoryItem.total_quantity}`);
         }
       } catch (error) {
-        console.error(`Lỗi khi tìm kiếm sản phẩm trong kho: ${error.message}`);
+        console.error(`Lỗi khi khôi phục tồn kho trong Inventory: ${error.message}`);
       }
     }
     
-    console.log(`===== KẾT THÚC KHÔI PHỤC TỒN KHO =====`);
+    console.log(`===== KẾT THÚC KHÔI PHỤC TỒN KHO VÀ SẢN PHẨM CHO ĐƠN HÀNG BỊ HỦY =====`);
   } catch (error) {
-    console.error(`LỖI KHÔI PHỤC TỒN KHO: ${error.message}`);
-    console.error(error);
+    console.error(`Lỗi khi khôi phục tồn kho: ${error.message}`);
+    console.error(error.stack);
   }
 };
 
