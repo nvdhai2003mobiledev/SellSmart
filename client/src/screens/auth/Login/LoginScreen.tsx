@@ -13,6 +13,7 @@ import {Api} from '../../../services/api/api';
 import {ApiEndpoint} from '../../../services/api/api-endpoint';
 import {observer} from 'mobx-react-lite';
 import {Platform} from 'react-native';
+import { taiLaiSanPham } from '../../../models/product/product-store';
 
 interface LoginForm {
   usernameOrEmail: string;
@@ -98,6 +99,7 @@ const LoginScreen = observer(() => {
 
         console.log('Đăng nhập thành công với vai trò:', userData.role);
         await rootStore.auth.setAuth(authData);
+        await taiLaiSanPham();
       } else {
         // Xử lý các loại lỗi khác nhau
         let errorMsg = 'Đăng nhập thất bại. Vui lòng thử lại.';

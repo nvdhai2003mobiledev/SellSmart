@@ -25,7 +25,7 @@ import {
   TickSquare,
 } from 'iconsax-react-native';
 import {observer} from 'mobx-react-lite';
-import {khoiTaoStore} from '../../../models/product/product-store';
+import {layStore, taiLaiSanPham} from '../../../models/product/product-store';
 import {useNavigation} from '@react-navigation/native';
 import {Screen} from '../../../navigation/navigation.type';
 import {color} from '../../../utils/color';
@@ -50,6 +50,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import FastImage from 'react-native-fast-image';
 import {Api} from '../../../services/api/api';
 import {ApiEndpoint} from '../../../services/api/api-endpoint';
+import productAPI from '../../../services/api/productAPI';
 
 // Define fonts object locally if the import is causing issues
 const fonts = {
@@ -125,7 +126,7 @@ const SelectDropdown = ({
               ) : (
                 options.map((option, index) => (
                   <TouchableOpacity
-                    key={`option-${index}`}
+                    key={index}
                     style={[
                       styles.optionItem,
                       selectedValue === option.value &&
@@ -185,6 +186,7 @@ interface Product {
   }>;
   warrantyPeriod?: number;
   inventoryId: string;
+  isPublished: boolean;
 }
 
 // Thêm interface cho Source type
@@ -195,7 +197,7 @@ interface ImageSource {
 const ProductScreen = observer(() => {
   const navigation = useNavigation<any>();
   const [store] = useState(() => {
-    const rootStore = khoiTaoStore();
+    const rootStore = layStore();
     return rootStore.productStore;
   });
 
@@ -227,6 +229,15 @@ const ProductScreen = observer(() => {
   const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [showCart, setShowCart] = useState(false);
+
+  const [categories, setCategories] = useState<SelectOption[]>([]);
+  const [providers, setProviders] = useState<SelectOption[]>([]);
+  const [isCartModalVisible, setIsCartModalVisible] = useState(false);
+  const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
+  const [availableVariants, setAvailableVariants] = useState<any[]>([]);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
 
   // Lọc danh sách sản phẩm dựa trên điều kiện tìm kiếm và bộ lọc
   const filterProducts = useCallback(
@@ -271,62 +282,76 @@ const ProductScreen = observer(() => {
     [],
   );
 
-  // Get unique categories and providers
+  // Get unique categories from products
   const getUniqueCategories = useCallback(() => {
     const uniqueCategories = new Set<string>();
-    store.products.forEach(product => {
+    store.products.forEach((product: any) => {
       const category =
         typeof product.category === 'string'
           ? product.category
-          : product.category?.name || '';
+          : product.category?.name;
       if (category) uniqueCategories.add(category);
     });
-    return uniqueCategories;
+    return Array.from(uniqueCategories);
   }, [store.products]);
 
+  // Get unique providers from products
   const getUniqueProviders = useCallback(() => {
     const uniqueProviders = new Set<string>();
-    store.products.forEach(product => {
+    store.products.forEach((product: any) => {
       const provider =
         typeof product.providerId === 'string'
           ? product.providerId
-          : product.providerId?.fullName || '';
+          : product.providerId?.fullName;
       if (provider) uniqueProviders.add(provider);
     });
-    return uniqueProviders;
+    return Array.from(uniqueProviders);
   }, [store.products]);
 
   // Combined categories from products and additional sources
-  const categories = useMemo(() => {
-    if (additionalCategories.length > 0) {
-      return additionalCategories;
-    }
-    return ['all', ...Array.from(getUniqueCategories())];
-  }, [additionalCategories, getUniqueCategories]);
+  const productCategories = useMemo(() => {
+    const uniqueCategories = getUniqueCategories();
+    return uniqueCategories.length > 0
+      ? uniqueCategories.map(cat => ({
+          label: cat,
+          value: cat,
+        }))
+      : [{ label: 'Đang tải danh mục...', value: 'all' }];
+  }, [getUniqueCategories]);
 
   // Combined providers from products and additional sources
-  const providers = useMemo(() => {
-    if (additionalProviders.length > 0) {
-      return additionalProviders;
-    }
-    return ['all', ...Array.from(getUniqueProviders())];
-  }, [additionalProviders, getUniqueProviders]);
+  const productProviders = useMemo(() => {
+    const uniqueProviders = getUniqueProviders();
+    return uniqueProviders.length > 0
+      ? uniqueProviders.map(provider => ({
+          label: provider,
+          value: provider,
+        }))
+      : [{ label: 'Đang tải nhà cung cấp...', value: 'all' }];
+  }, [getUniqueProviders]);
 
   // Danh sách products đã được lọc theo bộ lọc hiện tại
-  const filteredProducts = useMemo(() => {
-    return filterProducts(
-      store.products,
-      searchText,
-      selectedFilter,
-      selectedProvider,
-    );
-  }, [
-    store.products,
-    searchText,
-    selectedFilter,
-    selectedProvider,
-    filterProducts,
-  ]);
+  // const filteredProducts = useMemo(() => {
+  //   return filterProducts(
+  //     store.products,
+  //     searchText,
+  //     selectedFilter,
+  //     selectedProvider,
+  //   );
+  // }, [
+  //   store.products,
+  //   searchText,
+  //   selectedFilter,
+  //   selectedProvider,
+  //   filterProducts,
+  // ]);
+
+  // Tạm thời bỏ filter để test
+  const filteredProducts = useMemo(() => store.products, [store.products]);
+
+  // Log dữ liệu để kiểm tra
+  console.log('store.products:', store.products);
+  console.log('filteredProducts:', filteredProducts);
 
   // Fetch additional categories and providers data
   const fetchCategoriesAndProviders = useCallback(async () => {
@@ -449,29 +474,51 @@ const ProductScreen = observer(() => {
 
   // Refresh products
   const onRefresh = useCallback(async () => {
+    setRefreshing(true);
     try {
-      console.log('Đang làm mới danh sách sản phẩm...');
-      setRefreshing(true);
-
-      // Kiểm tra và làm mới token nếu cần
-      if (rootStore.auth.isAuthenticated && rootStore.auth.shouldRefreshToken) {
-        console.log('Làm mới token trước khi tải dữ liệu...');
-        await rootStore.auth.refreshAccessToken();
-      }
-
-      // Xóa cache và tải lại sản phẩm
-      await store.fetchProducts();
-
-      // Tải danh mục và nhà cung cấp
-      await fetchCategoriesAndProviders();
-
-      console.log('Làm mới dữ liệu thành công!');
+      await loadData();
     } catch (error) {
       console.error('Lỗi khi làm mới dữ liệu:', error);
     } finally {
       setRefreshing(false);
     }
-  }, [store, fetchCategoriesAndProviders]);
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Load products first
+      await taiLaiSanPham();
+      
+      // Load categories and providers in parallel
+      const [categoriesData, providersData] = await Promise.all([
+        productAPI.fetchCategories(),
+        productAPI.fetchProviders()
+      ]);
+      
+      // Format categories
+      const formattedCategories = categoriesData.map((cat: { name: string; _id: string }) => ({
+        label: cat.name,
+        value: cat._id
+      }));
+      setCategories(formattedCategories);
+      
+      // Format providers
+      const formattedProviders = providersData.map((provider: { fullName: string; _id: string }) => ({
+        label: provider.fullName,
+        value: provider._id
+      }));
+      setProviders(formattedProviders);
+      
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Lỗi khi tải dữ liệu:', error);
+      setError('Không thể tải dữ liệu. Vui lòng thử lại sau.');
+      setIsLoading(false);
+    }
+  };
 
   // Reset filters
   const resetFilters = () => {
@@ -544,7 +591,6 @@ const ProductScreen = observer(() => {
       setIsLoading(true);
       setError(null);
 
-      // Sử dụng instance API đã được cấu hình
       const response = await fetch('http://10.0.2.2:5000/api/products/json', {
         method: 'GET',
         headers: {
@@ -554,21 +600,19 @@ const ProductScreen = observer(() => {
       });
 
       const data = await response.json();
+      console.log('API /products/json data:', data);
 
       if (data.status === 'Ok' && data.data) {
-        // Lọc sản phẩm có giá và tồn kho
-        const validProducts = data.data.productsWithPriceAndInventory?.filter((product: Product) => {
-          if (product.hasVariants && product.variantDetails && product.variantDetails.length > 0) {
-            return product.variantDetails.some(variant => 
-              variant.price && variant.price > 0 && variant.quantity && variant.quantity > 0
-            );
-          }
-          return Boolean(product.price && product.price > 0 && product.inventory && product.inventory > 0);
-        }) || [];
-
-        setProducts(validProducts);
-        setHiddenProducts(data.data.productsWithoutPriceOrInventory || []);
-        console.log(`Loaded ${validProducts.length} valid products`);
+        if (Array.isArray(data.data)) {
+          setProducts(data.data);
+          console.log('setProducts with array:', data.data);
+        } else if (data.data.productsWithPriceAndInventory) {
+          setProducts(data.data.productsWithPriceAndInventory);
+          console.log('setProducts with productsWithPriceAndInventory:', data.data.productsWithPriceAndInventory);
+        } else {
+          setProducts([]);
+          console.log('setProducts with empty array');
+        }
       } else {
         throw new Error(data.message || 'Không thể lấy danh sách sản phẩm');
       }
@@ -581,35 +625,44 @@ const ProductScreen = observer(() => {
     }
   };
 
+  // Hàm lấy giá bán hiển thị
+  const getDisplayPrice = (item: any) => {
+    if (item.hasVariants && Array.isArray(item.detailsVariants) && item.detailsVariants.length > 0) {
+      return Math.min(...item.detailsVariants.map((v: any) => v.price));
+    }
+    return item.price;
+  };
+
   const renderItem = ({item}: {item: Product}) => {
-    const isAvailable = item.status === 'available';
-    const hasVariants = item.hasVariants && item.variantDetails && item.variantDetails.length > 0;
-    
-    // Kiểm tra xem sản phẩm có đủ điều kiện hiển thị không
-    const isValidProduct = hasVariants ? 
-      item.variantDetails?.some(v => v.price > 0 && v.quantity > 0) :
-      Boolean(item.price && item.price > 0 && item.inventory && item.inventory > 0);
-    
-    if (!isValidProduct) {
-      return null; // Không hiển thị sản phẩm không hợp lệ
+    // Chỉ hiển thị sản phẩm đã có giá bán (price > 0)
+    if (!item.price || item.price <= 0) {
+      return null;
     }
 
-    // Xử lý đường dẫn ảnh
+    const hasVariants = item.hasVariants && item.variantDetails && item.variantDetails.length > 0;
+    const totalInventory = hasVariants 
+      ? item.variantDetails?.reduce((sum, v) => sum + v.quantity, 0) 
+      : item.inventory;
+    
     const getImageSource = (): ImageSource | undefined => {
-      if (item.thumbnail) {
-        // Nếu thumbnail là đường dẫn đầy đủ
-        if (item.thumbnail.startsWith('http')) {
-          return { uri: item.thumbnail };
-        }
-        // Nếu thumbnail là đường dẫn tương đối
+      if (!item.thumbnail) return undefined;
+      
+      // Nếu là URL đầy đủ
+      if (item.thumbnail.startsWith('http')) {
+        return { uri: item.thumbnail };
+      }
+      
+      // Nếu là đường dẫn tương đối từ backend
+      if (item.thumbnail.startsWith('/')) {
         return { uri: `http://10.0.2.2:5000${item.thumbnail}` };
       }
-      // Trả về undefined nếu không có ảnh
+      
       return undefined;
     };
 
     const imageSource = getImageSource();
-    
+    const categoryName = typeof item.category === 'string' ? item.category : item.category?.name || 'Không phân loại';
+
     return (
       <TouchableOpacity 
         style={styles.productCard}
@@ -618,7 +671,7 @@ const ProductScreen = observer(() => {
         {imageSource ? (
           <FastImage 
             source={imageSource}
-            style={styles.productImage}
+            style={[styles.productImage as any]}
             resizeMode={FastImage.resizeMode.cover}
           />
         ) : (
@@ -629,43 +682,48 @@ const ProductScreen = observer(() => {
         
         <View style={styles.productInfo}>
           <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
+          <Text style={styles.categoryText}>{categoryName}</Text>
           
-          {item.warrantyPeriod && (
-            <Text style={styles.warrantyText}>
-              BH: {item.warrantyPeriod} tháng
-            </Text>
-          )}
+          <View style={styles.productDetails}>
+            {item.warrantyPeriod && (
+              <View style={styles.detailRow}>
+                <Ionicons name="shield-checkmark-outline" size={16} color="#666" />
+                <Text style={styles.detailText}>BH: {item.warrantyPeriod} tháng</Text>
+              </View>
+            )}
+            
+            <View style={styles.detailRow}>
+              <Ionicons name="cube-outline" size={16} color="#666" />
+              <Text style={styles.detailText}>Còn: {totalInventory}</Text>
+            </View>
+          </View>
           
-          {hasVariants ? (
+          {hasVariants && Array.isArray((item as any).detailsVariants) && (item as any).detailsVariants.length > 0 ? (
             <View>
-              <Text style={styles.variantText}>{item.variantDetails?.length} biến thể</Text>
+              <Text style={styles.variantText}>{(item as any).detailsVariants.length} biến thể</Text>
               <Text style={styles.priceText}>
-                Từ: {item.variantDetails?.reduce((min, v) => Math.min(min, v.price), Infinity).toLocaleString('vi-VN')}đ
+                Từ: {Math.min(...((item as any).detailsVariants as any[]).map((v: any) => v.price)).toLocaleString('vi-VN')}đ
+              </Text>
+            </View>
+          ) : hasVariants && Array.isArray((item as any).variantDetails) && (item as any).variantDetails.length > 0 ? (
+            <View>
+              <Text style={styles.variantText}>{(item as any).variantDetails.length} biến thể</Text>
+              <Text style={styles.priceText}>
+                Từ: {Math.min(...((item as any).variantDetails as any[]).map((v: any) => v.price)).toLocaleString('vi-VN')}đ
               </Text>
             </View>
           ) : (
             <Text style={styles.priceText}>
-              {item.price?.toLocaleString('vi-VN')}đ
+              {getDisplayPrice(item)?.toLocaleString('vi-VN')}đ
             </Text>
           )}
           
-          <View style={styles.inventoryContainer}>
-            <Text style={styles.inventoryText}>
-              Còn: {hasVariants ? 
-                item.variantDetails?.reduce((sum, v) => sum + v.quantity, 0) : 
-                item.inventory
-              }
-            </Text>
-          </View>
-          
-          {isAvailable && (
-            <TouchableOpacity 
-              style={styles.addToCartBtn}
-              onPress={(e) => handleAddToCartClick(item, e)}
-            >
-              <Text style={styles.addToCartBtnText}>Thêm vào giỏ</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity 
+            style={styles.addToCartButton}
+            onPress={(e) => handleAddToCartClick(item, e)}
+          >
+            <Ionicons name="add-circle" size={24} color="#007AFF" />
+          </TouchableOpacity>
         </View>
       </TouchableOpacity>
     );
@@ -673,33 +731,8 @@ const ProductScreen = observer(() => {
 
   const renderEmptyList = () => (
     <View style={styles.emptyContainer}>
-      <Text style={styles.emptyText}>Không có sản phẩm nào</Text>
-      <Text style={styles.emptySubText}>
-        Hãy kiểm tra kết nối mạng và đảm bảo rằng server đang hoạt động
-      </Text>
-      <TouchableOpacity
-        style={styles.refreshButton}
-        onPress={onRefresh}
-        disabled={refreshing}>
-        {refreshing ? (
-          <ActivityIndicator size="small" color={color.primaryColor} />
-        ) : (
-          <View style={styles.refreshButtonContent}>
-            <ArrowRotateRight size={16} color={color.accentColor.whiteColor} />
-            <Text style={styles.refreshButtonText}>Làm mới</Text>
-          </View>
-        )}
-      </TouchableOpacity>
-      <View style={styles.connectionStatus}>
-        <Text style={styles.emptyNoteText}>
-          Nếu vấn đề vẫn tiếp diễn, hãy đăng xuất và đăng nhập lại.
-        </Text>
-        <TouchableOpacity
-          style={styles.logoutButton}
-          onPress={() => rootStore.logout()}>
-          <Text style={styles.logoutButtonText}>Đăng xuất</Text>
-        </TouchableOpacity>
-      </View>
+      <Ionicons name="search-outline" size={64} color="#ccc" />
+      <Text style={styles.emptyText}>Không tìm thấy sản phẩm phù hợp</Text>
     </View>
   );
 
@@ -715,9 +748,7 @@ const ProductScreen = observer(() => {
 
           if (variantId) {
             // Product with variant
-            const variant = product.detailsVariants.find(
-              v => v._id === variantId,
-            );
+            const variant = product.detailsVariants[Number(variantId)];
             if (!variant) return null;
 
             return {
@@ -726,7 +757,7 @@ const ProductScreen = observer(() => {
               price: variant.price,
               quantity,
               thumbnail: product.thumbnail,
-              variantId: variant._id,
+              variantId: variantId,
               variant: getVariantName(variant),
             };
           } else {
@@ -751,7 +782,11 @@ const ProductScreen = observer(() => {
 
   return (
     <BaseLayout style={styles.container}>
-      <Header title="Sản phẩm" />
+      {/* Header Title */}
+      <View style={styles.headerTitleWrapper}>
+        <Text style={styles.headerTitleText}>Sản phẩm</Text>
+      </View>
+
       {/* Search and Filter Bar */}
       <View style={styles.searchContainer}>
         <View style={styles.searchInputContainer}>
@@ -769,6 +804,19 @@ const ProductScreen = observer(() => {
           <Filter color={color.accentColor.whiteColor} size={24} />
         </TouchableOpacity>
       </View>
+
+      {/* Checkout Button Below Search/Filter */}
+      {totalCartItems > 0 && (
+        <View style={styles.checkoutButtonWrapperFixed}>
+          <TouchableOpacity style={styles.checkoutButtonFullFixed} onPress={handleCheckout}>
+            <ShoppingCart size={scaledSize(24)} color="#fff" variant="Bold" />
+            <Text style={styles.checkoutButtonTextFullFixed}>Thanh toán</Text>
+            <View style={styles.cartBadgeFullFixed}>
+              <Text style={styles.cartBadgeTextFullFixed}>{totalCartItems}</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Active Filters Display */}
       {(selectedFilter !== 'all' || selectedProvider !== 'all') && (
@@ -819,7 +867,7 @@ const ProductScreen = observer(() => {
         ) : (
           <>
             <FlatList
-              data={filteredProducts}
+              data={filteredProducts as any}
               renderItem={renderItem}
               keyExtractor={item => item._id}
               numColumns={4}
@@ -894,16 +942,9 @@ const ProductScreen = observer(() => {
                   <Text style={styles.filterSectionTitle}>Danh mục</Text>
                 </View>
                 <SelectDropdown
-                  options={
-                    categories.length > 1
-                      ? categories.map(cat => ({
-                          label: cat === 'all' ? 'Tất cả danh mục' : cat,
-                          value: cat,
-                        }))
-                      : [{label: 'Đang tải danh mục...', value: 'all'}]
-                  }
-                  selectedValue={selectedFilter}
-                  onSelect={setSelectedFilter}
+                  options={productCategories}
+                  selectedValue={selectedCategory}
+                  onSelect={setSelectedCategory}
                   placeholder="Chọn danh mục"
                 />
               </View>
@@ -915,17 +956,7 @@ const ProductScreen = observer(() => {
                   <Text style={styles.filterSectionTitle}>Nhà cung cấp</Text>
                 </View>
                 <SelectDropdown
-                  options={
-                    providers.length > 1
-                      ? providers.map(provider => ({
-                          label:
-                            provider === 'all'
-                              ? 'Tất cả nhà cung cấp'
-                              : provider,
-                          value: provider,
-                        }))
-                      : [{label: 'Đang tải nhà cung cấp...', value: 'all'}]
-                  }
+                  options={productProviders}
                   selectedValue={selectedProvider}
                   onSelect={setSelectedProvider}
                   placeholder="Chọn nhà cung cấp"
@@ -1011,7 +1042,7 @@ const ProductScreen = observer(() => {
                           {selectedProduct.detailsVariants.map(
                             (variant: any, index: number) => (
                               <View
-                                key={variant._id || index}
+                                key={index}
                                 style={styles.variantItem}>
                                 <Text style={styles.variantName}>
                                   {getVariantName(variant)}
@@ -1107,7 +1138,7 @@ const ProductScreen = observer(() => {
                     selectedProduct.detailsVariants.map(
                       (variant: any, index: number) => (
                         <TouchableOpacity
-                          key={variant._id || index}
+                          key={index}
                           style={[
                             styles.variantSelectItem,
                             selectedVariant === variant &&
@@ -1544,11 +1575,10 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.Inter_SemiBold,
   },
   addToCartButton: {
-    backgroundColor: color.primaryColor,
-    padding: moderateScale(16),
-    borderRadius: moderateScale(10),
-    marginTop: moderateScale(20),
-    alignItems: 'center',
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    padding: 4,
   },
   addToCartButtonText: {
     color: color.accentColor.whiteColor,
@@ -1602,15 +1632,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.Inter_SemiBold,
     color: color.primaryColor,
     marginBottom: moderateScale(2),
-  },
-  inventoryContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: moderateScale(4),
-  },
-  inventoryText: {
-    fontSize: moderateScale(14),
-    color: color.accentColor.grayColor,
   },
   variantText: {
     fontSize: moderateScale(14),
@@ -1781,7 +1802,7 @@ const styles = StyleSheet.create({
   },
   floatingCheckoutContainer: {
     width: '100%',
-    marginTop: moderateScale(20),
+    marginTop: moderateScale(28),
     marginBottom: moderateScale(30),
     paddingVertical: moderateScale(12),
     paddingHorizontal: moderateScale(16),
@@ -1959,5 +1980,88 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
     fontSize: 14,
+  },
+  productDetails: {
+    marginVertical: 8,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  detailText: {
+    fontSize: moderateScale(12),
+    color: '#666',
+    marginLeft: 4,
+  },
+  categoryText: {
+    fontSize: moderateScale(12),
+    color: color.accentColor.grayColor,
+    marginBottom: moderateScale(2),
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: moderateScale(16),
+    marginTop: moderateScale(10),
+    marginBottom: moderateScale(10),
+  },
+  checkoutButtonWrapperFixed: {
+    width: '100%',
+    alignItems: 'center',
+    marginTop: moderateScale(28),
+    marginBottom: moderateScale(10),
+    zIndex: 1,
+  },
+  checkoutButtonFullFixed: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: color.primaryColor,
+    borderRadius: moderateScale(20),
+    paddingVertical: moderateScale(8),
+    paddingHorizontal: moderateScale(20),
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    position: 'relative',
+  },
+  checkoutButtonTextFullFixed: {
+    color: color.accentColor.whiteColor,
+    fontSize: moderateScale(15),
+    fontFamily: Fonts.Inter_SemiBold,
+    marginLeft: moderateScale(8),
+    marginRight: moderateScale(8),
+  },
+  cartBadgeFullFixed: {
+    position: 'absolute',
+    top: -7,
+    right: -7,
+    backgroundColor: '#FF3B30',
+    width: moderateScale(18),
+    height: moderateScale(18),
+    borderRadius: moderateScale(9),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cartBadgeTextFullFixed: {
+    color: color.accentColor.whiteColor,
+    fontSize: moderateScale(10),
+    fontFamily: Fonts.Inter_Bold,
+  },
+  headerTitleWrapper: {
+    width: '100%',
+    alignItems: 'center',
+    marginTop: moderateScale(16),
+    marginBottom: moderateScale(8),
+  },
+  headerTitleText: {
+    fontSize: moderateScale(24),
+    fontFamily: Fonts.Inter_Bold,
+    color: color.accentColor.darkColor,
+    textAlign: 'center',
   },
 });

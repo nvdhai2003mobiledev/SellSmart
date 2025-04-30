@@ -1,5 +1,6 @@
 import { types, Instance } from 'mobx-state-tree';
 import { ProductStore } from './product'; // Import ProductStore đã định nghĩa
+import { fetchProducts } from '../../services/api/productAPI';
 
 // Định nghĩa RootStore chỉ chứa ProductStore
 export const RootStore = types.model({
@@ -28,7 +29,7 @@ export function khoiTaoStore() {
         error: '', // Thay null bằng chuỗi rỗng để khớp với types.optional(types.string, '')
       },
     });
-    console.log('=== RootStore đã được khởi tạo với ProductStore ===', JSON.stringify(store, null, 2));
+    console.log('=== RootStore đã được khởi tạo với ProductStore ===');
   }
   return store;
 }
@@ -39,4 +40,23 @@ export function layStore() {
     return khoiTaoStore();
   }
   return store;
+}
+
+// Hàm tải lại danh sách sản phẩm
+export async function taiLaiSanPham() {
+  try {
+    const currentStore = layStore();
+    if (!currentStore.productStore.isLoading) {
+      await currentStore.productStore.fetchProducts();
+      console.log('Đã tải lại danh sách sản phẩm');
+    }
+  } catch (error) {
+    console.error('Lỗi khi tải lại danh sách sản phẩm:', error);
+  }
+}
+
+// Hàm xóa store
+export function xoaStore() {
+  store = null;
+  console.log('=== Store đã được xóa ===');
 }

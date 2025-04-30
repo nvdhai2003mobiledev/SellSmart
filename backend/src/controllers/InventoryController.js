@@ -20,11 +20,11 @@ const importInventory = async (req, res) => {
 		}
 
 		// Validate batch info
-		if (!batchInfo.provider_id || !batchInfo.import_date) {
+		if (!batchInfo.batch_number || !batchInfo.import_date) {
 			console.error("Thông tin lô hàng không đầy đủ:", batchInfo);
 			return res.status(400).json({
 				status: 'Error',
-				message: 'Thông tin lô hàng không đầy đủ'
+				message: 'Thông tin lô hàng không đầy đủ: cần có số lô hàng và ngày nhập'
 			});
 		}
 
@@ -45,7 +45,7 @@ const importInventory = async (req, res) => {
 		const inventoryItems = [];
 
 		for (const product of products) {
-			if (!product.typeProduct_id || !product.product_name) {
+			if (!product.typeProduct_id || !product.product_name || !product.provider_id) {
 				console.warn("Bỏ qua sản phẩm thiếu thông tin:", product);
 				continue;
 			}
@@ -59,7 +59,7 @@ const importInventory = async (req, res) => {
 				product_name: product.product_name,
 				product_description: product.product_description || '',
 				typeProduct_id: product.typeProduct_id,
-				provider_id: batchInfo.provider_id,
+				provider_id: product.provider_id,
 				batch_number: batchInfo.batch_number,
 				batch_date: batchInfo.import_date,
 				unit: product.unit || 'cái',
@@ -69,35 +69,48 @@ const importInventory = async (req, res) => {
 				batch_info: [{
 					batch_number: batchInfo.batch_number,
 					batch_date: batchInfo.import_date,
-					quantity: product.quantity,
-					price: product.price,
+					quantity: product.quantity || 0,
+					price: product.price || 0,
 					note: product.note || ''
 				}]
 			};
 
-			if (product.hasVariants && Array.isArray(product.variants)) {
+			if (product.hasVariants && Array.isArray(product.variants) && product.variants.length > 0) {
 				console.log("Xử lý sản phẩm có biến thể:", {
 					product_name: product.product_name,
 					variants: product.variants
 				});
 
+				// Xử lý biến thể
 				const variantDetails = product.variants.map(variant => ({
-					attributes: new Map(Object.entries(variant.variants.reduce((acc, v) => {
-						acc[v.name] = v.value;
-						return acc;
-					}, {}))),
-					price: variant.price,
-					quantity: variant.quantity
+					attributes: new Map(Object.entries(
+						typeof variant.attributes === 'string' 
+							? variant.attributes.split(', ').reduce((acc, pair) => {
+								const [key, value] = pair.split(': ');
+								acc[key] = value;
+								return acc;
+							}, {})
+							: variant.attributes
+					)),
+					price: Number(variant.price) || 0,
+					quantity: Number(variant.quantity) || 0
 				}));
 
 				baseProduct.variantDetails = variantDetails;
-				baseProduct.total_quantity = product.quantity;
-				baseProduct.total_price = product.price * product.quantity;
+				
+				// Tính tổng số lượng và giá trung bình có trọng số
+				baseProduct.total_quantity = variantDetails.reduce((sum, v) => sum + v.quantity, 0);
+				const totalValue = variantDetails.reduce((sum, v) => sum + (v.price * v.quantity), 0);
+				baseProduct.total_price = totalValue / baseProduct.total_quantity;
+
 			} else {
 				baseProduct.variantDetails = [];
-				baseProduct.total_quantity = product.quantity;
-				baseProduct.total_price = product.price * product.quantity;
+				baseProduct.total_quantity = Number(product.quantity) || 0;
+				baseProduct.total_price = Number(product.price) || 0;
 			}
+
+			// Đảm bảo trạng thái dựa trên số lượng
+			baseProduct.status = baseProduct.total_quantity > 0 ? 'available' : 'unavailable';
 
 			inventoryItems.push(baseProduct);
 		}

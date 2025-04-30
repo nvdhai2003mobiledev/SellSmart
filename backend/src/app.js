@@ -15,7 +15,6 @@ const apiRoutes = require("./routes/api"); // Import API routes
 
 const customerRouter = require("../../backend/src/routes/customer");
 
-
 dotenv.config();
 connectDB();
 
@@ -75,12 +74,11 @@ routes(app);
 // Sử dụng API routes
 app.use("/customers", customerRouter);
 app.use("/public", require('./routes/public')); // Thêm dòng này
-
-
+app.use("/warranty-support", require('./routes/warrantyRoutes')); // Thêm route cho bảo hành
 
 // Middleware xử lý lỗi
 app.use((err, req, res, next) => {
-  console.error("🔥 Server Error:", err.stack);
+  console.error(" Server Error:", err.stack);
   
   // Kiểm tra nếu là API request
   if (req.path.includes('/api/')) {
@@ -104,24 +102,24 @@ let currentPortIndex = 0;
 function startServer(port) {
   const server = app.listen(port, '0.0.0.0')
     .on('listening', () => {
-      console.log(`🚀 Server is running on http://localhost:${port}`);
-      console.log(`🌐 Server is also accessible on your network at http://your-local-ip:${port}`);
+      console.log(` Server is running on http://localhost:${port}`);
+      console.log(` Server is also accessible on your network at http://your-local-ip:${port}`);
     })
     .on('error', (err) => {
       if (err.code === 'EADDRINUSE') {
-        console.log(`⚠️ Port ${port} is already in use.`);
+        console.log(` Port ${port} is already in use.`);
         
         // Try alternative ports
         if (currentPortIndex < alternativePorts.length) {
           const nextPort = alternativePorts[currentPortIndex++];
-          console.log(`⚠️ Trying alternative port ${nextPort}...`);
+          console.log(` Trying alternative port ${nextPort}...`);
           startServer(nextPort);
         } else {
-          console.error('❌ All ports are in use. Cannot start the server!');
+          console.error(' All ports are in use. Cannot start the server!');
           process.exit(1);
         }
       } else {
-        console.error('❌ Server error:', err);
+        console.error(' Server error:', err);
         process.exit(1);
       }
     });

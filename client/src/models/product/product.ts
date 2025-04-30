@@ -7,39 +7,11 @@ const VariantDetail = types.model({
   value: types.string,
 });
 
-// Product Variant model
-const ProductVariant = types.model({
-  variantDetails: types.array(VariantDetail),
-  price: types.number,
-  inventory: types.number,
-});
-
 // Details Variant model
 const DetailsVariant = types.model({
-  _id: types.identifier,
-  productId: types.string,
   variantDetails: types.array(VariantDetail),
   price: types.number,
   inventory: types.number,
-  compareAtPrice: types.maybeNull(types.number),
-  createdAt: types.maybe(types.string),
-  updatedAt: types.maybe(types.string),
-});
-
-// Provider model for nested provider data
-const Provider = types.model({
-  _id: types.identifier,
-  fullName: types.string,
-  phoneNumber: types.optional(types.string, ''),
-  email: types.optional(types.string, ''),
-  address: types.optional(types.string, ''),
-  status: types.optional(types.string, 'active'),
-});
-
-// Category model for nested category data
-const Category = types.model({
-  _id: types.identifier,
-  name: types.string,
 });
 
 // Product model
@@ -49,20 +21,27 @@ export const Product = types.model({
   thumbnail: types.maybeNull(types.string),
   category: types.union(
     types.string,
-    types.late(() => Category)
+    types.model({
+      _id: types.string,
+      name: types.string,
+    })
   ),
   providerId: types.union(
     types.string,
-    types.late(() => Provider)
+    types.model({
+      _id: types.string,
+      fullName: types.string,
+    })
   ),
   status: types.enumeration(['available', 'unavailable']),
-  hasVariants: types.optional(types.boolean, false),
+  hasVariants: types.boolean,
   price: types.maybeNull(types.number),
   inventory: types.maybeNull(types.number),
-  variants: types.array(ProductVariant),
+  inventoryId: types.string,
+  product_code: types.maybeNull(types.string),
   detailsVariants: types.array(DetailsVariant),
-  createdAt: types.maybe(types.string),
-  updatedAt: types.maybe(types.string),
+  createdAt: types.maybeNull(types.string),
+  updatedAt: types.maybeNull(types.string),
 });
 
 // Product Store
@@ -90,7 +69,7 @@ export const ProductStore = types
         if (product.price !== null) {
           return sum + product.price;
         }
-        const variantSum = product.variants.reduce((variantSum, variant) => {
+        const variantSum = product.detailsVariants.reduce((variantSum, variant) => {
           return variantSum + variant.price;
         }, 0);
         return sum + variantSum;
@@ -114,37 +93,15 @@ export const ProductStore = types
 
         try {
           console.log('Bắt đầu tải danh sách sản phẩm...');
-          const productsData: unknown = yield fetchProducts();
-
-          console.log('Received products data:', productsData);
+          const productsData = yield fetchProducts();
+          console.log('Dữ liệu trả về từ API:', productsData);
 
           if (Array.isArray(productsData)) {
-            const processedProducts = productsData.map(product => {
-              if (!product.variants) product.variants = [];
-              if (!product.detailsVariants) product.detailsVariants = [];
-              return product;
-            });
-            self.products = cast(processedProducts);
+            self.products = cast(productsData);
             calculateTotalPrice();
-            console.log('Products loaded successfully, count:', processedProducts.length);
-          } else if (productsData && typeof productsData === 'object' && 'data' in productsData) {
-            const products = (productsData as { data: unknown }).data;
-            if (Array.isArray(products)) {
-              // Process products to ensure they match our model
-              const processedProducts = products.map((product: any) => {
-                if (!product.variants) product.variants = [];
-                if (!product.detailsVariants) product.detailsVariants = [];
-                return product;
-              });
-              self.products = cast(processedProducts);
-              calculateTotalPrice();
-              console.log('Products extracted from object, count:', processedProducts.length);
-            } else {
-              console.error('Unexpected products data format:', productsData);
-              self.error = 'Unexpected data format received from server';
-            }
+            console.log('Products loaded successfully, count:', productsData.length);
           } else {
-            console.error('Invalid products data:', productsData);
+            console.error('Invalid products data format:', productsData);
             self.error = 'Invalid data received from server';
           }
         } catch (error: unknown) {

@@ -6,24 +6,36 @@ const User = require("../models/User");
 // Tạo tài liệu mới
 const createDocument = async (req, res) => {
   try {
-    const { product_id, user_id, title, description, media } = req.body;
+    const { product_id, title, description, media } = req.body;
 
-    if (!product_id || !user_id || !title || !description) {
+    if (!product_id || !title || !description) {
       req.flash("error_msg", "Dữ liệu tài liệu không hợp lệ");
       return res.redirect("/documents");
     }
 
-    if (
-      !mongoose.Types.ObjectId.isValid(product_id) ||
-      !mongoose.Types.ObjectId.isValid(user_id)
-    ) {
-      req.flash("error_msg", "ID sản phẩm hoặc người dùng không hợp lệ");
+    if (!mongoose.Types.ObjectId.isValid(product_id)) {
+      req.flash("error_msg", "ID sản phẩm không hợp lệ");
       return res.redirect("/documents");
+    }
+
+    // Assuming we have a default system admin or using the logged-in user
+    let user_id = req.user ? req.user._id : null;
+    
+    // If no user is available, find the first admin user to use as default
+    if (!user_id) {
+      try {
+        const adminUser = await User.findOne({ role: 'admin' }).sort({ createdAt: 1 });
+        if (adminUser) {
+          user_id = adminUser._id;
+        }
+      } catch (err) {
+        console.log('Could not find an admin user, document will be created without user_id');
+      }
     }
 
     const newDocument = new Document({
       product_id,
-      user_id,
+      user_id, // This will be null if no user found, which is fine since we made it optional
       title,
       description,
       media: media || "",
@@ -31,11 +43,11 @@ const createDocument = async (req, res) => {
     });
 
     await newDocument.save();
-    req.flash("success_msg", "Tài liệu đã được tạo thành công!");
+    req.flash("success_msg", "Tạo tài liệu mới thành công");
     res.redirect("/documents");
   } catch (error) {
-    console.error("Lỗi khi tạo tài liệu:", error);
-    req.flash("error_msg", "Lỗi khi tạo tài liệu: " + error.message);
+    console.error("Error creating document:", error);
+    req.flash("error_msg", "Không thể tạo tài liệu mới");
     res.redirect("/documents");
   }
 };
@@ -43,7 +55,7 @@ const createDocument = async (req, res) => {
 // Lấy tất cả tài liệu
 const getAllDocuments = async (req, res) => {
   try {
-    const documents = await Document.find().populate("product_id user_id");
+    const documents = await Document.find().populate("product_id");
     console.log("✅ Lấy danh sách tài liệu:", documents);
     res.render("dashboard/documents", {
       documents,
@@ -85,9 +97,7 @@ const createDocumentScreen = async (req, res) => {
 // Lấy tài liệu theo ID
 const getDocumentById = async (req, res) => {
   try {
-    const document = await Document.findById(req.params.id).populate(
-      "product_id user_id",
-    );
+    const document = await Document.findById(req.params.id).populate("product_id");
     if (!document)
       return res.status(404).json({ message: "Tài liệu không tồn tại" });
     res.json(document);
@@ -99,18 +109,15 @@ const getDocumentById = async (req, res) => {
 // Cập nhật tài liệu
 const updateDocument = async (req, res) => {
   try {
-    const { product_id, user_id, title, description, media } = req.body;
+    const { product_id, title, description, media } = req.body;
 
-    if (!product_id || !user_id || !title || !description) {
+    if (!product_id || !title || !description) {
       req.flash("error_msg", "Dữ liệu không đầy đủ");
       return res.redirect("/documents");
     }
 
-    if (
-      !mongoose.Types.ObjectId.isValid(product_id) ||
-      !mongoose.Types.ObjectId.isValid(user_id)
-    ) {
-      req.flash("error_msg", "ID sản phẩm hoặc người dùng không hợp lệ");
+    if (!mongoose.Types.ObjectId.isValid(product_id)) {
+      req.flash("error_msg", "ID sản phẩm không hợp lệ");
       return res.redirect("/documents");
     }
 
@@ -118,7 +125,6 @@ const updateDocument = async (req, res) => {
       req.params.id,
       {
         product_id,
-        user_id,
         title,
         description,
         media: media || "",

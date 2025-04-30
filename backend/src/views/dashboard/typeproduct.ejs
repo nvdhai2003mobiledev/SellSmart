@@ -17,9 +17,7 @@
             <thead class="table-primary">
                 <tr>
                     <th width="35%">Tên loại sản phẩm</th>
-                    <th width="15%" class="text-center">Số biến thể</th>
-                    <th width="20%" class="text-center">Ngày tạo</th>
-                    <th width="20%" class="text-center">Ngày cập nhật</th>
+                    <th width="15%" class="text-center">Số thuộc tính</th>
                     <th width="10%" class="text-center">Hành động</th>
                 </tr>
             </thead>
@@ -28,8 +26,6 @@
                     <tr id="type-row-<%= type._id %>">
                         <td><strong><%= type.name %></strong></td>
                         <td class="text-center"><span class="badge bg-info"><%= type.variants.length %></span></td>
-                        <td class="text-center"><%= new Date(type.createdAt).toLocaleString('vi-VN') %></td>
-                        <td class="text-center"><%= new Date(type.updatedAt).toLocaleString('vi-VN') %></td>
                         <td class="text-center">
                             <button class="btn btn-warning btn-sm" onclick="editType('<%= type._id %>', '<%= type.name %>')">
                                 <i class="fas fa-edit"></i>
