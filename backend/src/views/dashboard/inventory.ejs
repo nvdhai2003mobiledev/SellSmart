@@ -95,7 +95,7 @@
                     <th scope="col">Tên sản phẩm</th>
                     <th scope="col">Mã sản phẩm</th>
                     <th scope="col">Danh mục</th>
-                    <th scope="col">Nhà cung cấp</th>
+                    <!-- <th scope="col">Nhà cung cấp</th> -->
                     <th scope="col" class="text-center">Tổng tồn kho</th>
                     <th scope="col" class="text-end">Giá nhập</th>
                     <th scope="col" class="text-center">Trạng thái</th>
@@ -109,7 +109,7 @@
                         <td><%= item.product_name %></td>
                         <td><%= item.product_code %></td>
                         <td><%= item.typeProduct_id?.name || 'N/A' %></td>
-                        <td><%= item.provider_id?.fullName || 'N/A' %></td>
+                        <!-- <td><%= item.provider_id?.fullName || 'N/A' %></td> -->
                         <td class="text-center">
                             <span class="badge bg-info">
                                 <%= item.total_quantity %> <%= item.unit || 'cái' %>
@@ -172,9 +172,15 @@
                         <!-- Thông tin lô hàng -->
                         <div class="row mb-3">
                             <div class="col-md-6">
-                                <label class="form-label required">Số lô hàng</label>
-                                <input type="text" class="form-control" id="nextBatchNumber" required>
-                                <div class="invalid-feedback">Vui lòng nhập số lô hàng</div>
+                                <label class="form-label required">mã lô hàng</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="nextBatchNumber" required>
+                                    <button type="button" class="btn btn-primary" id="searchBatchBtn">
+                                        <i class="fas fa-search"></i> Tìm
+                                    </button>
+                                </div>
+                                <div class="form-text">Nhập mã lô hàng đã có và nhấn "Tìm" để tải dữ liệu</div>
+                                <div class="invalid-feedback">Vui lòng nhập mã lô hàng</div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label required">Ngày nhập</label>
@@ -203,6 +209,7 @@
                             <button type="submit" class="btn btn-primary">Lưu</button>
                         </div>
                     </form>
+                    <div id="batchValidationMessage"></div>
                 </div>
             </div>
         </div>
@@ -226,8 +233,9 @@
                             <div class="card-body">
                                 <div class="row">
                                     <div class="col-md-6">
-                                        <label class="form-label">Số lô hàng <span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" id="batchNumber" required>
+                                        <label class="form-label">mã lô hàng <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="batchNumber" readonly>
+                                        <small class="text-muted">Mã lô hàng sẽ được tạo tự động</small>
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label">Ngày nhập <span class="text-danger">*</span></label>
@@ -235,7 +243,16 @@
                                     </div>
                                 </div>
                                 <div class="row mt-3">
-                                    <div class="col-12">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Nhà cung cấp <span class="text-danger">*</span></label>
+                                        <select class="form-select batch-provider" id="batchProvider" required>
+                                            <option value="">Chọn nhà cung cấp</option>
+                                            <% providers.forEach(provider => { %>
+                                                <option value="<%= provider._id %>"><%= provider.fullName %></option>
+                                            <% }); %>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
                                         <label class="form-label">Ghi chú</label>
                                         <textarea class="form-control" id="batchNote" rows="2"></textarea>
                                     </div>
@@ -258,7 +275,7 @@
                                                     <label class="form-label">Tên sản phẩm <span class="text-danger">*</span></label>
                                                     <input type="text" class="form-control product-name" required>
                                                 </div>
-                                                <div class="col-md-6">
+                                                <div class="col-md-6" style="display: none;">
                                                     <label class="form-label">Mã sản phẩm</label>
                                                     <input type="text" class="form-control product-code" readonly>
                                                 </div>
@@ -274,22 +291,21 @@
                                                         <% }); %>
                                                     </select>
                                                 </div>
-                                                <div class="col-md-6">
-                                                    <label class="form-label">Nhà cung cấp <span class="text-danger">*</span></label>
-                                                    <select class="form-select product-provider" required>
-                                                        <option value="">Chọn nhà cung cấp</option>
-                                                        <% providers.forEach(provider => { %>
-                                                            <option value="<%= provider._id %>"><%= provider.fullName %></option>
-                                                        <% }); %>
-                                                    </select>
-                                                </div>
                                                 <div class="col-md-6 common-fields">
                                                     <label class="form-label">Số lượng <span class="text-danger">*</span></label>
                                                     <input type="number" class="form-control product-quantity" min="1" step="1" required>
                                                 </div>
                                                 <div class="col-md-6 common-fields">
-                                                    <label class="form-label">Giá <span class="text-danger">*</span></label>
-                                                    <input type="number" class="form-control product-price" min="0.01" step="0.01" required>
+                                                    <div class="row">
+                                                        <div class="col-md-7">
+                                                            <label class="form-label">Giá <span class="text-danger">*</span></label>
+                                                            <input type="number" class="form-control product-price" min="0.01" step="0.01" required>
+                                                        </div>
+                                                        <div class="col-md-5">
+                                                            <label class="form-label">Đơn vị</label>
+                                                            <input type="text" class="form-control product-unit" value="cái">
+                                                        </div>
+                                                    </div>
                                                 </div>
                                                 <div class="col-12">
                                                     <div class="form-check">
@@ -313,10 +329,6 @@
                                                             </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                                <div class="col-12">
-                                                    <label class="form-label">Đơn vị</label>
-                                                    <input type="text" class="form-control product-unit" value="cái">
                                                 </div>
                                                 <div class="col-12">
                                                     <label class="form-label">Mô tả sản phẩm</label>
@@ -373,7 +385,7 @@
                         </div>
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label class="form-label">Số lô hàng</label>
+                                <label class="form-label">mã lô hàng</label>
                                 <input type="text" class="form-control" id="editBatchNumber" required>
                             </div>
                             <div class="col-md-6 mb-3">
@@ -551,9 +563,11 @@
 
     <script>
         // Khởi tạo biến toàn cục
-        let productCounter = 0;
-        let selectedProduct = null;
-        let selectedVariant = null;
+        window.productCounter = 0;
+        window.selectedProduct = null;
+        window.selectedVariant = null;
+        window.batchValidated = false;
+        window.validatedBatchNumber = null;
 
         // Hàm làm tròn số với số chữ số thập phân xác định
         function roundNumber(num, decimals = 2) {
@@ -575,10 +589,33 @@
             $('#nextBatchForm').on('submit', function(e) {
                 e.preventDefault();
                 if (validateNextBatchForm()) {
+                    // Kiểm tra xem batch đã được tìm kiếm và xác nhận chưa
+                    const batchNumber = $('#nextBatchNumber').val()?.trim();
+                    if (!window.batchValidated || window.validatedBatchNumber !== batchNumber) {
+                        showToast('error', 'Vui lòng tìm kiếm và xác nhận lô hàng trước khi lưu');
+                        return;
+                    }
+                    
                     handleNextBatchSubmit(e);
                 } else {
                     showToast('error', 'Vui lòng điền đầy đủ thông tin bắt buộc');
                 }
+            });
+            
+            // Xử lý nút tìm kiếm lô hàng
+            $('#searchBatchBtn').on('click', function() {
+                const batchNumber = $('#nextBatchNumber').val()?.trim();
+                if (!batchNumber) {
+                    showToast('error', 'Vui lòng nhập mã lô hàng để tìm kiếm');
+                    $('#nextBatchNumber').focus();
+                    return;
+                }
+                
+                // Reset trạng thái xác thực batch
+                window.batchValidated = false;
+                window.validatedBatchNumber = null;
+                
+                searchExistingBatch(batchNumber);
             });
             
             // Xử lý nút xóa sản phẩm
@@ -614,66 +651,16 @@
             }
         }
 
-        // Hàm mở modal nhập lô hàng tiếp theo
-        function openNextBatchModal() {
-            // Reset form và biến đếm
-            $('#nextBatchForm')[0].reset();
-            $('#productEntries').empty();
-            productCounter = 0;
-            
-            // Thêm sản phẩm đầu tiên
-            addNewProductEntry();
-            
-            // Đặt ngày mặc định
-            $('#nextBatchDate').val(new Date().toISOString().split('T')[0]);
-            
-            // Tạo số lô hàng
-            generateAndSetBatchNumber();
-            
-            // Khởi tạo các toast
-            ['successToast', 'errorToast', 'infoToast'].forEach(toastId => {
-                const toastElement = document.getElementById(toastId);
-                if (toastElement && !toastElement._toast) {
-                    toastElement._toast = new bootstrap.Toast(toastElement);
-                }
-            });
-            
-            // Hiển thị modal
-            const modal = new bootstrap.Modal($('#nextBatchModal')[0]);
-            modal.show();
-        }
-
-        // Hàm mở modal nhập lô hàng mới
-        function openBatchImportModal() {
-            // Reset form
-            $('#batchImportForm')[0].reset();
-            
-            // Đặt ngày mặc định
-            $('#batchDate').val(new Date().toISOString().split('T')[0]);
-            
-            // Tạo số lô hàng
-            generateAndSetBatchNumber();
-            
-            // Xóa danh sách sản phẩm trừ sản phẩm đầu tiên
-            const $productsList = $('#productsList');
-            const $firstProduct = $productsList.children().first().clone();
-            $productsList.empty().append($firstProduct);
-            
-            // Hiển thị modal
-            const modal = new bootstrap.Modal($('#batchImportModal'));
-            modal.show();
-        }
-
         // Reset form nhập lô hàng tiếp theo
         function resetNextBatchForm() {
             if (document.getElementById('nextBatchForm')) {
                 document.getElementById('nextBatchForm').reset();
             }
-            selectedProduct = null;
-            selectedVariant = null;
+            window.selectedProduct = null;
+            window.selectedVariant = null;
             $('#productEntries').empty();
             $('.variant-info').empty();
-            productCounter = 0;
+            window.productCounter = 0;
             addNewProductEntry();
         }
 
@@ -822,7 +809,7 @@
                 const batchDate = $('#nextBatchDate').val()?.trim();
 
                 if (!batchNumber) {
-                    showToast('error', 'Vui lòng nhập số lô hàng');
+                    showToast('error', 'Vui lòng nhập mã lô hàng');
                     $('#nextBatchNumber').focus();
                     return;
                 }
@@ -1040,17 +1027,25 @@
 
         // Hàm thêm sản phẩm mới
         function addNewProductEntry() {
-            const html = createProductEntryHtml(productCounter);
+            const html = createProductEntryHtml(window.productCounter);
             $('#productEntries').append(html);
             loadPreviousProducts();
-            productCounter++;
+            window.productCounter++;
         }
 
-        // Hàm tạo số lô hàng mới
+        // Hàm tạo mã lô hàng mới
         function generateAndSetBatchNumber() {
             const today = new Date();
             const batchNumber = `LH${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
             $('#nextBatchNumber, #batchNumber').val(batchNumber);
+        }
+
+        // Hàm tạo mã lô hàng ngẫu nhiên
+        function generateRandomBatchNumber() {
+            const timestamp = new Date().getTime().toString().slice(-6);
+            const randomPart = Math.floor(1000 + Math.random() * 9000); // Random 4-digit number
+            const batchNumber = `BH-${timestamp}-${randomPart}`;
+            $('#batchNumber').val(batchNumber);
         }
 
         // Hàm hiển thị thông báo
@@ -1088,7 +1083,7 @@
                                     <p><strong>Tổng số lượng:</strong> ${product.total_quantity}</p>
                                     <p><strong>Giá nhập:</strong> ${product.total_price.toLocaleString('vi-VN')} đ</p>
                                     <p><strong>Trạng thái:</strong> ${product.status === 'available' ? 'Còn hàng' : 'Hết hàng'}</p>
-                                    <p><strong>Số lô hàng:</strong> ${product.batch_number}</p>
+                                    <p><strong>mã lô hàng:</strong> ${product.batch_number}</p>
                                     <p><strong>Ngày nhập:</strong> ${new Date(product.batch_date).toLocaleDateString('vi-VN')}</p>
                                 </div>
                             </div>
@@ -1186,26 +1181,85 @@
         // Thêm sản phẩm mới vào danh sách
         $('#addProductBtn').click(function() {
             const $productsList = $('#productsList');
-            const $newProduct = $productsList.children().first().clone();
+            const productCounter = $productsList.find('.product-item').length + 1;
             
-            $newProduct.find('input:not([readonly])').val('');
-            $newProduct.find('select').val('');
-            $newProduct.find('textarea').val('');
-            $newProduct.find('.product-unit').val('cái');
-            $newProduct.find('.variants-section').addClass('d-none');
-            $newProduct.find('.variants-list').empty();
-            
-            const newId = Date.now();
-            $newProduct.find('.has-variants')
-                .attr('id', `productHasVariants-${newId}`)
-                .prop('checked', false);
-            $newProduct.find('.form-check-label')
-                .attr('for', `productHasVariants-${newId}`);
-            
-            if ($productsList.children().length > 0) {
-                const $removeBtn = $('<button type="button" class="btn btn-danger btn-sm remove-product mt-2"><i class="fas fa-trash"></i> Xóa sản phẩm</button>');
-                $newProduct.find('.card-body').append($removeBtn);
-            }
+            const $newProduct = `
+                <div class="product-item card mb-3">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">Sản phẩm #${productCounter}</h6>
+                        <button type="button" class="btn btn-sm btn-outline-danger remove-product">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Tên sản phẩm <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control product-name" required>
+                            </div>
+                            <div class="col-md-6" style="display: none;">
+                                <label class="form-label">Mã sản phẩm</label>
+                                <input type="text" class="form-control product-code" readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Danh mục <span class="text-danger">*</span></label>
+                                <select class="form-select product-category" required>
+                                    <option value="">Chọn danh mục</option>
+                                    <% typeProducts.forEach(type => { %>
+                                        <option value="<%= type._id %>" 
+                                            data-variants='<%= JSON.stringify(type.variants) %>'>
+                                            <%= type.name %>
+                                        </option>
+                                    <% }); %>
+                                </select>
+                            </div>
+                            <div class="col-md-6 common-fields">
+                                <label class="form-label">Số lượng <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control product-quantity" min="1" step="1" required>
+                            </div>
+                            <div class="col-md-6 common-fields">
+                                <div class="row">
+                                    <div class="col-md-7">
+                                        <label class="form-label">Giá <span class="text-danger">*</span></label>
+                                        <input type="number" class="form-control product-price" min="0.01" step="0.01" required>
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label class="form-label">Đơn vị</label>
+                                        <input type="text" class="form-control product-unit" value="cái">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input has-variants" id="productHasVariants-${productCounter}">
+                                    <label class="form-check-label" for="productHasVariants-${productCounter}">
+                                        Sản phẩm có biến thể
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-12 variants-section d-none">
+                                <div class="card">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0">Biến thể sản phẩm</h6>
+                                        <button type="button" class="btn btn-primary select-variant">
+                                            <i class="fas fa-plus"></i> Chọn thuộc tính
+                                        </button>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="variants-list">
+                                            <!-- Variants will be added here -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Mô tả sản phẩm</label>
+                                <textarea class="form-control product-description" rows="2"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
             
             $productsList.append($newProduct);
         });
@@ -1270,8 +1324,7 @@
                                         <input type="number" class="form-control variant-price" min="0.01" required>
                                     </div>
                                     <div class="col-md-2">
-                                        <label class="form-label"> </label>
-                                        <button type="button" class="btn btn-danger btn-sm d-block w-100 remove-variant">
+                                        <button type="button" class="btn btn-danger remove-variant">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </div>
@@ -1320,16 +1373,23 @@
         $('#saveBatchBtn').click(function() {
             const batchNumber = $('#batchNumber').val()?.trim();
             const batchDate = $('#batchDate').val()?.trim();
+            const batchProvider = $('#batchProvider').val();
             
             if (!batchNumber) {
-                showToast('error', 'Vui lòng nhập số lô hàng');
-                $('#batchNumber').focus();
+                showToast('error', 'Lỗi: Mã lô hàng không được tạo');
+                generateRandomBatchNumber(); // Try to regenerate
                 return;
             }
             
             if (!batchDate) {
                 showToast('error', 'Vui lòng chọn ngày nhập');
                 $('#batchDate').focus();
+                return;
+            }
+
+            if (!batchProvider) {
+                showToast('error', 'Vui lòng chọn nhà cung cấp');
+                $('#batchProvider').focus();
                 return;
             }
 
@@ -1343,7 +1403,6 @@
                 
                 const productName = $item.find('.product-name').val()?.trim();
                 const typeProductId = $item.find('.product-category').val();
-                const providerId = $item.find('.product-provider').val();
                 
                 if (!productName) {
                     errorMessage = `Vui lòng nhập tên sản phẩm tại dòng ${index + 1}`;
@@ -1358,20 +1417,13 @@
                     $item.find('.product-category').focus();
                     return false;
                 }
-                
-                if (!providerId) {
-                    errorMessage = `Vui lòng chọn nhà cung cấp cho sản phẩm "${productName}"`;
-                    hasError = true;
-                    $item.find('.product-provider').focus();
-                    return false;
-                }
 
                 const baseProduct = {
                     product_name: productName,
                     product_code: $item.find('.product-code').val(),
                     product_description: $item.find('.product-description').val()?.trim(),
                     typeProduct_id: typeProductId,
-                    provider_id: providerId,
+                    provider_id: batchProvider,
                     unit: $item.find('.product-unit').val()?.trim() || 'cái',
                     hasVariants: hasVariants
                 };
@@ -1609,6 +1661,206 @@
             $('#inventoryTable tbody tr:visible').each(function() {
                 $(this).find('td:first-child').text(visibleIndex++);
             });
+        }
+    </script>
+
+    <script>
+        // Hàm tìm kiếm lô hàng đã tồn tại
+        function searchExistingBatch(batchNumber) {
+            showToast('info', 'Đang tìm kiếm lô hàng...');
+            
+            $.ajax({
+                url: `/inventory/batch/${batchNumber}`,
+                method: 'GET',
+                success: function(response) {
+                    if (response.status === 'Ok' && response.batch) {
+                        loadBatchData(response.batch);
+                        showToast('success', 'Đã tìm thấy lô hàng');
+                        
+                        // Đánh dấu batch đã được xác nhận
+                        window.batchValidated = true;
+                        window.validatedBatchNumber = batchNumber;
+                        
+                        // Hiển thị thông báo xác nhận
+                        $('#batchValidationMessage').html(`
+                            <div class="alert alert-success mt-2">
+                                <i class="fas fa-check-circle me-2"></i>Đã xác nhận lô hàng ${batchNumber}
+                            </div>
+                        `).show();
+                    } else {
+                        showToast('error', response.message || 'Không tìm thấy lô hàng này');
+                        $('#batchValidationMessage').html(`
+                            <div class="alert alert-danger mt-2">
+                                <i class="fas fa-exclamation-circle me-2"></i>Lô hàng không tồn tại
+                            </div>
+                        `).show();
+                    }
+                },
+                error: function(xhr) {
+                    showToast('error', `Lỗi khi tìm kiếm lô hàng: ${xhr.responseJSON?.message || 'Vui lòng thử lại'}`);
+                    $('#batchValidationMessage').html(`
+                        <div class="alert alert-danger mt-2">
+                            <i class="fas fa-exclamation-circle me-2"></i>Lỗi khi tìm kiếm lô hàng
+                        </div>
+                    `).show();
+                }
+            });
+        }
+        
+        // Hàm nạp dữ liệu lô hàng
+        function loadBatchData(batchData) {
+            // Reset form
+            resetNextBatchForm();
+            
+            // Nạp dữ liệu cơ bản của lô hàng
+            $('#nextBatchNumber').val(batchData.batch_number);
+            $('#nextBatchDate').val(batchData.import_date ? new Date(batchData.import_date).toISOString().split('T')[0] : '');
+            $('#nextBatchNote').val(batchData.note || '');
+            
+            // Xóa các sản phẩm hiện tại
+            $('#productEntries').empty();
+            window.productCounter = 0;
+            
+            // Nếu lô hàng này có sản phẩm, thêm chúng vào
+            if (batchData.products && Array.isArray(batchData.products) && batchData.products.length > 0) {
+                // Tải danh sách sản phẩm trước
+                $.ajax({
+                    url: '/inventory/products-for-batch',
+                    method: 'GET',
+                    success: function(productsResponse) {
+                        if (productsResponse.status === 'Ok') {
+                            // Hàm để tìm sản phẩm theo ID
+                            const findProductById = (productId) => {
+                                return productsResponse.data.find(product => product._id === productId);
+                            };
+                            
+                            // Thêm các sản phẩm trong lô hàng
+                            batchData.products.forEach((productData, index) => {
+                                // Tạo mục sản phẩm mới
+                                const productHtml = createProductEntryHtml(window.productCounter);
+                                $('#productEntries').append(productHtml);
+                                
+                                const $productEntry = $('.product-entry').last();
+                                const $productSelect = $productEntry.find('.previous-product');
+                                
+                                // Tạo options cho select - lựa chọn sản phẩm phải sau khi dữ liệu có
+                                $productSelect.html('<option value="">Chọn sản phẩm</option>');
+                                productsResponse.data.forEach(product => {
+                                    const priceDisplay = product.hasVariants && product.variantDetails?.length > 0
+                                        ? product.variantDetails.reduce((sum, v) => sum + (v.price * v.quantity), 0) / product.total_quantity
+                                        : product.total_price;
+                                    $productSelect.append(`<option value="${product._id}" 
+                                        data-has-variants="${product.hasVariants}"
+                                        data-total-price="${priceDisplay || 0}"
+                                        data-variants='${JSON.stringify(product.variantDetails || [])}'
+                                    >${product.product_name} (${product.product_code})</option>`);
+                                });
+                                
+                                // Đặt giá trị đã chọn
+                                $productSelect.val(productData.product_id);
+                                
+                                // Đợi một chút để đảm bảo DOM đã cập nhật
+                                setTimeout(() => {
+                                    // Kích hoạt thay đổi để hiển thị thông tin sản phẩm
+                                    $productSelect.trigger('change');
+                                    
+                                    // Đặt số lượng và giá
+                                    $productEntry.find('.next-quantity').val(productData.quantity || 0);
+                                    $productEntry.find('.next-price').val(productData.price || 0);
+                                    
+                                    // Xử lý biến thể nếu có
+                                    if (productData.variantData && productData.variantData.hasOwnProperty('index')) {
+                                        // Tìm sản phẩm để lấy danh sách biến thể
+                                        const product = findProductById(productData.product_id);
+                                        if (product && product.hasVariants) {
+                                            // Hiển thị phần biến thể
+                                            const $variantSection = $productEntry.find('.variant-selection-section');
+                                            const $variantSelect = $productEntry.find('.variant-select');
+                                            
+                                            $variantSection.show();
+                                            
+                                            // Điền các tùy chọn biến thể
+                                            if (product.variantDetails && Array.isArray(product.variantDetails)) {
+                                                $variantSelect.empty().append('<option value="">Chọn phiên bản</option>');
+                                                product.variantDetails.forEach((variant, idx) => {
+                                                    const variantText = Object.entries(variant.attributes || {})
+                                                        .map(([key, value]) => `${key}: ${value}`)
+                                                        .join(', ');
+                                                    $variantSelect.append(`<option value="${idx}">${variantText}</option>`);
+                                                });
+                                                
+                                                // Đặt biến thể đã chọn
+                                                $variantSelect.val(productData.variantData.index);
+                                                $variantSelect.trigger('change');
+                                            }
+                                        }
+                                    }
+                                }, 100);
+                                
+                                window.productCounter++;
+                            });
+                        } else {
+                            showToast('error', 'Không thể tải danh sách sản phẩm');
+                        }
+                    },
+                    error: function() {
+                        showToast('error', 'Lỗi khi tải danh sách sản phẩm');
+                    }
+                });
+            } else {
+                // Nếu không có sản phẩm, thêm một mục sản phẩm trống
+                addNewProductEntry();
+            }
+        }
+
+        // Hàm mở modal nhập lô hàng tiếp theo
+        function openNextBatchModal() {
+            // Reset form và biến đếm
+            $('#nextBatchForm')[0].reset();
+            $('#productEntries').empty();
+            window.productCounter = 0;
+            
+            // Thêm sản phẩm đầu tiên
+            addNewProductEntry();
+            
+            // Đặt ngày mặc định
+            $('#nextBatchDate').val(new Date().toISOString().split('T')[0]);
+            
+            // Tạo mã lô hàng
+            generateAndSetBatchNumber();
+            
+            // Khởi tạo các toast
+            ['successToast', 'errorToast', 'infoToast'].forEach(toastId => {
+                const toastElement = document.getElementById(toastId);
+                if (toastElement && !toastElement._toast) {
+                    toastElement._toast = new bootstrap.Toast(toastElement);
+                }
+            });
+            
+            // Hiển thị modal
+            const modal = new bootstrap.Modal($('#nextBatchModal')[0]);
+            modal.show();
+        }
+
+        // Hàm mở modal nhập lô hàng mới
+        function openBatchImportModal() {
+            // Reset form
+            $('#batchImportForm')[0].reset();
+            
+            // Đặt ngày mặc định
+            $('#batchDate').val(new Date().toISOString().split('T')[0]);
+            
+            // Tạo mã lô hàng
+            generateRandomBatchNumber();
+            
+            // Xóa danh sách sản phẩm trừ sản phẩm đầu tiên
+            const $productsList = $('#productsList');
+            const $firstProduct = $productsList.children().first().clone();
+            $productsList.empty().append($firstProduct);
+            
+            // Hiển thị modal
+            const modal = new bootstrap.Modal($('#batchImportModal'));
+            modal.show();
         }
     </script>
 
