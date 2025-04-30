@@ -7,11 +7,24 @@ const VariantDetail = types.model({
   value: types.string,
 });
 
+// Attributes model for variant attributes
+const VariantAttributes = types.model({
+  // Sử dụng types.map để hỗ trợ các thuộc tính động như "Loại Máy", "Chất Liệu", v.v.
+  attributes: types.optional(
+    types.map(types.string), // Map với key là string và value là string
+    {}
+  ),
+});
+
 // Details Variant model
 const DetailsVariant = types.model({
-  variantDetails: types.array(VariantDetail),
+  // Hỗ trợ cả hai cấu trúc dữ liệu
+  variantDetails: types.optional(types.array(VariantDetail), []),
+  attributes: types.maybeNull(types.map(types.string)),
   price: types.number,
   inventory: types.number,
+  original_price: types.optional(types.number, 0),
+  _id: types.optional(types.string, ""),
 });
 
 // Product model
