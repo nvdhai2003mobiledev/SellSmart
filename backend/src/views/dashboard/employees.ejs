@@ -47,7 +47,6 @@
                     <tr class="text-center">
                         <th scope="col">STT</th>
                         <th scope="col">Mã NV</th>
-                        <th scope="col">Ảnh</th>
                         <th scope="col">Thông tin</th>
                         <th scope="col">Chức vụ</th>
                         <th scope="col">Ngày vào làm</th>
@@ -61,15 +60,6 @@
                             <tr class="text-center">
                                 <td><%= index + 1 %></td>
                                 <td><span class="fw-medium"><%= employee.employeeId %></span></td>
-                                <td>
-                                    <% if (employee.userId && employee.userId.avatar) { %>
-                                        <img src="<%= employee.userId.avatar %>" alt="Avatar" class="avatar-sm rounded-circle">
-                                    <% } else { %>
-                                        <div class="avatar-sm bg-light d-flex align-items-center justify-content-center rounded-circle mx-auto">
-                                            <i class="fas fa-user text-secondary"></i>
-                                        </div>
-                                    <% } %>
-                                </td>
                                 <td>
                                     <div class="d-flex align-items-center justify-content-center">
                                         <div>
@@ -110,7 +100,7 @@
                         <% }); %>
                     <% } else { %>
                         <tr>
-                            <td colspan="8" class="text-center py-4">
+                            <td colspan="7" class="text-center py-4">
                                 <div class="alert alert-info mb-0">
                                     <i class="fas fa-info-circle me-2"></i>Chưa có dữ liệu nhân viên
                                 </div>
