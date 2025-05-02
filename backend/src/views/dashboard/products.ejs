@@ -99,11 +99,11 @@
                             <th class="py-3 px-4 text-uppercase text-muted small fw-semibold text-center">Tồn kho</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="productTableBody">
                         <% if (products && products.length > 0) { %>
                             <% products.forEach(product => { %>
                                 <% if (product._id) { %>
-                                    <tr id="product-row-<%= product._id %>" class="product-row" onclick="showProductDetails('<%= product._id %>')">
+                                    <tr id="product-row-<%= product._id %>" class="product-row" data-id="<%= product._id %>" onclick="showProductDetails('<%= product._id %>')">
                                         <td class="py-3 px-4">
                                             <div class="d-flex align-items-center">
                                                 <div class="product-image me-3">
@@ -339,8 +339,10 @@
                                 <i class="fas fa-chevron-left"></i>
                             </a>
                         </li>
-                        <li class="page-item">
-                            <span class="page-link" id="currentPage">1</span>
+                        <li class="page-item disabled">
+                            <span class="page-link">
+                                <span id="currentPage">1</span> / <span id="totalPages">1</span>
+                            </span>
                         </li>
                         <li class="page-item" id="nextPage">
                             <a class="page-link" href="#" aria-label="Next">
@@ -680,7 +682,8 @@
     let currentPageIndex = 1;
     let itemsPerPage = 10;
     let filteredProducts = [];
-
+    let allProducts = [];
+    
     // Tải danh sách dữ liệu cho select
     function loadData(url, selectElementId, fieldName, errorMessage) {
         $.get(url, function(response) {
@@ -750,6 +753,18 @@
     }
 
     $(document).ready(function() {
+        // Initialize products array
+        const tableRows = document.querySelectorAll('#productTableBody tr.product-row');
+        allProducts = Array.from(tableRows);
+        filteredProducts = [...allProducts];
+        
+        // Set initial total count
+        document.getElementById('totalItems').textContent = allProducts.length;
+        
+        // Initialize pagination
+        initializePagination();
+        
+        // Load other data
         loadData('/providers/json', '#providerId', 'fullName', 'nhà cung cấp');
         loadData('/providers/json', '#editProviderId', 'fullName', 'nhà cung cấp');
         loadData('/typeproduct/json', '#category', 'name', 'danh mục');
@@ -1355,146 +1370,113 @@
         }
     });
 
-    // Hàm cập nhật danh sách sản phẩm hiển thị
-    function updateProductDisplay() {
-        // Lấy tất cả các hàng sản phẩm
-        const rows = $('tbody tr');
-        filteredProducts = [];
+    // Initialize pagination controls
+    function initializePagination() {
+        // Handle items per page change
+        document.getElementById('itemsPerPage').addEventListener('change', function() {
+            itemsPerPage = parseInt(this.value);
+            currentPageIndex = 1; // Reset to first page
+            updateProductDisplay();
+        });
         
-        // Lọc các sản phẩm dựa trên bộ lọc hiện tại
-        rows.each(function() {
-            const row = $(this);
-            const isVisible = row.css('display') !== 'none';
-            if (isVisible) {
-                filteredProducts.push(row);
+        // Handle previous page click
+        document.getElementById('prevPage').addEventListener('click', function(e) {
+            e.preventDefault();
+            if (currentPageIndex > 1) {
+                currentPageIndex--;
+                updateProductDisplay();
             }
         });
+        
+        // Handle next page click
+        document.getElementById('nextPage').addEventListener('click', function(e) {
+            e.preventDefault();
+            const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+            if (currentPageIndex < totalPages) {
+                currentPageIndex++;
+                updateProductDisplay();
+            }
+        });
+    }
+    
+    // Update pagination after filtering
+    function updatePaginationAfterFiltering() {
+        // Update filtered products array based on visibility
+        filteredProducts = Array.from(document.querySelectorAll('#productTableBody tr.product-row'))
+            .filter(row => {
+                // Check if row matches current filters
+                const categoryVal = $('#filterCategory').val();
+                const providerVal = $('#filterProvider').val();
+                const nameVal = $('#filterName').val().toLowerCase();
+                
+                const categoryMatch = !categoryVal || $(row).data('category-id') === categoryVal;
+                const providerMatch = !providerVal || $(row).data('provider-id') === providerVal;
+                const nameMatch = !nameVal || $(row).find('td:nth-child(2)').text().toLowerCase().includes(nameVal);
+                
+                const hiddenMatch = $('#showHiddenProducts').is(':checked') ? true : !$(row).hasClass('hidden-product');
+                
+                const isVisible = categoryMatch && providerMatch && nameMatch && hiddenMatch;
+                
+                // Update class based on visibility
+                if (isVisible) {
+                    $(row).removeClass('filtered-out');
+                } else {
+                    $(row).addClass('filtered-out');
+                }
+                
+                return isVisible;
+            });
+        
+        // Reset to first page when filter changes
+        currentPageIndex = 1;
+        
+        // Update the display
+        updateProductDisplay();
+    }
+    
+    // Function to update product display based on pagination
+    function updateProductDisplay() {
+        // Get all product rows
+        const rows = document.querySelectorAll('#productTableBody tr.product-row');
+        
+        // Hide all rows first
+        rows.forEach(row => {
+            row.style.display = 'none';
+        });
 
-        // Cập nhật tổng số sản phẩm
-        $('#totalItems').text(filteredProducts.length);
-
-        // Tính toán số trang
+        // Calculate pagination values
         const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
-        
-        // Ẩn tất cả các hàng
-        rows.hide();
-        
-        // Hiển thị các hàng của trang hiện tại
         const start = (currentPageIndex - 1) * itemsPerPage;
         const end = Math.min(start + itemsPerPage, filteredProducts.length);
         
+        // Show only the rows for the current page
         for (let i = start; i < end; i++) {
-            $(filteredProducts[i]).show();
-        }
-
-        // Cập nhật trạng thái nút phân trang
-        $('#prevPage').toggleClass('disabled', currentPageIndex === 1);
-        $('#nextPage').toggleClass('disabled', currentPageIndex === totalPages || totalPages === 0);
-        $('#currentPage').text(currentPageIndex);
-    }
-
-    // Xử lý sự kiện thay đổi số sản phẩm trên trang
-    $('#itemsPerPage').change(function() {
-        itemsPerPage = parseInt($(this).val());
-        currentPageIndex = 1;
-        updateProductDisplay();
-    });
-
-    // Xử lý sự kiện chuyển trang
-    $('#prevPage').click(function(e) {
-        e.preventDefault();
-        if (currentPageIndex > 1) {
-            currentPageIndex--;
-            updateProductDisplay();
-        }
-    });
-
-    $('#nextPage').click(function(e) {
-        e.preventDefault();
-        const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
-        if (currentPageIndex < totalPages) {
-            currentPageIndex++;
-            updateProductDisplay();
-        }
-    });
-
-    // Cập nhật hàm applyFilter để tích hợp với phân trang
-    $('#applyFilter').click(function () {
-        const providerId = $('#providerFilter').val();
-        const categoryId = $('#categoryFilter').val();
-        const status = $('#statusFilter').val();
-        const search = $('#searchInput').val().toLowerCase();
-
-        $('tbody tr').each(function () {
-            const row = $(this);
-            const rowProviderId = row.find('td:eq(6)').attr('data-provider-id');
-            const rowCategoryId = row.find('td:eq(2)').attr('data-category-id');
-            const rowStatus = row.find('td:eq(3)').text().trim().toLowerCase();
-            const rowName = row.find('td:eq(0)').text().trim().toLowerCase();
-
-            const providerMatch = !providerId || rowProviderId === providerId;
-            const categoryMatch = !categoryId || rowCategoryId === categoryId;
-            const statusMatch = !status || 
-                (status === 'available' && rowStatus.includes('có sẵn')) ||
-                (status === 'unavailable' && rowStatus.includes('hết hàng'));
-            const searchMatch = !search || rowName.includes(search);
-
-            if (providerMatch && categoryMatch && statusMatch && searchMatch) {
-                row.show();
-            } else {
-                row.hide();
+            if (filteredProducts[i]) {
+                filteredProducts[i].style.display = '';
             }
-        });
-
-        // Reset về trang đầu tiên sau khi lọc
-        currentPageIndex = 1;
-        updateProductDisplay();
-    });
-
-    // Cập nhật hàm resetFilter để tích hợp với phân trang
-    $('#resetFilter').click(function () {
-        $('#providerFilter').val('');
-        $('#categoryFilter').val('');
-        $('#statusFilter').val('');
-        $('#searchInput').val('');
-        $('tbody tr').show();
-        currentPageIndex = 1;
-        updateProductDisplay();
-    });
-
-    // Cập nhật khi tìm kiếm
-    $('#searchInput').on('input', function() {
-        $('#applyFilter').click();
-    });
-
-    // Cập nhật khi thay đổi bộ lọc
-    $('#providerFilter, #categoryFilter, #statusFilter').change(function() {
-        $('#applyFilter').click();
-    });
-
-    // Toggle hiển thị sản phẩm không có giá/tồn kho
-    $('#showHiddenProducts, #showHiddenProductsInline').change(function() {
-        const showHidden = $(this).is(':checked');
+        }
         
-        // Đồng bộ hóa trạng thái của cả hai checkbox
-        $('#showHiddenProducts, #showHiddenProductsInline').prop('checked', showHidden);
-        
-        // Hiển thị hoặc ẩn các sản phẩm không có giá/tồn kho
-        $('.hidden-product').toggle(showHidden);
-        
-        // Ẩn thông báo "Không có sản phẩm nào có giá và tồn kho" nếu hiển thị sản phẩm ẩn
-        if (showHidden) {
-            $('#no-visible-products-row').hide();
+        // Check if no products are visible
+        if ($('.product-row:visible').length === 0) {
+            $('#no-products-row').show();
         } else {
-            // Kiểm tra nếu không có sản phẩm có giá và tồn kho thì hiển thị thông báo
-            if ($('.product-row:not(.hidden-product)').length === 0) {
-                $('#no-visible-products-row').show();
-            }
+            $('#no-products-row').hide();
         }
+        
+        // Update pagination UI
+        $('#currentPage').text(currentPageIndex);
+        $('#totalPages').text(totalPages);
+        
+        // Enable/disable pagination buttons
+        $('#prevPage').toggleClass('disabled', currentPageIndex <= 1);
+        $('#nextPage').toggleClass('disabled', currentPageIndex >= totalPages);
+        
+        // Update total count
+        $('#totalItems').text(filteredProducts.length);
         
         // Cập nhật số lượng sản phẩm hiển thị
         updateProductCount();
-    });
+    }
     
     // Hàm cập nhật số lượng sản phẩm hiển thị
     function updateProductCount() {
