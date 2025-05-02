@@ -43,14 +43,6 @@
                     <label for="searchDescription" class="form-label">Mô tả</label>
                     <input type="text" id="searchDescription" class="form-control" placeholder="Nhập mô tả...">
                 </div>
-                <div class="col-md-4">
-                    <label for="searchFromDate" class="form-label">Từ ngày</label>
-                    <input type="date" id="searchFromDate" class="form-control">
-                </div>
-                <div class="col-md-4">
-                    <label for="searchToDate" class="form-label">Đến ngày</label>
-                    <input type="date" id="searchToDate" class="form-control">
-                </div>
                 <div class="col-12 d-flex justify-content-end">
                     <button type="button" class="btn btn-outline-secondary me-2" onclick="resetSearch()">
                         <i class="fas fa-redo me-1"></i>Đặt lại
@@ -370,30 +362,13 @@
         const title = document.getElementById('searchTitle').value.trim().toLowerCase();
         const description = document.getElementById('searchDescription').value.trim().toLowerCase();
         const productId = document.getElementById('searchProduct').value;
-        const fromDate = document.getElementById('searchFromDate').value;
-        const toDate = document.getElementById('searchToDate').value;
-        
-        const fromDateObj = fromDate ? new Date(fromDate) : null;
-        const toDateObj = toDate ? new Date(toDate) : null;
-        if (toDateObj) {
-            toDateObj.setHours(23, 59, 59, 999);
-        }
         
         filteredDocuments = allDocuments.filter(doc => {
             let matchTitle = !title || doc.title.toLowerCase().includes(title);
             let matchDescription = !description || doc.description.toLowerCase().includes(description);
             let matchProduct = !productId || doc.product_id === productId;
-            let matchDate = true;
             
-            if (fromDateObj && toDateObj) {
-                matchDate = doc.date >= fromDateObj && doc.date <= toDateObj;
-            } else if (fromDateObj) {
-                matchDate = doc.date >= fromDateObj;
-            } else if (toDateObj) {
-                matchDate = doc.date <= toDateObj;
-            }
-            
-            return matchTitle && matchDescription && matchProduct && matchDate;
+            return matchTitle && matchDescription && matchProduct;
         });
         
         document.getElementById('totalItems').textContent = filteredDocuments.length;
@@ -406,8 +381,6 @@
         document.getElementById('searchTitle').value = '';
         document.getElementById('searchDescription').value = '';
         document.getElementById('searchProduct').value = '';
-        document.getElementById('searchFromDate').value = '';
-        document.getElementById('searchToDate').value = '';
         
         filteredDocuments = [...allDocuments];
         document.getElementById('totalItems').textContent = filteredDocuments.length;
