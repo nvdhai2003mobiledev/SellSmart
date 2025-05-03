@@ -193,7 +193,6 @@ exports.checkWarrantyMatch = async (req, res) => {
     // Bước 1: Kiểm tra thông tin trong cơ sở dữ liệu khách hàng
     const customers = await Customer.find({
       $or: [
-        { fullName: { $regex: new RegExp(customerName, 'i') } },
         { email: { $regex: new RegExp('^' + customerEmail + '$', 'i') } },
         { phoneNumber: customerPhone }
       ]
