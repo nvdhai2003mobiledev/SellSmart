@@ -143,9 +143,8 @@
         <!-- Best Selling Products -->
         <div class="col-xl-6">
             <div class="card shadow mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h6 class="m-0 font-weight-bold">Sản Phẩm Bán Chạy</h6>
-                    <button class="btn btn-sm btn-primary">Xem tất cả</button>
+                <div class="card-header d-flex justify-content-center align-items-center">
+                    <h6 class="m-0 font-weight-bold">TOP 3 - Sản Phẩm Bán Chạy</h6>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
@@ -176,9 +175,8 @@
         <!-- Employee Performance -->
         <div class="col-xl-6">
             <div class="card shadow mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h6 class="m-0 font-weight-bold">HIỆU SUẤT NHÂN VIÊN</h6>
-                    <button class="btn btn-sm btn-primary">Xem tất cả</button>
+                <div class="card-header d-flex justify-content-center align-items-center">
+                    <h6 class="m-0 font-weight-bold">TOP 3 - HIỆU SUẤT NHÂN VIÊN</h6>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
@@ -208,7 +206,7 @@
         <!-- Payment Stats -->
         <div class="col-xl-12">
             <div class="card shadow mb-4">
-                <div class="card-header">
+                <div class="card-header d-flex justify-content-center align-items-center">
                     <h6 class="m-0 font-weight-bold">Thống Kê Thanh Toán</h6>
                 </div>
                 <div class="card-body">
@@ -282,8 +280,11 @@
         <div class="col-xl-12">
             <div class="card shadow mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h6 class="m-0 font-weight-bold">Danh Sách Đơn Hàng</h6>
-                    <a href="/orders" class="btn btn-sm btn-primary">Xem tất cả</a>
+                    <div style="flex: 1;"></div>
+                    <h6 class="m-0 font-weight-bold" style="flex: 2; text-align: center;">Danh Sách Đơn Hàng</h6>
+                    <div style="flex: 1; text-align: right;">
+                        <a href="/orders" class="btn btn-sm btn-primary">Xem tất cả</a>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
@@ -876,7 +877,7 @@ async function fetchBestSellingProducts(dateRange) {
         });
         
         // Hiển thị top 5 sản phẩm bán chạy nhất
-        data.data.slice(0, 5).forEach(product => {
+        data.data.slice(0, 3).forEach(product => { // Hiển thị top 3 sản phẩm
             const row = document.createElement('tr');
             
             row.innerHTML = `
@@ -1018,7 +1019,8 @@ async function fetchEmployeePerformance(dateRange) {
             parseFloat(b.performance.contribution) - parseFloat(a.performance.contribution)
         );
         
-        employees.forEach(employee => {
+        // Hiển thị chỉ top 3 nhân viên xuất sắc nhất
+        employees.slice(0, 3).forEach(employee => {
             const row = document.createElement('tr');
             
             // Determine display name, preferring fullName but falling back to username if needed
