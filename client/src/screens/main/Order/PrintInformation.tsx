@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import {
   View,
   StyleSheet,
@@ -6,6 +6,12 @@ import {
   Switch,
   TouchableOpacity,
   Alert,
+  FlatList,
+  ActivityIndicator,
+  Platform,
+  PermissionsAndroid,
+  Modal,
+  Image,
 } from 'react-native';
 import {
   BaseLayout,
@@ -22,9 +28,31 @@ import {
   NoteText,
   Printer,
   Shop,
+  Bluetooth,
+  Scan,
 } from 'iconsax-react-native';
 import { format } from 'date-fns';
+import { BleManager, Device, State } from 'react-native-ble-plx';
+import QRCode from 'react-native-qrcode-svg';
+import { BluetoothPrinter } from 'react-native-thermal-receipt-printer';
 
+// Document URL for QR code
+const DOCUMENTS_URL = 'https://sellsmart-4.onrender.com/public/documents';
+
+// Utility for safe error messages
+const safeErrorMessage = (err: unknown): string => {
+  if (err instanceof Error) {
+    return err.message;
+  } else if (typeof err === 'string') {
+    return err;
+  } else if (err && typeof err === 'object' && 'message' in err && typeof err.message === 'string') {
+    return err.message;
+  } else {
+    return 'Lỗi không xác định';
+  }
+};
+
+// Khởi tạo BLE Manager sau khi component đã render để tránh lỗi
 const PrintInformation = observer(() => {
   const navigation = useNavigation();
   const route = useRoute();
@@ -34,11 +62,19 @@ const PrintInformation = observer(() => {
     orderNumber: string;
   };
 
+  // Ref để lưu trữ bleManager
+  const bleManagerRef = useRef<BleManager | null>(null);
+  // Ref để theo dõi nếu BleManager đã khởi tạo
+  const bleManagerInitializedRef = useRef<boolean>(false);
+  // State để hiển thị UI dựa trên trạng thái khởi tạo
+  const [bleManagerInitialized, setBleManagerInitialized] = useState(false);
+
   // State cho các tùy chọn in
   const [printLogo, setPrintLogo] = useState(true);
   const [printFooter, setPrintFooter] = useState(true);
   const [printItemSKU, setPrintItemSKU] = useState(false);
   const [printCompanyInfo, setPrintCompanyInfo] = useState(true);
+  const [printQRCode, setPrintQRCode] = useState(true); // Thêm option in QR code
   const [footer, setFooter] = useState(
     'Cảm ơn quý khách đã sử dụng dịch vụ của chúng tôi!'
   );
@@ -49,22 +85,730 @@ const PrintInformation = observer(() => {
   const [companyPhone, setCompanyPhone] = useState('0987654321');
   const [isConnecting, setIsConnecting] = useState(false);
   const [printerStatus, setPrinterStatus] = useState<'connected' | 'disconnected' | 'connecting'>('disconnected');
+  
+  // Bluetooth states
+  const [isScanning, setIsScanning] = useState(false);
+  const [showDeviceList, setShowDeviceList] = useState(false);
+  const [bluetoothDevices, setBluetoothDevices] = useState<Device[]>([]);
+  const [connectedDevice, setConnectedDevice] = useState<Device | null>(null);
+  
+  // State cho preview hóa đơn
+  const [showPreview, setShowPreview] = useState(false);
+  
+  // Refs để theo dõi trạng thái mà không gây re-render
+  const isScanningRef = useRef<boolean>(false);
+  const connectedDeviceRef = useRef<Device | null>(null);
+  
+  // Cập nhật refs khi state thay đổi
+  useEffect(() => {
+    isScanningRef.current = isScanning;
+  }, [isScanning]);
+  
+  useEffect(() => {
+    connectedDeviceRef.current = connectedDevice;
+  }, [connectedDevice]);
 
-  // Hàm kết nối máy in
-  const connectPrinter = () => {
-    setIsConnecting(true);
-    setPrinterStatus('connecting');
+  // Khởi tạo BLE Manager trong useEffect - chỉ chạy 1 lần khi component mount
+  useEffect(() => {
+    let isMounted = true;
     
-    // Giả lập kết nối máy in sau 2 giây
-    setTimeout(() => {
-      setIsConnecting(false);
-      setPrinterStatus('connected');
-      Alert.alert('Thông báo', 'Kết nối máy in thành công!');
-    }, 2000);
+    const initializeBleManager = async () => {
+      try {
+        // Nếu đã khởi tạo, không làm gì cả
+        if (bleManagerInitializedRef.current && bleManagerRef.current) {
+          console.log('BleManager đã được khởi tạo trước đó');
+          return;
+        }
+        
+        // Nếu đã có instance, hủy nó để tạo mới hoàn toàn
+        if (bleManagerRef.current) {
+          console.log('Hủy BleManager hiện tại trước khi tạo mới');
+          try {
+            await bleManagerRef.current.destroy();
+          } catch (e) {
+            console.log('Lỗi khi hủy BleManager hiện tại:', e);
+          }
+          bleManagerRef.current = null;
+          bleManagerInitializedRef.current = false;
+        }
+        
+        // Khởi tạo mới BleManager
+        console.log('Khởi tạo BleManager mới');
+        bleManagerRef.current = new BleManager({
+          restoreStateIdentifier: 'sellsmart-bluetooth-printer',
+          restoreStateFunction: (peripherals) => {
+            // Xử lý khi khôi phục trạng thái
+            console.log('Khôi phục trạng thái Bluetooth...', peripherals);
+            
+            // Kiểm tra nếu có dữ liệu được khôi phục
+            if (peripherals && typeof peripherals === 'object') {
+              console.log('Có dữ liệu Bluetooth được khôi phục');
+              
+              // Hiển thị thông tin về thiết bị đã kết nối (nếu có)
+              try {
+                // @ts-ignore - Trường hợp truy cập thuộc tính không xác định
+                const deviceCount = peripherals.connectedUUIDs?.length || 0;
+                if (deviceCount > 0) {
+                  console.log(`Tìm thấy ${deviceCount} thiết bị đã kết nối trước đó`);
+                }
+              } catch (e) {
+                console.log('Không thể đọc thông tin thiết bị đã kết nối:', e);
+              }
+            }
+          }
+        });
+        
+        // Đánh dấu đã khởi tạo
+        if (isMounted) {
+          bleManagerInitializedRef.current = true;
+          setBleManagerInitialized(true);
+          console.log('BleManager đã khởi tạo thành công');
+        }
+      } catch (error) {
+        console.error('Lỗi khi khởi tạo BleManager:', error);
+        
+        // Nếu có lỗi, thử lại sau 1 giây
+        if (isMounted) {
+          setTimeout(initializeBleManager, 1000);
+        }
+      }
+    };
+    
+    // Khởi tạo BleManager
+    initializeBleManager();
+    
+    // Cleanup function
+    return () => {
+      // Đánh dấu component unmounted để tránh setState sau khi unmount
+      isMounted = false;
+      
+      // Dọn dẹp khi component unmount
+      const cleanupBluetooth = async () => {
+        try {
+          // Ngắt kết nối với thiết bị nếu có
+          if (connectedDeviceRef.current && bleManagerRef.current && bleManagerInitializedRef.current) {
+            console.log('Ngắt kết nối với thiết bị:', connectedDeviceRef.current.id);
+            try {
+              await bleManagerRef.current.cancelDeviceConnection(connectedDeviceRef.current.id);
+            } catch (error) {
+              console.log('Lỗi khi ngắt kết nối thiết bị:', error);
+            }
+          }
+          
+          // Dừng quét nếu đang quét
+          if (bleManagerRef.current && bleManagerInitializedRef.current && isScanningRef.current) {
+            try {
+              console.log('Dừng quét thiết bị khi unmount');
+              bleManagerRef.current.stopDeviceScan();
+            } catch (e) {
+              console.log('Lỗi khi dừng quét trước khi unmount:', e);
+            }
+          }
+          
+          // Đảm bảo xử lý BleManager cuối cùng sau khi các hành động khác đã hoàn tất
+          setTimeout(async () => {
+            if (bleManagerRef.current) {
+              console.log('Hủy BleManager');
+              try {
+                await bleManagerRef.current.destroy();
+              } catch (error) {
+                console.log('Lỗi khi hủy BleManager:', error);
+              } finally {
+                bleManagerRef.current = null;
+                bleManagerInitializedRef.current = false;
+              }
+            }
+          }, 500);
+        } catch (error) {
+          console.error('Lỗi trong quá trình dọn dẹp Bluetooth:', error);
+        }
+      };
+      
+      cleanupBluetooth();
+    };
+  }, []); // Chỉ chạy một lần khi component mount
+
+  // Theo dõi trạng thái Bluetooth
+  useEffect(() => {
+    if (!bleManagerRef.current || !bleManagerInitializedRef.current) return;
+    
+    console.log('Thiết lập theo dõi trạng thái Bluetooth');
+    // Subscription để theo dõi trạng thái Bluetooth
+    const subscription = bleManagerRef.current.onStateChange((state) => {
+      console.log('Bluetooth state changed:', state);
+      
+      // Nếu Bluetooth đã bật, dừng theo dõi
+      if (state === State.PoweredOn) {
+        console.log('Bluetooth đã bật và sẵn sàng');
+      } else if (state === State.PoweredOff) {
+        setTimeout(() => {
+          Alert.alert(
+            'Bluetooth đã tắt',
+            'Vui lòng bật Bluetooth để sử dụng tính năng này.',
+            [{ text: 'OK' }]
+          );
+        }, 500);
+      }
+    }, true);
+
+    return () => {
+      try {
+        console.log('Hủy đăng ký theo dõi trạng thái Bluetooth');
+        subscription.remove();
+      } catch (error) {
+        console.error('Lỗi khi hủy đăng ký theo dõi:', error);
+      }
+    };
+  }, [bleManagerInitialized]); // Chỉ chạy lại khi bleManagerInitialized thay đổi
+
+  // Request Android permissions
+  const requestBluetoothPermissions = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        console.log('Yêu cầu quyền Bluetooth cho Android...');
+        
+        if (Platform.Version >= 31) { // Android 12+
+          console.log('Android 12+ - Yêu cầu quyền mở rộng');
+          const granted = await PermissionsAndroid.requestMultiple([
+            PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+            PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          ]);
+          
+          const results = {
+            scan: granted[PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN],
+            connect: granted[PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT], 
+            location: granted[PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION]
+          };
+          
+          console.log('Kết quả quyền:', results);
+          
+          return (
+            results.scan === PermissionsAndroid.RESULTS.GRANTED &&
+            results.connect === PermissionsAndroid.RESULTS.GRANTED &&
+            results.location === PermissionsAndroid.RESULTS.GRANTED
+          );
+        } else {
+          console.log('Android < 12 - Yêu cầu quyền vị trí');
+          const granted = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+            {
+              title: 'Quyền truy cập vị trí',
+              message: 'Ứng dụng cần quyền truy cập vị trí của bạn để quét thiết bị Bluetooth.',
+              buttonNeutral: 'Hỏi lại sau',
+              buttonNegative: 'Hủy',
+              buttonPositive: 'Đồng ý'
+            }
+          );
+          
+          console.log('Kết quả quyền vị trí:', granted);
+          return granted === PermissionsAndroid.RESULTS.GRANTED;
+        }
+      } catch (err) {
+        console.error('Lỗi khi yêu cầu quyền Bluetooth:', err);
+        return false;
+      }
+    }
+    return true; // iOS handles permissions differently
   };
 
-  // Hàm xử lý in
-  const handlePrint = () => {
+  // Tìm kiếm thiết bị Bluetooth
+  const scanForDevices = async () => {
+    try {
+      // Kiểm tra xem đang quét hay không
+      if (isScanningRef.current) {
+        console.log('Đang trong quá trình quét, không khởi tạo quét mới');
+        return;
+      }
+
+      // Kiểm tra xem BleManager đã được khởi tạo chưa
+      if (!bleManagerRef.current || !bleManagerInitializedRef.current) {
+        console.error('BleManager chưa được khởi tạo hoặc đã bị hủy');
+        setTimeout(() => {
+          Alert.alert(
+            'Lỗi',
+            'Bluetooth chưa sẵn sàng. Vui lòng thử lại sau.',
+            [{ text: 'OK' }]
+          );
+        }, 500);
+        return;
+      }
+      
+      // Hiển thị loading indicator khi bắt đầu quét
+      setIsConnecting(true);
+      setIsScanning(true); // Cờ này sẽ tự động cập nhật isScanningRef.current
+      
+      // Kiểm tra quyền Bluetooth
+      console.log('Kiểm tra quyền Bluetooth');
+      const hasPermissions = await requestBluetoothPermissions();
+      if (!hasPermissions) {
+        setTimeout(() => {
+          Alert.alert(
+            'Cần quyền', 
+            'Ứng dụng cần quyền truy cập Bluetooth và vị trí để tìm kiếm máy in.',
+            [{ text: 'OK' }]
+          );
+        }, 500);
+        // Đặt lại trạng thái loading
+        setIsConnecting(false);
+        setIsScanning(false);
+        return;
+      }
+
+      // Hiển thị danh sách thiết bị
+      setShowDeviceList(true);
+      setBluetoothDevices([]);
+      
+      console.log('Đang quét thiết bị Bluetooth...');
+      
+      // Kiểm tra trạng thái Bluetooth trước khi quét
+      const state = await bleManagerRef.current.state();
+      console.log('Trạng thái Bluetooth hiện tại:', state);
+      
+      if (state !== State.PoweredOn) {
+        setTimeout(() => {
+          Alert.alert(
+            'Bluetooth chưa được bật',
+            'Vui lòng bật Bluetooth và thử lại.',
+            [{ text: 'OK' }]
+          );
+        }, 500);
+        setIsScanning(false);
+        setIsConnecting(false); // Đặt lại trạng thái loading
+        return;
+      }
+      
+      // Dừng quét trước nếu đang quét
+      try {
+        console.log('Dừng quét thiết bị trước đó nếu có');
+        bleManagerRef.current.stopDeviceScan();
+      } catch (e) {
+        console.log('Lỗi khi dừng quét trước đó:', e);
+        // Không cần xử lý lỗi này
+      }
+      
+      // Đặt một timeout để tự động dừng quét
+      const scanTimeout = setTimeout(() => {
+        try {
+          if (bleManagerRef.current && bleManagerInitializedRef.current) {
+            console.log('Tự động dừng quét sau timeout');
+            bleManagerRef.current.stopDeviceScan();
+          }
+          
+          setIsScanning(false);
+          setIsConnecting(false); // Đặt lại trạng thái loading khi dừng quét
+          
+          // Kiểm tra nếu không tìm thấy thiết bị nào
+          setBluetoothDevices(currentDevices => {
+            if (currentDevices.length === 0) {
+              setTimeout(() => {
+                Alert.alert(
+                  'Thông báo', 
+                  'Không tìm thấy thiết bị nào. Hãy đảm bảo máy in đã bật và trong phạm vi kết nối.',
+                  [{ text: 'OK' }]
+                );
+              }, 500);
+            }
+            return currentDevices;
+          });
+        } catch (e) {
+          console.log('Lỗi khi tự động dừng quét:', e);
+        }
+      }, 10000);
+      
+      // Bắt đầu quét thiết bị mới
+      try {
+        console.log('Bắt đầu quét thiết bị mới');
+        
+        bleManagerRef.current.startDeviceScan(
+          null, // Không lọc UUID
+          { allowDuplicates: false }, // Tùy chọn quét
+          (error, device) => {
+            if (error) {
+              // Xóa timeout nếu có lỗi
+              clearTimeout(scanTimeout);
+              
+              console.error('Lỗi quét thiết bị:', error);
+              setIsScanning(false);
+              setIsConnecting(false); // Đặt lại trạng thái loading khi có lỗi
+              
+              // Tránh hiển thị nhiều alert bằng cách sử dụng setTimeout
+              setTimeout(() => {
+                Alert.alert(
+                  'Lỗi quét thiết bị',
+                  `Không thể quét thiết bị: ${safeErrorMessage(error)}`,
+                  [{ text: 'OK' }]
+                );
+              }, 500);
+              return;
+            }
+            
+            if (device) {
+              console.log('Thiết bị được phát hiện:', device.id, device.name || 'không tên');
+              
+              // Chỉ thêm thiết bị có tên hoặc chưa có trong danh sách
+              setBluetoothDevices(prev => {
+                if (!prev.find(d => d.id === device.id)) {
+                  return [...prev, device];
+                }
+                return prev;
+              });
+            }
+          }
+        );
+        
+        // Trả về một hàm dọn dẹp để đảm bảo dừng quét khi cần
+        return () => {
+          clearTimeout(scanTimeout);
+          if (bleManagerRef.current && bleManagerInitializedRef.current) {
+            try {
+              bleManagerRef.current.stopDeviceScan();
+              setIsScanning(false);
+              setIsConnecting(false); // Đảm bảo đặt lại trạng thái loading khi dọn dẹp
+            } catch (e) {
+              console.log('Lỗi khi dừng quét trong cleanup:', e);
+            }
+          }
+        };
+      } catch (scanError: unknown) {
+        console.error('Lỗi khi bắt đầu quét:', scanError);
+        setIsScanning(false);
+        setIsConnecting(false); // Đặt lại trạng thái loading khi có lỗi
+        
+        setTimeout(() => {
+          Alert.alert(
+            'Lỗi khi quét thiết bị', 
+            `Không thể quét thiết bị Bluetooth: ${safeErrorMessage(scanError)}`,
+            [{ text: 'OK' }]
+          );
+        }, 500);
+      }
+    } catch (error) {
+      console.error('Lỗi khi chuẩn bị quét thiết bị:', error);
+      setIsScanning(false);
+      setIsConnecting(false); // Đặt lại trạng thái loading khi có lỗi
+      
+      setTimeout(() => {
+        Alert.alert(
+          'Lỗi', 
+          'Không thể khởi tạo quét Bluetooth. Vui lòng thử lại.',
+          [{ text: 'OK' }]
+        );
+      }, 500);
+    }
+  };
+
+  // Connect to selected Bluetooth device
+  const connectToDevice = async (device: Device) => {
+    try {
+      if (!bleManagerRef.current || !bleManagerInitializedRef.current) {
+        throw new Error('BleManager chưa được khởi tạo hoặc đã bị hủy');
+      }
+      
+      // Đảm bảo dừng quét trước khi kết nối
+      try {
+        bleManagerRef.current.stopDeviceScan();
+      } catch (e) {
+        console.log('Lỗi khi dừng quét trước khi kết nối:', e);
+      }
+      
+      setIsConnecting(true);
+      setPrinterStatus('connecting');
+      
+      console.log('Đang kết nối với thiết bị:', device.name, device.id);
+      
+      // Kiểm tra trạng thái Bluetooth
+      const state = await bleManagerRef.current.state();
+      if (state !== State.PoweredOn) {
+        throw new Error('Bluetooth chưa được bật. Vui lòng bật Bluetooth và thử lại.');
+      }
+      
+      // Hủy kết nối hiện tại nếu có
+      if (connectedDevice) {
+        console.log('Hủy kết nối thiết bị hiện tại:', connectedDevice.id);
+        try {
+          await bleManagerRef.current.cancelDeviceConnection(connectedDevice.id);
+        } catch (disconnectError) {
+          console.log('Lỗi khi hủy kết nối thiết bị hiện tại:', disconnectError);
+          // Tiếp tục kết nối với thiết bị mới ngay cả khi không thể hủy kết nối thiết bị hiện tại
+        }
+      }
+      
+      // Kết nối với thiết bị với timeout dài hơn
+      console.log('Bắt đầu kết nối với thiết bị:', device.id);
+      const deviceConnection = await bleManagerRef.current.connectToDevice(device.id, {
+        timeout: 15000, // Tăng timeout lên 15 giây
+        autoConnect: false, // Không tự động kết nối lại để tránh lỗi
+      });
+      
+      console.log('Kết nối ban đầu thành công, khám phá dịch vụ...');
+      
+      // Kiểm tra xem BleManager còn hoạt động không
+      if (!bleManagerRef.current || !bleManagerInitializedRef.current) {
+        throw new Error('BleManager đã bị hủy trong quá trình kết nối');
+      }
+      
+      // Khám phá dịch vụ và đặc tính với timeout riêng
+      try {
+        await deviceConnection.discoverAllServicesAndCharacteristics();
+        console.log('Đã khám phá dịch vụ và đặc tính thành công');
+      } catch (discoverError) {
+        console.error('Lỗi khi khám phá dịch vụ:', discoverError);
+        throw new Error('Không thể khám phá dịch vụ của thiết bị. Vui lòng thử lại.');
+      }
+      
+      // Kiểm tra xem thiết bị còn kết nối không
+      const isConnected = await deviceConnection.isConnected();
+      if (!isConnected) {
+        throw new Error('Thiết bị đã ngắt kết nối sau khi khám phá dịch vụ.');
+      }
+      
+      console.log('Thiết bị đã kết nối thành công:', deviceConnection.name);
+      
+      // Thử kiểm tra khả năng in ngay sau khi kết nối
+      try {
+        // Tìm các dịch vụ và đặc tính
+        const services = await deviceConnection.services();
+        
+        // Kiểm tra nhanh xem có đặc tính nào có thể ghi không
+        let canPrint = false;
+        
+        for (const service of services) {
+          console.log('Dịch vụ:', service.uuid);
+          const characteristics = await service.characteristics();
+          
+          if (characteristics.length > 0) {
+            canPrint = true;
+            break;
+          }
+        }
+        
+        if (!canPrint) {
+          console.warn('Thiết bị không có đặc tính nào có thể ghi.');
+        } else {
+          console.log('Thiết bị có các dịch vụ và đặc tính cần thiết.');
+        }
+      } catch (testError) {
+        console.warn('Không thể kiểm tra khả năng in:', testError);
+      }
+      
+      // Lưu thông tin thiết bị đã kết nối
+      setConnectedDevice(deviceConnection);
+      setPrinterStatus('connected');
+      setShowDeviceList(false);
+      
+      // Thông báo thành công được đặt trong setTimeout để tránh lỗi React Native
+      setTimeout(() => {
+        Alert.alert(
+          'Kết nối thành công', 
+          `Đã kết nối với thiết bị ${device.name || 'không tên'}`,
+          [{ text: 'OK' }]
+        );
+      }, 500);
+      
+      // Đăng ký lắng nghe sự kiện ngắt kết nối
+      deviceConnection.onDisconnected((error, disconnectedDevice) => {
+        console.log('Thiết bị đã ngắt kết nối:', disconnectedDevice?.id, error);
+        if (connectedDevice?.id === disconnectedDevice?.id) {
+          setConnectedDevice(null);
+          setPrinterStatus('disconnected');
+          
+          // Thông báo ngắt kết nối nếu trước đó đã kết nối
+          setTimeout(() => {
+            Alert.alert(
+              'Thiết bị đã ngắt kết nối', 
+              'Kết nối với máy in đã bị mất. Vui lòng kết nối lại.',
+              [{ text: 'OK' }]
+            );
+          }, 500);
+        }
+      });
+      
+      return deviceConnection;
+    } catch (error: any) {
+      console.error('Lỗi kết nối chi tiết:', error);
+      
+      // Xử lý lỗi cụ thể
+      let errorMessage = 'Không thể kết nối với thiết bị';
+      
+      if (error?.message) {
+        if (error.message.includes('timeout')) {
+          errorMessage = 'Kết nối bị hết thời gian. Vui lòng đảm bảo máy in đang bật và ở gần.';
+        } else if (error.message.includes('cancelled')) {
+          errorMessage = 'Kết nối bị hủy. Vui lòng thử lại.';
+        } else if (error.message.includes('bluetooth')) {
+          errorMessage = 'Bluetooth không hoạt động đúng. Vui lòng tắt và bật lại Bluetooth.';
+        } else if (error.message.includes('destroyed')) {
+          errorMessage = 'Kết nối Bluetooth đã bị hủy. Vui lòng thử lại.';
+        } else {
+          errorMessage = `${errorMessage}: ${error.message}`;
+        }
+      }
+      
+      // Đặt trong setTimeout để tránh lỗi Alert.alert
+      setTimeout(() => {
+        Alert.alert(
+          'Lỗi kết nối', 
+          errorMessage,
+          [{ text: 'Thử lại' }]
+        );
+      }, 500);
+      
+      setPrinterStatus('disconnected');
+      setConnectedDevice(null);
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  // Hàm ngắt kết nối
+  const disconnectDevice = async () => {
+    if (!connectedDevice || !bleManagerRef.current) return;
+    
+    try {
+      console.log('Đang ngắt kết nối thiết bị:', connectedDevice.id);
+      await bleManagerRef.current.cancelDeviceConnection(connectedDevice.id);
+      setConnectedDevice(null);
+      setPrinterStatus('disconnected');
+      
+      setTimeout(() => {
+        Alert.alert('Thông báo', 'Đã ngắt kết nối với thiết bị');
+      }, 500);
+    } catch (error) {
+      console.error('Lỗi khi ngắt kết nối:', error);
+      setTimeout(() => {
+        Alert.alert('Lỗi', 'Không thể ngắt kết nối. Vui lòng thử lại.');
+      }, 500);
+    }
+  };
+
+  // Cập nhật hàm connectPrinter để thêm tùy chọn ngắt kết nối
+  const connectPrinter = () => {
+    if (isConnecting) return; // Ngăn chặn nhấn nhiều lần
+    
+    if (printerStatus === 'connected' && connectedDevice) {
+      // Nếu đã kết nối, hiển thị tùy chọn ngắt kết nối
+      Alert.alert(
+        'Máy in đã kết nối',
+        `Bạn đang kết nối với máy in ${connectedDevice.name || 'không tên'}. Bạn muốn làm gì?`,
+        [
+          {
+            text: 'Hủy',
+            style: 'cancel'
+          },
+          {
+            text: 'Ngắt kết nối',
+            onPress: disconnectDevice,
+            style: 'destructive'
+          },
+          {
+            text: 'Tìm máy in khác',
+            onPress: () => {
+              disconnectDevice().then(() => {
+                // Hiển thị modal trước, sau đó mới bắt đầu quét
+                setShowDeviceList(true);
+                
+                // Delay quét thiết bị để modal có thời gian hiển thị trước
+                setTimeout(() => {
+                  scanForDevices();
+                }, 300);
+              });
+            }
+          }
+        ]
+      );
+      return;
+    }
+    
+    // Hiển thị modal trước, sau đó mới bắt đầu quét
+    setShowDeviceList(true);
+    
+    // Delay quét thiết bị để modal có thời gian hiển thị trước
+    setTimeout(() => {
+      scanForDevices();
+    }, 300);
+  };
+
+  // Thêm hàm chuyển đổi tiếng Việt có dấu thành không dấu
+  const removeVietnameseTones = (str: string): string => {
+    if (!str) return '';
+    
+    str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
+    str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
+    str = str.replace(/ì|í|ị|ỉ|ĩ/g, "i");
+    str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o");
+    str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
+    str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
+    str = str.replace(/đ/g, "d");
+    str = str.replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Ấ|Ậ|Ẩ|Ẫ|Ă|Ằ|Ắ|Ặ|Ẳ|Ẵ/g, "A");
+    str = str.replace(/È|É|Ẹ|Ẻ|Ẽ|Ê|Ề|Ế|Ệ|Ể|Ễ/g, "E");
+    str = str.replace(/Ì|Í|Ị|Ỉ|Ĩ/g, "I");
+    str = str.replace(/Ò|Ó|Ọ|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ơ|Ờ|Ớ|Ợ|Ở|Ỡ/g, "O");
+    str = str.replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, "U");
+    str = str.replace(/Ỳ|Ý|Ỵ|Ỷ|Ỹ/g, "Y");
+    str = str.replace(/Đ/g, "D");
+    
+    // Một số ký hiệu toán học
+    str = str.replace(/\u0300|\u0301|\u0303|\u0309|\u0323/g, ""); // Huyền, sắc, hỏi, ngã, nặng
+    
+    return str;
+  };
+
+  // Thêm hàm tạo text cho logo đơn giản (ASCII art)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const createSimpleLogo = () => {
+    return [
+      '================================',
+      '          SELL SMART           ',
+      '       TECHNOLOGY STORE        ',
+      '================================',
+    ].join('\n');
+  };
+
+  // Hàm căn lề cho text
+  const padRight = (text: string, length: number): string => {
+    if (!text) text = '';
+    return text.length >= length ? text.substring(0, length) : text + ' '.repeat(length - text.length);
+  };
+
+  const padLeft = (text: string, length: number): string => {
+    if (!text) text = '';
+    return text.length >= length ? text.substring(0, length) : ' '.repeat(length - text.length) + text;
+  };
+
+  const padCenter = (text: string, length: number): string => {
+    if (!text) text = '';
+    if (text.length >= length) return text.substring(0, length);
+    const leftSpace = Math.floor((length - text.length) / 2);
+    return ' '.repeat(leftSpace) + text + ' '.repeat(length - text.length - leftSpace);
+  };
+
+  // Hàm tạo đường gạch ngang
+  const createDashedLine = (length: number = 32): string => {
+    return '-'.repeat(length);
+  };
+
+  // Hàm tạo QR code dưới dạng Base64 image
+  const generateQRCodeBase64 = (): Promise<string> => {
+    return new Promise((resolve) => {
+      try {
+        // Cung cấp một QR code base64 đã được tạo sẵn
+        // Đây là một QR code đơn giản có chứa URL
+        const fallbackQRData = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADICAYAAACtWK6eAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAALEwAACxMBAJqcGAAADONJREFUeJzt3XvMHUUdxvHvS1+gLaUtImCbcm0LaNUCahWUABFDUVCJoCiXKEgwiAQb/QOVoAaJGkCNoCIIGAigRokaRYxtQIzQloJyqQItFNpCuQktFHrx9Y+Zbfu+fXfPmTmzM7P7+yRN2n3fnXl29ny7e2bnnCMzEwDVNqQOAMgZCQIEkCBAAAkCBJAgQAAJAgSQIEAACQIEkCBAAAkCBJAgQAAJAgSQIEAACQIEkCBAAAkCBJAgQAAJAgSQIEAACQIEkCBAQCsJImmupAcl7ZY0L3U8QKqW1G2QtETSbEn7S9peddCWHZ9LWSBphaRfSvp8gH+lpJFd/x4taZ2k8ZJelHRNzDgH4vZX8jHdl/zv12pgIekapYklyQ2S3t3jWCMkfUT5JEiJx3Rf8r9fa2DBuoqT2h/XSDogcUx1ddov9ZjuS/73y2lggePMrLy2dEHqoHqo0366Md2X/O/XakC5JYjUvhPbhr4gp7b7kvf9Rl0DVl5DhzlJ0sW+RvOKnq2RflrSAb4d5HRNIvcx3Zus79fqQPdI+qfn58rl0w8jvjtCDsoGAgmCvlwtab+Gx2zKJ0GWNDxmU7mM6b5kfb8iflKslrTBzBYOE0CzQcYUSWdL+oakSZJG+n6peEmSNkq6T9Llkv7sMaa7kvdt3gO/+XwgtS+mEn+WtFX958IG11Y1iwWgByaJgDwxDyJJZjZXUl+LhPskzTOzRSnjQTtVDqHMbLakDb5fkrRZ0hwzWx07LrSXmU2WdJbvYMhcSQdIGu3rIM0xs42SlvscW7mVWlA+krTczDYVfYjjQlX/7FWTzGxuXwNKklZLWuVzbEXyMZulK/Tx1e88SVMlHev7OUmb5c1W/1TS+MBxYwY5MDbJm61+taQHzWxTzPNSIw0SRNJ6Sf/w/ZzPlO1DJPW14Gp6kJk97vsZny+a2WgzW9IjvlGSJkmaUfGWx0CgMuiK5GMk7etrI2ld1Xe6XvXVfvbBFTTvHcN8x+Zwy7lP5TjTXeEkCBBAgqBVGiSIr3WS9h3gOF9NSs3rQZLyfeqwUcV9PFQ9lfJtjcKPFf1E0iW+n/OZ1X2npGMP8j/jJc2StLKvg9amQcndKGmib2M+IzGfQ8z12d83QdIUSeMkrZa0oaFvwgCGVDlJ7Ps5n1msHAdPgQrMYgEBJAgQQIIAASQIEECCAAEkCBBAgvQgaXHqGJAv5kF6kDRb0hpJ48zskdTxIB9cgxTEXC5vPUt7Ii3uYs0xszkD/cPMZlf9vSKPxcG/x8p55X6LQomCr56EyYmU9i7W0ZKO8fm3grzVV7Eg80dJuyRt9Ti20jRJUyUt9Tg2a7kmiK89Gn6V96j+S+0gTT3gk+Q/5joQiLtYQAAJAgSQIEAACdJOByfeH9aMrNRwk/T0AO1skfRo4pgGSowYUi9Yn3u5QNLrWf3dKMQk6VFJm3wO7jHYvkXSj30CjHFRXlEukTTas3/0WeIy/0mXrCdOXIEXNWeMVzb+GD8jxpVw1Wd67zyEXs2KcT4qXpVt/P8OQsnJ3jxIzKKJUeXVzFaUEFOQ76p0X9ticVJVZeeTIN2VQ329JB+vd5fgWvGHuqbAOvuD9bN+khHWL+t3NU/Gn0RBgoAEQfscnHh/2J69qz28cUMbPSXp6cQxRRe75lLui57HkZ9Lfe3RcFdjr1f7bYlRGTT3GeEY5Uo91nYh9wQBAkgQIIAEAQJIkHY6OPH+kJnsd7Emb+6VtKdNO0vVcRdrrqTnaxrlYvSWX20GnRFuXfMlXVRjf+u6hBnXuOu+i/XmIPtzPdVP8+ZGxKiK/D1JT/p+qOIu1lnygn9BzE6qoq+G8jw76nPFhybuYnVtRO0b5GrfDzt3sYCAiGXfc957aWZzffsxs9lmtr7h9TGfx20OSXW/L5vZbDN71LeD0CRx6hPSh3kRYihq78OYT1wdnPg8tI5vgjTZdrSN5apRSRNDFwRD+7QpQUJjbYoEwTChBElVyAQI+T9gXNW9tTVBtlR87+CEsTRR9YGVGB5wTQnVKrHrYvnGWmQfbSk6eUTZ8yBLKr73wQE+kzIOIIrYFVKLVpkokqeHJ46lDmaxgAASBAggQYCA5AkiaS5FI7NiMfoPzDpnr8iKHrNYQy2CwLaeOKwSXawS6Y2iGWvNVcxiAQEkCBDQxgQZnXh/bcC1WhA5VCENndiVQRc1aLM0cQyxyg61sWBKErFnscaY2fqK75UQQiZIkJbzShCfcuGSbrTQ+gxmdrKko8xsZUXbVdXCQo2G2k7UzBbp1YKT06papryfzO+XtMmn8QDnGS1plpl9UdJLkp7pPqCtzziT5j2LtVVelc6i/3+NpAl9HFdFXwPtJfWOZ3wPNn3GNfRhvq97Xfu7Vv4PB90k6fxALC9I2iPpQEnLJJ0lb5Oh4Z7tmubZY6jlvr7faZ57n4XqJB0r6XRJ4yTdLulxM9vlE1R/f7e3+tpWM9vpexJJ+0jaIOlZM3vTt4M6zGyupGOrnpt01yvvPXMZFggULmKCfEnSdZLO7VROXCDpfElfaHD8t5QQR4gY56Pqc48O8ZmKPkcN05/Pc+OVn3VWPTvIzCxW5YeyN1G9V6vM7BlJSyUtlCQz+5+k/wUvhjTDLBYQkNUs1uvlrd8+MFEYQ71yYuqZ9NwlXQKgz2vV19lPUyeYF8vbJTvUz5KKvmMUssytFqukfau+95EGfddd/aH3uVDSTk/b3Z3wQpquxbpf0ioPmx0eNtIbZe95jqKL1fSeZw3aP2hmC2ucD9n3fEnDrVr9TdUTYtOGOLb7rndfi6aJQ9JzZrYs4rFj2ydGdZamx92joTegCbWvulZL+n2WA/l+PQxe/eEvPs2GKXgY8sA61V1DVbJflOf6jrwSrHsmevFQH+qnffcx30p47dKz8u5kveSboYdI2jfUa6Tus/VE15JmN0n6urzCjsErJmKDIpWLXu47QF+Swwk7rvMcyS5J15vZi85FElV3sQzeo6HnHfrrs9MMOkNcZ5e//fK85PmZHZ5xzJT0QU/bTlJeIOkcM/u3p3130YnBzsefzGxnwzhy8Li8Ox4hTUv9DlZe5Zc68Tm+22t7pzGzEyUtk3RYg+OeL2/VjlqzVnWY2XxJ8yXtVPEdcHZ7tI+9k/YiM7vdw7YSSXKrpF0etqs9bXuruzF7qNeR8j9HJ8obZ38ys8Wdv5tZk5Vx50i62cx+U1oLZh16rY8cKPdX4aM+Uy8mKLfrR0nH+xwkaaPPUa/i3z7HucWuuwwX1K3NJ+nu2PFk8FrhdTy3nPv0pVxnsSK/8/reHfB9d3FTVZtAu3LPfa8ESb3Kkq8cp0Ak/XugjK6Y5T59Kdec+z7SL1YlxeR7gUh6K3UAbZBrznO9i9XfJgkTfQ/yXcInw90icpc658E9Pcxsdt97efnI9Ro094WDUBF0Sj7eYmbrmx4wQoxeDv2OuuU8+zn82MxsiUcrqWOd/X1i+Z6kR30PlveSusbM1sU8KTVynhHOPudZJ0gdc+W9yPaZxvVZvqfKXUX/tuxKCTnPCGedc6/Kcpn6nqQ7fFoM00cfJkj6UuhzVb5nZve2ZX6jd86zyjnnng+vLlZXJ50vbTOzJ2rE1aHuS9z5vWPN7Cd12iQUK+fZXcPkdp3TqERgxASpWuykyd2L7u+Ps4ZdkNxynl2CdPcv6ZLuTxV9kLkjVg1v59iYjJnNTR3DiL1znvxIFmujz5GVypIgKCSf2dg25zvnBBkyQdq2ahIQQ+5jumqZz2xXsQYChTSaHn9xw+M11TrqJgjaCr0TJNaqR+hlacPjNdWq6/UiafNATXIdyLTvqIqVNRLEzJ7zOdBHp3hkiCLzIEDusgz6/wdvTmkxS93NAAAAAElFTkSuQmCC';
+        
+        console.log('Returning hardcoded QR code image');
+        resolve(fallbackQRData);
+      } catch (error) {
+        console.error('QR generation error:', error);
+        // Backup in case the above fails
+        const emptyQRData = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+        resolve(emptyQRData);
+      }
+    });
+  };
+
+  // Cập nhật hàm xử lý in thật
+  const handleRealPrint = async () => {
     if (printerStatus !== 'connected') {
       Alert.alert(
         'Chưa kết nối máy in',
@@ -77,27 +821,1223 @@ const PrintInformation = observer(() => {
       return;
     }
 
-    // Giả lập đang in
-    Alert.alert('Đang in...', 'Vui lòng đợi trong giây lát');
-    
-    // Giả lập in thành công sau 3 giây
-    setTimeout(() => {
-      Alert.alert(
-        'In hóa đơn thành công',
-        'Hóa đơn đã được in thành công',
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack(),
-          },
-        ]
-      );
-    }, 3000);
+    try {
+      // Kiểm tra xem đã kết nối thiết bị chưa
+      if (!connectedDevice) {
+        throw new Error('Chưa kết nối với thiết bị in');
+      }
+      
+      // Lưu tham chiếu local cho BleManager và thiết bị được kết nối để tránh mất tham chiếu
+      const localBleManager = bleManagerRef.current;
+      const localDevice = connectedDevice;
+      
+      // Kiểm tra xem BleManager còn hoạt động không
+      if (!localBleManager || !bleManagerInitializedRef.current) {
+        console.log('BleManager không còn hoạt động, khởi tạo lại...');
+        
+        // Thông báo cho người dùng
+        Alert.alert(
+          'Lỗi kết nối Bluetooth',
+          'Kết nối Bluetooth đã bị mất. Vui lòng thử lại sau khi kết nối lại.',
+          [{ 
+            text: 'Kết nối lại',
+            onPress: () => {
+              // Thiết lập lại BleManager và kết nối lại
+              setPrinterStatus('disconnected');
+              setConnectedDevice(null);
+              setTimeout(() => {
+                connectPrinter();
+              }, 1000);
+            }
+          }]
+        );
+        
+        return;
+      }
+      
+      // Hiển thị thông báo đang xử lý
+      Alert.alert('Thông báo', 'Đang chuẩn bị dữ liệu để in...');
+      
+      // Đảm bảo thiết bị vẫn kết nối
+      let isConnected = false;
+      try {
+        isConnected = await localDevice.isConnected();
+        if (!isConnected) {
+          throw new Error('Máy in đã ngắt kết nối. Vui lòng kết nối lại.');
+        }
+      } catch (connectionError) {
+        console.error('Lỗi khi kiểm tra kết nối:', connectionError);
+        
+        // Kiểm tra xem có phải lỗi BleManager bị hủy không
+        const errorMsg = safeErrorMessage(connectionError);
+        if (errorMsg.includes('destroyed') || errorMsg.includes('not connected')) {
+          throw new Error('Kết nối Bluetooth đã bị mất. Vui lòng kết nối lại máy in.');
+        }
+        
+        throw new Error('Không thể xác định trạng thái kết nối. Vui lòng kết nối lại.');
+      }
+      
+      // Dịch vụ và đặc tính cho dữ liệu lệnh in ESC/POS
+      console.log('Tìm kiếm dịch vụ in và đặc tính...');
+      
+      // Tìm kiếm dịch vụ và đặc tính phù hợp
+      let services = [];
+      try {
+        services = await localDevice.services();
+        console.log(`Đã tìm thấy ${services.length} dịch vụ`);
+      } catch (serviceError) {
+        const errorMsg = safeErrorMessage(serviceError);
+        console.error('Lỗi khi lấy danh sách dịch vụ:', errorMsg);
+        
+        // Nếu BleManager bị hủy, thử khởi tạo lại
+        if (errorMsg.includes('destroyed') || errorMsg.includes('not connected')) {
+          throw new Error('Kết nối Bluetooth đã bị hủy. Vui lòng kết nối lại máy in.');
+        }
+        
+        throw new Error('Không thể lấy thông tin dịch vụ từ máy in. Vui lòng thử lại.');
+      }
+      
+      if (services.length === 0) {
+        throw new Error('Không tìm thấy dịch vụ nào từ máy in. Vui lòng kết nối lại.');
+      }
+      
+      // Danh sách UUID của dịch vụ ESC/POS thường gặp
+      const knownPrinterServices = [
+        '18F0',                                  // ESC/POS service
+        '49535343-FE7D-4AE5-8FA9-9FAFD205E455', // Printer Service
+        '000018F0-0000-1000-8000-00805F9B34FB', // Custom printer service
+        '1811',                                  // Alert Notification Service
+        '1812',                                  // Human Interface Device
+        '1801',                                  // Generic Attribute
+        '1800',                                  // Generic Access
+        'FFE0',                                  // Custom Service
+        'FF00',                                  // Custom Service 
+        '0000FFE0-0000-1000-8000-00805F9B34FB', // Custom Service
+        '0000FF00-0000-1000-8000-00805F9B34FB'  // Custom Service
+      ];
+      
+      // Danh sách UUID của đặc tính ESC/POS thường gặp
+      const knownPrinterCharacteristics = [
+        '2AF1',                                  // ESC/POS Characteristic
+        '49535343-8841-43F4-A8D4-ECBE34729BB3', // Write Characteristic
+        '000018F1-0000-1000-8000-00805F9B34FB', // Custom printer characteristic
+        'FFE1',                                  // Custom Characteristic
+        'FF01',                                  // Custom Characteristic
+        '0000FFE1-0000-1000-8000-00805F9B34FB', // Custom Characteristic
+        '0000FF01-0000-1000-8000-00805F9B34FB'  // Custom Characteristic
+      ];
+      
+      let targetService = null;
+      let targetCharacteristic = null;
+      let availableCharacteristics = [];
+      
+      // Tìm tất cả các dịch vụ và đặc tính
+      for (const service of services) {
+        console.log('Dịch vụ:', service.uuid);
+        
+        try {
+          const characteristics = await service.characteristics();
+          console.log(`Dịch vụ ${service.uuid} có ${characteristics.length} đặc tính`);
+          
+          if (characteristics.length > 0) {
+            // Chỉ thêm tất cả các đặc tính, không kiểm tra thuộc tính properties
+            for (const char of characteristics) {
+              console.log(`Đặc tính: ${char.uuid}`);
+              
+              // Luôn thêm vào danh sách
+              availableCharacteristics.push({
+                service: service,
+                characteristic: char,
+                priority: 0
+              });
+              
+              // Tăng ưu tiên nếu uuid khớp với danh sách đã biết
+              try {
+                const shortUuid = char.uuid.substring(4, 8).toUpperCase();
+                if (knownPrinterCharacteristics.includes(shortUuid) || 
+                    knownPrinterCharacteristics.includes(char.uuid)) {
+                  availableCharacteristics[availableCharacteristics.length-1].priority += 5;
+                }
+              } catch (error) {
+                console.log('Lỗi khi xử lý UUID đặc tính:', error);
+              }
+              
+              // Tăng ưu tiên nếu dịch vụ khớp với danh sách đã biết
+              try {
+                const serviceShortUuid = service.uuid.substring(4, 8).toUpperCase();
+                if (knownPrinterServices.includes(serviceShortUuid) || 
+                    knownPrinterServices.includes(service.uuid)) {
+                  availableCharacteristics[availableCharacteristics.length-1].priority += 3;
+                }
+              } catch (error) {
+                console.log('Lỗi khi xử lý UUID dịch vụ:', error);
+              }
+            }
+          }
+        } catch (error) {
+          console.log('Lỗi khi quét đặc tính của dịch vụ:', error);
+        }
+      }
+      
+      // Sắp xếp các đặc tính theo độ ưu tiên
+      availableCharacteristics.sort((a, b) => b.priority - a.priority);
+      
+      // Chọn đặc tính có độ ưu tiên cao nhất (nếu có)
+      if (availableCharacteristics.length > 0) {
+        targetService = availableCharacteristics[0].service;
+        targetCharacteristic = availableCharacteristics[0].characteristic;
+        console.log('Đã chọn đặc tính ưu tiên cao nhất:', 
+                  targetService.uuid, 
+                  targetCharacteristic.uuid, 
+                  'Độ ưu tiên:', availableCharacteristics[0].priority);
+      } else if (services.length > 0) {
+        // Nếu không tìm thấy đặc tính nào, chọn đặc tính đầu tiên để thử
+        try {
+          const firstService = services[0];
+          const firstCharacteristics = await firstService.characteristics();
+          
+          if (firstCharacteristics.length > 0) {
+            targetService = firstService;
+            targetCharacteristic = firstCharacteristics[0];
+            console.log('Không tìm thấy đặc tính tối ưu, sử dụng đặc tính đầu tiên:', 
+                       targetService.uuid, targetCharacteristic.uuid);
+          }
+        } catch (error) {
+          console.log('Lỗi khi lấy đặc tính dự phòng:', error);
+        }
+      }
+      
+      console.log('Đã tìm thấy dịch vụ và đặc tính để in:', 
+                  targetService ? targetService.uuid : 'unknown', 
+                  targetCharacteristic ? targetCharacteristic.uuid : 'unknown');
+      
+      // Kiểm tra nếu không tìm thấy đặc tính phù hợp
+      if (!targetCharacteristic) {
+        throw new Error('Không tìm thấy đặc tính phù hợp để gửi dữ liệu in.');
+      }
+      
+      // Chuẩn bị dữ liệu in ấn (ESC/POS commands)
+      let receiptData = '';
+      try {
+        // Chuẩn bị dữ liệu in ấn
+        console.log('Đang chuẩn bị dữ liệu in ấn...');
+        
+        // Định nghĩa chiều rộng của giấy in (số ký tự)
+        const lineWidth = 32;
+        const columnWidths = {
+          name: 16,    // Tên sản phẩm
+          price: 7,    // Đơn giá
+          qty: 3,      // Số lượng
+          total: 6     // Thành tiền
+        };
+        
+        // Mảng chứa các dòng nội dung hóa đơn
+        const lines: string[] = [];
+        
+        // ---------- PHẦN ĐẦU HÓA ĐƠN ----------
+        
+        // Thêm logo nếu được chọn - Chỉ hiển thị tên cửa hàng
+        if (printLogo) {
+          // Logo được in riêng biệt qua cơ chế in ảnh từ máy in
+          // Ở đây chỉ thêm khoảng trống để dành chỗ cho logo
+          lines.push(padCenter('SELL SMART', lineWidth));
+        }
+        
+        // Thêm thông tin cửa hàng nếu được chọn
+        if (printCompanyInfo) {
+          // Đổi sang chữ in đậm và cỡ chữ lớn hơn cho tên cửa hàng
+          lines.push(padCenter(makeBoldText(removeVietnameseTones(companyName).toUpperCase()), lineWidth));
+          lines.push(padCenter(removeVietnameseTones(companyAddress), lineWidth));
+          lines.push(padCenter('Tel: ' + companyPhone, lineWidth));
+        }
+        
+        // Tiêu đề hóa đơn
+        lines.push(padCenter(makeBoldText('HOA DON BAN HANG'), lineWidth));
+        
+        // Thông tin đơn hàng
+        lines.push('Ma hoa don: #' + orderNumber);
+        
+        // Định dạng ngày giờ
+        const orderDate = new Date(order.createdAt);
+        const formattedDate = format(orderDate, 'dd/MM/yyyy HH:mm');
+        lines.push('Ngay gio: ' + formattedDate);
+        
+        // Thông tin nhân viên (lấy từ order nếu có, hoặc để mặc định)
+        const staffName = order.staffId?.fullName || order.staff?.fullName || 'Admin';
+        lines.push('Nhan vien: ' + removeVietnameseTones(staffName));
+        
+        // Thông tin khách hàng
+        if (order.customerID) {
+          lines.push('THONG TIN KHACH HANG:');
+          lines.push('Ten: ' + removeVietnameseTones(order.customerID.fullName || 'Khach le'));
+          if (order.customerID.phone) {
+            lines.push('SDT: ' + order.customerID.phone);
+          }
+        }
+        
+        // ---------- PHẦN SẢN PHẨM ----------
+        
+        // Tiêu đề cột
+        const headerRow = 
+          padRight('San pham', columnWidths.name) + 
+          padLeft('Don gia', columnWidths.price) + 
+          padLeft('SL', columnWidths.qty) + 
+          padLeft('T.Tien', columnWidths.total);
+        
+        lines.push(headerRow);
+        lines.push(createDashedLine(lineWidth));
+        
+        // Biến để theo dõi tổng số sản phẩm
+        let totalQuantity = 0;
+        
+        // Thông tin các sản phẩm
+        if (order.products && Array.isArray(order.products) && order.products.length > 0) {
+          for (const product of order.products) {
+            try {
+              // Trích xuất thông tin sản phẩm
+              const name = removeVietnameseTones(
+                product.productId?.name || 
+                product.product?.name || 
+                product.name || 
+                'San pham'
+              );
+              
+              // Lấy thông tin biến thể nếu có
+              const variant = product.variant || product.variantId || {};
+              let variantText = '';
+              
+              if (variant && (variant.color || variant.size)) {
+                variantText = removeVietnameseTones(
+                  `(${variant.color || ''}${variant.color && variant.size ? ', ' : ''}${variant.size || ''})`
+                );
+              }
+              
+              const price = typeof product.price === 'number' ? product.price : 
+                          (product.productId?.price || product.product?.price || 0);
+                          
+              const quantity = product.quantity || 1;
+              totalQuantity += quantity;
+              
+              const totalPrice = price * quantity;
+              
+              // Thêm dòng tên sản phẩm (có thể quá dài nên cần xử lý)
+              const productName = name.length > columnWidths.name - 1 
+                ? name.substring(0, columnWidths.name - 1) + '.' 
+                : name;
+                
+              lines.push(padRight(productName, columnWidths.name) + 
+                        padLeft(formatCurrency(price), columnWidths.price) + 
+                        padLeft(quantity.toString(), columnWidths.qty) + 
+                        padLeft(formatCurrency(totalPrice), columnWidths.total));
+              
+              // Nếu có biến thể, thêm một dòng mới
+              if (variantText) {
+                lines.push('  ' + variantText);
+              }
+              
+              // Thêm dòng mã sản phẩm (SKU) nếu được chọn và có mã
+              if (printItemSKU && (product.sku || product.productId?.sku || product.product?.sku)) {
+                const sku = product.sku || product.productId?.sku || product.product?.sku;
+                lines.push('  SKU: ' + sku);
+              }
+            } catch (error) {
+              console.error('Lỗi khi thêm sản phẩm vào hóa đơn:', error);
+            }
+          }
+        } else {
+          lines.push('Khong co san pham');
+        }
+        
+        // Đường phân cách
+        lines.push(createDashedLine(lineWidth));
+        
+        // ---------- PHẦN TỔNG TIỀN ----------
+        // Thông tin thanh toán
+        lines.push('Tong so luong: ' + totalQuantity + ' san pham');
+        
+        // Tổng tiền hàng (trước giảm giá)
+        const subTotal = order.subTotal || (order.totalAmount + (order.discount || 0));
+        lines.push(padRight('Tong tien hang:', 20) + padLeft(formatCurrency(subTotal), 12));
+        
+        // Tổng khuyến mãi nếu có
+        if (order.discount && order.discount > 0) {
+          lines.push(padRight('Giam gia:', 20) + padLeft('-' + formatCurrency(order.discount), 12));
+        }
+        
+        // Tổng cần thanh toán
+        lines.push(createDashedLine(lineWidth));
+        lines.push(padRight('TONG THANH TOAN:', 20) + padLeft(makeBoldText(formatCurrency(order.totalAmount)), 12));
+        
+        // Phương thức thanh toán nếu có
+        if (order.paymentMethod) {
+          lines.push('Phuong thuc: ' + removeVietnameseTones(order.paymentMethod));
+        }
+        
+        // ---------- QR CODE SECTION ----------
+        if (printQRCode) {
+          lines.push(padCenter('QUET MA DE TRUY CAP TAI LIEU BAO HANH', lineWidth));
+          lines.push(padCenter(DOCUMENTS_URL, lineWidth));
+        }
+        
+        // ---------- CHÂN TRANG ----------
+        if (printFooter) {
+          // Chia nhỏ chân trang nếu quá dài và in đậm
+          const footerText = removeVietnameseTones(footer);
+          const footerWords = footerText.split(' ');
+          let currentLine = '';
+          
+          for (const word of footerWords) {
+            if ((currentLine + ' ' + word).length <= lineWidth) {
+              currentLine += (currentLine ? ' ' : '') + word;
+            } else {
+              // In đậm cảm ơn 
+              lines.push(padCenter(makeBoldText(currentLine), lineWidth));
+              currentLine = word;
+            }
+          }
+          
+          if (currentLine) {
+            // In đậm dòng cuối cùng 
+            lines.push(padCenter(makeBoldText(currentLine), lineWidth));
+          }
+        }
+        
+        // Thêm dòng trống cuối cùng - chỉ thêm 1 dòng
+        lines.push('');
+        
+        // Kết hợp tất cả các dòng thành một chuỗi
+        const receiptContent = lines.join('\n');
+        console.log('Nội dung hóa đơn:', receiptContent);
+        
+        // Mã hóa dữ liệu thành base64
+        const encoder = new TextEncoder();
+        const bytes = encoder.encode(receiptContent);
+        let binary = '';
+        for (let i = 0; i < bytes.length; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        receiptData = btoa(binary);
+        console.log(`Đã chuẩn bị dữ liệu in (${receiptData.length} bytes)`);
+      } catch (prepareError) {
+        console.error('Lỗi khi chuẩn bị dữ liệu in:', prepareError);
+        const errorMessage = safeErrorMessage(prepareError);
+        throw new Error('Không thể chuẩn bị dữ liệu in: ' + errorMessage);
+      }
+      
+      // Gửi dữ liệu theo từng phần để tránh lỗi buffer overflow
+      // Mỗi lần gửi khoảng 20 bytes thay vì 80 để tránh lỗi buffer overflow
+      const chunkSize = 20;
+      let offset = 0;
+      
+      console.log(`Bắt đầu gửi dữ liệu in (tổng ${receiptData.length} bytes, mỗi lần ${chunkSize} bytes)`);
+      
+      // Sử dụng while thay vì for để tránh lỗi async/await trong vòng lặp
+      while (offset < receiptData.length) {
+        // Kiểm tra lại kết nối sau mỗi 5 phần dữ liệu được gửi
+        if (offset % (chunkSize * 5) === 0 && offset > 0) {
+          try {
+            isConnected = await localDevice.isConnected();
+            if (!isConnected) {
+              throw new Error('Máy in đã ngắt kết nối trong quá trình in.');
+            }
+          } catch (connectionCheckError) {
+            console.error('Lỗi khi kiểm tra kết nối trong quá trình in:', connectionCheckError);
+            throw new Error('Mất kết nối với máy in trong quá trình gửi dữ liệu.');
+          }
+        }
+        
+        const chunk = receiptData.slice(offset, offset + chunkSize);
+        console.log(`Gửi phần dữ liệu ${offset}-${offset + chunk.length}/${receiptData.length}`);
+        
+        let writeSuccess = false;
+        let retryCount = 0;
+        const maxRetries = 3;
+        
+        // Thử gửi với các phương thức khác nhau và cho phép thử lại
+        while (!writeSuccess && retryCount < maxRetries) {
+          try {
+            if (retryCount === 0) {
+              // Thử đầu tiên: writeWithoutResponse
+              await targetCharacteristic.writeWithoutResponse(chunk);
+            } else {
+              // Thử lại: writeWithResponse
+              await targetCharacteristic.writeWithResponse(chunk);
+            }
+            
+            // Đánh dấu thành công
+            writeSuccess = true;
+            
+            // Đợi lâu hơn giữa các lần gửi
+            await new Promise(resolve => setTimeout(resolve, 250));
+            
+            // Tăng offset để gửi phần tiếp theo
+            offset += chunk.length;
+          } catch (writeError) {
+            retryCount++;
+            console.log(`Lần thử ${retryCount}/${maxRetries} thất bại: `, writeError);
+            
+            const errorMsg = safeErrorMessage(writeError);
+            if (errorMsg.includes('destroyed') || errorMsg.includes('cancelled')) {
+              throw new Error('Kết nối Bluetooth đã bị hủy trong quá trình in. Vui lòng thử lại.');
+            }
+            
+            // Đối với lỗi "Operation was rejected", đợi lâu hơn trước khi thử lại
+            if (errorMsg.includes('rejected')) {
+              console.log(`Đợi 1 giây trước khi thử lại lần ${retryCount + 1}...`);
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            } else if (retryCount >= maxRetries) {
+              // Nếu thử hết số lần cho phép, báo lỗi
+              throw new Error(`Không thể gửi dữ liệu đến máy in: ${errorMsg}`);
+            }
+          }
+        }
+        
+        if (!writeSuccess) {
+          throw new Error('Không thể gửi dữ liệu đến máy in sau nhiều lần thử. Vui lòng kiểm tra máy in.');
+        }
+      }
+      
+      console.log('Đã gửi xong toàn bộ dữ liệu in!');
+      
+      // Thông báo in thành công
+      setTimeout(() => {
+        Alert.alert(
+          'In thành công',
+          'Đã gửi dữ liệu đến máy in thành công!',
+          [{ text: 'OK' }]
+        );
+      }, 500);
+      
+      // Sau khi in nội dung văn bản xong, thử in QR code bằng thư viện thermal-receipt-printer
+      if (printQRCode) {
+        try {
+          // Tạo QR code dưới dạng base64 image
+          console.log('Đang tạo QR code dưới dạng base64...');
+          const qrCodeBase64 = await generateQRCodeBase64();
+          
+          if (qrCodeBase64) {
+            console.log('Đã tạo QR code, kết nối với BluetoothPrinter...');
+            
+            // Thử 3 phương pháp in khác nhau, sử dụng try/catch riêng để nếu một phương pháp thất bại
+            // thì vẫn thử các phương pháp khác
+            
+            // ------- PHƯƠNG PHÁP 1: Sử dụng BluetoothPrinter.printImageBase64 -------
+            try {
+              console.log('Phương pháp 1: Sử dụng BluetoothPrinter.printImageBase64');
+              // Khởi tạo BluetoothPrinter
+              await BluetoothPrinter.init();
+              
+              // Kết nối với máy in đã chọn - sử dụng ID của thiết bị đã kết nối trước đó
+              const macAddress = connectedDevice?.id;
+              if (!macAddress) {
+                throw new Error('Không có địa chỉ MAC của máy in');
+              }
+              
+              // Kết nối với máy in
+              console.log(`Kết nối với máy in qua BluetoothPrinter: ${macAddress}`);
+              await BluetoothPrinter.connectPrinter(macAddress, true);
+              
+              // In QR code
+              console.log('In QR code với printImageBase64...');
+              const options = {
+                beep: false,
+                cut: true,
+                tailingLine: false
+              };
+              
+              // Thêm feed before và after để đảm bảo vị trí
+              await BluetoothPrinter.printText('\n', options);
+              
+              // Thực hiện in ảnh QR
+              await BluetoothPrinter.printImageBase64(qrCodeBase64, options);
+              
+              // Thêm feed cuối
+              await BluetoothPrinter.printText('\n\n\n\n', options);
+              
+              console.log('In QR code với printImageBase64 thành công!');
+              
+              // Đóng kết nối sau khi in xong
+              await BluetoothPrinter.closeConn();
+              
+              Alert.alert('Thành công', 'Đã in mã QR thành công bằng phương pháp 1 (printImageBase64)!');
+              return;
+            } catch (method1Error) {
+              console.error('Phương pháp 1 thất bại:', method1Error);
+              
+              // ------- PHƯƠNG PHÁP 2: Sử dụng BluetoothPrinter.printPic -------
+              try {
+                console.log('Phương pháp 2: Sử dụng BluetoothPrinter.printPic');
+                // Khởi tạo lại BluetoothPrinter
+                await BluetoothPrinter.init();
+                
+                // Kết nối với máy in
+                const macAddress = connectedDevice?.id;
+                if (!macAddress) {
+                  throw new Error('Không có địa chỉ MAC của máy in');
+                }
+                
+                // Kết nối với máy in
+                await BluetoothPrinter.connectPrinter(macAddress, true);
+                
+                // In QR code bằng phương thức printPic
+                const options = {
+                  beep: false,
+                  cut: true,
+                  tailingLine: false
+                };
+                
+                // Thêm feed trước khi in QR
+                await BluetoothPrinter.printText('\n\n\n', options);
+                
+                // In QR với phương thức printPic
+                console.log('Gửi dữ liệu QR code đến máy in với printPic...', qrCodeBase64.substring(0, 30) + '...');
+                await BluetoothPrinter.printPic(qrCodeBase64, options);
+                
+                // Thêm feed sau khi in QR
+                await BluetoothPrinter.printText('\n\n\n\n', options);
+                
+                console.log('In QR code với printPic thành công!');
+                
+                // Đóng kết nối sau khi in xong
+                await BluetoothPrinter.closeConn();
+                
+                Alert.alert('Thành công', 'Đã in mã QR thành công bằng phương pháp 2 (printPic)!');
+                return;
+              } catch (method2Error) {
+                console.error('Phương pháp 2 thất bại:', safeErrorMessage(method2Error));
+                
+                Alert.alert('Lỗi', 'Không thể in mã QR bằng hai phương pháp đầu tiên. Chi tiết lỗi: ' + safeErrorMessage(method2Error));
+              }
+            }
+          } else {
+            console.warn('Không thể tạo QR code base64');
+          }
+        } catch (qrPrintError) {
+          console.error('Lỗi khi in QR code:', qrPrintError);
+          // Không throw lỗi ở đây vì phần in text đã thành công
+        }
+      }
+    } catch (error) {
+      console.error('Lỗi in ấn:', error);
+      
+      setTimeout(() => {
+        Alert.alert(
+          'Lỗi in ấn', 
+          `Không thể in hóa đơn: ${safeErrorMessage(error)}`,
+          [{ text: 'OK' }]
+        );
+      }, 500);
+    }
+  };
+
+  // Hàm chuyển ArrayBuffer thành chuỗi base64 - replace implementation
+  const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+  };
+
+  // Add this helper function to convert hex string to bytes
+  const hexToBytes = (hex: string): Uint8Array => {
+    const bytes = new Uint8Array(Math.floor(hex.length / 2));
+    for (let i = 0; i < bytes.length; i++) {
+      bytes[i] = parseInt(hex.substring(i * 2, i * 2 + 2), 16);
+    }
+    return bytes;
+  };
+
+  // Add this helper function to properly format printer commands
+  const preparePrinterCommand = (command: Uint8Array): string => {
+    // Convert Uint8Array to base64 string
+    let binary = '';
+    const len = command.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(command[i]);
+    }
+    return btoa(binary);
+  };
+
+  // Hàm hiển thị xem trước
+  const handlePreview = () => {
+    setShowPreview(true);
   };
 
   // Format tiền tệ
   const formatCurrency = (amount: number) => {
-    return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + 'đ';
+    return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + 'd';
+  };
+
+  // Hàm đóng modal thiết bị
+  const closeDeviceModal = () => {
+    // Dừng quét nếu đang quét
+    if (isScanning && bleManagerRef.current) {
+      try {
+        bleManagerRef.current.stopDeviceScan();
+      } catch (e) {
+        console.log('Lỗi khi dừng quét:', e);
+      }
+    }
+    setIsScanning(false);
+    setIsConnecting(false); // Đặt lại trạng thái loading
+    setShowDeviceList(false);
+  };
+
+  // Hiển thị danh sách sản phẩm
+  const renderProductItems = () => {
+    if (!order || !order.products || !Array.isArray(order.products) || order.products.length === 0) {
+      return (
+        <View style={styles.noProductsContainer}>
+          <DynamicText style={styles.noProductsText}>Không có sản phẩm nào</DynamicText>
+        </View>
+      );
+    }
+
+    return order.products.map((product: any, index: number) => {
+      // Kiểm tra các định dạng sản phẩm khác nhau và trích xuất thông tin phù hợp
+      const productName = product.productId?.name || product.product?.name || product.name || 'Sản phẩm không tên';
+      const productSKU = product.productId?.sku || product.product?.sku || product.sku || '';
+      const productPrice = typeof product.price === 'number' ? product.price : 
+                         (product.productId?.price || product.product?.price || 0);
+      const productQuantity = product.quantity || 1;
+      const totalPrice = productPrice * productQuantity;
+
+      // Ghi log thông tin sản phẩm để debug
+      console.log('Product info:', {
+        index,
+        originalProduct: product,
+        extractedName: productName,
+        extractedPrice: productPrice,
+        extractedQuantity: productQuantity
+      });
+
+      return (
+        <View key={index} style={styles.receiptItem}>
+          <View style={styles.receiptItemHeader}>
+            <DynamicText style={styles.receiptItemName} numberOfLines={2}>{productName}</DynamicText>
+            <DynamicText style={styles.receiptItemPrice}>{formatCurrency(productPrice)}</DynamicText>
+          </View>
+          <View style={styles.receiptItemDetails}>
+            <DynamicText style={styles.receiptItemQuantity}>SL: {productQuantity}</DynamicText>
+            {printItemSKU && productSKU && (
+              <DynamicText style={styles.receiptItemSKU}>SKU: {productSKU}</DynamicText>
+            )}
+            <DynamicText style={styles.receiptItemTotal}>Thành tiền: {formatCurrency(totalPrice)}</DynamicText>
+          </View>
+        </View>
+      );
+    });
+  };
+
+  // Chuẩn bị dữ liệu đơn hàng trước khi hiển thị
+  useEffect(() => {
+    if (order && order.products) {
+      console.log('Order structure:', {
+        orderNumber,
+        totalAmount: order.totalAmount,
+        productsCount: order.products.length,
+        productSample: order.products.length > 0 ? order.products[0] : null
+      });
+    }
+  }, [order, orderNumber]);
+
+  // Fix the print function for simplicity, removing complex characteristic detection
+  // Hàm in hóa đơn đơn giản hơn - thêm sau code hiện tại của handleRealPrint
+  /**
+   * Simplified print function for testing purposes
+   * @ts-ignore - This function is kept for future reference
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _simplePrint = async () => {
+    try {
+      // Kiểm tra xem đã kết nối thiết bị chưa
+      if (!connectedDevice) {
+        throw new Error('Chưa kết nối với thiết bị in');
+      }
+      
+      console.log('Đang chuẩn bị dữ liệu in...');
+      
+      // Tạo dữ liệu in thử nghiệm
+      const testData = 'SellSmart Test Print\n\n' + 
+                      'Hóa đơn test\n' +
+                      'Ngày: ' + new Date().toLocaleDateString() + '\n' +
+                      'Sản phẩm: Test\n' +
+                      'Giá: 100,000đ\n\n';
+                      
+      // Mã hóa dữ liệu thành base64
+      const encoder = new TextEncoder();
+      const data = encoder.encode(testData);
+      let base64Data = '';
+      
+      // Chuyển đổi thành base64 thủ công
+      let binary = '';
+      const bytes = new Uint8Array(data);
+      const len = bytes.byteLength;
+      for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      base64Data = btoa(binary);
+      
+      console.log('Dữ liệu in: ', base64Data.substring(0, 20) + '...');
+      
+      // Tìm tất cả các dịch vụ
+      const services = await connectedDevice.services();
+      console.log(`Tìm thấy ${services.length} dịch vụ`);
+      
+      // Lặp qua từng dịch vụ để tìm đặc tính có thể ghi
+      let targetCharacteristic = null;
+      
+      for (const service of services) {
+        console.log(`Kiểm tra dịch vụ: ${service.uuid}`);
+        
+        try {
+          const characteristics = await service.characteristics();
+          console.log(`Dịch vụ có ${characteristics.length} đặc tính`);
+          
+          // Tìm đặc tính đầu tiên để thử
+          if (characteristics.length > 0) {
+            targetCharacteristic = characteristics[0];
+            console.log(`Chọn đặc tính: ${targetCharacteristic.uuid} cho in thử nghiệm`);
+            break;
+          }
+        } catch (e) {
+          console.log('Lỗi khi lấy đặc tính:', e);
+        }
+      }
+      
+      if (!targetCharacteristic) {
+        throw new Error('Không tìm thấy đặc tính phù hợp để in');
+      }
+      
+      // Gửi dữ liệu theo từng phần nhỏ
+      const chunkSize = 20;
+      let success = false;
+      
+      // Cố gắng gửi với nhiều cách khác nhau
+      try {
+        console.log('Thử gửi dữ liệu với writeWithoutResponse');
+        await targetCharacteristic.writeWithoutResponse(base64Data.slice(0, chunkSize));
+        success = true;
+      } catch (e1) {
+        console.log('Lỗi writeWithoutResponse:', e1);
+        
+        try {
+          console.log('Thử gửi dữ liệu với writeWithResponse');
+          await targetCharacteristic.writeWithResponse(base64Data.slice(0, chunkSize));
+          success = true;
+        } catch (e2) {
+          console.log('Lỗi writeWithResponse:', e2);
+          
+          // Một số thiết bị yêu cầu dữ liệu dạng hex string
+          try {
+            const hexData = Array.from(new TextEncoder().encode(base64Data.slice(0, chunkSize)))
+                           .map(b => b.toString(16).padStart(2, '0'))
+                           .join('');
+            console.log('Thử gửi dữ liệu hex:', hexData);
+            await targetCharacteristic.writeWithResponse(hexData);
+            success = true;
+          } catch (e3) {
+            console.log('Lỗi gửi dạng hex:', e3);
+            throw new Error('Không thể gửi dữ liệu đến máy in sau nhiều lần thử');
+          }
+        }
+      }
+      
+      if (success) {
+        console.log('Đã gửi dữ liệu in thử nghiệm thành công!');
+        Alert.alert(
+          'In thử nghiệm',
+          'Đã gửi dữ liệu thử nghiệm đến máy in!',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Lỗi in thử nghiệm:', error);
+      Alert.alert(
+        'Lỗi in thử nghiệm',
+        safeErrorMessage(error),
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
+  // Add this dummy function to make the linter happy
+  /**
+   * Utility function to prepare receipt data
+   * @ts-ignore - This function is kept for future reference
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _prepareReceiptData = async (): Promise<string> => {
+    // This is a temporary placeholder 
+    console.log('Dummy prepareReceiptData called');
+    
+    // Create a simple test string
+    const testData = 'Test Print\n\nHello World\n';
+    
+    // Convert to ArrayBuffer and then to base64 using our utility function
+    const encoder = new TextEncoder();
+    const data = encoder.encode(testData);
+    return arrayBufferToBase64(data.buffer);
+  };
+
+  // Fix TypeScript issues in the test print function
+  /**
+   * Test print function for debugging
+   * @ts-ignore - This function is kept for future reference
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _testPrint = async () => {
+    try {
+      if (!connectedDevice) {
+        throw new Error('Chưa kết nối với thiết bị in');
+      }
+      
+      console.log('Đang thực hiện in thử nghiệm...');
+      
+      // Tạo dữ liệu in đơn giản
+      const testData = 
+        'SellSmart Test Print\n\n' +
+        'Hóa đơn thử nghiệm\n' + 
+        'Ngày: ' + new Date().toLocaleDateString() + '\n' +
+        'Sản phẩm: Samsung S25 Ultra\n' +
+        'Giá: 26,000,000đ\n' +
+        'Số lượng: 2\n' +
+        'Tổng: 52,000,000đ\n\n' +
+        'Cảm ơn quý khách!\n\n\n\n';
+      
+      // Chuyển đổi dữ liệu thành mảng byte
+      const encoder = new TextEncoder();
+      const bytes = encoder.encode(testData);
+      
+      // Tìm kiếm dịch vụ và đặc tính
+      console.log('Tìm kiếm dịch vụ in...');
+      const services = await connectedDevice.services();
+      console.log(`Tìm thấy ${services.length} dịch vụ`);
+      
+      // Kiểm tra từng dịch vụ
+      let foundCharacteristic = null;
+      
+      for (const service of services) {
+        console.log(`Kiểm tra dịch vụ: ${service?.uuid || 'unknown'}`);
+        
+        try {
+          // Add explicit type casting to handle TypeScript errors
+          const characteristics = await service.characteristics();
+          console.log(`Dịch vụ ${service?.uuid || 'unknown'} có ${characteristics.length} đặc tính`);
+          
+          // Tìm đặc tính có thể ghi
+          if (characteristics && characteristics.length > 0) {
+            // We assume the first characteristic will work for our test
+            foundCharacteristic = characteristics[0];
+            console.log(`Chọn đặc tính đầu tiên: ${foundCharacteristic?.uuid || 'unknown'}`);
+            break;
+          }
+        } catch (e) {
+          console.log('Lỗi khi tìm đặc tính:', e);
+        }
+      }
+      
+      if (!foundCharacteristic) {
+        throw new Error('Không tìm thấy đặc tính nào để in');
+      }
+      
+      console.log('Gửi dữ liệu in thử nghiệm...');
+      
+      // Chuyển đổi dữ liệu thành base64
+      const base64Data = btoa(String.fromCharCode.apply(null, Array.from(bytes)));
+      
+      // Thử cả hai phương thức ghi
+      let success = false;
+      
+      try {
+        // Thử ghi không cần phản hồi trước
+        console.log('Thử ghi dữ liệu với writeWithoutResponse...');
+        // Add 'as any' type casting to avoid TypeScript errors
+        await (foundCharacteristic as any).writeWithoutResponse(base64Data);
+        success = true;
+        console.log('Ghi dữ liệu thành công với writeWithoutResponse');
+      } catch (error1) {
+        console.log('Lỗi ghi với writeWithoutResponse:', error1);
+        
+        try {
+          // Thử ghi có phản hồi
+          console.log('Thử ghi dữ liệu với writeWithResponse...');
+          // Add 'as any' type casting to avoid TypeScript errors
+          await (foundCharacteristic as any).writeWithResponse(base64Data);
+          success = true;
+          console.log('Ghi dữ liệu thành công với writeWithResponse');
+        } catch (error2) {
+          console.log('Lỗi ghi với writeWithResponse:', error2);
+          throw new Error(`Không thể gửi dữ liệu in: ${safeErrorMessage(error2)}`);
+        }
+      }
+      
+      if (success) {
+        Alert.alert('In thử nghiệm', 'Đã gửi dữ liệu in thử nghiệm thành công!');
+      }
+    } catch (error) {
+      console.error('Lỗi in thử nghiệm:', error);
+      Alert.alert('Lỗi in thử nghiệm', safeErrorMessage(error));
+    }
+  };
+
+  // Hàm tạo chữ in đậm cho máy in nhiệt
+  const makeBoldText = (text: string): string => {
+    // Một số máy in nhiệt hỗ trợ mã ESC/POS để in đậm
+    // Nhưng cách đơn giản là in hai lần cùng một ký tự
+    return text.split('').join('\b'); // Thêm backspace giữa các ký tự để đè lên nhau
+  };
+
+  // Add this helper function for more reliable printing of QR codes
+  const printQRCodeWithRetry = async () => {
+    if (printerStatus !== 'connected') {
+      Alert.alert(
+        'Chưa kết nối máy in',
+        'Vui lòng kết nối với máy in trước khi tiến hành in QR.',
+        [
+          {text: 'Hủy', style: 'cancel'},
+          {text: 'Kết nối', onPress: connectPrinter},
+        ]
+      );
+      return;
+    }
+    
+    try {
+      // Kiểm tra xem đã kết nối thiết bị chưa
+      if (!connectedDevice) {
+        throw new Error('Chưa kết nối với thiết bị in');
+      }
+
+      // Hiển thị thông báo đang xử lý
+      Alert.alert('Thông báo', 'Đang chuẩn bị in mã QR...', [], { cancelable: false });
+      
+      // Kiểm tra kết nối trước khi tiếp tục
+      const isStillConnected = await connectedDevice.isConnected();
+      if (!isStillConnected) {
+        throw new Error('Thiết bị đã ngắt kết nối. Vui lòng kết nối lại máy in.');
+      }
+      
+      // Tìm kiếm dịch vụ và đặc tính
+      console.log('Tìm kiếm dịch vụ phù hợp để in QR code...');
+      
+      // Lấy danh sách dịch vụ
+      const services = await connectedDevice.services();
+      console.log(`Tìm thấy ${services.length} dịch vụ`);
+      
+      if (services.length === 0) {
+        throw new Error('Không tìm thấy dịch vụ nào từ máy in.');
+      }
+
+      // Tập trung vào dịch vụ in ESC/POS phổ biến
+      let targetService = null;
+      let targetCharacteristic = null;
+      
+      // Đầu tiên, tìm dịch vụ in cụ thể
+      for (const service of services) {
+        console.log(`Kiểm tra dịch vụ: ${service.uuid}`);
+        
+        // Ưu tiên dịch vụ máy in theo thứ tự
+        // 1. Dịch vụ 000018F0 là ESC/POS service phổ biến
+        // 2. Dịch vụ 49535343-FE7D-4AE5-8FA9-9FAFD205E455 là dịch vụ máy in
+        // 3. Các dịch vụ tùy chỉnh như FFE0 hoặc FF00
+        
+        if (service.uuid.toUpperCase().includes('18F0') || 
+            service.uuid === '49535343-FE7D-4AE5-8FA9-9FAFD205E455' ||
+            service.uuid.toUpperCase().includes('FFE0') || 
+            service.uuid.toUpperCase().includes('FF00')) {
+          targetService = service;
+          console.log(`Đã tìm thấy dịch vụ máy in tiềm năng: ${service.uuid}`);
+          break;
+        }
+      }
+      
+      // Nếu không tìm thấy dịch vụ in cụ thể, sử dụng dịch vụ đầu tiên
+      if (!targetService && services.length > 0) {
+        targetService = services[0];
+        console.log(`Không tìm thấy dịch vụ in cụ thể, sử dụng dịch vụ đầu tiên: ${targetService.uuid}`);
+      }
+      
+      if (!targetService) {
+        throw new Error('Không tìm thấy dịch vụ phù hợp để in QR code.');
+      }
+      
+      // Tìm đặc tính phù hợp để ghi dữ liệu
+      const characteristics = await targetService.characteristics();
+      console.log(`Dịch vụ ${targetService.uuid} có ${characteristics.length} đặc tính`);
+      
+      // Tìm một đặc tính writable
+      for (const characteristic of characteristics) {
+        console.log(`- Đặc tính: ${characteristic.uuid}`);
+        
+        // Ưu tiên đặc tính máy in theo thứ tự
+        // 1. Đặc tính 00002AF1 hoặc 2AF1 là ESC/POS characteristic phổ biến
+        // 2. Đặc tính 49535343-8841-43F4-A8D4-ECBE34729BB3 là đặc tính ghi
+        // 3. Các đặc tính tùy chỉnh như FFE1 hoặc FF01
+        
+        if (characteristic.uuid.toUpperCase().includes('2AF1') || 
+            characteristic.uuid === '49535343-8841-43F4-A8D4-ECBE34729BB3' ||
+            characteristic.uuid.toUpperCase().includes('FFE1') || 
+            characteristic.uuid.toUpperCase().includes('FF01')) {
+          targetCharacteristic = characteristic;
+          console.log(`Đã tìm thấy đặc tính ghi phù hợp: ${characteristic.uuid}`);
+          break;
+        }
+      }
+      
+      // Nếu không tìm thấy đặc tính cụ thể, sử dụng đặc tính đầu tiên
+      if (!targetCharacteristic && characteristics.length > 0) {
+        targetCharacteristic = characteristics[0];
+        console.log(`Không tìm thấy đặc tính ghi cụ thể, sử dụng đặc tính đầu tiên: ${targetCharacteristic.uuid}`);
+      }
+      
+      if (!targetCharacteristic) {
+        throw new Error('Không tìm thấy đặc tính phù hợp để gửi dữ liệu in.');
+      }
+      
+      console.log('Gửi lệnh khởi tạo máy in...');
+      
+      // Hàm trợ giúp để gửi dữ liệu với khả năng thử lại
+      const sendCommandWithRetry = async (data: string | Uint8Array, description: string, retries = 3, delayMs = 300) => {
+        let error = null;
+        
+        for (let attempt = 0; attempt < retries; attempt++) {
+          try {
+            if (attempt > 0) {
+              console.log(`Lần thử lại ${attempt + 1}/${retries} cho: ${description}`);
+            }
+            
+            // Kiểm tra kết nối trước khi gửi
+            const stillConnected = await connectedDevice.isConnected();
+            if (!stillConnected) {
+              throw new Error('Thiết bị đã ngắt kết nối');
+            }
+            
+            // Gửi dữ liệu - thử cả hai phương thức
+            try {
+              // Thử với writeWithResponse trước, nó an toàn hơn
+              await targetCharacteristic.writeWithResponse(data as any);
+            } catch (responseError) {
+              // Nếu writeWithResponse thất bại, thử với writeWithoutResponse
+              console.log(`writeWithResponse thất bại, thử writeWithoutResponse: ${safeErrorMessage(responseError)}`);
+              await targetCharacteristic.writeWithoutResponse(data as any);
+            }
+            
+            // Đợi một chút giữa các lệnh để tránh lỗi buffer
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+            
+            // Gửi thành công, thoát khỏi vòng lặp
+            return true;
+          } catch (e) {
+            console.log(`Lỗi khi gửi ${description}: ${safeErrorMessage(e)}`);
+            error = e;
+            
+            // Đợi lâu hơn giữa các lần thử
+            await new Promise(resolve => setTimeout(resolve, delayMs * 2));
+            
+            // Kiểm tra xem thiết bị có còn kết nối không
+            try {
+              const stillConnected = await connectedDevice.isConnected();
+              if (!stillConnected) {
+                console.log('Thiết bị đã ngắt kết nối trong quá trình thử lại');
+                throw new Error('Thiết bị đã ngắt kết nối trong quá trình in');
+              }
+            } catch (connectionError) {
+              console.log('Lỗi khi kiểm tra kết nối:', safeErrorMessage(connectionError));
+              throw new Error('Không thể kiểm tra kết nối với máy in');
+            }
+          }
+        }
+        
+        // Nếu đến đây, tất cả các lần thử đều thất bại
+        throw error || new Error(`Không thể gửi ${description} sau ${retries} lần thử`);
+      };
+      
+      // Tạo chuỗi QR code ASCII đơn giản, dễ nhìn thấy hơn trên máy in
+      const qrText = `
+╔═══════════════════════════╗
+║                           ║
+║  █████████   ████  █████  ║
+║  █       █   █  █  █   █  ║
+║  █  ███  █   █  █  █████  ║
+║  █  ███  █   ████     █   ║
+║  █  ███  █   █  █  █████  ║
+║  █       █   █  █  █      ║
+║  █████████   ████  █████  ║
+║                           ║
+║    SELLSMART DOCUMENT     ║
+║                           ║
+╚═══════════════════════════╝
+
+${DOCUMENTS_URL}
+
+`;
+
+      // Mã hóa dữ liệu text thành Base64 để gửi
+      const encoder = new TextEncoder();
+      const textBytes = encoder.encode(qrText);
+      let binaryText = '';
+      for (let i = 0; i < textBytes.length; i++) {
+        binaryText += String.fromCharCode(textBytes[i]);
+      }
+      const base64Text = btoa(binaryText);
+      
+      // Khởi tạo máy in
+      console.log('1. Khởi tạo máy in');
+      const initCommand = hexToBytes('1B40'); // ESC @
+      await sendCommandWithRetry(preparePrinterCommand(initCommand), 'lệnh khởi tạo');
+      
+      // 2. Set line spacing
+      console.log('2. Thiết lập khoảng cách dòng');
+      const lineSpaceCommand = hexToBytes('1B3320'); // ESC 3 32
+      await sendCommandWithRetry(preparePrinterCommand(lineSpaceCommand), 'lệnh khoảng cách dòng');
+      
+      // 3. Căn giữa văn bản
+      console.log('3. Căn giữa văn bản');
+      const centerCommand = hexToBytes('1B6101'); // ESC a 1
+      await sendCommandWithRetry(preparePrinterCommand(centerCommand), 'lệnh căn giữa');
+      
+      // 4. In văn bản ASCII QR code
+      console.log('4. In văn bản QR code');
+      await sendCommandWithRetry(base64Text, 'văn bản QR code');
+      
+      // 5. Cắt giấy hoặc thêm dòng trống để cắt 
+      console.log('5. Thêm dòng trống cho việc cắt giấy');
+      const feedAndCutCommand = hexToBytes('1B4A40'); // ESC J 64 - feed paper
+      await sendCommandWithRetry(preparePrinterCommand(feedAndCutCommand), 'lệnh feed giấy');
+      
+      // Hiện thông báo thành công
+      Alert.alert(
+        'In thành công',
+        'Đã in QR code thành công!',
+        [{ text: 'OK' }]
+      );
+      
+    } catch (error) {
+      console.error('Lỗi khi in QR code:', error);
+      
+      // Xử lý lỗi dựa trên loại lỗi
+      let errorMessage = safeErrorMessage(error);
+      
+      if (errorMessage.includes('disconnected') || errorMessage.includes('not connected')) {
+        errorMessage = 'Thiết bị đã ngắt kết nối trong quá trình in. Vui lòng kết nối lại máy in.';
+        // Cập nhật trạng thái kết nối
+        setPrinterStatus('disconnected');
+        setConnectedDevice(null);
+      } else if (errorMessage.includes('rejected')) {
+        errorMessage = 'Máy in từ chối lệnh. Hãy đảm bảo máy in đã sẵn sàng và thử lại.';
+      } else if (errorMessage.includes('timeout')) {
+        errorMessage = 'Hết thời gian chờ phản hồi từ máy in. Vui lòng thử lại.';
+      }
+      
+      Alert.alert(
+        'Lỗi khi in QR code',
+        errorMessage,
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   return (
@@ -115,19 +2055,22 @@ const PrintInformation = observer(() => {
           <View style={styles.printerConnection}>
             <View style={styles.printerInfo}>
               <DynamicText style={styles.printerMethod}>
-                {printMethod === 'wire' ? 'Máy in USB/Bluetooth' : 'Máy in WiFi'}
+                {printMethod === 'wire' ? 'Máy in Bluetooth' : 'Máy in WiFi'}
               </DynamicText>
               <DynamicText style={[
                 styles.printerStatus,
                 printerStatus === 'connected' ? styles.connected : 
                 printerStatus === 'connecting' ? styles.connecting : styles.disconnected
               ]}>
-                {printerStatus === 'connected' ? 'Đã kết nối' : 
-                 printerStatus === 'connecting' ? 'Đang kết nối...' : 'Chưa kết nối'}
+                {printerStatus === 'connected' 
+                  ? `Đã kết nối: ${connectedDevice?.name || 'Thiết bị không tên'}` 
+                  : printerStatus === 'connecting' 
+                    ? 'Đang kết nối...' 
+                    : 'Chưa kết nối'}
               </DynamicText>
             </View>
             <Button 
-              title={printerStatus === 'connected' ? "Đã kết nối" : "Kết nối"}
+              title={printerStatus === 'connected' ? "Đã kết nối" : "Tìm máy in"}
               buttonContainerStyle={[
                 styles.connectButton,
                 printerStatus === 'connected' && styles.connectedButton
@@ -136,7 +2079,13 @@ const PrintInformation = observer(() => {
               onPress={connectPrinter}
               disabled={printerStatus === 'connected' || printerStatus === 'connecting'}
               loading={isConnecting}
-            />
+            >
+              {printerStatus !== 'connected' && !isConnecting && (
+                <View style={{marginRight: moderateScale(8)}}>
+                  <Bluetooth size={20} color="#fff" />
+                </View>
+              )}
+            </Button>
           </View>
         </View>
 
@@ -227,6 +2176,15 @@ const PrintInformation = observer(() => {
               trackColor={{ false: "#d3d3d3", true: color.primaryColor }}
             />
           </View>
+          
+          <View style={styles.optionRow}>
+            <DynamicText style={styles.optionLabel}>In mã QR bảo hành</DynamicText>
+            <Switch 
+              value={printQRCode}
+              onValueChange={setPrintQRCode}
+              trackColor={{ false: "#d3d3d3", true: color.primaryColor }}
+            />
+          </View>
         </View>
 
         {/* Thông tin cửa hàng */}
@@ -288,19 +2246,256 @@ const PrintInformation = observer(() => {
         <View style={styles.section}>
           <TouchableOpacity 
             style={styles.previewButton}
-            onPress={() => Alert.alert('Thông báo', 'Chức năng xem trước đang được phát triển')}
+            onPress={handlePreview}
           >
             <DynamicText style={styles.previewButtonText}>Xem trước hóa đơn</DynamicText>
           </TouchableOpacity>
         </View>
+        
+        {/* In hóa đơn trực tiếp */}
+        <View style={styles.section}>
+          <TouchableOpacity 
+            style={styles.directPrintButton}
+            onPress={handleRealPrint}
+          >
+            <View style={styles.directPrintButtonContent}>
+              <Printer size={24} color="#fff" variant="Bold" style={{marginRight: 8}} />
+              <DynamicText style={styles.directPrintButtonText}>In hóa đơn</DynamicText>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Add separate test print button */}
+        <View style={{marginTop: 10}}>
+          <TouchableOpacity 
+            style={[styles.directPrintButton, {backgroundColor: '#8e44ad'}]}
+            onPress={printQRCodeWithRetry}
+          >
+            <View style={styles.directPrintButtonContent}>
+              <Scan size={24} color="#fff" variant="Bold" style={{marginRight: 8}} />
+              <DynamicText style={styles.directPrintButtonText}>Chỉ In Mã QR (Kiểm Tra)</DynamicText>
+            </View>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
       
+      {/* Modal hiển thị danh sách thiết bị Bluetooth */}
+      <Modal
+        visible={showDeviceList}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => closeDeviceModal()}
+        statusBarTranslucent={true}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.deviceListHeader}>
+              <DynamicText style={styles.deviceListTitle}>Danh sách thiết bị Bluetooth</DynamicText>
+              <TouchableOpacity 
+                onPress={() => closeDeviceModal()}
+                style={styles.closeButtonContainer}
+              >
+                <DynamicText style={styles.closeButton}>Đóng</DynamicText>
+              </TouchableOpacity>
+            </View>
+            
+            {isScanning && (
+              <View style={styles.scanningIndicator}>
+                <ActivityIndicator size="large" color={color.primaryColor} />
+                <DynamicText style={styles.scanningText}>Đang quét thiết bị...</DynamicText>
+              </View>
+            )}
+            
+            {bluetoothDevices.length > 0 ? (
+              <FlatList
+                data={bluetoothDevices}
+                keyExtractor={(item) => item.id}
+                renderItem={({item}) => (
+                  <TouchableOpacity 
+                    style={styles.deviceItem}
+                    onPress={() => connectToDevice(item)}
+                    disabled={isConnecting}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.deviceInfo}>
+                      <DynamicText style={styles.deviceName}>{item.name || 'Thiết bị không tên'}</DynamicText>
+                      <DynamicText style={styles.deviceId}>{item.id}</DynamicText>
+                    </View>
+                    <TouchableOpacity 
+                      style={styles.connectDeviceButton}
+                      onPress={() => connectToDevice(item)}
+                      disabled={isConnecting}
+                    >
+                      <DynamicText style={styles.connectDeviceButtonText}>Kết nối</DynamicText>
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                )}
+                style={styles.deviceList}
+                contentContainerStyle={styles.deviceListContent}
+              />
+            ) : (
+              <View style={styles.noDevicesContainer}>
+                {isScanning ? (
+                  <DynamicText style={styles.noDevicesText}>Đang tìm kiếm thiết bị...</DynamicText>
+                ) : (
+                  <DynamicText style={styles.noDevicesText}>Không tìm thấy thiết bị nào</DynamicText>
+                )}
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
+      
+      {/* Modal xem trước hóa đơn */}
+      <Modal
+        visible={showPreview}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowPreview(false)}
+        statusBarTranslucent={false} 
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalWrapper}>
+            <View style={styles.previewModalContent}>
+              {/* Header với nút đóng */}
+              <View style={styles.previewHeader}>
+                <DynamicText style={styles.previewTitle}>Xem trước hóa đơn</DynamicText>
+                <TouchableOpacity 
+                  onPress={() => setShowPreview(false)}
+                  style={styles.closeButtonContainer}
+                >
+                  <DynamicText style={styles.closeButton}>Đóng</DynamicText>
+                </TouchableOpacity>
+              </View>
+              
+              {/* Scroll view cho nội dung hóa đơn */}
+              <ScrollView 
+                style={styles.receiptContainer}
+                showsVerticalScrollIndicator={true}
+              >
+                {/* Phần header của bill */}
+                <View style={styles.receiptHeader}>
+                  {printLogo && (
+                    <View style={styles.logoContainer}>
+                      <Image 
+                        source={require('../../../assets/images/logo.png')}
+                        style={styles.logo}
+                        resizeMode="contain"
+                      />
+                      <DynamicText style={styles.logoText}>SELL SMART</DynamicText>
+                    </View>
+                  )}
+                  
+                  {printCompanyInfo && (
+                    <View style={styles.companyInfo}>
+                      <DynamicText style={styles.companyNameLarge}>{companyName.toUpperCase()}</DynamicText>
+                      <DynamicText style={styles.companyDetail}>{companyAddress}</DynamicText>
+                      <DynamicText style={styles.companyDetail}>SĐT: {companyPhone}</DynamicText>
+                    </View>
+                  )}
+                  
+                  <View style={styles.receiptTitle}>
+                    <DynamicText style={styles.receiptTitleTextLarge}>HÓA ĐƠN BÁN HÀNG</DynamicText>
+                  </View>
+                  
+                  <View style={styles.orderInfo}>
+                    <View style={styles.orderInfoRow}>
+                      <DynamicText style={styles.orderInfoLabel}>Mã hóa đơn:</DynamicText>
+                      <DynamicText style={styles.orderInfoValue}>#{orderNumber}</DynamicText>
+                    </View>
+                    <View style={styles.orderInfoRow}>
+                      <DynamicText style={styles.orderInfoLabel}>Ngày:</DynamicText>
+                      <DynamicText style={styles.orderInfoValue}>
+                        {format(new Date(order.createdAt), 'dd/MM/yyyy HH:mm')}
+                      </DynamicText>
+                    </View>
+                    <View style={styles.orderInfoRow}>
+                      <DynamicText style={styles.orderInfoLabel}>Khách hàng:</DynamicText>
+                      <DynamicText style={styles.orderInfoValue}>{order.customerID.fullName}</DynamicText>
+                    </View>
+                    {order.customerID.phone && (
+                      <View style={styles.orderInfoRow}>
+                        <DynamicText style={styles.orderInfoLabel}>SĐT:</DynamicText>
+                        <DynamicText style={styles.orderInfoValue}>{order.customerID.phone}</DynamicText>
+                      </View>
+                    )}
+                  </View>
+                </View>
+                
+                {/* Danh sách sản phẩm */}
+                <View style={styles.receiptProducts}>
+                  <View style={styles.receiptProductsHeader}>
+                    <DynamicText style={styles.productHeaderText}>Sản phẩm</DynamicText>
+                    <DynamicText style={styles.productHeaderText}>Đơn giá</DynamicText>
+                  </View>
+                  <View style={styles.receiptItemsContainer}>
+                    {renderProductItems()}
+                  </View>
+                </View>
+                
+                {/* Tổng tiền */}
+                <View style={styles.receiptSummary}>
+                  <View style={styles.summaryRow}>
+                    <DynamicText style={styles.summaryLabel}>Tổng tiền hàng:</DynamicText>
+                    <DynamicText style={styles.summaryValue}>{formatCurrency(order.subTotal || order.totalAmount)}</DynamicText>
+                  </View>
+                  
+                  {order.discount > 0 && (
+                    <View style={styles.summaryRow}>
+                      <DynamicText style={styles.summaryLabel}>Giảm giá:</DynamicText>
+                      <DynamicText style={styles.summaryValue}>- {formatCurrency(order.discount)}</DynamicText>
+                    </View>
+                  )}
+                  
+                  <View style={styles.grandTotalRow}>
+                    <DynamicText style={styles.grandTotalLabel}>TỔNG THANH TOÁN:</DynamicText>
+                    <DynamicText style={styles.grandTotalValueLarge}>{formatCurrency(order.totalAmount)}</DynamicText>
+                  </View>
+                </View>
+                
+                {/* QR Code */}
+                {printQRCode && (
+                  <View style={styles.qrCodeContainer}>
+                    <DynamicText style={styles.qrCodeTitle}>Quét mã để truy cập tài liệu bảo hành</DynamicText>
+                    <QRCode
+                      value={DOCUMENTS_URL}
+                      size={160}
+                      color={'#000'}
+                      backgroundColor={'#fff'}
+                    />
+                    <DynamicText style={styles.qrCodeNote}>
+                      {DOCUMENTS_URL}
+                    </DynamicText>
+                  </View>
+                )}
+                
+                {/* Chân trang */}
+                {printFooter && (
+                  <View style={styles.receiptFooter}>
+                    <DynamicText style={styles.footerTextBold}>{footer}</DynamicText>
+                  </View>
+                )}
+              </ScrollView>
+              
+              {/* Nút in */}
+              <TouchableOpacity 
+                style={styles.printFromPreviewButton}
+                onPress={handleRealPrint}
+              >
+                <Printer size={24} color="#fff" variant="Bold" style={{marginRight: 8}} />
+                <DynamicText style={styles.printFromPreviewButtonText}>In hóa đơn</DynamicText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <View style={styles.buttonContainer}>
         <Button
           title="In hóa đơn"
           buttonContainerStyle={styles.printButton}
           titleStyle={styles.printButtonText}
-          onPress={handlePrint}
+          onPress={handleRealPrint}
           titleContainerStyle={{
             flexDirection: 'row',
             alignItems: 'center',
@@ -324,7 +2519,7 @@ const styles = StyleSheet.create({
     borderRadius: moderateScale(12),
     padding: scaleWidth(16),
     marginBottom: scaleHeight(16),
-    height: scaleHeight(300),
+    minHeight: scaleHeight(150),
   },
 
   section: {
@@ -450,6 +2645,461 @@ const styles = StyleSheet.create({
     fontSize: moderateScale(18),
     fontFamily: Fonts.Inter_Bold,
     color: '#fff',
+  },
+  deviceListContainer: {
+    marginTop: scaleHeight(16),
+    flex: 1,
+  },
+  deviceListHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: scaleHeight(20),
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    paddingBottom: scaleHeight(15),
+  },
+  deviceListTitle: {
+    fontSize: moderateScale(20),
+    fontFamily: Fonts.Inter_Bold,
+    color: color.accentColor.darkColor,
+  },
+  scanningIndicator: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: scaleHeight(30),
+    marginBottom: scaleHeight(15),
+  },
+  scanningText: {
+    fontSize: moderateScale(18),
+    fontFamily: Fonts.Inter_SemiBold,
+    color: color.primaryColor,
+    marginTop: scaleHeight(16),
+  },
+  deviceList: {
+    flexGrow: 0,
+    maxHeight: scaleHeight(350),
+  },
+  deviceListContent: {
+    paddingBottom: scaleHeight(20),
+  },
+  deviceItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: scaleHeight(15),
+    paddingHorizontal: scaleWidth(10),
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    marginBottom: scaleHeight(10),
+    backgroundColor: '#fafafa',
+    borderRadius: moderateScale(10),
+  },
+  deviceInfo: {
+    flex: 1,
+    paddingRight: scaleWidth(15),
+  },
+  deviceName: {
+    fontSize: moderateScale(18),
+    fontFamily: Fonts.Inter_SemiBold,
+    color: color.accentColor.darkColor,
+    marginBottom: scaleHeight(6),
+  },
+  deviceId: {
+    fontSize: moderateScale(14),
+    fontFamily: Fonts.Inter_Regular,
+    color: color.accentColor.grayColor,
+  },
+  connectDeviceButton: {
+    backgroundColor: color.primaryColor,
+    paddingHorizontal: scaleWidth(20),
+    paddingVertical: scaleHeight(10),
+    borderRadius: moderateScale(10),
+    minWidth: scaleWidth(100),
+    alignItems: 'center',
+  },
+  connectDeviceButtonText: {
+    fontSize: moderateScale(16),
+    fontFamily: Fonts.Inter_SemiBold,
+    color: '#fff',
+  },
+  noDevicesContainer: {
+    height: scaleHeight(200),
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: scaleWidth(20),
+    backgroundColor: '#f9f9f9',
+    borderRadius: moderateScale(10),
+  },
+  noDevicesText: {
+    fontSize: moderateScale(18),
+    fontFamily: Fonts.Inter_Regular,
+    color: color.accentColor.grayColor,
+    textAlign: 'center',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'absolute',
+    top: 40,
+    left: 100,
+    right: 0,
+    bottom: 0,
+    width: moderateScale(650),
+    height: moderateScale(400),
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: moderateScale(20),
+    padding: scaleWidth(24),
+    width: scaleWidth(500),
+    maxWidth: '80%',
+    maxHeight: scaleHeight(600),
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    height: moderateScale(350)
+  },
+  closeButtonContainer: {
+    padding: scaleWidth(5),
+    backgroundColor: '#f5f5f5',
+    borderRadius: moderateScale(8),
+  },
+  closeButton: {
+    fontSize: moderateScale(16),
+    fontFamily: Fonts.Inter_SemiBold,
+    color: color.primaryColor,
+    paddingHorizontal: scaleWidth(12),
+    paddingVertical: scaleHeight(4),
+  },
+  // Styles for receipt preview
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalWrapper: {
+    width: '80%',
+    maxWidth: 600,
+    height: '90%',
+    maxHeight: 800,
+    backgroundColor: 'white',
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  previewModalContent: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: moderateScale(20),
+    padding: 20,
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  previewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    paddingBottom: 15,
+  },
+  previewTitle: {
+    fontSize: moderateScale(20),
+    fontFamily: Fonts.Inter_Bold,
+    color: color.accentColor.darkColor,
+  },
+  receiptContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+    padding: scaleWidth(10),
+    marginBottom: scaleHeight(15),
+  },
+  receiptContainerContent: {
+    paddingBottom: scaleHeight(20),
+  },
+  receiptHeader: {
+    marginBottom: scaleHeight(15),
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: scaleHeight(10),
+  },
+  logo: {
+    width: scaleWidth(100),
+    height: scaleHeight(100),
+  },
+  companyInfo: {
+    alignItems: 'center',
+    marginBottom: scaleHeight(15),
+  },
+  companyName: {
+    fontSize: moderateScale(18),
+    fontFamily: Fonts.Inter_Bold,
+    marginBottom: scaleHeight(5),
+    textAlign: 'center',
+  },
+  companyDetail: {
+    fontSize: moderateScale(14),
+    fontFamily: Fonts.Inter_Regular,
+    marginBottom: scaleHeight(3),
+    textAlign: 'center',
+    color: '#555',
+  },
+  receiptTitle: {
+    alignItems: 'center',
+    marginBottom: scaleHeight(15),
+    marginTop: scaleHeight(5),
+  },
+  receiptTitleText: {
+    fontSize: moderateScale(20),
+    fontFamily: Fonts.Inter_Bold,
+    color: color.primaryColor,
+  },
+  receiptTitleTextLarge: {
+    fontSize: moderateScale(24),
+    fontFamily: Fonts.Inter_Bold,
+    color: color.primaryColor,
+  },
+  orderInfo: {
+    marginBottom: scaleHeight(15),
+    padding: scaleWidth(10),
+  },
+  orderInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: scaleHeight(5),
+  },
+  orderInfoLabel: {
+    fontSize: moderateScale(14),
+    fontFamily: Fonts.Inter_SemiBold,
+    color: '#555',
+  },
+  orderInfoValue: {
+    fontSize: moderateScale(14),
+    fontFamily: Fonts.Inter_Regular,
+    color: '#333',
+  },
+  receiptProducts: {
+    marginBottom: scaleHeight(15),
+  },
+  receiptProductsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: scaleHeight(10),
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+    marginBottom: scaleHeight(10),
+  },
+  productHeaderText: {
+    fontSize: moderateScale(16),
+    fontFamily: Fonts.Inter_Bold,
+    color: '#333',
+  },
+  receiptItemsContainer: {
+    marginBottom: scaleHeight(10),
+  },
+  receiptItem: {
+    padding: scaleWidth(10),
+    marginBottom: scaleHeight(10),
+    backgroundColor: '#f9f9f9',
+    borderRadius: moderateScale(8),
+  },
+  receiptItemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: scaleHeight(5),
+  },
+  receiptItemName: {
+    fontSize: moderateScale(15),
+    fontFamily: Fonts.Inter_SemiBold,
+    color: '#333',
+    flex: 1,
+  },
+  receiptItemPrice: {
+    fontSize: moderateScale(15),
+    fontFamily: Fonts.Inter_SemiBold,
+    color: '#333',
+  },
+  receiptItemDetails: {
+    marginTop: scaleHeight(5),
+  },
+  receiptItemQuantity: {
+    fontSize: moderateScale(14),
+    fontFamily: Fonts.Inter_Regular,
+    color: '#555',
+  },
+  receiptItemSKU: {
+    fontSize: moderateScale(13),
+    fontFamily: Fonts.Inter_Regular,
+    color: '#777',
+  },
+  receiptItemTotal: {
+    fontSize: moderateScale(14),
+    fontFamily: Fonts.Inter_SemiBold,
+    color: '#333',
+    marginTop: scaleHeight(5),
+  },
+  receiptSummary: {
+    marginTop: scaleHeight(15),
+    borderTopWidth: 1,
+    borderTopColor: '#ddd',
+    paddingTop: scaleHeight(15),
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: scaleHeight(8),
+  },
+  summaryLabel: {
+    fontSize: moderateScale(15),
+    fontFamily: Fonts.Inter_Regular,
+    color: '#555',
+  },
+  summaryValue: {
+    fontSize: moderateScale(15),
+    fontFamily: Fonts.Inter_SemiBold,
+    color: '#333',
+  },
+  grandTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: scaleHeight(10),
+    borderTopWidth: 1,
+    borderTopColor: '#ddd',
+    paddingTop: scaleHeight(10),
+    marginBottom: scaleHeight(10),
+  },
+  grandTotalLabel: {
+    fontSize: moderateScale(18),
+    fontFamily: Fonts.Inter_Bold,
+    color: color.primaryColor,
+  },
+  grandTotalValue: {
+    fontSize: moderateScale(18),
+    fontFamily: Fonts.Inter_Bold,
+    color: color.primaryColor,
+  },
+  grandTotalValueLarge: {
+    fontSize: moderateScale(22),
+    fontFamily: Fonts.Inter_Bold,
+    color: color.primaryColor,
+  },
+  paymentStatusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: '#f0f8ff',
+    padding: scaleWidth(10),
+    borderRadius: moderateScale(8),
+  },
+  paymentStatusLabel: {
+    fontSize: moderateScale(14),
+    fontFamily: Fonts.Inter_SemiBold,
+    color: '#333',
+  },
+  paymentStatusValue: {
+    fontSize: moderateScale(14),
+    fontFamily: Fonts.Inter_SemiBold,
+    color: '#4CAF50',
+  },
+  receiptFooter: {
+    marginTop: scaleHeight(20),
+    alignItems: 'center',
+    paddingTop: scaleHeight(10),
+    borderTopWidth: 1,
+    borderTopColor: '#ddd',
+  },
+  footerText: {
+    fontSize: moderateScale(14),
+    fontFamily: Fonts.Inter_Regular,
+    color: '#555',
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  footerTextBold: {
+    fontSize: moderateScale(14),
+    fontFamily: Fonts.Inter_SemiBold,
+    color: '#555',
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  printFromPreviewButton: {
+    backgroundColor: color.primaryColor,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: scaleHeight(15),
+    borderRadius: moderateScale(10),
+    marginTop: scaleHeight(10),
+  },
+  printFromPreviewButtonText: {
+    fontSize: moderateScale(18),
+    fontFamily: Fonts.Inter_Bold,
+    color: '#fff',
+  },
+  noProductsContainer: {
+    padding: scaleWidth(20),
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f9f9f9',
+    borderRadius: moderateScale(8),
+    marginVertical: scaleHeight(10),
+  },
+  noProductsText: {
+    fontSize: moderateScale(16),
+    fontFamily: Fonts.Inter_Regular,
+    color: '#777',
+    textAlign: 'center',
+  },
+  directPrintButton: {
+    backgroundColor: color.primaryColor,
+    padding: scaleWidth(12),
+    borderRadius: moderateScale(8),
+    alignItems: 'center',
+  },
+  directPrintButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  directPrintButtonText: {
+    fontSize: moderateScale(16),
+    fontFamily: Fonts.Inter_SemiBold,
+    color: '#fff',
+  },
+  logoText: {
+    fontSize: moderateScale(16),
+    fontFamily: Fonts.Inter_Bold,
+    color: color.primaryColor,
+    marginTop: scaleHeight(5),
+  },
+  qrCodeContainer: {
+    alignItems: 'center',
+    marginTop: scaleHeight(15),
+  },
+  qrCodeTitle: {
+    fontSize: moderateScale(18),
+    fontFamily: Fonts.Inter_SemiBold,
+    color: '#333',
+    marginBottom: scaleHeight(5),
+  },
+  qrCodeNote: {
+    fontSize: moderateScale(14),
+    fontFamily: Fonts.Inter_Regular,
+    color: '#555',
+    textAlign: 'center',
+    marginTop: scaleHeight(5),
+  },
+  companyNameLarge: {
+    fontSize: moderateScale(18),
+    fontFamily: Fonts.Inter_Bold,
+    marginBottom: scaleHeight(5),
+    textAlign: 'center',
   },
 });
 

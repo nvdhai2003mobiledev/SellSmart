@@ -20,7 +20,7 @@ type PromotionRequest = {
 const ANDROID_BASE_URL = 'http://10.0.2.2';  // Android emulator localhost
 const IOS_BASE_URL = 'http://localhost';     // iOS simulator localhost
 const DEFAULT_BASE_URL = 'http://localhost'; // Fallback
-const TABLE_BASE_URL = 'http://192.168.50.241'; 
+const TABLE_BASE_URL = 'http://192.168.86.43'; 
 
 // List of ports to try
 const PORTS = [5000, 3000, 8000, 8080];
@@ -33,8 +33,8 @@ const generateBaseUrls = (baseUrl: string) => {
 // Get appropriate base URLs for current platform
 const getBaseUrls = () => {
   if (Platform.OS === 'android') {
-    // return generateBaseUrls(ANDROID_BASE_URL);
     return generateBaseUrls(ANDROID_BASE_URL);
+    // return generateBaseUrls(TABLE_BASE_URL);
   } else if (Platform.OS === 'ios') {
     return generateBaseUrls(IOS_BASE_URL);
   }
@@ -64,7 +64,7 @@ const loadActivePort = async (): Promise<string | null> => {
     const port = await AsyncStorage.getItem('active_api_port');
     if (port) {
       console.log(`🔄 Loaded previously working port: ${port}`);
-      const baseUrl = Platform.OS === 'android' ? ANDROID_BASE_URL : 
+      const baseUrl = Platform.OS === 'android' ? TABLE_BASE_URL : 
                      (Platform.OS === 'ios' ? IOS_BASE_URL : DEFAULT_BASE_URL);
       return `${baseUrl}:${port}`;
     }
@@ -103,7 +103,7 @@ export const promotionAPI = {
     console.log('🔍 Fetching promotions from:', ApiEndpoint.PROMOTIONS);
     console.log('🔑 Using token:', rootStore.auth.accessToken); // Debug log for token
 
-    const baseUrl = Platform.OS === 'android' ? `${ANDROID_BASE_URL}:5000` : `${IOS_BASE_URL}:5000`;
+    const baseUrl = Platform.OS === 'android' ? `${TABLE_BASE_URL}:5000` : `${IOS_BASE_URL}:5000`;
     console.log(`🔄 Using base URL: ${baseUrl}`);
     
     apiClient.setBaseURL(baseUrl);

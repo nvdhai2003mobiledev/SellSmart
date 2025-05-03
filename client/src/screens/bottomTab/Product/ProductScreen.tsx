@@ -12,7 +12,9 @@ import {
   Image,
   Platform,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   ShoppingCart,
   CloseCircle,
@@ -195,6 +197,16 @@ interface ImageSource {
   uri: string;
 }
 
+// Interface cho item giỏ hàng
+interface CartItem {
+  productId: string;
+  variantId?: string;
+  product: Product;
+  variant?: any;
+  quantity: number;
+  selected: boolean;
+}
+
 const ProductScreen = observer(() => {
   const navigation = useNavigation<any>();
   const [store] = useState(() => {
@@ -210,9 +222,14 @@ const ProductScreen = observer(() => {
   const [modalVisible, setModalVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [cartItems, setCartItems] = useState<Record<string, number>>({});
+  const [cartItemsDetail, setCartItemsDetail] = useState<CartItem[]>([]);
   const [totalCartItems, setTotalCartItems] = useState(0);
   const [variantSelectionVisible, setVariantSelectionVisible] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<any>(null);
+  const [selectedVariants, setSelectedVariants] = useState<Record<string, boolean>>({});
+  const [cartModalVisible, setCartModalVisible] = useState(false);
+  const [isSelectingForCheckout, setIsSelectingForCheckout] = useState(false);
+  const [checkoutSelectedItems, setCheckoutSelectedItems] = useState<Record<string, boolean>>({});
 
   // Search and filter state
   const [searchText, setSearchText] = useState('');
@@ -234,7 +251,6 @@ const ProductScreen = observer(() => {
   const [categories, setCategories] = useState<SelectOption[]>([]);
   const [providers, setProviders] = useState<SelectOption[]>([]);
   const [isCartModalVisible, setIsCartModalVisible] = useState(false);
-  const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
   const [availableVariants, setAvailableVariants] = useState<any[]>([]);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -425,9 +441,14 @@ const ProductScreen = observer(() => {
       return [];
     }
     
+    // Chuyển đổi MST array sang mảng JavaScript thông thường
+    // Sử dụng JSON.parse(JSON.stringify()) để tạo bản sao sâu của dữ liệu
+    // Điều này giúp đảm bảo dữ liệu được làm mới hoàn toàn và không bị ảnh hưởng bởi các tham chiếu
+    const productsArray = JSON.parse(JSON.stringify(store.products));
+    
     // Lọc sản phẩm theo các điều kiện
     const filtered = filterProducts(
-      Array.from(store.products), // Đảm bảo chuyển đổi MST array sang mảng JavaScript thông thường
+      productsArray,
       searchText,
       selectedFilter,
       selectedProvider,
@@ -443,7 +464,10 @@ const ProductScreen = observer(() => {
     
     return filtered;
   }, [
-    store.products,
+    // Sử dụng JSON.stringify(store.products) thay vì store.products trực tiếp
+    // Điều này đảm bảo useMemo sẽ tính toán lại khi nội dung của sản phẩm thay đổi
+    // chứ không chỉ khi tham chiếu thay đổi
+    JSON.stringify(store.products),
     searchText,
     selectedFilter,
     selectedProvider,
@@ -569,34 +593,61 @@ const ProductScreen = observer(() => {
     }
   }, [store, fetchCategoriesAndProviders]);
 
+  // Tải sản phẩm khi component mount
   useEffect(() => {
     loadProducts();
   }, [loadProducts]);
 
-  // Refresh products
+  // Tự động làm mới danh sách sản phẩm khi màn hình được focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('Màn hình ProductScreen được focus - tải lại dữ liệu');
+      // Tải lại dữ liệu mỗi khi màn hình được focus
+      loadData();
+      return () => {
+        // Cleanup khi màn hình mất focus
+      };
+    }, [])
+  );
+
+  // Refresh products khi kéo xuống
   const onRefresh = useCallback(async () => {
+    console.log('Đang làm mới danh sách sản phẩm...');
     setRefreshing(true);
     try {
-      await loadData();
+      // Sử dụng taiLaiSanPham từ store để đảm bảo dữ liệu được làm mới hoàn toàn
+      await taiLaiSanPham();
+      // Sau đó tải lại dữ liệu bổ sung (danh mục, nhà cung cấp)
+      await fetchCategoriesAndProviders();
+      console.log('Đã làm mới danh sách sản phẩm thành công');
     } catch (error) {
       console.error('Lỗi khi làm mới dữ liệu:', error);
     } finally {
       setRefreshing(false);
     }
-  }, []);
+  }, [fetchCategoriesAndProviders]);
 
   const loadData = async () => {
     try {
       setIsLoading(true);
       setError(null);
       
-      // Load products first
+      console.log('loadData: Đang tải lại dữ liệu sản phẩm...');
+      
+      // Sử dụng taiLaiSanPham từ store để đảm bảo dữ liệu được làm mới hoàn toàn
+      // Với cấu hình cache-busting để tránh cache
       await taiLaiSanPham();
       
+      console.log('loadData: Đã tải lại sản phẩm thành công, đang tải danh mục và nhà cung cấp...');
+      
       // Load categories and providers in parallel
+      // Thêm timestamp để tránh cache
+      const timestamp = Date.now();
+      const cacheParams = `?_t=${timestamp}`;
+      
       const [categoriesData, providersData] = await Promise.all([
-        productAPI.fetchCategories(),
-        productAPI.fetchProviders()
+        productAPI.fetchCategories(cacheParams),
+        productAPI.fetchProviders(cacheParams)
       ]);
       
       // Format categories
@@ -613,6 +664,7 @@ const ProductScreen = observer(() => {
       }));
       setProviders(formattedProviders);
       
+      console.log('loadData: Đã tải xong tất cả dữ liệu');
       setIsLoading(false);
     } catch (error) {
       console.error('Lỗi khi tải dữ liệu:', error);
@@ -640,6 +692,36 @@ const ProductScreen = observer(() => {
     newCartItems[cartKey] = (newCartItems[cartKey] || 0) + 1;
     setCartItems(newCartItems);
 
+    // Add detailed information to cart items
+    const product = store.products.find(p => p._id === productId);
+    if (product) {
+      const existingItemIndex = cartItemsDetail.findIndex(
+        item => 
+          item.productId === productId && 
+          (variant ? item.variantId === variant._id : !item.variantId)
+      );
+
+      if (existingItemIndex >= 0) {
+        // Update existing cart item
+        const updatedCartItems = [...cartItemsDetail];
+        updatedCartItems[existingItemIndex].quantity += 1;
+        setCartItemsDetail(updatedCartItems);
+      } else {
+        // Add new cart item
+        setCartItemsDetail([
+          ...cartItemsDetail,
+          {
+            productId,
+            variantId: variant ? variant._id : undefined,
+            product,
+            variant,
+            quantity: 1,
+            selected: true,
+          },
+        ]);
+      }
+    }
+
     // Calculate total items in cart
     const newTotal = Object.values(newCartItems).reduce(
       (sum, quantity) => sum + quantity,
@@ -661,6 +743,7 @@ const ProductScreen = observer(() => {
       item.detailsVariants.length > 1
     ) {
       setSelectedProduct(item);
+      setSelectedVariants({}); // Reset selected variants
       setVariantSelectionVisible(true);
     } else if (
       item.hasVariants &&
@@ -673,6 +756,265 @@ const ProductScreen = observer(() => {
       // If product has no variants, add it directly
       addToCart(item._id);
     }
+  };
+
+  // Toggle variant selection
+  const toggleVariantSelection = (variantId: string) => {
+    setSelectedVariants(prev => ({
+      ...prev,
+      [variantId]: !prev[variantId]
+    }));
+  };
+
+  // Add multiple selected variants to cart
+  const addSelectedVariantsToCart = () => {
+    if (!selectedProduct) return;
+    
+    const selectedVariantIds = Object.keys(selectedVariants).filter(id => selectedVariants[id]);
+    
+    if (selectedVariantIds.length === 0) {
+      // If no variants selected, show alert
+      Alert.alert('Thông báo', 'Vui lòng chọn ít nhất một biến thể');
+      return;
+    }
+    
+    // Add each selected variant to cart
+    selectedVariantIds.forEach(variantId => {
+      const variant = selectedProduct.detailsVariants.find((v: any) => v._id === variantId);
+      if (variant) {
+        addToCart(selectedProduct._id, variant);
+      }
+    });
+    
+    // Close the variant selection modal
+    setVariantSelectionVisible(false);
+  };
+
+  // Update item quantity in the cart
+  const updateCartItemQuantity = (index: number, newQuantity: number) => {
+    if (newQuantity < 1) return;
+    
+    const updatedCartItems = [...cartItemsDetail];
+    const item = updatedCartItems[index];
+    
+    // Check inventory limit
+    const inventoryLimit = item.variant 
+      ? (item.variant.inventory || Infinity) 
+      : (item.product.inventory || Infinity);
+      
+    if (newQuantity > inventoryLimit) {
+      Alert.alert('Thông báo', 'Số lượng không thể vượt quá tồn kho');
+      return;
+    }
+    
+    // Update in detailed cart
+    updatedCartItems[index].quantity = newQuantity;
+    setCartItemsDetail(updatedCartItems);
+    
+    // Update in simple cart
+    const cartKey = item.variantId 
+      ? `${item.productId}_${item.variantId}` 
+      : item.productId;
+    
+    const newCartItems = {...cartItems};
+    newCartItems[cartKey] = newQuantity;
+    setCartItems(newCartItems);
+    
+    // Recalculate total
+    const newTotal = Object.values(newCartItems).reduce(
+      (sum, quantity) => sum + quantity,
+      0,
+    );
+    setTotalCartItems(newTotal);
+  };
+
+  // Remove item from cart
+  const removeFromCart = (index: number) => {
+    const updatedCartItems = [...cartItemsDetail];
+    const itemToRemove = updatedCartItems[index];
+    
+    // Remove from detailed cart
+    updatedCartItems.splice(index, 1);
+    setCartItemsDetail(updatedCartItems);
+    
+    // Remove from simple cart
+    const cartKey = itemToRemove.variantId 
+      ? `${itemToRemove.productId}_${itemToRemove.variantId}` 
+      : itemToRemove.productId;
+    
+    const newCartItems = {...cartItems};
+    delete newCartItems[cartKey];
+    setCartItems(newCartItems);
+    
+    // Recalculate total
+    const newTotal = Object.values(newCartItems).reduce(
+      (sum, quantity) => sum + quantity,
+      0,
+    );
+    setTotalCartItems(newTotal);
+    
+    // If cart is empty, close cart modal
+    if (updatedCartItems.length === 0) {
+      setCartModalVisible(false);
+    }
+  };
+
+  // Toggle item selection for checkout
+  const toggleItemSelection = (index: number) => {
+    const updatedCartItems = [...cartItemsDetail];
+    updatedCartItems[index].selected = !updatedCartItems[index].selected;
+    setCartItemsDetail(updatedCartItems);
+  };
+
+  // Handle checkout with selected items
+  const handleCheckout = () => {
+    if (totalCartItems === 0) {
+      Alert.alert('Thông báo', 'Giỏ hàng đang trống');
+      return;
+    }
+    
+    // Open cart modal for selection
+    setIsSelectingForCheckout(true);
+    setCartModalVisible(true);
+    
+    // Initialize selection state based on current cart items
+    const initialSelection = {};
+    cartItemsDetail.forEach(item => {
+      // Use a unique key combining product ID and variant ID if exists
+      const itemKey = item.variantId 
+        ? `${item.productId}_${item.variantId}` 
+        : item.productId;
+      
+      // Default to selected
+      initialSelection[itemKey] = true;
+    });
+    
+    setCheckoutSelectedItems(initialSelection);
+  };
+
+  // Toggle selection of an item in the cart modal
+  const toggleItemSelectionForCheckout = (item: CartItem) => {
+    const itemKey = item.variantId 
+      ? `${item.productId}_${item.variantId}` 
+      : item.productId;
+    
+    setCheckoutSelectedItems(prev => ({
+      ...prev,
+      [itemKey]: !prev[itemKey]
+    }));
+  };
+
+  // Check if an item is selected in the checkout modal
+  const isItemSelectedForCheckout = (item: CartItem): boolean => {
+    const itemKey = item.variantId 
+      ? `${item.productId}_${item.variantId}` 
+      : item.productId;
+    
+    return !!checkoutSelectedItems[itemKey];
+  };
+
+  // Process checkout after selecting items
+  const processCheckout = () => {
+    // Get selected items based on checkout selection state
+    const selectedItems = cartItemsDetail.filter(item => {
+      const itemKey = item.variantId 
+        ? `${item.productId}_${item.variantId}` 
+        : item.productId;
+      
+      return checkoutSelectedItems[itemKey];
+    });
+    
+    if (selectedItems.length === 0) {
+      Alert.alert('Thông báo', 'Vui lòng chọn ít nhất một sản phẩm');
+      return;
+    }
+    
+    // Convert to format expected by CreateOrderScreen
+    const productsForOrder = selectedItems.map(item => {
+      // Determine price based on variant or base product
+      const price = item.variant ? item.variant.price : item.product.price;
+      
+      // Create attributes array from variant if exists
+      let attributes: Array<{name: string, value: string | string[]}> = [];
+      if (item.variant && item.variant.attributes) {
+        // Handle attributes from MobX Map or regular object
+        if (item.variant.attributes.entries && typeof item.variant.attributes.entries === 'function') {
+          // MobX Map
+          for (const [key, value] of item.variant.attributes.entries()) {
+            if (key !== '_id') {
+              attributes.push({
+                name: key,
+                value: value
+              });
+            }
+          }
+        } else if (typeof item.variant.attributes === 'object') {
+          // Regular object
+          Object.entries(item.variant.attributes).forEach(([key, value]) => {
+            if (key !== '_id') {
+              attributes.push({
+                name: key,
+                value: value as string
+              });
+            }
+          });
+        }
+      }
+      
+      return {
+        _id: item.variantId ? `${item.productId}-${item.variantId}` : item.productId,
+        originalProductId: item.productId,
+        variantId: item.variantId,
+        name: item.product.name,
+        price: price,
+        inventory: item.variant ? (item.variant.inventory || 0) : (item.product.inventory || 0),
+        quantity: item.quantity,
+        thumbnail: item.product.thumbnail,
+        attributes: attributes
+      };
+    });
+    
+    // Navigate to CreateOrderScreen with selected products
+    navigation.navigate(Screen.CREATEORDER, {
+      selectedProducts: productsForOrder,
+    });
+    
+    // Close cart modal
+    setCartModalVisible(false);
+    setIsSelectingForCheckout(false);
+  };
+
+  // Select all items in cart
+  const selectAllItems = () => {
+    const allSelected = {};
+    cartItemsDetail.forEach(item => {
+      const itemKey = item.variantId 
+        ? `${item.productId}_${item.variantId}` 
+        : item.productId;
+      
+      allSelected[itemKey] = true;
+    });
+    
+    setCheckoutSelectedItems(allSelected);
+  };
+
+  // Deselect all items in cart
+  const deselectAllItems = () => {
+    const allDeselected = {};
+    cartItemsDetail.forEach(item => {
+      const itemKey = item.variantId 
+        ? `${item.productId}_${item.variantId}` 
+        : item.productId;
+      
+      allDeselected[itemKey] = false;
+    });
+    
+    setCheckoutSelectedItems(allDeselected);
+  };
+
+  // Get number of selected items for checkout
+  const getSelectedItemsCount = (): number => {
+    return Object.values(checkoutSelectedItems).filter(Boolean).length;
   };
 
   const showProductDetails = (item: any) => {
@@ -1062,48 +1404,10 @@ const ProductScreen = observer(() => {
     </View>
   );
 
-  const handleCheckout = () => {
-    if (totalCartItems > 0) {
-      // Convert cart items to proper format for order creation
-      const selectedProducts = Object.entries(cartItems)
-        .map(([key, quantity]) => {
-          const [productId, variantId] = key.split('_');
-          const product = store.products.find(p => p._id === productId);
-
-          if (!product) return null;
-
-          if (variantId) {
-            // Product with variant
-            const variant = product.detailsVariants[Number(variantId)];
-            if (!variant) return null;
-
-            return {
-              productId: product._id,
-              name: product.name,
-              price: variant.price,
-              quantity,
-              thumbnail: product.thumbnail,
-              variantId: variantId,
-              variant: getVariantName(variant),
-            };
-          } else {
-            // Product without variant
-            return {
-              productId: product._id,
-              name: product.name,
-              price: product.price,
-              quantity,
-              thumbnail: product.thumbnail,
-            };
-          }
-        })
-        .filter(Boolean);
-
-      // Navigate to CreateOrderScreen with selected products
-      navigation.navigate(Screen.CREATEORDER, {
-        selectedProducts,
-      });
-    }
+  // Check if a variant is already in the cart
+  const isVariantInCart = (productId: string, variantId?: string): boolean => {
+    const cartKey = variantId ? `${productId}_${variantId}` : productId;
+    return cartItems[cartKey] > 0;
   };
 
   return (
@@ -1134,9 +1438,11 @@ const ProductScreen = observer(() => {
       {/* Checkout Button Below Search/Filter */}
       {totalCartItems > 0 && (
         <View style={styles.checkoutButtonWrapperFixed}>
-          <TouchableOpacity style={styles.checkoutButtonFullFixed} onPress={handleCheckout}>
+          <TouchableOpacity 
+            style={styles.checkoutButtonFullFixed} 
+            onPress={() => setCartModalVisible(true)}>
             <ShoppingCart size={scaledSize(24)} color="#fff" variant="Bold" />
-            <Text style={styles.checkoutButtonTextFullFixed}>Thanh toán</Text>
+            <Text style={styles.checkoutButtonTextFullFixed}>Giỏ hàng</Text>
             <View style={styles.cartBadgeFullFixed}>
               <Text style={styles.cartBadgeTextFullFixed}>{totalCartItems}</Text>
             </View>
@@ -1294,7 +1600,7 @@ const ProductScreen = observer(() => {
                   <Text style={styles.filterSectionTitle}>Tùy chọn hiển thị</Text>
                 </View>
                 <TouchableOpacity 
-                  style={styles.optionRow}
+                  style={styles.filterOptionRow}
                   onPress={() => {}}
                 >
                   <TickSquare size={24} color="#007AFF" variant="Bold" />
@@ -1427,26 +1733,43 @@ const ProductScreen = observer(() => {
                               if (!variantNameText) {
                                 variantNameText = 'Biến thể không tên';
                               }
+
+                              // Kiểm tra biến thể đã có trong giỏ hàng chưa
+                              const isInCart = isVariantInCart(selectedProduct._id, variant._id);
                               
                               return (
                                 <View
                                   key={index}
-                                  style={styles.variantItem}>
+                                  style={[
+                                    styles.variantItem,
+                                    isInCart && styles.variantItemInCart
+                                  ]}>
                                   <Text style={styles.variantName}>
                                     {variantNameText}
                                   </Text>
                                   <Text style={styles.variantPrice}>
                                     {variant.price.toLocaleString('vi-VN')} đ
                                   </Text>
-                                  <TouchableOpacity
-                                    style={styles.addVariantButton}
-                                    onPress={() =>
-                                      addToCart(selectedProduct._id, variant)
-                                    }>
-                                    <Text style={styles.addVariantButtonText}>
-                                      Thêm
-                                    </Text>
-                                  </TouchableOpacity>
+                                  {isInCart ? (
+                                    <View style={styles.addedVariantIndicator}>
+                                      <Text style={styles.addedVariantText}>Đã thêm</Text>
+                                      <TickSquare
+                                        size={16}
+                                        color="#4CD964"
+                                        variant="Bold"
+                                      />
+                                    </View>
+                                  ) : (
+                                    <TouchableOpacity
+                                      style={styles.addVariantButton}
+                                      onPress={() =>
+                                        addToCart(selectedProduct._id, variant)
+                                      }>
+                                      <Text style={styles.addVariantButtonText}>
+                                        Thêm
+                                      </Text>
+                                    </TouchableOpacity>
+                                  )}
                                 </View>
                               );
                             }
@@ -1517,7 +1840,7 @@ const ProductScreen = observer(() => {
                 </View>
 
                 <Text style={styles.variantSelectPrompt}>
-                  Vui lòng chọn biến thể:
+                  Chọn biến thể muốn thêm vào giỏ hàng:
                 </Text>
 
                 <ScrollView
@@ -1525,45 +1848,61 @@ const ProductScreen = observer(() => {
                   showsVerticalScrollIndicator={false}>
                   {selectedProduct.detailsVariants &&
                     selectedProduct.detailsVariants.map(
-                      (variant: any, index: number) => (
-                        <TouchableOpacity
-                          key={index}
-                          style={[
-                            styles.variantSelectItem,
-                            selectedVariant === variant &&
-                              styles.selectedVariantItem,
-                          ]}
-                          onPress={() => setSelectedVariant(variant)}>
-                          <View style={styles.variantSelectInfo}>
-                            <Text style={styles.variantSelectName}>
-                              {getVariantName(variant)}
-                            </Text>
-                            <Text style={styles.variantSelectPrice}>
-                              {variant.price.toLocaleString('vi-VN')} đ
-                            </Text>
-                            {variant.inventory <= 5 &&
-                              variant.inventory > 0 && (
-                                <Text style={styles.variantLowStock}>
-                                  Còn {variant.inventory} sản phẩm
+                      (variant: any, index: number) => {
+                        const isSelected = selectedVariants[variant._id] === true;
+                        const isAlreadyInCart = isVariantInCart(selectedProduct._id, variant._id);
+                        return (
+                          <TouchableOpacity
+                            key={index}
+                            style={[
+                              styles.variantSelectItem,
+                              isSelected && styles.selectedVariantItem,
+                              isAlreadyInCart && styles.variantAlreadyInCart,
+                            ]}
+                            onPress={() => toggleVariantSelection(variant._id)}>
+                            <View style={styles.variantSelectInfo}>
+                              <Text style={styles.variantSelectName}>
+                                {getVariantName(variant)}
+                              </Text>
+                              <Text style={styles.variantSelectPrice}>
+                                {variant.price.toLocaleString('vi-VN')} đ
+                              </Text>
+                              {isAlreadyInCart && (
+                                <View style={styles.alreadyInCartIndicator}>
+                                  <TickSquare
+                                    size={14}
+                                    color="#4CD964"
+                                    variant="Bold"
+                                  />
+                                  <Text style={styles.alreadyInCartText}>
+                                    Đã có trong giỏ hàng
+                                  </Text>
+                                </View>
+                              )}
+                              {variant.inventory <= 5 &&
+                                variant.inventory > 0 && (
+                                  <Text style={styles.variantLowStock}>
+                                    Còn {variant.inventory} sản phẩm
+                                  </Text>
+                                )}
+                              {variant.inventory === 0 && (
+                                <Text style={styles.variantOutOfStock}>
+                                  Hết hàng
                                 </Text>
                               )}
-                            {variant.inventory === 0 && (
-                              <Text style={styles.variantOutOfStock}>
-                                Hết hàng
-                              </Text>
-                            )}
-                          </View>
-                          {selectedVariant === variant && (
-                            <View style={styles.selectedVariantCheckmark}>
-                              <TickSquare
-                                size={18}
-                                color="#FFFFFF"
-                                variant="Bold"
-                              />
                             </View>
-                          )}
-                        </TouchableOpacity>
-                      ),
+                            {isSelected && (
+                              <View style={styles.selectedVariantCheckmark}>
+                                <TickSquare
+                                  size={18}
+                                  color="#FFFFFF"
+                                  variant="Bold"
+                                />
+                              </View>
+                            )}
+                          </TouchableOpacity>
+                        );
+                      },
                     )}
                 </ScrollView>
 
@@ -1572,33 +1911,203 @@ const ProductScreen = observer(() => {
                     style={styles.cancelVariantButton}
                     onPress={() => {
                       setVariantSelectionVisible(false);
-                      setSelectedVariant(null);
+                      setSelectedVariants({});
                     }}>
                     <Text style={styles.cancelButtonText}>Huỷ</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={[
-                      styles.addVariantToCartButton,
-                      !selectedVariant && styles.disabledButton,
-                    ]}
-                    disabled={
-                      !selectedVariant ||
-                      (selectedVariant && selectedVariant.inventory === 0)
-                    }
-                    onPress={() => {
-                      if (selectedVariant && selectedProduct) {
-                        addToCart(selectedProduct._id, selectedVariant);
-                        setVariantSelectionVisible(false);
-                        setSelectedVariant(null);
-                      }
-                    }}>
+                    style={styles.addVariantToCartButton}
+                    onPress={addSelectedVariantsToCart}>
                     <Text style={styles.addToCartButtonText}>
                       Thêm vào giỏ hàng
                     </Text>
                   </TouchableOpacity>
                 </View>
               </View>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Cart Modal for Checkout */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={cartModalVisible}
+        onRequestClose={() => setCartModalVisible(false)}>
+        <View style={styles.modalContainer}>
+          <View
+            style={[
+              styles.modalContent,
+              styles.cartModalContent,
+              isTablet && styles.tabletCartModal,
+            ]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {isSelectingForCheckout ? 'Chọn sản phẩm để thanh toán' : 'Giỏ hàng'}
+              </Text>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => {
+                  setCartModalVisible(false);
+                  setIsSelectingForCheckout(false);
+                }}>
+                <CloseCircle size={24} color="#666" variant="Bold" />
+              </TouchableOpacity>
+            </View>
+
+            {cartItemsDetail.length === 0 ? (
+              <View style={styles.emptyCartContainer}>
+                <Ionicons name="cart-outline" size={64} color="#ccc" />
+                <Text style={styles.emptyCartText}>Giỏ hàng trống</Text>
+              </View>
+            ) : (
+              <>
+                {isSelectingForCheckout && (
+                  <View style={styles.selectionControls}>
+                    <Text style={styles.selectedCountText}>
+                      Đã chọn: {getSelectedItemsCount()}/{cartItemsDetail.length} sản phẩm
+                    </Text>
+                    <View style={styles.selectionButtons}>
+                      <TouchableOpacity
+                        style={styles.selectAllButton}
+                        onPress={selectAllItems}>
+                        <Text style={styles.selectButtonText}>Chọn tất cả</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.deselectAllButton}
+                        onPress={deselectAllItems}>
+                        <Text style={styles.selectButtonText}>Bỏ chọn tất cả</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+
+                <FlatList
+                  data={cartItemsDetail}
+                  keyExtractor={(item, index) => `cart_item_${index}`}
+                  renderItem={({item, index}) => (
+                    <View style={styles.cartItemContainer}>
+                      {isSelectingForCheckout && (
+                        <TouchableOpacity
+                          style={styles.checkboxContainer}
+                          onPress={() => toggleItemSelectionForCheckout(item)}>
+                          <View 
+                            style={[
+                              styles.checkbox, 
+                              isItemSelectedForCheckout(item) && styles.checkboxSelected
+                            ]}>
+                            {isItemSelectedForCheckout(item) && (
+                              <TickSquare
+                                size={16}
+                                color="#FFFFFF"
+                                variant="Bold"
+                              />
+                            )}
+                          </View>
+                        </TouchableOpacity>
+                      )}
+                      
+                      {item.product.thumbnail ? (
+                        <Image 
+                          source={{uri: item.product.thumbnail}} 
+                          style={styles.cartItemImage}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <View style={[styles.cartItemImage, styles.noImageContainer]}>
+                          <Ionicons name="image-outline" size={24} color="#ccc" />
+                        </View>
+                      )}
+                      
+                      <View style={styles.cartItemInfo}>
+                        <Text style={styles.cartItemName} numberOfLines={1}>
+                          {item.product.name}
+                        </Text>
+                        
+                        {item.variant && (
+                          <Text style={styles.cartItemVariant} numberOfLines={1}>
+                            {getVariantName(item.variant)}
+                          </Text>
+                        )}
+                        
+                        <Text style={styles.cartItemPrice}>
+                          {(item.variant ? item.variant.price : item.product.price).toLocaleString('vi-VN')}đ
+                        </Text>
+                        
+                        <View style={styles.cartItemActions}>
+                          <View style={styles.quantityControls}>
+                            <TouchableOpacity
+                              style={styles.quantityButton}
+                              onPress={() => updateCartItemQuantity(index, item.quantity - 1)}>
+                              <Ionicons name="remove" size={16} color="#007AFF" />
+                            </TouchableOpacity>
+                            
+                            <Text style={styles.cartItemQuantity}>{item.quantity}</Text>
+                            
+                            <TouchableOpacity
+                              style={styles.quantityButton}
+                              onPress={() => updateCartItemQuantity(index, item.quantity + 1)}>
+                              <Ionicons name="add" size={16} color="#007AFF" />
+                            </TouchableOpacity>
+                          </View>
+                          
+                          <TouchableOpacity
+                            style={styles.removeItemButton}
+                            onPress={() => removeFromCart(index)}>
+                            <CloseCircle size={20} color="#FF3B30" variant="Bold" />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    </View>
+                  )}
+                  contentContainerStyle={styles.cartItemsList}
+                />
+                
+                <View style={styles.cartSummaryContainer}>
+                  <View style={styles.cartTotalRow}>
+                    <Text style={styles.cartTotalLabel}>Tổng số lượng:</Text>
+                    <Text style={styles.cartTotalValue}>
+                      {totalCartItems} sản phẩm
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.cartTotalRow}>
+                    <Text style={styles.cartTotalLabel}>Tạm tính:</Text>
+                    <Text style={styles.cartTotalValue}>
+                      {cartItemsDetail.reduce(
+                        (sum, item) => sum + (item.variant ? item.variant.price : item.product.price) * item.quantity,
+                        0
+                      ).toLocaleString('vi-VN')}đ
+                    </Text>
+                  </View>
+                </View>
+                
+                {isSelectingForCheckout ? (
+                  <TouchableOpacity
+                    style={[
+                      styles.checkoutButton,
+                      getSelectedItemsCount() === 0 && styles.disabledButton
+                    ]}
+                    onPress={processCheckout}
+                    disabled={getSelectedItemsCount() === 0}>
+                    <ShoppingCart size={24} color="#FFFFFF" variant="Bold" />
+                    <Text style={styles.checkoutButtonText}>
+                      Xác nhận thanh toán ({getSelectedItemsCount()})
+                    </Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.checkoutButton}
+                    onPress={handleCheckout}>
+                    <ShoppingCart size={24} color="#FFFFFF" variant="Bold" />
+                    <Text style={styles.checkoutButtonText}>
+                      Tiến hành thanh toán
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </>
             )}
           </View>
         </View>
@@ -2452,5 +2961,211 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.Inter_Bold,
     color: color.accentColor.darkColor,
     textAlign: 'center',
+  },
+  cartModalContent: {
+    width: '95%',
+    maxHeight: '90%',
+    padding: moderateScale(16),
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: moderateScale(16),
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  modalTitle: {
+    fontSize: moderateScale(18),
+    fontFamily: Fonts.Inter_SemiBold,
+    color: color.accentColor.darkColor,
+  },
+  cartItemsList: {
+    flexGrow: 1,
+  },
+  cartItemContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: moderateScale(10),
+    paddingHorizontal: moderateScale(5),
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+  },
+  checkboxContainer: {
+    marginRight: moderateScale(10),
+  },
+  checkbox: {
+    width: moderateScale(22),
+    height: moderateScale(22),
+    borderRadius: moderateScale(4),
+    borderWidth: 2,
+    borderColor: color.primaryColor,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxSelected: {
+    backgroundColor: color.primaryColor,
+  },
+  cartItemImage: {
+    width: moderateScale(60),
+    height: moderateScale(60),
+    borderRadius: moderateScale(8),
+    marginRight: moderateScale(10),
+  },
+  cartItemInfo: {
+    flex: 1,
+  },
+  cartItemName: {
+    fontSize: moderateScale(14),
+    fontFamily: Fonts.Inter_SemiBold,
+    color: color.accentColor.darkColor,
+  },
+  cartItemVariant: {
+    fontSize: moderateScale(12),
+    color: color.accentColor.grayColor,
+    marginTop: moderateScale(2),
+  },
+  cartItemPrice: {
+    fontSize: moderateScale(14),
+    fontFamily: Fonts.Inter_SemiBold,
+    color: color.primaryColor,
+    marginTop: moderateScale(4),
+  },
+  cartItemActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: moderateScale(8),
+  },
+  quantityControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  quantityButton: {
+    width: moderateScale(28),
+    height: moderateScale(28),
+    borderRadius: moderateScale(14),
+    backgroundColor: 'rgba(0,122,255,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cartItemQuantity: {
+    fontSize: moderateScale(14),
+    fontFamily: fonts.Inter_Medium,
+    paddingHorizontal: moderateScale(10),
+  },
+  removeItemButton: {
+    padding: moderateScale(5),
+  },
+  cartSummaryContainer: {
+    marginTop: moderateScale(16),
+    paddingTop: moderateScale(16),
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.1)',
+  },
+  cartTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: moderateScale(8),
+  },
+  cartTotalLabel: {
+    fontSize: moderateScale(14),
+    color: color.accentColor.darkColor,
+    fontFamily: Fonts.Inter_Regular,
+  },
+  cartTotalValue: {
+    fontSize: moderateScale(14),
+    color: color.accentColor.darkColor,
+    fontFamily: Fonts.Inter_SemiBold,
+  },
+  tabletCartModal: {
+    width: '70%',
+    maxWidth: moderateScale(600),
+  },
+  emptyCartContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: moderateScale(40),
+  },
+  emptyCartText: {
+    fontSize: moderateScale(16),
+    color: color.accentColor.grayColor,
+    marginTop: moderateScale(16),
+    fontFamily: Fonts.Inter_Regular,
+  },
+  variantItemInCart: {
+    backgroundColor: 'rgba(0, 122, 255, 0.05)',
+    borderColor: color.primaryColor,
+  },
+  addedVariantIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: moderateScale(4),
+  },
+  addedVariantText: {
+    fontSize: moderateScale(12),
+    fontFamily: Fonts.Inter_Regular,
+    color: '#4CD964',
+    marginRight: moderateScale(4),
+  },
+  variantAlreadyInCart: {
+    borderColor: '#4CD964',
+    borderWidth: 1,
+  },
+  alreadyInCartIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: moderateScale(4),
+  },
+  alreadyInCartText: {
+    fontSize: moderateScale(12),
+    fontFamily: Fonts.Inter_Regular,
+    color: '#4CD964',
+    marginLeft: moderateScale(4),
+  },
+  filterOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: moderateScale(10),
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+  },
+  // Add these new styles for cart multi-selection
+  selectionControls: {
+    marginBottom: moderateScale(10),
+    padding: moderateScale(10),
+    backgroundColor: 'rgba(0,122,255,0.05)',
+    borderRadius: moderateScale(8),
+  },
+  selectedCountText: {
+    fontSize: moderateScale(14),
+    fontFamily: fonts.Inter_Regular,
+    color: color.accentColor.darkColor,
+    marginBottom: moderateScale(8),
+  },
+  selectionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  selectAllButton: {
+    backgroundColor: color.primaryColor,
+    paddingVertical: moderateScale(6),
+    paddingHorizontal: moderateScale(12),
+    borderRadius: moderateScale(4),
+  },
+  deselectAllButton: {
+    backgroundColor: color.accentColor.grayColor,
+    paddingVertical: moderateScale(6),
+    paddingHorizontal: moderateScale(12),
+    borderRadius: moderateScale(4),
+  },
+  selectButtonText: {
+    color: color.accentColor.whiteColor,
+    fontSize: moderateScale(12),
+    fontFamily: fonts.Inter_SemiBold,
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
 });
