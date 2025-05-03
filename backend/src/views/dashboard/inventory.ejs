@@ -102,9 +102,9 @@
                     <th scope="col" class="text-center">Thao tác</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="inventoryTableBody">
                 <% inventories.forEach((item, index) => { %>
-                    <tr>
+                    <tr class="inventory-row" data-id="<%= item._id %>">
                         <td class="text-center"><%= index + 1 %></td>
                         <td><%= item.product_name %></td>
                         <td><%= item.product_code %></td>
@@ -157,6 +157,40 @@
                 <% }); %>
             </tbody>
         </table>
+        
+        <!-- Pagination -->
+        <div class="d-flex justify-content-between align-items-center p-3 border-top mt-2">
+            <div class="d-flex align-items-center">
+                <label class="text-muted me-2">Hiển thị:</label>
+                <select class="form-select form-select-sm" id="itemsPerPage" style="width: auto;">
+                    <option value="5">5</option>
+                    <option value="10" selected>10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                </select>
+                <span class="text-muted ms-2">sản phẩm</span>
+            </div>
+            <nav aria-label="Inventory navigation">
+                <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item" id="prevPage">
+                        <a class="page-link" href="#" aria-label="Previous">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <span class="page-link" id="currentPage">1</span>
+                    </li>
+                    <li class="page-item" id="nextPage">
+                        <a class="page-link" href="#" aria-label="Next">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            <div class="text-muted">
+                Tổng số: <span class="fw-semibold" id="totalItems">0</span> sản phẩm
+            </div>
+        </div>
     </div>
 
     <!-- Modal nhập lô hàng tiếp theo -->
@@ -566,6 +600,11 @@
         window.productCounter = 0;
         window.selectedProduct = null;
         window.selectedVariant = null;
+        
+        // Pagination variables
+        let currentPageIndex = 1;
+        let itemsPerPage = 10;
+        let filteredInventories = [];
         window.batchValidated = false;
         window.validatedBatchNumber = null;
 
@@ -581,8 +620,105 @@
             
             // Khởi tạo các modal
             initializeModals();
+            
+            // Khởi tạo pagination
+            initializeInventoryPagination();
         });
 
+        // Khởi tạo pagination
+        function initializeInventoryPagination() {
+            // Get all inventory rows
+            const rows = Array.from(document.querySelectorAll('#inventoryTableBody tr.inventory-row'));
+            
+            // Store all inventory items
+            filteredInventories = rows;
+            
+            // Set total items count
+            document.getElementById('totalItems').textContent = filteredInventories.length;
+            
+            // Add event listeners for pagination controls
+            document.getElementById('itemsPerPage').addEventListener('change', function() {
+                itemsPerPage = parseInt(this.value);
+                currentPageIndex = 1; // Reset to first page
+                updatePagination();
+            });
+            
+            // Previous page click
+            document.getElementById('prevPage').addEventListener('click', function(e) {
+                e.preventDefault();
+                if (currentPageIndex > 1) {
+                    currentPageIndex--;
+                    updatePagination();
+                }
+            });
+            
+            // Next page click
+            document.getElementById('nextPage').addEventListener('click', function(e) {
+                e.preventDefault();
+                const totalPages = Math.ceil(filteredInventories.length / itemsPerPage);
+                if (currentPageIndex < totalPages) {
+                    currentPageIndex++;
+                    updatePagination();
+                }
+            });
+            
+            // Initialize pagination display
+            updatePagination();
+        }
+        
+        // Update pagination display and content
+        function updatePagination() {
+            const totalPages = Math.ceil(filteredInventories.length / itemsPerPage);
+            document.getElementById('currentPage').textContent = currentPageIndex;
+            document.getElementById('totalItems').textContent = filteredInventories.length;
+            
+            // Disable/enable previous button
+            const prevPageBtn = document.getElementById('prevPage');
+            if (currentPageIndex <= 1) {
+                prevPageBtn.classList.add('disabled');
+            } else {
+                prevPageBtn.classList.remove('disabled');
+            }
+            
+            // Disable/enable next button
+            const nextPageBtn = document.getElementById('nextPage');
+            if (currentPageIndex >= totalPages) {
+                nextPageBtn.classList.add('disabled');
+            } else {
+                nextPageBtn.classList.remove('disabled');
+            }
+            
+            // Display current page items
+            displayCurrentPageItems();
+        }
+        
+        // Display items for current page
+        function displayCurrentPageItems() {
+            const startIndex = (currentPageIndex - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const tableBody = document.getElementById('inventoryTableBody');
+            
+            // Clear current table content
+            tableBody.innerHTML = '';
+            
+            // If no data
+            if (filteredInventories.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="8" class="text-center py-4">Không có sản phẩm nào</td></tr>';
+                return;
+            }
+            
+            // Add visible rows
+            const visibleRows = filteredInventories.slice(startIndex, endIndex);
+            visibleRows.forEach((row, index) => {
+                // Update the index number (STT column)
+                const indexCell = row.querySelector('td:first-child');
+                if (indexCell) {
+                    indexCell.textContent = startIndex + index + 1;
+                }
+                tableBody.appendChild(row.cloneNode(true));
+            });
+        }
+        
         // Khởi tạo event handlers
         function initializeEventHandlers() {
             // Xử lý form nhập lô hàng tiếp theo
@@ -1979,5 +2115,15 @@
     .toast-container {
         z-index: 1060;
     }
+    #itemsPerPage {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+
+  padding-right: 24px; /* Tạo khoảng trống bên phải cho mũi tên */
+  background: url('data:image/svg+xml;utf8,<svg fill="gray" height="16" viewBox="0 0 24 24" width="16" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>') no-repeat right 8px center;
+  background-size: 16px;
+}
+
     </style>
 </div>
