@@ -19,8 +19,8 @@ const generateBaseUrls = (baseUrl: string) => {
 // Get appropriate base URLs for current platform
 const getBaseUrls = () => {
   if (Platform.OS === 'android') {
-    return generateBaseUrls(TABLE_BASE_URL);
-    // return generateBaseUrls(ANDROID_BASE_URL);
+    // return generateBaseUrls(TABLE_BASE_URL);
+    return generateBaseUrls(ANDROID_BASE_URL);
   } else if (Platform.OS === 'ios') {
     return generateBaseUrls(IOS_BASE_URL);
   }
