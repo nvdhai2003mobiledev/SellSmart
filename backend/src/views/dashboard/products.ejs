@@ -68,12 +68,6 @@
                     </div>
                 </div>
                 <div class="col-12 text-end mt-3">
-                    <div class="form-check form-switch d-inline-block me-3">
-                        <input class="form-check-input" type="checkbox" id="showHiddenProducts">
-                        <label class="form-check-label" for="showHiddenProducts">
-                            Hiển thị sản phẩm không có giá/tồn kho (<%= hiddenProducts ? hiddenProducts.length : 0 %>)
-                        </label>
-                    </div>
                     <button type="button" class="btn btn-light me-2" id="resetFilter">
                         <i class="fas fa-undo me-2"></i>Đặt lại
                     </button>
@@ -294,13 +288,7 @@
                                     <div class="d-flex flex-column align-items-center">
                                         <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
                                         <h5 class="text-muted">Không có sản phẩm nào có giá và tồn kho</h5>
-                                        <p class="text-muted">Bạn có <%= hiddenProducts.length %> sản phẩm không có giá hoặc tồn kho</p>
-                                        <div class="form-check form-switch mt-2">
-                                            <input class="form-check-input" type="checkbox" id="showHiddenProductsInline">
-                                            <label class="form-check-label" for="showHiddenProductsInline">
-                                                Hiển thị sản phẩm không có giá/tồn kho
-                                            </label>
-                                        </div>
+                                        <p class="text-muted">Bạn có <%= hiddenProducts.length %> sản phẩm cần cập nhật giá hoặc tồn kho</p>
                                     </div>
                                 </td>
                             </tr>
@@ -309,8 +297,8 @@
                                 <td colspan="8" class="text-center py-5">
                                     <div class="d-flex flex-column align-items-center">
                                         <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
-                                        <h5 class="text-muted">Chưa có sản phẩm nào được phát hành</h5>
-                                        <p class="text-muted">Nhấn vào nút "Phát hành sản phẩm" để phát hành sản phẩm từ kho hàng</p>
+                                        <h5 class="text-muted">Không có sản phẩm nào</h5>
+                                        <p class="text-muted">Vui lòng thêm sản phẩm mới</p>
                                         <button class="btn btn-primary mt-2" data-bs-toggle="modal" data-bs-target="#addProductModal">
                                             <i class="fas fa-plus-circle me-2"></i>Phát hành sản phẩm
                                         </button>
@@ -775,9 +763,59 @@
         togglePriceInventoryFields(false);
         previewImage('#thumbnail', '#thumbnailPreview');
         previewImage('#editThumbnail', '#editThumbnailPreview');
+        
+        // Add event handlers for filter buttons
+        $('#applyFilter').click(function() {
+            applyFilters();
+        });
+        
+        $('#resetFilter').click(function() {
+            // Reset filter inputs
+            $('#providerFilter').val('');
+            $('#categoryFilter').val('');
+            $('#statusFilter').val('');
+            $('#searchInput').val('');
+            
+            // Apply the reset filters
+            applyFilters();
+        });
+        
         console.log('Trang sản phẩm đã tải xong');
         updateProductDisplay();
     });
+    
+    // Hàm lọc sản phẩm
+    function applyFilters() {
+        const providerFilter = $('#providerFilter').val();
+        const categoryFilter = $('#categoryFilter').val();
+        const statusFilter = $('#statusFilter').val();
+        const searchQuery = $('#searchInput').val().toLowerCase();
+        
+        filteredProducts = allProducts.filter(row => {
+            const product = $(row);
+            
+            // Lọc theo nhà cung cấp
+            const providerMatch = !providerFilter || product.find('td[data-provider-id]').data('provider-id') === providerFilter;
+            
+            // Lọc theo danh mục
+            const categoryMatch = !categoryFilter || product.find('td[data-category-id]').data('category-id') === categoryFilter;
+            
+            // Lọc theo trạng thái
+            const statusMatch = !statusFilter || 
+                (statusFilter === 'available' && product.find('td:nth-child(6) .badge.bg-success').length > 0) ||
+                (statusFilter === 'unavailable' && product.find('td:nth-child(6) .badge.bg-danger').length > 0);
+            
+            // Lọc theo tên sản phẩm
+            const productName = product.find('td:first-child h6').text().toLowerCase();
+            const searchMatch = !searchQuery || productName.includes(searchQuery);
+            
+            return providerMatch && categoryMatch && statusMatch && searchMatch;
+        });
+        
+        // Reset to first page and update display
+        currentPageIndex = 1;
+        updateProductDisplay();
+    }
 
     // Tải danh sách sản phẩm từ kho
     function loadInventoryItems() {
@@ -1415,9 +1453,7 @@
                 const providerMatch = !providerVal || $(row).data('provider-id') === providerVal;
                 const nameMatch = !nameVal || $(row).find('td:nth-child(2)').text().toLowerCase().includes(nameVal);
                 
-                const hiddenMatch = $('#showHiddenProducts').is(':checked') ? true : !$(row).hasClass('hidden-product');
-                
-                const isVisible = categoryMatch && providerMatch && nameMatch && hiddenMatch;
+                const isVisible = categoryMatch && providerMatch && nameMatch;
                 
                 // Update class based on visibility
                 if (isVisible) {
@@ -1516,24 +1552,6 @@
             $('#profitDisplay').val(profitText).removeClass('text-success text-danger text-muted').addClass(profitClass);
         } else {
             $('#profitDisplay').val('Chưa đủ thông tin').removeClass('text-success text-danger').addClass('text-muted');
-        }
-    });
-    
-    // Xử lý hiển thị/ẩn sản phẩm không có giá/tồn kho
-    $('#showHiddenProductsInline').on('change', function() {
-        const showHidden = $(this).prop('checked');
-        
-        // Hiển thị hoặc ẩn các sản phẩm không có giá/tồn kho
-        $('.hidden-product').toggle(showHidden);
-        
-        // Ẩn thông báo "Không có sản phẩm nào có giá và tồn kho" nếu hiển thị sản phẩm ẩn
-        if (showHidden) {
-            $('#no-visible-products-row').hide();
-        } else {
-            // Kiểm tra nếu không có sản phẩm có giá và tồn kho thì hiển thị thông báo
-            if ($('.product-row:not(.hidden-product)').length === 0) {
-                $('#no-visible-products-row').show();
-            }
         }
     });
 </script>
