@@ -3,8 +3,9 @@
 <div class="main-content">
     <!-- Header Section -->
     <div class="dashboard-header">
-        <h1>Tổng Quan</h1>
-        <div class="period-selector">
+        <div style="flex: 1;"></div>
+        <h1 style="text-align: center; flex: 2; font-size: 2.5rem; ">Tổng Quan</h1>
+        <div class="period-selector" style="flex: 1; display: flex; justify-content: flex-end;">
             <button class="btn btn-outline-primary active" data-period="day">Ngày</button>
             <button class="btn btn-outline-primary" data-period="week">Tuần</button>
             <button class="btn btn-outline-primary" data-period="month">Tháng</button>
@@ -111,18 +112,8 @@
         <!-- Revenue Chart -->
         <div class="col-xl-8 col-lg-7">
             <div class="card shadow mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="card-header d-flex justify-content-center align-items-center">
                     <h6 class="m-0 font-weight-bold">Biểu Đồ Doanh Thu</h6>
-                    <div class="dropdown">
-                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                            Thời Gian
-                        </button>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="#">Hôm nay</a></li>
-                            <li><a class="dropdown-item" href="#">Tuần này</a></li>
-                            <li><a class="dropdown-item" href="#">Tháng này</a></li>
-                        </ul>
-                    </div>
                 </div>
                 <div class="card-body">
                     <div class="chart-container">
@@ -135,7 +126,7 @@
         <!-- Orders Distribution -->
         <div class="col-xl-4 col-lg-5">
             <div class="card shadow mb-4">
-                <div class="card-header">
+                <div class="card-header d-flex justify-content-center align-items-center">
                     <h6 class="m-0 font-weight-bold">Phân Bố Đơn Hàng</h6>
                 </div>
                 <div class="card-body">
