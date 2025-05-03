@@ -440,13 +440,36 @@
         formJson[key] = value;
       });
       
-      fetch(form.action, {
+      // First check if customer info matches with existing warranty records
+      fetch('/api/check-warranty-match', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        body: JSON.stringify(formJson)
+        body: JSON.stringify({
+          customerName: nameInput.value,
+          customerPhone: phoneInput.value,
+          customerEmail: emailInput.value,
+          productId: productInput.value
+        })
+      })
+      .then(response => response.json())
+      .then(matchData => {
+        if (matchData.matchCount >= 33) {
+          // If at least 2 fields match, proceed with the warranty request submission
+          return fetch(form.action, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify(formJson)
+          });
+        } else {
+          // If less than 2 fields match, show error message
+          throw new Error('Thông tin không khớp với bất kỳ hồ sơ bảo hành nào. Vui lòng kiểm tra lại thông tin của bạn.');
+        }
       })
       .then(response => {
         if (response.ok) {
@@ -468,7 +491,7 @@
       })
       .catch(error => {
         console.error('Error:', error);
-        alert('Có lỗi xảy ra khi gửi yêu cầu. Vui lòng thử lại sau.');
+        alert(error.message || 'Có lỗi xảy ra khi gửi yêu cầu. Vui lòng thử lại sau.');
       });
     });
 

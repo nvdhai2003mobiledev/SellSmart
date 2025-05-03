@@ -1,0 +1,98 @@
+// Check if customer information matches with existing warranty records
+exports.checkWarrantyMatch = async (req, res) => {
+  try {
+    const { customerName, customerPhone, customerEmail, productId } = req.body;
+    console.log('Checking warranty match for:', { customerName, customerPhone, customerEmail, productId });
+    
+    // Validate inputs
+    if (!customerName || !customerPhone || !customerEmail || !productId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thiếu thông tin đầu vào cần thiết',
+        matchCount: 0
+      });
+    }
+    
+    // Khởi tạo tập hợp các trường khớp
+    let uniqueMatches = new Set();
+    
+    // Bước 1: Kiểm tra thông tin trong cơ sở dữ liệu khách hàng
+    const customers = await Customer.find({
+      $or: [
+        { email: { $regex: new RegExp('^' + customerEmail + '$', 'i') } },
+        { phoneNumber: customerPhone }
+      ]
+    });
+    
+    console.log(`Tìm thấy ${customers.length} khách hàng với email hoặc số điện thoại tương ứng`);
+    
+    // Kiểm tra các trường khớp trong bảng Customer
+    for (const customer of customers) {
+      // Kiểm tra tên khớp
+      if (customer.fullName && customer.fullName.toLowerCase() === customerName.toLowerCase()) {
+        uniqueMatches.add('name');
+      }
+      
+      // Kiểm tra số điện thoại khớp
+      if (customer.phoneNumber && customer.phoneNumber === customerPhone) {
+        uniqueMatches.add('phone');
+      }
+      
+      // Kiểm tra email khớp
+      if (customer.email && customer.email.toLowerCase() === customerEmail.toLowerCase()) {
+        uniqueMatches.add('email');
+      }
+    }
+    
+    // Bước 2: Kiểm tra thông tin trong bảng bảo hành
+    const warranties = await Warranty.find({ 
+      product: productId,
+      status: { $in: ['Còn hạn', 'Chờ kích hoạt', 'Đang xử lý'] }
+    }).populate('customer').exec();
+    
+    console.log(`Tìm thấy ${warranties.length} bảo hành còn hiệu lực cho sản phẩm ID ${productId}`);
+    
+    if (warranties.length > 0) {
+      uniqueMatches.add('product'); // Sản phẩm khớp tính là một trường khớp nếu tìm thấy trong bảo hành
+      
+      // Kiểm tra thông tin khách hàng trong bảo hành
+      for (const warranty of warranties) {
+        if (!warranty.customer) continue;
+        
+        // Kiểm tra tên khớp
+        if (warranty.customer.fullName && warranty.customer.fullName.toLowerCase() === customerName.toLowerCase()) {
+          uniqueMatches.add('name');
+        }
+        
+        // Kiểm tra số điện thoại khớp
+        if (warranty.customer.phoneNumber && warranty.customer.phoneNumber === customerPhone) {
+          uniqueMatches.add('phone');
+        }
+        
+        // Kiểm tra email khớp
+        if (warranty.customer.email && warranty.customer.email.toLowerCase() === customerEmail.toLowerCase()) {
+          uniqueMatches.add('email');
+        }
+      }
+    }
+    
+    const totalMatchCount = uniqueMatches.size;
+    console.log(`Tổng số trường khớp duy nhất: ${totalMatchCount}, Các trường khớp: ${Array.from(uniqueMatches).join(', ')}`);
+    
+    return res.status(200).json({
+      success: true,
+      matchCount: totalMatchCount,
+      matchDetails: Array.from(uniqueMatches),
+      message: totalMatchCount >= 2 
+        ? 'Thông tin khớp với hồ sơ bảo hành' 
+        : 'Thông tin không khớp đủ với hồ sơ bảo hành'
+    });
+  } catch (error) {
+    console.error('Error checking warranty match:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Đã xảy ra lỗi khi kiểm tra thông tin bảo hành',
+      matchCount: 0
+    });
+  }
+};
