@@ -42,7 +42,8 @@ interface Product {
 
 // Tạo instance API public không yêu cầu token
 const publicApi = create({
-  baseURL: "http://10.0.2.2:5000/",
+  // baseURL: "http://10.0.2.2:5000/",
+  baseURL: "http://192.168.86.43:5000/",
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
@@ -137,8 +138,8 @@ export const fetchProductsfororder= async () => {
 
     // Tạo instance API mới không yêu cầu token
     const publicApi = create({
-      baseURL: "http://10.0.2.2:5000/", // Cho Android Emulator
-      // baseURL: "http://192.168.50.241:5000/", // Cho máy tablet có ip wifi
+      // baseURL: "http://10.0.2.2:5000/", // Cho Android Emulator
+      baseURL: "http://192.168.86.43:5000/", // Cho máy tablet có ip wifi
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -297,53 +298,37 @@ export const addProduct = async (productData: any) => {
   }
 };
 
-// Hàm lấy danh sách danh mục sản phẩm
-export const fetchCategories = async () => {
+// Hàm lấy danh sách danh mục
+export const fetchCategories = async (cacheParams: string = '') => {
   try {
-    console.log('Đang lấy danh sách danh mục sản phẩm...');
-    
-    const timestamp = Date.now();
-    const response = await publicApi.get<ApiResponse<Category[]>>('/typeproduct/json', {}, {
-      headers: {
-        'X-Request-Time': timestamp.toString()
-      }
-    });
-    
+    console.log('Đang tải danh mục với cache-busting:', cacheParams);
+    const response = await Api.get(`/categories${cacheParams}`);
     if (response.ok && response.data?.status === 'Ok') {
-      console.log('Lấy danh mục thành công');
-      return response.data.data || [];
-    } else {
-      console.error('Không thể lấy danh sách danh mục:', response.problem);
-      throw new Error('Không thể lấy danh sách danh mục sản phẩm');
+      console.log(`Đã tải thành công ${response.data.data.length} danh mục`);
+      return response.data.data;
     }
+    console.warn('Không thể tải danh mục:', response.problem);
+    return [];
   } catch (error) {
-    console.error('Lỗi trong fetchCategories:', error);
-    throw error;
+    console.error('Lỗi khi lấy danh mục:', error);
+    return [];
   }
 };
 
 // Hàm lấy danh sách nhà cung cấp
-export const fetchProviders = async () => {
+export const fetchProviders = async (cacheParams: string = '') => {
   try {
-    console.log('Đang lấy danh sách nhà cung cấp...');
-    
-    const timestamp = Date.now();
-    const response = await publicApi.get<ApiResponse<any[]>>('/providers/json', {}, {
-      headers: {
-        'X-Request-Time': timestamp.toString()
-      }
-    });
-    
+    console.log('Đang tải nhà cung cấp với cache-busting:', cacheParams);
+    const response = await Api.get(`/providers${cacheParams}`);
     if (response.ok && response.data?.status === 'Ok') {
-      console.log('Lấy nhà cung cấp thành công');
-      return response.data.data || [];
-    } else {
-      console.error('Không thể lấy danh sách nhà cung cấp:', response.problem);
-      throw new Error('Không thể lấy danh sách nhà cung cấp');
+      console.log(`Đã tải thành công ${response.data.data.length} nhà cung cấp`);
+      return response.data.data;
     }
+    console.warn('Không thể tải nhà cung cấp:', response.problem);
+    return [];
   } catch (error) {
-    console.error('Lỗi trong fetchProviders:', error);
-    throw error;
+    console.error('Lỗi khi lấy nhà cung cấp:', error);
+    return [];
   }
 };
 
