@@ -20,7 +20,7 @@ type PromotionRequest = {
 const ANDROID_BASE_URL = 'http://10.0.2.2';  // Android emulator localhost
 const IOS_BASE_URL = 'http://localhost';     // iOS simulator localhost
 const DEFAULT_BASE_URL = 'http://localhost'; // Fallback
-const TABLE_BASE_URL = 'http://192.168.86.43'; 
+const TABLE_BASE_URL = 'http://192.168.0.126.43'; 
 
 // List of ports to try
 const PORTS = [5000, 3000, 8000, 8080];
