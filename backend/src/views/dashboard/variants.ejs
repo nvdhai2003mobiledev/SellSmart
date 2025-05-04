@@ -13,6 +13,7 @@
             min-height: 100vh;
             margin: 0;
             padding: 15px;
+            font-size: 16px; /* Increased base font size */
         }
         .main-container {
             display: flex;
@@ -38,7 +39,7 @@
             max-width: none;
         }
         .panel-title {
-            font-size: 1.2rem;
+            font-size: 1.4rem; /* Increased from 1.2rem */
             font-weight: 600;
             color: #2c3e50;
             margin-bottom: 20px;
@@ -57,7 +58,7 @@
         }
         .btn-custom {
             padding: 8px 16px;
-            font-size: 14px;
+            font-size: 15px; /* Increased from 14px */
             font-weight: 500;
             border-radius: 6px;
             transition: all 0.2s;
@@ -114,6 +115,7 @@
             font-weight: 600;
             margin: 0;
             color: #495057;
+            font-size: 1.1rem; /* Added font size */
         }
         .variant-rows-container {
             margin-bottom: 10px;
@@ -127,12 +129,14 @@
             background-color: #f8f9fa;
             z-index: 1;
             padding: 12px 15px;
+            font-size: 1.05rem; /* Increased font size */
         }
         .table td {
             padding: 12px 15px;
+            font-size: 1.05rem; /* Increased font size */
         }
         .badge {
-            font-size: 12px;
+            font-size: 13px; /* Increased from 12px */
             padding: 6px 10px;
         }
         .action-buttons {
@@ -144,6 +148,19 @@
             bottom: 20px;
             right: 20px;
             z-index: 1050;
+        }
+        /* Additional styles for form elements */
+        .form-control, .btn {
+            font-size: 1.05rem; /* Larger form controls and buttons */
+        }
+        .form-label {
+            font-size: 1.1rem; /* Larger form labels */
+        }
+        .btn-sm {
+            font-size: 0.95rem; /* Adjusted size for small buttons */
+        }
+        .modal-title {
+            font-size: 1.4rem; /* Larger modal titles */
         }
     </style>
 </head>
@@ -499,11 +516,11 @@
                                 <td>${newVariant.name}</td>
                                 <td>${newVariant.values.map(v => `<span class="badge bg-secondary me-1">${v}</span>`).join('')}</td>
                                 <td class="text-center">
-                                    <div class="action-buttons">
-                                        <button class="btn btn-warning btn-custom" onclick="editVariant('${newVariant._id}')" title="Sửa">
+                                    <div class="action-buttons justify-content-center">
+                                        <button class="btn btn-warning btn-sm" onclick="editVariant('${newVariant._id}')" title="Sửa">
                                             <i class="fas fa-edit"></i>
                                         </button>
-                                        <button class="btn btn-danger btn-custom" onclick="deleteVariant('${newVariant._id}')" title="Xóa">
+                                        <button class="btn btn-danger btn-sm" onclick="deleteVariant('${newVariant._id}')" title="Xóa">
                                             <i class="fas fa-trash-alt"></i>
                                         </button>
                                     </div>
@@ -562,11 +579,11 @@
                                 <td>${updatedVariant.name}</td>
                                 <td>${updatedVariant.values.map(v => `<span class="badge bg-secondary me-1">${v}</span>`).join('')}</td>
                                 <td class="text-center">
-                                    <div class="action-buttons">
-                                        <button class="btn btn-warning btn-custom" onclick="editVariant('${updatedVariant._id}')" title="Sửa">
+                                    <div class="action-buttons justify-content-center">
+                                        <button class="btn btn-warning btn-sm" onclick="editVariant('${updatedVariant._id}')" title="Sửa">
                                             <i class="fas fa-edit"></i>
                                         </button>
-                                        <button class="btn btn-danger btn-custom" onclick="deleteVariant('${updatedVariant._id}')" title="Xóa">
+                                        <button class="btn btn-danger btn-sm" onclick="deleteVariant('${updatedVariant._id}')" title="Xóa">
                                             <i class="fas fa-trash-alt"></i>
                                         </button>
                                     </div>
