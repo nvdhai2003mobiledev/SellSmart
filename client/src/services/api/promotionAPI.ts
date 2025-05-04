@@ -64,7 +64,7 @@ const loadActivePort = async (): Promise<string | null> => {
     const port = await AsyncStorage.getItem('active_api_port');
     if (port) {
       console.log(`🔄 Loaded previously working port: ${port}`);
-      const baseUrl = Platform.OS === 'android' ? TABLE_BASE_URL : 
+      const baseUrl = Platform.OS === 'android' ? ANDROID_BASE_URL : 
                      (Platform.OS === 'ios' ? IOS_BASE_URL : DEFAULT_BASE_URL);
       return `${baseUrl}:${port}`;
     }
@@ -103,7 +103,7 @@ export const promotionAPI = {
     console.log('🔍 Fetching promotions from:', ApiEndpoint.PROMOTIONS);
     console.log('🔑 Using token:', rootStore.auth.accessToken); // Debug log for token
 
-    const baseUrl = Platform.OS === 'android' ? `${TABLE_BASE_URL}:5000` : `${IOS_BASE_URL}:5000`;
+    const baseUrl = Platform.OS === 'android' ? `${ANDROID_BASE_URL}:5000` : `${IOS_BASE_URL}:5000`;
     console.log(`🔄 Using base URL: ${baseUrl}`);
     
     apiClient.setBaseURL(baseUrl);
