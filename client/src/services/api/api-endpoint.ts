@@ -11,4 +11,5 @@ export const ApiEndpoint = {
   CUSTOMERS_PUBLIC: '/customers/json',
   PROMOTIONS: '/promotions/api/json',
   PROVIDERS: '/providers',
+  WARRANTY: '/warranty-support/json',
 };

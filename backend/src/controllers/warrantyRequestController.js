@@ -3,7 +3,6 @@ const Product = require('../models/Product');
 const Warranty = require('../models/Warranty');
 const Customer = require('../models/Customer');
 
-// Display warranty support requests management page
 exports.getWarrantySupportRequests = async (req, res) => {
   try {
     const warrantyRequests = await WarrantyRequest.find()
@@ -23,7 +22,24 @@ exports.getWarrantySupportRequests = async (req, res) => {
     res.redirect('/dashboard');
   }
 };
+exports.getWarrantySupportRequestsAsJson = async (req, res) => {
+  try {
+    const warrantyRequests = await WarrantyRequest.find()
+      .populate('productId', 'name')
+      .sort({ createdAt: -1 });
 
+    res.status(200).json({
+      success: true,
+      data: warrantyRequests,
+    });
+  } catch (error) {
+    console.error('Error fetching warranty requests:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Có lỗi xảy ra khi tải danh sách bảo hành!',
+    });
+  }
+};
 // Handle new warranty support request (from customers)
 exports.createWarrantyRequest = async (req, res) => {
   try {

@@ -7,6 +7,7 @@ import { Provider } from 'mobx-react';
 import { rootStore } from './src/models/root-store';
 import FlashMessage, { showMessage, hideMessage, MessageType } from 'react-native-flash-message';
 
+
 const App = () => {
   const flashMessageRef = useRef<FlashMessage>(null);
 

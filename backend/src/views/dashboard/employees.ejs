@@ -474,10 +474,6 @@
                             </div>
                             <div class="card-body">
                                 <div class="mb-2">
-                                    <small class="text-muted d-block">Lương:</small>
-                                    <span id="viewEmployeeSalary"></span>
-                                </div>
-                                <div class="mb-2">
                                     <small class="text-muted d-block">Ngày vào làm:</small>
                                     <span id="viewEmployeeHireDate"></span>
                                 </div>
@@ -528,6 +524,23 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
 <script>
   $(document).ready(function () {
+    // Debug modal events
+    $('#viewEmployeeModal').on('show.bs.modal', function () {
+      console.log('Modal is about to be shown');
+    });
+    
+    $('#viewEmployeeModal').on('shown.bs.modal', function () {
+      console.log('Modal has been shown');
+    });
+    
+    $('#viewEmployeeModal').on('hide.bs.modal', function () {
+      console.log('Modal is about to be hidden');
+    });
+    
+    $('#viewEmployeeModal').on('hidden.bs.modal', function () {
+      console.log('Modal has been hidden');
+    });
+    
     $('#avatarType').change(function () {
       if ($(this).val() === 'url') {
         $('#avatarUrlInput').show();
@@ -830,14 +843,18 @@
     // View Employee - Open modal with data
     $('.view-btn').click(function () {
       const employeeId = $(this).data('id');
+      console.log('View button clicked for employee ID:', employeeId);
 
       $.ajax({
-        url: `/employees/find-employee/${employeeId}`, // Sửa thành find-employee
+        url: `/employees/find-employee/${employeeId}`,
         type: 'GET',
         success: function (response) {
+          console.log('API response:', response);
           if (response.success && response.data) {
             const employee = response.data;
             const user = employee.userId;
+            console.log('Employee data:', employee);
+            console.log('User data:', user);
 
             if (user.avatar) {
               $('#viewEmployeeAvatar').html(`<img src="${user.avatar}" alt="Avatar" class="w-100 h-100 rounded-circle object-fit-cover">`);
@@ -852,7 +869,7 @@
             $('#viewEmployeeGender').text(user.gender === 'male' ? 'Nam' : user.gender === 'female' ? 'Nữ' : 'Khác');
             $('#viewEmployeeDob').text(user.dob ? new Date(user.dob).toLocaleDateString('vi-VN') : 'N/A');
             $('#viewEmployeeAddress').text(user.address || 'N/A');
-            $('#viewEmployeeSalary').text(employee.salary.toLocaleString('vi-VN') + ' VNĐ');
+            
             $('#viewEmployeeHireDate').text(new Date(employee.hireDate).toLocaleDateString('vi-VN'));
             $('#viewEmployeeStatus').html(
               employee.workStatus === 'active' ? '<span class="badge bg-success">Đang làm việc</span>' :
@@ -861,7 +878,19 @@
             );
             $('#viewEmployeeBankAccount').text(employee.bankAccount || 'N/A');
 
-            $('#viewEmployeeModal').modal('show');
+            // Hiển thị modal bằng nhiều cách khác nhau để đảm bảo nó hoạt động
+            console.log('Attempting to show modal...');
+            try {
+              // Cách 1: Sử dụng API của Bootstrap
+              var viewModal = new bootstrap.Modal(document.getElementById('viewEmployeeModal'));
+              viewModal.show();
+              
+              // Cách 2: Sử dụng jQuery
+              // $('#viewEmployeeModal').modal('show');
+            } catch (error) {
+              console.error('Error showing modal:', error);
+              alert('Có lỗi khi mở modal: ' + error.message);
+            }
           } else {
             alert('Lỗi: ' + response.message);
           }

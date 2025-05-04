@@ -129,15 +129,36 @@ const importInventory = async (req, res) => {
 				}
 				
 				// Thêm thông tin lô hàng mới
+				// Tính giá trung bình hoặc lấy giá hợp lệ cho batch info
+				let batchPrice = 0;
+				if (product.hasVariants && Array.isArray(product.variants) && product.variants.length > 0) {
+					// Tính giá trung bình của các biến thể
+					const totalQuantity = product.variants.reduce((sum, v) => sum + (Number(v.quantity) || 0), 0);
+					const totalValue = product.variants.reduce((sum, v) => sum + ((Number(v.price) || 0) * (Number(v.quantity) || 0)), 0);
+					
+					if (totalQuantity > 0 && totalValue > 0) {
+						batchPrice = totalValue / totalQuantity;
+					} else {
+						// Nếu không có số lượng hoặc giá trị, tìm giá khác 0 đầu tiên
+						const firstNonZeroPrice = product.variants.find(v => Number(v.price) > 0)?.price;
+						batchPrice = Number(firstNonZeroPrice) || 0;
+					}
+				} else {
+					// Đối với sản phẩm không có biến thể
+					batchPrice = Number(product.price) || 0;
+				}
+				
+				// Lưu thông tin batch với giá đã tính toán
 				existingProduct.batch_info.push({
 					batch_number: batchInfo.batch_number,
 					batch_date: batchInfo.import_date,
 					quantity: product.hasVariants 
 						? product.variants.reduce((sum, v) => sum + (Number(v.quantity) || 0), 0) 
-						: product.quantity,
-					price: product.price,
+						: Number(product.quantity) || 0,
+					price: batchPrice,
 					note: batchInfo.note || ''
 				});
+				console.log(`Giá batch mới được tính: ${batchPrice}`);
 				
 				// Cập nhật trạng thái
 				existingProduct.status = existingProduct.total_quantity > 0 ? 'available' : 'unavailable';
@@ -165,8 +186,18 @@ const importInventory = async (req, res) => {
 					batch_info: [{
 						batch_number: batchInfo.batch_number,
 						batch_date: batchInfo.import_date,
-						quantity: product.quantity || 0,
-						price: product.price || 0,
+						quantity: product.hasVariants 
+							? product.variants.reduce((sum, v) => sum + (Number(v.quantity) || 0), 0) 
+							: Number(product.quantity) || 0,
+						price: product.hasVariants 
+							? (product.variantDetails && product.variantDetails.length > 0 
+								? product.variantDetails.reduce((sum, v) => sum + ((v.price || 0) * (v.quantity || 0)), 0) / 
+								  (product.variantDetails.reduce((sum, v) => sum + (v.quantity || 0), 0) || 1)
+								: (product.variants && product.variants.length > 0 
+									? product.variants.reduce((sum, v) => sum + ((Number(v.price) || 0) * (Number(v.quantity) || 0)), 0) / 
+									  (product.variants.reduce((sum, v) => sum + (Number(v.quantity) || 0), 0) || 1)
+									: 0))
+							: Number(product.price) || 0,
 						note: product.note || ''
 					}]
 				};
@@ -178,31 +209,93 @@ const importInventory = async (req, res) => {
 					});
 
 					// Xử lý biến thể
-					const variantDetails = product.variants.map(variant => ({
-						attributes: new Map(Object.entries(
-							typeof variant.attributes === 'string' 
-								? variant.attributes.split(', ').reduce((acc, pair) => {
-									const [key, value] = pair.split(': ');
-									acc[key] = value;
-									return acc;
-								}, {})
-								: variant.attributes
-						)),
-						price: Number(variant.price) || 0,
-						quantity: Number(variant.quantity) || 0
-					}));
+					console.log("Variant data before processing:", JSON.stringify(product.variants, null, 2));
+					
+					const variantDetails = product.variants.map(variant => {
+						// Ensure price is properly processed - parse as float and validate
+						let price = 0;
+						if (variant.price !== undefined && variant.price !== null && variant.price !== '') {
+							price = parseFloat(variant.price);
+							if (isNaN(price)) {
+								console.warn(`Invalid price format for variant: ${JSON.stringify(variant)}`);
+								price = 0;
+							}
+						}
+						
+						// Similarly ensure quantity is properly processed
+						let quantity = 0;
+						if (variant.quantity !== undefined && variant.quantity !== null && variant.quantity !== '') {
+							quantity = parseInt(variant.quantity, 10);
+							if (isNaN(quantity)) {
+								console.warn(`Invalid quantity format for variant: ${JSON.stringify(variant)}`);
+								quantity = 0;
+							}
+						}
+						
+						console.log(`Processed variant: price=${price}, quantity=${quantity}`);
+						
+						return {
+							attributes: new Map(Object.entries(
+								typeof variant.attributes === 'string' 
+									? variant.attributes.split(', ').reduce((acc, pair) => {
+										const [key, value] = pair.split(': ');
+										acc[key] = value;
+										return acc;
+									}, {})
+									: variant.attributes
+							)),
+							price: price,
+							quantity: quantity
+						};
+					});
 
 					baseProduct.variantDetails = variantDetails;
 					
 					// Tính tổng số lượng và giá trung bình có trọng số
 					baseProduct.total_quantity = variantDetails.reduce((sum, v) => sum + v.quantity, 0);
 					const totalValue = variantDetails.reduce((sum, v) => sum + (v.price * v.quantity), 0);
-					baseProduct.total_price = baseProduct.total_quantity > 0 ? totalValue / baseProduct.total_quantity : 0;
+					
+					// Ensure we have valid data for average price calculation
+					if (baseProduct.total_quantity > 0 && totalValue > 0) {
+						baseProduct.total_price = totalValue / baseProduct.total_quantity;
+						console.log(`Average price calculated: ${baseProduct.total_price} = ${totalValue} / ${baseProduct.total_quantity}`);
+					} else if (variantDetails.length > 0) {
+						// If we have variants but no valid quantity/price, use the first non-zero price as fallback
+						const firstNonZeroPrice = variantDetails.find(v => v.price > 0)?.price;
+						baseProduct.total_price = firstNonZeroPrice || 0;
+						console.log(`Using first non-zero price as fallback: ${baseProduct.total_price}`);
+					} else {
+						baseProduct.total_price = 0;
+						console.log('No valid price data, setting price to 0');
+					}
 
 				} else {
+					// For non-variant products, ensure proper handling of price and quantity
 					baseProduct.variantDetails = [];
-					baseProduct.total_quantity = Number(product.quantity) || 0;
-					baseProduct.total_price = Number(product.price) || 0;
+					
+					// Process quantity with validation
+					let quantity = 0;
+					if (product.quantity !== undefined && product.quantity !== null && product.quantity !== '') {
+						quantity = parseInt(product.quantity, 10);
+						if (isNaN(quantity)) {
+							console.warn(`Invalid quantity format for product: ${JSON.stringify(product)}`);
+							quantity = 0;
+						}
+					}
+					baseProduct.total_quantity = quantity;
+					
+					// Process price with validation
+					let price = 0;
+					if (product.price !== undefined && product.price !== null && product.price !== '') {
+						price = parseFloat(product.price);
+						if (isNaN(price)) {
+							console.warn(`Invalid price format for product: ${JSON.stringify(product)}`);
+							price = 0;
+						}
+					}
+					baseProduct.total_price = price;
+					
+					console.log(`Non-variant product processed: quantity=${quantity}, price=${price}`);
 				}
 
 				// Đảm bảo trạng thái dựa trên số lượng
@@ -215,6 +308,21 @@ const importInventory = async (req, res) => {
 		// Tạo các bản ghi mới
 		let savedItems = [];
 		if (inventoryItems.length > 0) {
+			// Cập nhật lại giá trung bình cho mỗi sản phẩm trước khi lưu
+			inventoryItems.forEach(item => {
+				// Nếu sản phẩm có nhiều lô hàng (hiếu mục này luôn chỉ có 1 lô khi tạo mới)
+				if (item.batch_info && item.batch_info.length > 0) {
+					// Đảm bảo giá batch info trùng khớp với total_price ban đầu
+					item.batch_info[0].price = Number(item.batch_info[0].price) || 0;
+				}
+			});
+			
+			// Log the calculated prices before saving
+			console.log('Items to be saved:', inventoryItems.map(item => ({
+				name: item.product_name,
+				total_price: item.total_price,
+				batch_price: item.batch_info[0]?.price || 0
+			})));
 			savedItems = await Inventory.insertMany(inventoryItems);
 		}
 
@@ -519,6 +627,40 @@ const getInventoryDetail = async (req, res) => {
 			});
 		}
 
+		// Tính lại giá trung bình từ tất cả các lô hàng
+		if (inventory.batch_info && inventory.batch_info.length > 0) {
+			console.log('Recalculating weighted average price from all batch entries...');
+			
+			// Tính tổng số lượng và tổng giá trị từ tất cả các lô
+			let totalBatchQuantity = 0;
+			let totalBatchValue = 0;
+			
+			console.log('Batch info:', JSON.stringify(inventory.batch_info, null, 2));
+			
+			// Xử lý từng lô hàng
+			inventory.batch_info.forEach(batch => {
+				const batchQuantity = Number(batch.quantity) || 0;
+				const batchPrice = Number(batch.price) || 0;
+				
+				// Tính tổng số lượng và tổng giá trị
+				totalBatchQuantity += batchQuantity;
+				totalBatchValue += batchQuantity * batchPrice;
+				
+				console.log(`Batch: ${batch.batch_number}, Quantity: ${batchQuantity}, Price: ${batchPrice}, Value: ${batchQuantity * batchPrice}`);
+			});
+			
+			// Tính giá trung bình có trọng số
+			if (totalBatchQuantity > 0) {
+				const weightedAveragePrice = totalBatchValue / totalBatchQuantity;
+				console.log(`Weighted average price: ${weightedAveragePrice} = ${totalBatchValue} / ${totalBatchQuantity}`);
+				
+				// Cập nhật giá trung bình trong kết quả trả về
+				inventory.total_price = weightedAveragePrice;
+			} else {
+				console.log('No valid batch quantities found. Keeping original price.');
+			}
+		}
+		
 		// Chuyển đổi variantDetails nếu có
 		if (inventory.variantDetails) {
 			// Lấy thông tin về các biến thể từ typeProduct

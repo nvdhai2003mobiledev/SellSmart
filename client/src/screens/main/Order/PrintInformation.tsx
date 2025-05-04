@@ -29,15 +29,18 @@ import {
   Printer,
   Shop,
   Bluetooth,
-  Scan,
 } from 'iconsax-react-native';
 import { format } from 'date-fns';
 import { BleManager, Device, State } from 'react-native-ble-plx';
 import QRCode from 'react-native-qrcode-svg';
-import { BluetoothPrinter } from 'react-native-thermal-receipt-printer';
 
 // Document URL for QR code
 const DOCUMENTS_URL = 'https://sellsmart-4.onrender.com/public/documents';
+
+// Create a singleton BleManager instance at the file level to persist across component unmounts
+let globalBleManager: BleManager | null = null;
+let isGlobalBleManagerInitialized = false;
+let lastConnectedDeviceId: string | null = null;
 
 // Utility for safe error messages
 const safeErrorMessage = (err: unknown): string => {
@@ -108,33 +111,147 @@ const PrintInformation = observer(() => {
     connectedDeviceRef.current = connectedDevice;
   }, [connectedDevice]);
 
+  // Kiểm tra và khôi phục kết nối khi quay lại màn hình
+  useEffect(() => {
+    // Chỉ kiểm tra nếu BleManager đã khởi tạo
+    if (bleManagerRef.current && bleManagerInitializedRef.current) {
+      const checkConnectedDevices = async () => {
+        try {
+          console.log('Kiểm tra thiết bị đã kết nối khi trở lại màn hình...');
+          
+          // Nếu có ID thiết bị đã kết nối trước đó, thử khôi phục kết nối đó trước
+          if (lastConnectedDeviceId) {
+            console.log('Tìm thấy ID thiết bị đã kết nối trước đó:', lastConnectedDeviceId);
+            
+            try {
+              // Thử kết nối lại với thiết bị đã kết nối trước đó
+              if (bleManagerRef.current) {
+                console.log('Đang thử kết nối lại với thiết bị:', lastConnectedDeviceId);
+                
+                // Kiểm tra xem thiết bị có sẵn không
+                const peripherals = await bleManagerRef.current.connectedDevices([]);
+                const existingDevice = peripherals.find(d => d.id === lastConnectedDeviceId);
+                
+                if (existingDevice) {
+                  console.log('Đã tìm thấy thiết bị đã kết nối:', existingDevice.name || 'không tên');
+                  setConnectedDevice(existingDevice);
+                  setPrinterStatus('connected');
+                  
+                  // Thiết lập lại listener cho sự kiện ngắt kết nối
+                  setupDisconnectionListener(existingDevice.id);
+                  return;
+                } else {
+                  console.log('Thiết bị cũ không còn kết nối, thử kết nối lại');
+                  
+                  // Thiết bị không còn kết nối, thử kết nối lại
+                  try {
+                    const reconnectedDevice = await bleManagerRef.current.connectToDevice(lastConnectedDeviceId, {
+                      timeout: 10000,
+                      autoConnect: true,
+                    });
+                    
+                    // Khám phá dịch vụ và đặc tính
+                    await reconnectedDevice.discoverAllServicesAndCharacteristics();
+                    
+                    console.log('Đã kết nối lại với thiết bị:', reconnectedDevice.name || 'không tên');
+                    setConnectedDevice(reconnectedDevice);
+                    setPrinterStatus('connected');
+                    
+                    // Thiết lập lại listener cho sự kiện ngắt kết nối
+                    setupDisconnectionListener(reconnectedDevice.id);
+                    return;
+                  } catch (reconnectError) {
+                    console.log('Không thể kết nối lại với thiết bị cũ:', reconnectError);
+                    // Tiếp tục tìm kiếm thiết bị khác đã kết nối
+                  }
+                }
+              }
+            } catch (previousDeviceError) {
+              console.log('Lỗi khi thử kết nối với thiết bị cũ:', previousDeviceError);
+            }
+          }
+          
+          // Lấy thiết bị đã kết nối từ BleManager
+          if (bleManagerRef.current) {
+            const connectedDevices = await bleManagerRef.current.connectedDevices([]);
+            console.log(`Tìm thấy ${connectedDevices.length} thiết bị đã kết nối`);
+            
+            // Nếu có thiết bị đã kết nối, cập nhật state
+            if (connectedDevices.length > 0) {
+              // Lấy thiết bị đầu tiên trong danh sách
+              const device = connectedDevices[0];
+              console.log('Khôi phục kết nối với thiết bị:', device.name || 'không tên', device.id);
+              
+              // Cập nhật state
+              setConnectedDevice(device);
+              setPrinterStatus('connected');
+              
+              // Thiết lập lại listener cho sự kiện ngắt kết nối
+              setupDisconnectionListener(device.id);
+            }
+          }
+        } catch (error) {
+          console.error('Lỗi khi kiểm tra thiết bị đã kết nối:', error);
+        }
+      };
+      
+      // Hàm thiết lập listener cho sự kiện ngắt kết nối
+      const setupDisconnectionListener = (deviceId: string) => {
+        try {
+          if (!bleManagerRef.current) return;
+          
+          const handleDisconnection = (error: any, disconnectedDevice: Device | null) => {
+            console.log('Thiết bị đã ngắt kết nối:', disconnectedDevice?.id, error);
+            
+            // Chỉ xử lý nếu thiết bị ngắt kết nối trùng với thiết bị đã kết nối
+            if (connectedDeviceRef.current?.id === disconnectedDevice?.id) {
+              // Cập nhật trạng thái kết nối
+              setPrinterStatus('disconnected');
+              setConnectedDevice(null);
+              
+              // Thông báo ngắt kết nối nếu trước đó đã kết nối
+              setTimeout(() => {
+                Alert.alert(
+                  'Thiết bị đã ngắt kết nối', 
+                  'Kết nối với máy in đã bị mất. Vui lòng kết nối lại.',
+                  [{ text: 'OK' }]
+                );
+              }, 500);
+            }
+          };
+          
+          // Đối với react-native-ble-plx, sử dụng phương thức này để theo dõi ngắt kết nối
+          bleManagerRef.current.onDeviceDisconnected(deviceId, handleDisconnection);
+        } catch (listenerError) {
+          console.warn('Không thể thiết lập bộ lắng nghe sự kiện ngắt kết nối khi khôi phục:', listenerError);
+        }
+      };
+      
+      // Thực hiện kiểm tra
+      checkConnectedDevices();
+    }
+  }, [bleManagerInitialized]); // Chỉ thực hiện khi BleManager đã khởi tạo
+
   // Khởi tạo BLE Manager trong useEffect - chỉ chạy 1 lần khi component mount
   useEffect(() => {
     let isMounted = true;
     
     const initializeBleManager = async () => {
       try {
-        // Nếu đã khởi tạo, không làm gì cả
-        if (bleManagerInitializedRef.current && bleManagerRef.current) {
-          console.log('BleManager đã được khởi tạo trước đó');
+        // Kiểm tra xem globalBleManager đã tồn tại chưa
+        if (globalBleManager && isGlobalBleManagerInitialized) {
+          console.log('Sử dụng BleManager toàn cục đã được khởi tạo trước đó');
+          bleManagerRef.current = globalBleManager;
+          bleManagerInitializedRef.current = true;
+          if (isMounted) {
+            setBleManagerInitialized(true);
+          }
           return;
         }
         
-        // Nếu đã có instance, hủy nó để tạo mới hoàn toàn
-        if (bleManagerRef.current) {
-          console.log('Hủy BleManager hiện tại trước khi tạo mới');
-          try {
-            await bleManagerRef.current.destroy();
-          } catch (e) {
-            console.log('Lỗi khi hủy BleManager hiện tại:', e);
-          }
-          bleManagerRef.current = null;
-          bleManagerInitializedRef.current = false;
-        }
-        
-        // Khởi tạo mới BleManager
-        console.log('Khởi tạo BleManager mới');
-        bleManagerRef.current = new BleManager({
+        // Nếu không có instance toàn cục, tạo mới
+        console.log('Khởi tạo BleManager toàn cục mới');
+        globalBleManager = new BleManager({
           restoreStateIdentifier: 'sellsmart-bluetooth-printer',
           restoreStateFunction: (peripherals) => {
             // Xử lý khi khôi phục trạng thái
@@ -150,6 +267,13 @@ const PrintInformation = observer(() => {
                 const deviceCount = peripherals.connectedUUIDs?.length || 0;
                 if (deviceCount > 0) {
                   console.log(`Tìm thấy ${deviceCount} thiết bị đã kết nối trước đó`);
+                  
+                  // @ts-ignore
+                  if (peripherals.connectedUUIDs && peripherals.connectedUUIDs.length > 0) {
+                    // @ts-ignore
+                    lastConnectedDeviceId = peripherals.connectedUUIDs[0];
+                    console.log('Last connected device ID:', lastConnectedDeviceId);
+                  }
                 }
               } catch (e) {
                 console.log('Không thể đọc thông tin thiết bị đã kết nối:', e);
@@ -158,9 +282,15 @@ const PrintInformation = observer(() => {
           }
         });
         
-        // Đánh dấu đã khởi tạo
+        // Đánh dấu đã khởi tạo manager toàn cục
+        isGlobalBleManagerInitialized = true;
+        
+        // Gán manager toàn cục cho ref cục bộ
+        bleManagerRef.current = globalBleManager;
+        bleManagerInitializedRef.current = true;
+        
+        // Cập nhật UI state nếu component vẫn mount
         if (isMounted) {
-          bleManagerInitializedRef.current = true;
           setBleManagerInitialized(true);
           console.log('BleManager đã khởi tạo thành công');
         }
@@ -185,18 +315,8 @@ const PrintInformation = observer(() => {
       // Dọn dẹp khi component unmount
       const cleanupBluetooth = async () => {
         try {
-          // Ngắt kết nối với thiết bị nếu có
-          if (connectedDeviceRef.current && bleManagerRef.current && bleManagerInitializedRef.current) {
-            console.log('Ngắt kết nối với thiết bị:', connectedDeviceRef.current.id);
-            try {
-              await bleManagerRef.current.cancelDeviceConnection(connectedDeviceRef.current.id);
-            } catch (error) {
-              console.log('Lỗi khi ngắt kết nối thiết bị:', error);
-            }
-          }
-          
           // Dừng quét nếu đang quét
-          if (bleManagerRef.current && bleManagerInitializedRef.current && isScanningRef.current) {
+          if (bleManagerRef.current && isScanningRef.current) {
             try {
               console.log('Dừng quét thiết bị khi unmount');
               bleManagerRef.current.stopDeviceScan();
@@ -205,20 +325,14 @@ const PrintInformation = observer(() => {
             }
           }
           
-          // Đảm bảo xử lý BleManager cuối cùng sau khi các hành động khác đã hoàn tất
-          setTimeout(async () => {
-            if (bleManagerRef.current) {
-              console.log('Hủy BleManager');
-              try {
-                await bleManagerRef.current.destroy();
-              } catch (error) {
-                console.log('Lỗi khi hủy BleManager:', error);
-              } finally {
-                bleManagerRef.current = null;
-                bleManagerInitializedRef.current = false;
-              }
-            }
-          }, 500);
+          // Lưu ID của thiết bị đã kết nối để khôi phục sau
+          if (connectedDevice) {
+            lastConnectedDeviceId = connectedDevice.id;
+            console.log('Lưu ID thiết bị đã kết nối trước khi rời khỏi màn hình:', lastConnectedDeviceId);
+          }
+          
+          // KHÔNG hủy BleManager hoặc ngắt kết nối thiết bị để duy trì kết nối giữa các màn hình
+          console.log('Duy trì kết nối Bluetooth khi rời khỏi màn hình');
         } catch (error) {
           console.error('Lỗi trong quá trình dọn dẹp Bluetooth:', error);
         }
@@ -251,12 +365,14 @@ const PrintInformation = observer(() => {
       }
     }, true);
 
+    // Chỉ hủy theo dõi trạng thái nếu cần thiết
     return () => {
       try {
-        console.log('Hủy đăng ký theo dõi trạng thái Bluetooth');
-        subscription.remove();
+        // Giữ lại subscription để duy trì trạng thái Bluetooth khi rời màn hình
+        console.log('Giữ theo dõi trạng thái Bluetooth khi rời khỏi màn hình');
+        // subscription.remove(); // Đã comment lại để không hủy subscription
       } catch (error) {
-        console.error('Lỗi khi hủy đăng ký theo dõi:', error);
+        console.error('Lỗi khi xử lý theo dõi Bluetooth:', error);
       }
     };
   }, [bleManagerInitialized]); // Chỉ chạy lại khi bleManagerInitialized thay đổi
@@ -501,7 +617,7 @@ const PrintInformation = observer(() => {
   // Connect to selected Bluetooth device
   const connectToDevice = async (device: Device) => {
     try {
-      if (!bleManagerRef.current || !bleManagerInitializedRef.current) {
+      if (!bleManagerRef.current) {
         throw new Error('BleManager chưa được khởi tạo hoặc đã bị hủy');
       }
       
@@ -538,13 +654,13 @@ const PrintInformation = observer(() => {
       console.log('Bắt đầu kết nối với thiết bị:', device.id);
       const deviceConnection = await bleManagerRef.current.connectToDevice(device.id, {
         timeout: 15000, // Tăng timeout lên 15 giây
-        autoConnect: false, // Không tự động kết nối lại để tránh lỗi
+        autoConnect: true, // Bật tự động kết nối lại để duy trì khi rời màn hình
       });
       
       console.log('Kết nối ban đầu thành công, khám phá dịch vụ...');
       
       // Kiểm tra xem BleManager còn hoạt động không
-      if (!bleManagerRef.current || !bleManagerInitializedRef.current) {
+      if (!bleManagerRef.current) {
         throw new Error('BleManager đã bị hủy trong quá trình kết nối');
       }
       
@@ -597,6 +713,7 @@ const PrintInformation = observer(() => {
       setPrinterStatus('connected');
       setShowDeviceList(false);
       
+      // Lưu ID thiết bị cuối cùng đã kết nối
       // Thông báo thành công được đặt trong setTimeout để tránh lỗi React Native
       setTimeout(() => {
         Alert.alert(
@@ -606,12 +723,15 @@ const PrintInformation = observer(() => {
         );
       }, 500);
       
-      // Đăng ký lắng nghe sự kiện ngắt kết nối
-      deviceConnection.onDisconnected((error, disconnectedDevice) => {
+      // Tạo hàm xử lý sự kiện ngắt kết nối toàn cục để duy trì theo dõi khi rời màn hình
+      const handleDisconnection = (error: any, disconnectedDevice: Device | null) => {
         console.log('Thiết bị đã ngắt kết nối:', disconnectedDevice?.id, error);
-        if (connectedDevice?.id === disconnectedDevice?.id) {
-          setConnectedDevice(null);
+        
+        // Chỉ xử lý nếu thiết bị ngắt kết nối trùng với thiết bị đã kết nối
+        if (connectedDeviceRef.current?.id === disconnectedDevice?.id) {
+          // Cập nhật trạng thái kết nối
           setPrinterStatus('disconnected');
+          setConnectedDevice(null);
           
           // Thông báo ngắt kết nối nếu trước đó đã kết nối
           setTimeout(() => {
@@ -622,7 +742,16 @@ const PrintInformation = observer(() => {
             );
           }, 500);
         }
-      });
+      };
+      
+      // Đăng ký lắng nghe sự kiện ngắt kết nối - thiết lập sự kiện toàn cục
+      // Không sử dụng onDisconnected của device vì nó sẽ mất khi component unmount
+      try {
+        // Đối với react-native-ble-plx, sử dụng phương thức này để theo dõi ngắt kết nối
+        bleManagerRef.current.onDeviceDisconnected(device.id, handleDisconnection);
+      } catch (listenerError) {
+        console.warn('Không thể thiết lập bộ lắng nghe sự kiện ngắt kết nối:', listenerError);
+      }
       
       return deviceConnection;
     } catch (error: any) {
@@ -661,12 +790,12 @@ const PrintInformation = observer(() => {
     }
   };
 
-  // Hàm ngắt kết nối
+  // Hàm ngắt kết nối - chỉ gọi khi có yêu cầu từ người dùng
   const disconnectDevice = async () => {
     if (!connectedDevice || !bleManagerRef.current) return;
     
     try {
-      console.log('Đang ngắt kết nối thiết bị:', connectedDevice.id);
+      console.log('Đang ngắt kết nối thiết bị theo yêu cầu người dùng:', connectedDevice.id);
       await bleManagerRef.current.cancelDeviceConnection(connectedDevice.id);
       setConnectedDevice(null);
       setPrinterStatus('disconnected');
@@ -774,13 +903,6 @@ const PrintInformation = observer(() => {
   const padLeft = (text: string, length: number): string => {
     if (!text) text = '';
     return text.length >= length ? text.substring(0, length) : ' '.repeat(length - text.length) + text;
-  };
-
-  const padCenter = (text: string, length: number): string => {
-    if (!text) text = '';
-    if (text.length >= length) return text.substring(0, length);
-    const leftSpace = Math.floor((length - text.length) / 2);
-    return ' '.repeat(leftSpace) + text + ' '.repeat(length - text.length - leftSpace);
   };
 
   // Hàm tạo đường gạch ngang
@@ -1024,35 +1146,60 @@ const PrintInformation = observer(() => {
         
         // Định nghĩa chiều rộng của giấy in (số ký tự)
         const lineWidth = 32;
+        // --- START CHANGE: Adjust column widths for new layout ---
         const columnWidths = {
-          name: 16,    // Tên sản phẩm
-          price: 7,    // Đơn giá
-          qty: 3,      // Số lượng
-          total: 6     // Thành tiền
+          name: 32,    // Tên sản phẩm (full width initially)
+          price: 15,   // Đơn giá (right aligned on next line)
+          qty: 5,      // Số lượng (right aligned on next line)
+          // total: 6  // Removed total column
+        };
+        // --- END CHANGE ---
+        
+        // Mảng chứa các dòng nội dung hóa đơn (will now include ESC/POS commands)
+        let lines: (string | Uint8Array)[] = [];
+        
+        // Helper to add raw ESC/POS commands to lines
+        const addCommand = (command: Uint8Array) => {
+          lines.push(command);
         };
         
-        // Mảng chứa các dòng nội dung hóa đơn
-        const lines: string[] = [];
-        
+        // Define ESC/POS Commands
+        const CMD_INIT = new Uint8Array([0x1B, 0x40]);       // Initialize
+        const CMD_BOLD_ON = new Uint8Array([0x1B, 0x45, 1]);   // Bold ON
+        const CMD_BOLD_OFF = new Uint8Array([0x1B, 0x45, 0]);  // Bold OFF
+        const CMD_ALIGN_CENTER = new Uint8Array([0x1B, 0x61, 1]); // Center Align
+        const CMD_ALIGN_LEFT = new Uint8Array([0x1B, 0x61, 0]);   // Left Align
+
         // ---------- PHẦN ĐẦU HÓA ĐƠN ----------
+        addCommand(CMD_INIT); // Initialize printer at the start
         
         // Thêm logo nếu được chọn - Chỉ hiển thị tên cửa hàng
         if (printLogo) {
-          // Logo được in riêng biệt qua cơ chế in ảnh từ máy in
-          // Ở đây chỉ thêm khoảng trống để dành chỗ cho logo
-          lines.push(padCenter('SELL SMART', lineWidth));
+          addCommand(CMD_ALIGN_CENTER);
+          lines.push('SELL SMART');
+          addCommand(CMD_ALIGN_LEFT);
         }
         
         // Thêm thông tin cửa hàng nếu được chọn
         if (printCompanyInfo) {
-          // Đổi sang chữ in đậm và cỡ chữ lớn hơn cho tên cửa hàng
-          lines.push(padCenter(makeBoldText(removeVietnameseTones(companyName).toUpperCase()), lineWidth));
-          lines.push(padCenter(removeVietnameseTones(companyAddress), lineWidth));
-          lines.push(padCenter('Tel: ' + companyPhone, lineWidth));
+          addCommand(CMD_ALIGN_CENTER);
+          addCommand(CMD_BOLD_ON);
+          lines.push(removeVietnameseTones(companyName).toUpperCase());
+          addCommand(CMD_BOLD_OFF);
+          lines.push(removeVietnameseTones(companyAddress));
+          lines.push('Tel: ' + companyPhone);
+          addCommand(CMD_ALIGN_LEFT);
         }
         
+        // --- START CHANGE: Center Title with ESC/POS ---
         // Tiêu đề hóa đơn
-        lines.push(padCenter(makeBoldText('HOA DON BAN HANG'), lineWidth));
+        addCommand(CMD_ALIGN_CENTER);
+        addCommand(CMD_BOLD_ON);
+        lines.push('HOA DON BAN HANG');
+        addCommand(CMD_BOLD_OFF);
+        addCommand(CMD_ALIGN_LEFT);
+        // lines.push(padCenter(makeBoldText('HOA DON BAN HANG'), lineWidth)); // Old method
+        // --- END CHANGE ---
         
         // Thông tin đơn hàng
         lines.push('Ma hoa don: #' + orderNumber);
@@ -1077,15 +1224,17 @@ const PrintInformation = observer(() => {
         
         // ---------- PHẦN SẢN PHẨM ----------
         
+        // --- START CHANGE: Modify Product Header ---
         // Tiêu đề cột
         const headerRow = 
-          padRight('San pham', columnWidths.name) + 
+          padRight('San pham', columnWidths.name - columnWidths.price - columnWidths.qty - 2) + // Adjust padding
           padLeft('Don gia', columnWidths.price) + 
-          padLeft('SL', columnWidths.qty) + 
-          padLeft('T.Tien', columnWidths.total);
+          padLeft('SL', columnWidths.qty);
+          // Removed T.Tien
         
         lines.push(headerRow);
         lines.push(createDashedLine(lineWidth));
+        // --- END CHANGE ---
         
         // Biến để theo dõi tổng số sản phẩm
         let totalQuantity = 0;
@@ -1118,28 +1267,36 @@ const PrintInformation = observer(() => {
               const quantity = product.quantity || 1;
               totalQuantity += quantity;
               
-              const totalPrice = price * quantity;
-              
-              // Thêm dòng tên sản phẩm (có thể quá dài nên cần xử lý)
-              const productName = name.length > columnWidths.name - 1 
-                ? name.substring(0, columnWidths.name - 1) + '.' 
-                : name;
-                
-              lines.push(padRight(productName, columnWidths.name) + 
-                        padLeft(formatCurrency(price), columnWidths.price) + 
-                        padLeft(quantity.toString(), columnWidths.qty) + 
-                        padLeft(formatCurrency(totalPrice), columnWidths.total));
+              // --- START CHANGE: New Product Line Layout ---
+              // Print product name (potentially wrapped)
+              // Simple wrapping logic:
+              let remainingName = name;
+              while (remainingName.length > 0) {
+                lines.push(remainingName.substring(0, columnWidths.name));
+                remainingName = remainingName.substring(columnWidths.name);
+              }
+
+              // Print Price and Qty on the next line, right-aligned
+              const priceQtyLine = 
+                  padLeft(formatCurrency(price), lineWidth - columnWidths.qty) + // Price takes up remaining space left of qty
+                  padLeft(quantity.toString(), columnWidths.qty);
+              lines.push(priceQtyLine);
+              // --- END CHANGE ---
               
               // Nếu có biến thể, thêm một dòng mới
               if (variantText) {
-                lines.push('  ' + variantText);
+                lines.push('  ' + variantText); // Indent variant info
               }
               
               // Thêm dòng mã sản phẩm (SKU) nếu được chọn và có mã
               if (printItemSKU && (product.sku || product.productId?.sku || product.product?.sku)) {
                 const sku = product.sku || product.productId?.sku || product.product?.sku;
-                lines.push('  SKU: ' + sku);
+                lines.push('  SKU: ' + sku); // Indent SKU
               }
+              
+              // Add a small separator between items if needed
+              // lines.push(''); 
+
             } catch (error) {
               console.error('Lỗi khi thêm sản phẩm vào hóa đơn:', error);
             }
@@ -1164,9 +1321,14 @@ const PrintInformation = observer(() => {
           lines.push(padRight('Giam gia:', 20) + padLeft('-' + formatCurrency(order.discount), 12));
         }
         
+        // --- START CHANGE: Use ESC/POS for Bold Total ---
         // Tổng cần thanh toán
         lines.push(createDashedLine(lineWidth));
-        lines.push(padRight('TONG THANH TOAN:', 20) + padLeft(makeBoldText(formatCurrency(order.totalAmount)), 12));
+        addCommand(CMD_BOLD_ON);
+        lines.push(padRight('TONG THANH TOAN:', 20) + padLeft(formatCurrency(order.totalAmount), 12));
+        addCommand(CMD_BOLD_OFF);
+        // lines.push(padRight('TONG THANH TOAN:', 20) + padLeft(makeBoldText(formatCurrency(order.totalAmount)), 12)); // Old method
+        // --- END CHANGE ---
         
         // Phương thức thanh toán nếu có
         if (order.paymentMethod) {
@@ -1174,50 +1336,66 @@ const PrintInformation = observer(() => {
         }
         
         // ---------- QR CODE SECTION ----------
-        if (printQRCode) {
-          lines.push(padCenter('QUET MA DE TRUY CAP TAI LIEU BAO HANH', lineWidth));
-          lines.push(padCenter(DOCUMENTS_URL, lineWidth));
-        }
+        // QR Code will be handled separately after text printing
         
         // ---------- CHÂN TRANG ----------
         if (printFooter) {
-          // Chia nhỏ chân trang nếu quá dài và in đậm
           const footerText = removeVietnameseTones(footer);
           const footerWords = footerText.split(' ');
           let currentLine = '';
+          
+          addCommand(CMD_ALIGN_CENTER); // Center footer
+          addCommand(CMD_BOLD_ON); // Bold footer
           
           for (const word of footerWords) {
             if ((currentLine + ' ' + word).length <= lineWidth) {
               currentLine += (currentLine ? ' ' : '') + word;
             } else {
-              // In đậm cảm ơn 
-              lines.push(padCenter(makeBoldText(currentLine), lineWidth));
+              lines.push(currentLine);
               currentLine = word;
             }
           }
           
           if (currentLine) {
-            // In đậm dòng cuối cùng 
-            lines.push(padCenter(makeBoldText(currentLine), lineWidth));
+            lines.push(currentLine);
           }
+
+          addCommand(CMD_BOLD_OFF);
+          addCommand(CMD_ALIGN_LEFT); // Reset alignment
         }
         
-        // Thêm dòng trống cuối cùng - chỉ thêm 1 dòng
+        // Thêm dòng trống cuối cùng - trước khi QR
+        lines.push('');
         lines.push('');
         
-        // Kết hợp tất cả các dòng thành một chuỗi
-        const receiptContent = lines.join('\n');
-        console.log('Nội dung hóa đơn:', receiptContent);
-        
-        // Mã hóa dữ liệu thành base64
-        const encoder = new TextEncoder();
-        const bytes = encoder.encode(receiptContent);
-        let binary = '';
-        for (let i = 0; i < bytes.length; i++) {
-          binary += String.fromCharCode(bytes[i]);
+        // --- START CHANGE: Prepare combined text/command data ---
+        // Combine lines and commands into a single buffer for text printing
+        const textEncoder = new TextEncoder();
+        let textCommandBuffers: Uint8Array[] = [];
+        let totalTextBytes = 0;
+
+        for (const line of lines) {
+            if (typeof line === 'string') {
+                const lineBytes = textEncoder.encode(line + '\n'); // Add newline after each text line
+                textCommandBuffers.push(lineBytes);
+                totalTextBytes += lineBytes.length;
+            } else { // It's a Uint8Array (command)
+                textCommandBuffers.push(line);
+                totalTextBytes += line.length;
+            }
         }
-        receiptData = btoa(binary);
-        console.log(`Đã chuẩn bị dữ liệu in (${receiptData.length} bytes)`);
+
+        const fullTextCommandBuffer = new Uint8Array(totalTextBytes);
+        let currentTextOffset = 0;
+        textCommandBuffers.forEach(buffer => {
+            fullTextCommandBuffer.set(buffer, currentTextOffset);
+            currentTextOffset += buffer.length;
+        });
+
+        receiptData = arrayBufferToBase64(fullTextCommandBuffer.buffer); // Base64 encode the combined buffer
+        console.log(`Đã chuẩn bị dữ liệu in text/command (${receiptData.length} base64 bytes)`);
+        // --- END CHANGE ---
+
       } catch (prepareError) {
         console.error('Lỗi khi chuẩn bị dữ liệu in:', prepareError);
         const errorMessage = safeErrorMessage(prepareError);
@@ -1311,112 +1489,113 @@ const PrintInformation = observer(() => {
       // Sau khi in nội dung văn bản xong, thử in QR code bằng thư viện thermal-receipt-printer
       if (printQRCode) {
         try {
-          // Tạo QR code dưới dạng base64 image
-          console.log('Đang tạo QR code dưới dạng base64...');
-          const qrCodeBase64 = await generateQRCodeBase64();
+          // --- START: Replace old QR logic with working ESC/POS command ---
+          console.log('In QR code bằng lệnh ESC/POS...');
           
-          if (qrCodeBase64) {
-            console.log('Đã tạo QR code, kết nối với BluetoothPrinter...');
-            
-            // Thử 3 phương pháp in khác nhau, sử dụng try/catch riêng để nếu một phương pháp thất bại
-            // thì vẫn thử các phương pháp khác
-            
-            // ------- PHƯƠNG PHÁP 1: Sử dụng BluetoothPrinter.printImageBase64 -------
-            try {
-              console.log('Phương pháp 1: Sử dụng BluetoothPrinter.printImageBase64');
-              // Khởi tạo BluetoothPrinter
-              await BluetoothPrinter.init();
-              
-              // Kết nối với máy in đã chọn - sử dụng ID của thiết bị đã kết nối trước đó
-              const macAddress = connectedDevice?.id;
-              if (!macAddress) {
-                throw new Error('Không có địa chỉ MAC của máy in');
-              }
-              
-              // Kết nối với máy in
-              console.log(`Kết nối với máy in qua BluetoothPrinter: ${macAddress}`);
-              await BluetoothPrinter.connectPrinter(macAddress, true);
-              
-              // In QR code
-              console.log('In QR code với printImageBase64...');
-              const options = {
-                beep: false,
-                cut: true,
-                tailingLine: false
-              };
-              
-              // Thêm feed before và after để đảm bảo vị trí
-              await BluetoothPrinter.printText('\n', options);
-              
-              // Thực hiện in ảnh QR
-              await BluetoothPrinter.printImageBase64(qrCodeBase64, options);
-              
-              // Thêm feed cuối
-              await BluetoothPrinter.printText('\n\n\n\n', options);
-              
-              console.log('In QR code với printImageBase64 thành công!');
-              
-              // Đóng kết nối sau khi in xong
-              await BluetoothPrinter.closeConn();
-              
-              Alert.alert('Thành công', 'Đã in mã QR thành công bằng phương pháp 1 (printImageBase64)!');
-              return;
-            } catch (method1Error) {
-              console.error('Phương pháp 1 thất bại:', method1Error);
-              
-              // ------- PHƯƠNG PHÁP 2: Sử dụng BluetoothPrinter.printPic -------
-              try {
-                console.log('Phương pháp 2: Sử dụng BluetoothPrinter.printPic');
-                // Khởi tạo lại BluetoothPrinter
-                await BluetoothPrinter.init();
-                
-                // Kết nối với máy in
-                const macAddress = connectedDevice?.id;
-                if (!macAddress) {
-                  throw new Error('Không có địa chỉ MAC của máy in');
-                }
-                
-                // Kết nối với máy in
-                await BluetoothPrinter.connectPrinter(macAddress, true);
-                
-                // In QR code bằng phương thức printPic
-                const options = {
-                  beep: false,
-                  cut: true,
-                  tailingLine: false
-                };
-                
-                // Thêm feed trước khi in QR
-                await BluetoothPrinter.printText('\n\n\n', options);
-                
-                // In QR với phương thức printPic
-                console.log('Gửi dữ liệu QR code đến máy in với printPic...', qrCodeBase64.substring(0, 30) + '...');
-                await BluetoothPrinter.printPic(qrCodeBase64, options);
-                
-                // Thêm feed sau khi in QR
-                await BluetoothPrinter.printText('\n\n\n\n', options);
-                
-                console.log('In QR code với printPic thành công!');
-                
-                // Đóng kết nối sau khi in xong
-                await BluetoothPrinter.closeConn();
-                
-                Alert.alert('Thành công', 'Đã in mã QR thành công bằng phương pháp 2 (printPic)!');
-                return;
-              } catch (method2Error) {
-                console.error('Phương pháp 2 thất bại:', safeErrorMessage(method2Error));
-                
-                Alert.alert('Lỗi', 'Không thể in mã QR bằng hai phương pháp đầu tiên. Chi tiết lỗi: ' + safeErrorMessage(method2Error));
-              }
-            }
-          } else {
-            console.warn('Không thể tạo QR code base64');
+          // 1. Define QR Code Data
+          const qrData = DOCUMENTS_URL;
+          // Declare encoder locally if not available (it should be due to above change)
+          const encoder = new TextEncoder(); 
+          const qrDataBytes = encoder.encode(qrData);
+          
+          // 2. Assemble Command Sequence
+          const commandList: Uint8Array[] = [];
+          
+          // Center Align QR Code
+          commandList.push(new Uint8Array([0x1B, 0x61, 1])); 
+          
+          // Select QR Model 2
+          commandList.push(new Uint8Array([0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x41, 0x32]));
+          
+          // Set QR Size (e.g., 5) (GS ( k pL pH 0x31 0x43 n) -> 1D 28 6B 03 00 31 43 05
+          commandList.push(new Uint8Array([0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x43, 0x05]));
+          
+          // Set Error Correction Level M (GS ( k pL pH 0x31 0x45 n) -> 1D 28 6B 03 00 31 45 31 (M=49 -> ASCII '1'))
+          commandList.push(new Uint8Array([0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x45, 0x31]));
+          
+          // Store QR Data (GS ( k pL pH 0x31 0x50 30 d1...dk)
+          const storeCmdLength = qrDataBytes.length + 3;
+          const storepL = storeCmdLength % 256;
+          const storepH = Math.floor(storeCmdLength / 256);
+          commandList.push(new Uint8Array([0x1D, 0x28, 0x6B, storepL, storepH, 0x31, 0x50, 0x30]));
+          commandList.push(qrDataBytes);
+          
+          // Print QR Code
+          commandList.push(new Uint8Array([0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x51, 0x30]));
+          
+          // Reset Alignment to Left
+          commandList.push(new Uint8Array([0x1B, 0x61, 0])); 
+          
+          // Add Line Feeds
+          commandList.push(new Uint8Array([0x0A, 0x0A, 0x0A, 0x0A]));
+          
+          // 3. Concatenate all commands into one buffer
+          let totalBytesLength = 0;
+          commandList.forEach(cmd => { totalBytesLength += cmd.length; });
+          
+          const fullCommandBuffer = new Uint8Array(totalBytesLength);
+          let currentOffset = 0;
+          commandList.forEach(cmd => {
+            fullCommandBuffer.set(cmd, currentOffset);
+            currentOffset += cmd.length;
+          });
+          
+          // 4. Convert the final buffer to base64 for sending
+          const base64CommandBuffer = arrayBufferToBase64(fullCommandBuffer.buffer);
+          
+          // 5. Send the entire command buffer
+          console.log(`Gửi ESC/POS QR command buffer (${fullCommandBuffer.length} bytes)`);
+          
+          // Check connection before sending QR command
+          const isStillConnected = await localDevice.isConnected();
+          if (!isStillConnected) {
+            throw new Error('Mất kết nối trước khi gửi lệnh in QR.');
           }
+
+          // Send using writeWithResponse for reliability
+          let writeSuccess = false;
+          let retryCount = 0;
+          const maxRetries = 3;
+          while (!writeSuccess && retryCount < maxRetries) {
+              try {
+                  console.log(`Gửi QR command (thử ${retryCount + 1}/${maxRetries}) via writeWithResponse`);
+                  await targetCharacteristic.writeWithResponse(base64CommandBuffer);
+                  writeSuccess = true;
+                  await new Promise(resolve => setTimeout(resolve, 500)); // Add delay after sending
+              } catch (writeError) {
+                  retryCount++;
+                  console.error(`Lỗi khi gửi QR command (thử ${retryCount}/${maxRetries}): ${safeErrorMessage(writeError)}`);
+                  
+                  const errorMsg = safeErrorMessage(writeError);
+                   if (errorMsg.includes('destroyed') || errorMsg.includes('cancelled') || !(await localDevice.isConnected())) {
+                      throw new Error('Kết nối Bluetooth đã bị hủy/mất trong quá trình gửi lệnh QR.');
+                  }
+
+                  if (retryCount >= maxRetries) {
+                       throw new Error(`Không thể gửi lệnh QR đến máy in: ${errorMsg}`);
+                  }
+                  await new Promise(resolve => setTimeout(resolve, 1000)); // Wait before retry
+              }
+          }
+           if (!writeSuccess) {
+               throw new Error('Không thể gửi lệnh QR đến máy in sau nhiều lần thử.');
+           }
+
+          console.log('Gửi lệnh ESC/POS QR thành công.');
+
+
         } catch (qrPrintError) {
-          console.error('Lỗi khi in QR code:', qrPrintError);
-          // Không throw lỗi ở đây vì phần in text đã thành công
+          console.error('Lỗi khi in QR code bằng ESC/POS:', qrPrintError);
+          // Không throw lỗi ở đây vì phần in text đã thành công, chỉ cảnh báo
+           setTimeout(() => {
+              Alert.alert(
+                  'Lỗi In QR', 
+                  `In hóa đơn thành công nhưng không thể in mã QR: ${safeErrorMessage(qrPrintError)}`,
+                  [{ text: 'OK' }]
+              );
+           }, 600); // Delay slightly after main success message
         }
-      }
+      } // End if (printQRCode)
     } catch (error) {
       console.error('Lỗi in ấn:', error);
       
@@ -1784,262 +1963,6 @@ const PrintInformation = observer(() => {
     }
   };
 
-  // Hàm tạo chữ in đậm cho máy in nhiệt
-  const makeBoldText = (text: string): string => {
-    // Một số máy in nhiệt hỗ trợ mã ESC/POS để in đậm
-    // Nhưng cách đơn giản là in hai lần cùng một ký tự
-    return text.split('').join('\b'); // Thêm backspace giữa các ký tự để đè lên nhau
-  };
-
-  // Add this helper function for more reliable printing of QR codes
-  const printQRCodeWithRetry = async () => {
-    if (printerStatus !== 'connected') {
-      Alert.alert(
-        'Chưa kết nối máy in',
-        'Vui lòng kết nối với máy in trước khi tiến hành in QR.',
-        [
-          {text: 'Hủy', style: 'cancel'},
-          {text: 'Kết nối', onPress: connectPrinter},
-        ]
-      );
-      return;
-    }
-    
-    try {
-      // Kiểm tra xem đã kết nối thiết bị chưa
-      if (!connectedDevice) {
-        throw new Error('Chưa kết nối với thiết bị in');
-      }
-
-      // Hiển thị thông báo đang xử lý
-      Alert.alert('Thông báo', 'Đang chuẩn bị in mã QR...', [], { cancelable: false });
-      
-      // Kiểm tra kết nối trước khi tiếp tục
-      const isStillConnected = await connectedDevice.isConnected();
-      if (!isStillConnected) {
-        throw new Error('Thiết bị đã ngắt kết nối. Vui lòng kết nối lại máy in.');
-      }
-      
-      // Tìm kiếm dịch vụ và đặc tính
-      console.log('Tìm kiếm dịch vụ phù hợp để in QR code...');
-      
-      // Lấy danh sách dịch vụ
-      const services = await connectedDevice.services();
-      console.log(`Tìm thấy ${services.length} dịch vụ`);
-      
-      if (services.length === 0) {
-        throw new Error('Không tìm thấy dịch vụ nào từ máy in.');
-      }
-
-      // Tập trung vào dịch vụ in ESC/POS phổ biến
-      let targetService = null;
-      let targetCharacteristic = null;
-      
-      // Đầu tiên, tìm dịch vụ in cụ thể
-      for (const service of services) {
-        console.log(`Kiểm tra dịch vụ: ${service.uuid}`);
-        
-        // Ưu tiên dịch vụ máy in theo thứ tự
-        // 1. Dịch vụ 000018F0 là ESC/POS service phổ biến
-        // 2. Dịch vụ 49535343-FE7D-4AE5-8FA9-9FAFD205E455 là dịch vụ máy in
-        // 3. Các dịch vụ tùy chỉnh như FFE0 hoặc FF00
-        
-        if (service.uuid.toUpperCase().includes('18F0') || 
-            service.uuid === '49535343-FE7D-4AE5-8FA9-9FAFD205E455' ||
-            service.uuid.toUpperCase().includes('FFE0') || 
-            service.uuid.toUpperCase().includes('FF00')) {
-          targetService = service;
-          console.log(`Đã tìm thấy dịch vụ máy in tiềm năng: ${service.uuid}`);
-          break;
-        }
-      }
-      
-      // Nếu không tìm thấy dịch vụ in cụ thể, sử dụng dịch vụ đầu tiên
-      if (!targetService && services.length > 0) {
-        targetService = services[0];
-        console.log(`Không tìm thấy dịch vụ in cụ thể, sử dụng dịch vụ đầu tiên: ${targetService.uuid}`);
-      }
-      
-      if (!targetService) {
-        throw new Error('Không tìm thấy dịch vụ phù hợp để in QR code.');
-      }
-      
-      // Tìm đặc tính phù hợp để ghi dữ liệu
-      const characteristics = await targetService.characteristics();
-      console.log(`Dịch vụ ${targetService.uuid} có ${characteristics.length} đặc tính`);
-      
-      // Tìm một đặc tính writable
-      for (const characteristic of characteristics) {
-        console.log(`- Đặc tính: ${characteristic.uuid}`);
-        
-        // Ưu tiên đặc tính máy in theo thứ tự
-        // 1. Đặc tính 00002AF1 hoặc 2AF1 là ESC/POS characteristic phổ biến
-        // 2. Đặc tính 49535343-8841-43F4-A8D4-ECBE34729BB3 là đặc tính ghi
-        // 3. Các đặc tính tùy chỉnh như FFE1 hoặc FF01
-        
-        if (characteristic.uuid.toUpperCase().includes('2AF1') || 
-            characteristic.uuid === '49535343-8841-43F4-A8D4-ECBE34729BB3' ||
-            characteristic.uuid.toUpperCase().includes('FFE1') || 
-            characteristic.uuid.toUpperCase().includes('FF01')) {
-          targetCharacteristic = characteristic;
-          console.log(`Đã tìm thấy đặc tính ghi phù hợp: ${characteristic.uuid}`);
-          break;
-        }
-      }
-      
-      // Nếu không tìm thấy đặc tính cụ thể, sử dụng đặc tính đầu tiên
-      if (!targetCharacteristic && characteristics.length > 0) {
-        targetCharacteristic = characteristics[0];
-        console.log(`Không tìm thấy đặc tính ghi cụ thể, sử dụng đặc tính đầu tiên: ${targetCharacteristic.uuid}`);
-      }
-      
-      if (!targetCharacteristic) {
-        throw new Error('Không tìm thấy đặc tính phù hợp để gửi dữ liệu in.');
-      }
-      
-      console.log('Gửi lệnh khởi tạo máy in...');
-      
-      // Hàm trợ giúp để gửi dữ liệu với khả năng thử lại
-      const sendCommandWithRetry = async (data: string | Uint8Array, description: string, retries = 3, delayMs = 300) => {
-        let error = null;
-        
-        for (let attempt = 0; attempt < retries; attempt++) {
-          try {
-            if (attempt > 0) {
-              console.log(`Lần thử lại ${attempt + 1}/${retries} cho: ${description}`);
-            }
-            
-            // Kiểm tra kết nối trước khi gửi
-            const stillConnected = await connectedDevice.isConnected();
-            if (!stillConnected) {
-              throw new Error('Thiết bị đã ngắt kết nối');
-            }
-            
-            // Gửi dữ liệu - thử cả hai phương thức
-            try {
-              // Thử với writeWithResponse trước, nó an toàn hơn
-              await targetCharacteristic.writeWithResponse(data as any);
-            } catch (responseError) {
-              // Nếu writeWithResponse thất bại, thử với writeWithoutResponse
-              console.log(`writeWithResponse thất bại, thử writeWithoutResponse: ${safeErrorMessage(responseError)}`);
-              await targetCharacteristic.writeWithoutResponse(data as any);
-            }
-            
-            // Đợi một chút giữa các lệnh để tránh lỗi buffer
-            await new Promise(resolve => setTimeout(resolve, delayMs));
-            
-            // Gửi thành công, thoát khỏi vòng lặp
-            return true;
-          } catch (e) {
-            console.log(`Lỗi khi gửi ${description}: ${safeErrorMessage(e)}`);
-            error = e;
-            
-            // Đợi lâu hơn giữa các lần thử
-            await new Promise(resolve => setTimeout(resolve, delayMs * 2));
-            
-            // Kiểm tra xem thiết bị có còn kết nối không
-            try {
-              const stillConnected = await connectedDevice.isConnected();
-              if (!stillConnected) {
-                console.log('Thiết bị đã ngắt kết nối trong quá trình thử lại');
-                throw new Error('Thiết bị đã ngắt kết nối trong quá trình in');
-              }
-            } catch (connectionError) {
-              console.log('Lỗi khi kiểm tra kết nối:', safeErrorMessage(connectionError));
-              throw new Error('Không thể kiểm tra kết nối với máy in');
-            }
-          }
-        }
-        
-        // Nếu đến đây, tất cả các lần thử đều thất bại
-        throw error || new Error(`Không thể gửi ${description} sau ${retries} lần thử`);
-      };
-      
-      // Tạo chuỗi QR code ASCII đơn giản, dễ nhìn thấy hơn trên máy in
-      const qrText = `
-╔═══════════════════════════╗
-║                           ║
-║  █████████   ████  █████  ║
-║  █       █   █  █  █   █  ║
-║  █  ███  █   █  █  █████  ║
-║  █  ███  █   ████     █   ║
-║  █  ███  █   █  █  █████  ║
-║  █       █   █  █  █      ║
-║  █████████   ████  █████  ║
-║                           ║
-║    SELLSMART DOCUMENT     ║
-║                           ║
-╚═══════════════════════════╝
-
-${DOCUMENTS_URL}
-
-`;
-
-      // Mã hóa dữ liệu text thành Base64 để gửi
-      const encoder = new TextEncoder();
-      const textBytes = encoder.encode(qrText);
-      let binaryText = '';
-      for (let i = 0; i < textBytes.length; i++) {
-        binaryText += String.fromCharCode(textBytes[i]);
-      }
-      const base64Text = btoa(binaryText);
-      
-      // Khởi tạo máy in
-      console.log('1. Khởi tạo máy in');
-      const initCommand = hexToBytes('1B40'); // ESC @
-      await sendCommandWithRetry(preparePrinterCommand(initCommand), 'lệnh khởi tạo');
-      
-      // 2. Set line spacing
-      console.log('2. Thiết lập khoảng cách dòng');
-      const lineSpaceCommand = hexToBytes('1B3320'); // ESC 3 32
-      await sendCommandWithRetry(preparePrinterCommand(lineSpaceCommand), 'lệnh khoảng cách dòng');
-      
-      // 3. Căn giữa văn bản
-      console.log('3. Căn giữa văn bản');
-      const centerCommand = hexToBytes('1B6101'); // ESC a 1
-      await sendCommandWithRetry(preparePrinterCommand(centerCommand), 'lệnh căn giữa');
-      
-      // 4. In văn bản ASCII QR code
-      console.log('4. In văn bản QR code');
-      await sendCommandWithRetry(base64Text, 'văn bản QR code');
-      
-      // 5. Cắt giấy hoặc thêm dòng trống để cắt 
-      console.log('5. Thêm dòng trống cho việc cắt giấy');
-      const feedAndCutCommand = hexToBytes('1B4A40'); // ESC J 64 - feed paper
-      await sendCommandWithRetry(preparePrinterCommand(feedAndCutCommand), 'lệnh feed giấy');
-      
-      // Hiện thông báo thành công
-      Alert.alert(
-        'In thành công',
-        'Đã in QR code thành công!',
-        [{ text: 'OK' }]
-      );
-      
-    } catch (error) {
-      console.error('Lỗi khi in QR code:', error);
-      
-      // Xử lý lỗi dựa trên loại lỗi
-      let errorMessage = safeErrorMessage(error);
-      
-      if (errorMessage.includes('disconnected') || errorMessage.includes('not connected')) {
-        errorMessage = 'Thiết bị đã ngắt kết nối trong quá trình in. Vui lòng kết nối lại máy in.';
-        // Cập nhật trạng thái kết nối
-        setPrinterStatus('disconnected');
-        setConnectedDevice(null);
-      } else if (errorMessage.includes('rejected')) {
-        errorMessage = 'Máy in từ chối lệnh. Hãy đảm bảo máy in đã sẵn sàng và thử lại.';
-      } else if (errorMessage.includes('timeout')) {
-        errorMessage = 'Hết thời gian chờ phản hồi từ máy in. Vui lòng thử lại.';
-      }
-      
-      Alert.alert(
-        'Lỗi khi in QR code',
-        errorMessage,
-        [{ text: 'OK' }]
-      );
-    }
-  };
-
   return (
     <BaseLayout>
       <Header
@@ -2265,18 +2188,7 @@ ${DOCUMENTS_URL}
           </TouchableOpacity>
         </View>
 
-        {/* Add separate test print button */}
-        <View style={{marginTop: 10}}>
-          <TouchableOpacity 
-            style={[styles.directPrintButton, {backgroundColor: '#8e44ad'}]}
-            onPress={printQRCodeWithRetry}
-          >
-            <View style={styles.directPrintButtonContent}>
-              <Scan size={24} color="#fff" variant="Bold" style={{marginRight: 8}} />
-              <DynamicText style={styles.directPrintButtonText}>Chỉ In Mã QR (Kiểm Tra)</DynamicText>
-            </View>
-          </TouchableOpacity>
-        </View>
+    
       </ScrollView>
       
       {/* Modal hiển thị danh sách thiết bị Bluetooth */}
@@ -2456,7 +2368,7 @@ ${DOCUMENTS_URL}
                 {/* QR Code */}
                 {printQRCode && (
                   <View style={styles.qrCodeContainer}>
-                    <DynamicText style={styles.qrCodeTitle}>Quét mã để truy cập tài liệu bảo hành</DynamicText>
+                    <DynamicText style={styles.qrCodeTitle}>Quét mã để hỗ trợ bảo hành</DynamicText>
                     <QRCode
                       value={DOCUMENTS_URL}
                       size={160}
@@ -2519,7 +2431,8 @@ const styles = StyleSheet.create({
     borderRadius: moderateScale(12),
     padding: scaleWidth(16),
     marginBottom: scaleHeight(16),
-    minHeight: scaleHeight(150),
+
+    height: scaleHeight(280),
   },
 
   section: {
@@ -2563,7 +2476,7 @@ const styles = StyleSheet.create({
   connectButton: {
     backgroundColor: color.primaryColor,
     paddingHorizontal: scaleWidth(16),
-    height: scaleHeight(50),
+    height: scaleHeight(100),
     borderRadius: moderateScale(8),
   },
   connectedButton: {
