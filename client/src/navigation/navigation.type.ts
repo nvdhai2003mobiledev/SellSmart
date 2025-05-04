@@ -49,6 +49,7 @@ export enum Screen {
   ADD_PROVIDER = 'ADD_PROVIDER',
   REVENUE = 'REVENUE',
   DAY_RANGE = 'DAY_RANGE',
+  WARRANTY='WARRANTY'
 }
 
 export type RootStackParamList = {
@@ -73,6 +74,8 @@ export type RootStackParamList = {
   [Screen.DETAIL_CUSTOMER]: undefined;
   [Screen.CONFIG]: undefined;
   [Screen.NOTIFI]: undefined;
+  //
+  [Screen.WARRANTY]:undefined;
   [Screen.CREATEORDER]: {
     selectedProducts?: any[];
     customer?: any;

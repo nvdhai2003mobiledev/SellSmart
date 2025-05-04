@@ -35,7 +35,8 @@ import {
   PromotionListScreen,
   AddPromotionScreen,
   CustomerScreen,
-} from '../screens';
+  WarrantyScreen
+} from '../screens';  
 
 // Trực tiếp import các màn hình không được export từ index
 import OrderCancelScreen from '../screens/main/Order/OrderCancelScreen';
@@ -46,6 +47,7 @@ import DetailProviderScreen from '../screens/main/Provider/DetailProviderScreen'
 import ProviderScreen from '../screens/main/Provider/ProviderScreen';
 import RevenueScreen from '../screens/bottomTab/Home/RevenueScreen';
 import DayRangeScreen from '../screens/bottomTab/Home/DayRangeScreen';
+
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const screenOptions: NativeStackNavigationOptions = {
@@ -103,6 +105,10 @@ export const AppNavigation = observer(() => {
         name={Screen.DETAIL_PROVIDER}
         component={DetailProviderScreen}
       />
+      <RootStack.Screen
+        name={Screen.WARRANTY}
+        component={WarrantyScreen}
+        options={{headerShown: false}}/>
       <RootStack.Screen
         name={Screen.ADD_PROVIDER}
         component={AddProviderScreen}

@@ -7,6 +7,7 @@ import { OrderStore } from './Order/Order';
 import { ProductStore } from './product/product';
 import { PromotionStoreModel } from './promotion/promotion-store';
 import { ProviderStoreModel } from './provider/provider-store';
+import { WarrantyStoreModel } from './Warranty/warranty-store';
 
 
 const RootStoreModel = types
@@ -19,6 +20,8 @@ const RootStoreModel = types
     productStore: types.late(() => ProductStore),
     promotionStore: types.late(() => PromotionStoreModel),
     providers: types.late(() => ProviderStoreModel),
+    warranty: types.late(() => WarrantyStoreModel),
+
   })
   .actions((self) => ({
     reset: flow(function* () {
@@ -101,6 +104,7 @@ export const rootStore = RootStoreModel.create({
   productStore: ProductStore.create({ products: [], isLoading: false, error: '', totalPrice: 0 }),
   promotionStore: PromotionStoreModel.create({ promotions: [], isLoading: false, error: '' }),
   providers: ProviderStoreModel.create({ providers: [], isLoading: false, error: '' }),
+  warranty: WarrantyStoreModel.create({ warranties: [], isLoading: false, error: '' }),
 });
 
 
