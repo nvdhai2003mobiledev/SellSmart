@@ -18,6 +18,7 @@ router.get("/statistics", protect, statisticsController.getProductStatistics); /
 router.get("/inventory", protect, statisticsController.getInventoryProducts); // Lấy danh sách sản phẩm tồn kho
 router.post("/create", protect, productController.addProduct); // Tạo sản phẩm mới
 router.put("/update/:productId", protect, productController.updateProduct); // Cập nhật sản phẩm
+router.post("/:id/update", protect, productController.updateProductFromModal); // API cập nhật sản phẩm từ modal
 router.delete("/delete/:productId", protect, productController.deleteProduct); // Xóa sản phẩm
 router.put("/publish/:productId", protect, productController.publishProduct); // Phát hành sản phẩm
 
