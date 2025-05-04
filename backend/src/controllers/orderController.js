@@ -8,6 +8,84 @@ const DetailsVariant = require("../models/DetailsVariant");
 const Variant = require("../models/Variant");
 const Promotion = require("../models/Promotion");
 const Inventory = require('../models/Inventory');
+const notificationController = require('./NotificationController');
+
+
+const sendOrderNotification = async (type, order, cancelReason = '') => {
+  try {
+    // Tạo title và body cho thông báo dựa vào type
+    let notificationTitle = '';
+    let notificationBody = '';
+    
+    if (type === 'NEW_ORDER') {
+      notificationTitle = 'Đơn hàng mới';
+      notificationBody = `${customerName} - ${order.totalAmount.toLocaleString('vi-VN')} đ - ${order.paymentStatus}`;
+    } else if (type === 'PAYMENT_COMPLETED') {
+      notificationTitle = 'Thanh toán thành công';
+      notificationBody = `Đơn hàng ${order.orderID} đã được thanh toán`;
+    } else if (type === 'CANCELLED') {
+      notificationTitle = 'Đơn hàng bị hủy';
+      notificationBody = `${customerName} - ${order.totalAmount.toLocaleString('vi-VN')} đ${cancelReason ? ` - Lý do: ${cancelReason}` : ''}`;
+    }
+
+    console.log('Bắt đầu gửi thông báo đơn hàng:', {
+      type,
+      orderId: order._id,
+      orderID: order.orderID,
+      title: notificationTitle,
+      body: notificationBody
+    });
+    // Lấy thông tin khách hàng
+    const customer = await mongoose.model('Customer').findById(order.customerID);
+    const customerName = customer?.fullName || 'Không xác định';
+
+    // Tạo nội dung thông báo chi tiết
+    let orderDetails = '';
+    if (order.products && order.products.length > 0) {
+      orderDetails = order.products.map(product => 
+        `${product.name} x ${product.quantity} (${product.price.toLocaleString('vi-VN')} đ)`
+      ).join(', ');
+    }
+
+    // Dữ liệu bổ sung cho thông báo
+    const notificationData = {
+      screen: 'OrderDetail',
+      orderId: order._id.toString(),
+      orderID: order.orderID,
+      type: type,
+      timestamp: Date.now().toString(),
+      title: notificationTitle,
+      body: notificationBody,
+      customerName: customerName,
+      totalAmount: order.totalAmount.toLocaleString('vi-VN'),
+      orderDetails: orderDetails,
+      paymentStatus: order.paymentStatus,
+      cancelReason: cancelReason || ''
+    };
+
+    console.log('Thông tin thông báo đơn hàng:', {
+      title: notificationTitle,
+      body: notificationBody,
+      data: notificationData
+    });
+
+    // Gửi thông báo đến tất cả thiết bị
+    const notificationResult = await notificationController.sendNotificationToAll(
+      notificationTitle,
+      notificationBody,
+      {
+        ...notificationData,
+        title: notificationTitle,
+        body: notificationBody
+      }
+    );
+
+    console.log('Kết quả gửi thông báo đơn hàng:', notificationResult);
+  } catch (notificationError) {
+    console.error('Lỗi khi gửi thông báo đơn hàng:', notificationError);
+    // Tiếp tục xử lý ngay cả khi gửi thông báo thất bại
+  }
+};
 
 const createOrder = async (req, res) => {
   try {
@@ -42,10 +120,8 @@ const createOrder = async (req, res) => {
     // Handle payment method based on payment status
     let finalPaymentMethod = paymentMethod;
     if (paymentStatus === 'unpaid') {
-      // For unpaid orders, we don't require a payment method yet
       finalPaymentMethod = null;
     } else if (!paymentMethod) {
-      // For paid orders, require payment method
       return res
         .status(400)
         .json({ success: false, message: "Phương thức thanh toán không hợp lệ" });
@@ -83,7 +159,6 @@ const createOrder = async (req, res) => {
     const processedProducts = [];
     
     for (const product of products) {
-      // Make sure productID is a valid ObjectID string
       if (!product.productID) {
         return res
           .status(400)
@@ -92,7 +167,6 @@ const createOrder = async (req, res) => {
       
       let productID = product.productID;
       
-      // If productID is still in combined format (product-variant), split it
       if (typeof productID === 'string' && productID.includes('-')) {
         console.log(`Detected combined ID: ${productID}`);
         const parts = productID.split('-');
@@ -102,14 +176,12 @@ const createOrder = async (req, res) => {
         }
       }
       
-      // Check if productID is a valid ObjectID
       if (!mongoose.Types.ObjectId.isValid(productID)) {
         return res
           .status(400)
           .json({ success: false, message: `ID sản phẩm không hợp lệ: ${productID}` });
       }
       
-      // Process variantID if it exists
       let variantID = product.variantID;
       if (variantID && !mongoose.Types.ObjectId.isValid(variantID)) {
         return res
@@ -117,7 +189,6 @@ const createOrder = async (req, res) => {
           .json({ success: false, message: `ID biến thể không hợp lệ: ${variantID}` });
       }
       
-      // Create the processed product object
       const processedProduct = {
         ...product,
         productID,
@@ -143,11 +214,9 @@ const createOrder = async (req, res) => {
       paymentDetails: paymentDetails || [],
     };
     
-    // Thêm thông tin khuyến mãi nếu có
     if (promotionID) {
       orderObj.promotionID = promotionID;
       
-      // Tìm thông tin khuyến mãi để lưu chi tiết
       try {
         const promotion = await Promotion.findById(promotionID);
         if (promotion) {
@@ -166,15 +235,20 @@ const createOrder = async (req, res) => {
     const newOrder = new Order(orderObj);
     await newOrder.save();
 
+    // Gửi thông báo đơn hàng mới
     // Nếu trạng thái đơn hàng là "processing" hoặc đã thanh toán, cập nhật tồn kho
     if (newOrder.status === 'processing' || newOrder.paymentStatus === 'paid') {
       await updateInventoryForOrder(newOrder);
-    }
+  }
 
-    res.json({
+    // Chỉ gửi thông báo khi đơn hàng đã thanh toán đủ
+    if (newOrder.paymentStatus === 'paid') {
+      await sendOrderNotification('NEW_ORDER', newOrder);
+    }
+    res.status(201).json({
       success: true,
-      message: "Đơn hàng đã được tạo thành công!",
-      order: newOrder,
+      message: "Đơn hàng đã được tạo thành công",
+      order: newOrder
     });
   } catch (error) {
     console.error("Lỗi khi tạo đơn hàng:", error);
@@ -1342,6 +1416,11 @@ const updateOrderPayment = async (req, res) => {
       }
     }
 
+    // Gửi thông báo khi thanh toán thành công
+    if (updatedPaymentStatus === 'paid') {
+      await sendOrderNotification('PAYMENT_COMPLETED', updatedOrder);
+    }
+
     return res.status(200).json({
       success: true,
       message: 'Cập nhật thanh toán thành công!',
@@ -2481,6 +2560,11 @@ const updateOrderStatus = async (req, res) => {
     // Xử lý logic thay đổi trạng thái
     try {
       const updatedOrder = await processOrderStatusChange(id, status, cancelReason);
+      
+      // Gửi thông báo nếu đơn hàng bị hủy
+      if (status === 'canceled') {
+        await sendOrderNotification('CANCELED_ORDER', updatedOrder, cancelReason);
+      }
       
       // Trả về kết quả
       return res.status(200).json({

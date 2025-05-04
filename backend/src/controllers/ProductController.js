@@ -414,6 +414,50 @@ const addProduct = async (req, res) => {
         await newProduct.save();
         console.log("Đã tạo sản phẩm mới:", newProduct);
 
+        // Gửi thông báo về sản phẩm mới được phát hành
+        try {
+            const notificationController = require('./NotificationController');
+            
+            // Tạo tiêu đề và nội dung thông báo
+            const notificationTitle = `Sản phẩm mới: ${newProduct.name}`;
+            
+            // Lấy tên danh mục và nhà cung cấp
+            const category = await mongoose.model('TypeProduct').findById(newProduct.category);
+            const provider = await mongoose.model('Provider').findById(newProduct.providerId);
+            
+            const categoryName = category?.name || 'Không xác định';
+            const providerName = provider?.fullName || 'Không xác định';
+            
+            // Tạo nội dung thông báo
+            const notificationBody = `${categoryName} - ${providerName} - ${newProduct.price?.toLocaleString('vi-VN')} đ`;
+            
+            // Dữ liệu bổ sung cho thông báo (dùng cho điều hướng)
+            const notificationData = {
+                screen: 'ProductDetail',
+                productId: newProduct._id.toString(),
+                type: 'NEW_PRODUCT',
+                timestamp: Date.now().toString()
+            };
+            
+            console.log('Gửi thông báo về sản phẩm mới:', {
+                title: notificationTitle,
+                body: notificationBody,
+                data: notificationData
+            });
+            
+            // Gửi thông báo đến tất cả thiết bị
+            const notificationResult = await notificationController.sendNotificationToAll(
+                notificationTitle,
+                notificationBody,
+                notificationData
+            );
+            
+            console.log('Kết quả gửi thông báo:', notificationResult);
+        } catch (notificationError) {
+            console.error('Lỗi khi gửi thông báo:', notificationError);
+            // Tiếp tục xử lý ngay cả khi gửi thông báo thất bại
+        }
+
         // Tạo bảo hành nếu có
         if (warrantyPeriod) {
             const warranty = new Warranty({
@@ -686,7 +730,6 @@ const getProductSales = async (req, res) => {
     }
 };
 
-
 // Lấy thống kê tổng quan cho dashboard
 const getDashboardStats = async (req, res) => {
     try {
@@ -886,6 +929,7 @@ const getOrderDistribution = async (req, res) => {
         });
     }
 };
+
 const getEmployeePerformance = async (req, res) => {
     try {
         console.log('\n===== FETCHING EMPLOYEE PERFORMANCE DATA =====');
@@ -1069,6 +1113,50 @@ const publishProduct = async (req, res) => {
         product.isPublished = true;
         await product.save();
         console.log("Đã phát hành sản phẩm:", productId);
+
+        // Gửi thông báo về sản phẩm mới được phát hành
+        try {
+            const notificationController = require('./NotificationController');
+            
+            // Tạo tiêu đề và nội dung thông báo
+            const notificationTitle = `Sản phẩm mới: ${product.name}`;
+            
+            // Lấy tên danh mục và nhà cung cấp
+            const category = await mongoose.model('TypeProduct').findById(product.category);
+            const provider = await mongoose.model('Provider').findById(product.providerId);
+            
+            const categoryName = category?.name || 'Không xác định';
+            const providerName = provider?.fullName || 'Không xác định';
+            
+            // Tạo nội dung thông báo
+            const notificationBody = `${categoryName} - ${providerName} - ${product.price?.toLocaleString('vi-VN')} đ`;
+            
+            // Dữ liệu bổ sung cho thông báo (dùng cho điều hướng)
+            const notificationData = {
+                screen: 'ProductDetail',
+                productId: product._id.toString(),
+                type: 'NEW_PRODUCT',
+                timestamp: Date.now().toString()
+            };
+            
+            console.log('Gửi thông báo về sản phẩm mới:', {
+                title: notificationTitle,
+                body: notificationBody,
+                data: notificationData
+            });
+            
+            // Gửi thông báo đến tất cả thiết bị
+            const notificationResult = await notificationController.sendNotificationToAll(
+                notificationTitle,
+                notificationBody,
+                notificationData
+            );
+            
+            console.log('Kết quả gửi thông báo:', notificationResult);
+        } catch (notificationError) {
+            console.error('Lỗi khi gửi thông báo:', notificationError);
+            // Tiếp tục xử lý ngay cả khi gửi thông báo thất bại
+        }
 
         res.status(200).json({
             status: "Ok",
