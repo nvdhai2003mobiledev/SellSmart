@@ -26,10 +26,10 @@ type NavigationProps = NativeStackNavigationProp<RootStackParamList>;
 const RevenueScreen = observer(() => {
   const navigation = useNavigation<NavigationProps>();
   const route = useRoute();
-  const params = route.params as {startDate: Date; endDate: Date} | undefined;
+  const params = route.params as {startDate: string; endDate: string} | undefined;
   
-  const startDate = useMemo(() => params?.startDate || new Date(), [params?.startDate]);
-  const endDate = useMemo(() => params?.endDate || new Date(), [params?.endDate]);
+  const startDate = useMemo(() => params?.startDate ? new Date(params.startDate) : new Date(), [params?.startDate]);
+  const endDate = useMemo(() => params?.endDate ? new Date(params.endDate) : new Date(), [params?.endDate]);
   
   const [revenueStats, setRevenueStats] = useState<RevenueStats>({
     totalRevenue: 0,
@@ -41,35 +41,64 @@ const RevenueScreen = observer(() => {
   const [loading, setLoading] = useState(true);
 
   const updateStats = useCallback(() => {
-    // Set proper time ranges for date objects
-    const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999); // Set to end of day
-    
-    const start = new Date(startDate);
-    start.setHours(0, 0, 0, 0); // Set to start of day
-    
-    // Calculate stats for the selected date range with proper time ranges
-    const stats = getRevenueStatsByDateRange(start, end);
-    setRevenueStats(stats);
+    try {
+      // Format the dates to yyyy-mm-dd format to avoid timezone issues
+      const formatDateForComparison = (date: Date) => {
+        return date.toISOString().split('T')[0];
+      };
+      
+      // Set proper time ranges for date objects
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999); // Set to end of day
+      
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0); // Set to start of day
+      
+      const startFormatted = formatDateForComparison(start);
+      const endFormatted = formatDateForComparison(end);
+      
+      console.log(`Filtering orders from ${startFormatted} to ${endFormatted}`);
+      
+      // Calculate stats for the selected date range with proper time ranges
+      const stats = getRevenueStatsByDateRange(start, end);
+      setRevenueStats(stats);
 
-    // Get orders for the selected date range
-    const orders = rootStore.orders.orders.filter((order: OrderInstance) => {
-      const orderDate = new Date(order.createdAt);
-      return orderDate >= start && orderDate <= end;
-    });
-    
-    setFilteredOrders(orders);
+      // Get orders for the selected date range using string date comparison
+      const orders = rootStore.orders.orders.filter((order: OrderInstance) => {
+        // Convert order date to yyyy-mm-dd format for comparison
+        const orderDateFormatted = formatDateForComparison(new Date(order.createdAt));
+        
+        // Compare dates in yyyy-mm-dd format to avoid timezone issues
+        const isInRange = 
+          orderDateFormatted >= startFormatted && 
+          orderDateFormatted <= endFormatted;
+        
+        if (isInRange) {
+          console.log(`Order ${order.orderID} (${orderDateFormatted}) is in range`);
+        }
+        
+        return isInRange;
+      });
+      
+      console.log(`Found ${orders.length} orders matching date range out of ${rootStore.orders.orders.length} total`);
+      setFilteredOrders(orders);
+    } catch (error) {
+      console.error('Error updating stats:', error);
+    }
   }, [startDate, endDate]);
 
   useEffect(() => {
     // Load orders if not already loaded
     if (rootStore.orders.orders.length === 0) {
       setLoading(true);
+      console.log('No orders found, fetching orders...');
       rootStore.orders.fetchOrders().then(() => {
+        console.log(`Fetched ${rootStore.orders.orders.length} orders`);
         updateStats();
         setLoading(false);
       });
     } else {
+      console.log(`Using ${rootStore.orders.orders.length} existing orders`);
       updateStats();
       setLoading(false);
     }

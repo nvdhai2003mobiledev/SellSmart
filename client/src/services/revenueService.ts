@@ -37,6 +37,11 @@ const getStartOfMonth = (date: Date): Date => {
 
 // Filter orders by date range
 const filterOrdersByDateRange = (orders: OrderInstance[], startDate: Date, endDate: Date): OrderInstance[] => {
+  // Format the dates to yyyy-mm-dd format to avoid timezone issues
+  const formatDateForComparison = (date: Date) => {
+    return date.toISOString().split('T')[0];
+  };
+  
   // Ensure startDate is at start of day
   const start = new Date(startDate);
   start.setHours(0, 0, 0, 0);
@@ -45,9 +50,16 @@ const filterOrdersByDateRange = (orders: OrderInstance[], startDate: Date, endDa
   const end = new Date(endDate);
   end.setHours(23, 59, 59, 999);
   
+  const startFormatted = formatDateForComparison(start);
+  const endFormatted = formatDateForComparison(end);
+  
+  console.log(`Revenue service filtering orders from ${startFormatted} to ${endFormatted}`);
+  
   return orders.filter(order => {
-    const orderDate = new Date(order.createdAt);
-    return orderDate >= start && orderDate <= end;
+    const orderDateFormatted = formatDateForComparison(new Date(order.createdAt));
+    const isInRange = orderDateFormatted >= startFormatted && orderDateFormatted <= endFormatted;
+    
+    return isInRange;
   });
 };
 
@@ -109,6 +121,8 @@ export const getMonthlyRevenueStats = (): RevenueStats => {
 // Get revenue stats for a specific date range
 export const getRevenueStatsByDateRange = (startDate: Date, endDate: Date): RevenueStats => {
   const filteredOrders = filterOrdersByDateRange(rootStore.orders.orders, startDate, endDate);
+  console.log(`Revenue service filtering from ${startDate.toISOString()} to ${endDate.toISOString()}`);
+  console.log(`Found ${filteredOrders.length} orders out of ${rootStore.orders.orders.length} total orders`);
   return calculateRevenueStats(filteredOrders);
 };
 

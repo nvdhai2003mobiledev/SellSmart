@@ -196,8 +196,8 @@ const DayRangeScreen = () => {
   const handleFilter = () => {
     if (selectedRange) {
       navigation.navigate(Screen.REVENUE, {
-        startDate: customStartDate,
-        endDate: customEndDate,
+        startDate: customStartDate.toISOString(),
+        endDate: customEndDate.toISOString(),
       });
     }
   };
@@ -510,7 +510,10 @@ const styles = StyleSheet.create({
     borderRadius: moderateScale(8),
     padding: moderateScale(16),
     alignItems: 'center',
-    margin: moderateScale(16),
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
   filterButtonDisabled: {
     backgroundColor: color.accentColor.grayColor,
