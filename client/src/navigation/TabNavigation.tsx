@@ -131,12 +131,12 @@ const TabNav = () => {
           <DynamicText style={styles.quickLabel}>Nhà cung cấp</DynamicText>
         </TouchableOpacity>
         
-        {/* <TouchableOpacity style={styles.quickButton} onPress={() => navigation.navigate(Screen.CREATEORDER as any)}>
+        <TouchableOpacity style={styles.quickButton} onPress={() => navigation.navigate(Screen.WARRANTY as any)}>
           <View style={[styles.quickIconContainer, {backgroundColor: '#FF9500'}]}>
             <ReceiptAdd size={20} color="#FFFFFF" variant="Bold" />
           </View>
-          <DynamicText style={styles.quickLabel}>Thêm</DynamicText>
-        </TouchableOpacity> */}
+          <DynamicText style={styles.quickLabel}>Bảo hành</DynamicText>
+        </TouchableOpacity>
       </View>
       
       <Tab.Navigator

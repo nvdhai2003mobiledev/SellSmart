@@ -1,3 +1,4 @@
+import { Warranty } from './../models/Warranty/warranty';
 export {default as HomeScreen} from './bottomTab/Home/HomeScreen';
 export {default as OrderScreen} from './bottomTab/Order/OrderScreen';
 export {default as ProductScreen} from './bottomTab/Product/ProductScreen';
@@ -33,4 +34,6 @@ export {default as OrderHistoryScreen} from './main/Order/OrderHistoryScreen';
 export {default as ProductListScreen} from './main/Product/ProductListScreen';
 export {default as PromotionListScreen} from './main/Promotion/PromotionListScreen';
 export {default as AddPromotionScreen} from './main/Promotion/AddPromotionScreen';
+export {default as WarrantyScreen} from './main/Warranty/WarrantyScreen';
+
 
