@@ -56,22 +56,6 @@
                 </div>
             </div>
             <div class="row g-3 mt-2">
-                <div class="col-md-6">
-                    <label class="form-label">Giá (VNĐ)</label>
-                    <div class="d-flex align-items-center">
-                        <input type="number" class="form-control" id="filterMinPrice" placeholder="Giá tối thiểu">
-                        <span class="mx-2">-</span>
-                        <input type="number" class="form-control" id="filterMaxPrice" placeholder="Giá tối đa">
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label">Tồn kho</label>
-                    <div class="d-flex align-items-center">
-                        <input type="number" class="form-control" id="filterMinStock" placeholder="Tối thiểu" min="0">
-                        <span class="mx-2">-</span>
-                        <input type="number" class="form-control" id="filterMaxStock" placeholder="Tối đa" min="0">
-                    </div>
-                </div>
             </div>
             <div class="row mt-3">
                 <div class="col-12 text-end">
@@ -95,9 +79,6 @@
                     <th scope="col">Tên sản phẩm</th>
                     <th scope="col">Mã sản phẩm</th>
                     <th scope="col">Danh mục</th>
-                    <!-- <th scope="col">Nhà cung cấp</th> -->
-                    <th scope="col" class="text-center">Tổng tồn kho</th>
-                    <th scope="col" class="text-end">Giá nhập</th>
                     <th scope="col" class="text-center">Trạng thái</th>
                     <th scope="col" class="text-center">Thao tác</th>
                 </tr>
@@ -109,32 +90,6 @@
                         <td><%= item.product_name %></td>
                         <td><%= item.product_code %></td>
                         <td><%= item.typeProduct_id?.name || 'N/A' %></td>
-                        <!-- <td><%= item.provider_id?.fullName || 'N/A' %></td> -->
-                        <td class="text-center">
-                            <span class="badge bg-info">
-                                <%= item.total_quantity %> <%= item.unit || 'cái' %>
-                            </span>
-                        </td>
-                        <td class="text-end">
-                            <% 
-                            let priceDisplay = '';
-                            if (item.hasVariants && item.variantDetails && item.variantDetails.length > 0) {
-                                const prices = item.variantDetails.map(v => v.price);
-                                const minPrice = Math.min(...prices);
-                                const maxPrice = Math.max(...prices);
-                                if (minPrice === maxPrice) {
-                                    priceDisplay = `${minPrice.toLocaleString('vi-VN')} đ`;
-                                } else {
-                                    priceDisplay = `${minPrice.toLocaleString('vi-VN')} đ - ${maxPrice.toLocaleString('vi-VN')} đ`;
-                                }
-                            } else {
-                                priceDisplay = `${item.total_price.toLocaleString('vi-VN')} đ`;
-                            }
-                            %>
-                            <span class="text-primary">
-                                <%= priceDisplay %>
-                            </span>
-                        </td>
                         <td class="text-center">
                             <% if (item.status === 'available') { %>
                                 <span class="badge bg-success">Còn hàng</span>
@@ -325,15 +280,15 @@
                                                         <% }); %>
                                                     </select>
                                                 </div>
-                                                <div class="col-md-6 common-fields">
+                                                <div class="col-md-6 common-fields" style="display: none;">
                                                     <label class="form-label">Số lượng <span class="text-danger">*</span></label>
-                                                    <input type="number" class="form-control product-quantity" min="1" step="1" required>
+                                                    <input type="number" class="form-control product-quantity" min="1" step="1" required value="1">
                                                 </div>
-                                                <div class="col-md-6 common-fields">
+                                                <div class="col-md-6 common-fields" style="display: none;">
                                                     <div class="row">
                                                         <div class="col-md-7">
                                                             <label class="form-label">Giá <span class="text-danger">*</span></label>
-                                                            <input type="number" class="form-control product-price" min="0.01" step="0.01" required>
+                                                            <input type="number" class="form-control product-price" min="0.01" step="0.01" required value="0">
                                                         </div>
                                                         <div class="col-md-5">
                                                             <label class="form-label">Đơn vị</label>
@@ -342,14 +297,12 @@
                                                     </div>
                                                 </div>
                                                 <div class="col-12">
-                                                    <div class="form-check">
-                                                        <input type="checkbox" class="form-check-input has-variants" id="productHasVariants-1">
-                                                        <label class="form-check-label" for="productHasVariants-1">
-                                                            Sản phẩm có biến thể
-                                                        </label>
+                                                    <div class="form-check mb-3">
+                                                        <input type="checkbox" class="form-check-input has-variants" id="hasVariants_${counter}" checked>
+                                                        <label class="form-check-label">Sản phẩm này có biến thể khác nhau (kích thước, màu sắc...)</label>
                                                     </div>
                                                 </div>
-                                                <div class="col-12 variants-section d-none">
+                                                <div class="col-12 variants-section">
                                                     <div class="card">
                                                         <div class="card-header d-flex justify-content-between align-items-center">
                                                             <h6 class="mb-0">Biến thể sản phẩm</h6>
@@ -1180,7 +1133,7 @@
         function generateRandomBatchNumber() {
             const timestamp = new Date().getTime().toString().slice(-6);
             const randomPart = Math.floor(1000 + Math.random() * 9000); // Random 4-digit number
-            const batchNumber = `BH-${timestamp}-${randomPart}`;
+            const batchNumber = `TD-${timestamp}-${randomPart}`;
             $('#batchNumber').val(batchNumber);
         }
 
@@ -1217,7 +1170,7 @@
                                 </div>
                                 <div class="col-md-6">
                                     <p><strong>Tổng số lượng:</strong> ${product.total_quantity}</p>
-                                    <p><strong>Giá nhập:</strong> ${product.total_price.toLocaleString('vi-VN')} đ</p>
+                                    <p><strong>Giá nhập trung bình:</strong> ${(product.total_price || 0).toLocaleString('vi-VN')} đ</p>
                                     <p><strong>Trạng thái:</strong> ${product.status === 'available' ? 'Còn hàng' : 'Hết hàng'}</p>
                                     <p><strong>mã lô hàng:</strong> ${product.batch_number}</p>
                                     <p><strong>Ngày nhập:</strong> ${new Date(product.batch_date).toLocaleDateString('vi-VN')}</p>
@@ -1249,7 +1202,7 @@
                                     <tr>
                                         <td>${attributes}</td>
                                         <td>${variant.quantity}</td>
-                                        <td>${variant.price.toLocaleString('vi-VN')} đ</td>
+                                        <td>${(variant.price || 0).toLocaleString('vi-VN')} đ</td>
                                     </tr>
                                 `;
                             });
@@ -1286,7 +1239,7 @@
                                         <td>${batch.batch_number}</td>
                                         <td>${new Date(batch.batch_date).toLocaleDateString('vi-VN')}</td>
                                         <td>${batch.quantity}</td>
-                                        <td>${batch.price.toLocaleString('vi-VN')} đ</td>
+                                        <td>${(batch.price || 0).toLocaleString('vi-VN')} đ</td>
                                         <td>${batch.note || ''}</td>
                                     </tr>
                                 `;
@@ -1373,7 +1326,7 @@
                                     </label>
                                 </div>
                             </div>
-                            <div class="col-12 variants-section d-none">
+                            <div class="col-12 variants-section">
                                 <div class="card">
                                     <div class="card-header d-flex justify-content-between align-items-center">
                                         <h6 class="mb-0">Biến thể sản phẩm</h6>

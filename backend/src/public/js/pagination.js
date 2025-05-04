@@ -9,7 +9,7 @@ function initializePagination(options) {
         itemsPerPageSelector: '#itemsPerPage', // Selector for items per page dropdown
         currentPageSelector: '#currentPage',   // Selector for current page display
         prevPageSelector: '#prevPage',         // Selector for previous page button
-        nextPageSelector: '#prevPage',         // Selector for next page button
+        nextPageSelector: '#nextPage',         // Selector for next page button
         totalItemsSelector: '#totalItems',     // Selector for total items counter
         itemNameSingular: 'item',              // Item name in singular form
         itemNamePlural: 'items',               // Item name in plural form
