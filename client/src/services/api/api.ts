@@ -5,7 +5,7 @@ import {EmployeeResponse} from '../../models/employee/employee';
 
 // Cấu hình BASE_URL
 // Sử dụng IP máy chủ trong mạng nội bộ
-// const BASE_URL = 'http://192.168.86.43:5000/';
+// const BASE_URL = 'http://192.168.0.126:5000/';
 
 // Các tùy chọn khác (để khi cần thay đổi)
 // const BASE_URL = 'http://10.0.2.2:3000/'; // Cho Android Emulator
