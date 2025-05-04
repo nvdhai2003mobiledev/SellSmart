@@ -212,24 +212,31 @@ const DayScreen = observer(() => {
   };
 
   useEffect(() => {
-    // Fetch orders if not already loaded
-    if (rootStore.orders.orders.length === 0) {
-      rootStore.orders.fetchOrders();
-    }
-
-    // Update revenue stats
-    const updateStats = () => {
+    // Xác định ngày hiện tại
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(today);
+    todayEnd.setHours(23, 59, 59, 999);
+    
+    // Fetch orders với ngày hôm nay
+    rootStore.orders.fetchOrders(
+      today.toISOString(), 
+      todayEnd.toISOString()
+    ).then(() => {
+      // Update revenue stats
       const stats = getDailyRevenueStats();
       setRevenueStats(stats);
       setTimeSlots(generateTimeSlots());
       setOrderCounts(getOrderCounts());
-    };
-
-    // Initial update
-    updateStats();
-
+    });
+    
     // Set up tracking for changes
-    setupRevenueTracking(updateStats);
+    setupRevenueTracking(() => {
+      const stats = getDailyRevenueStats();
+      setRevenueStats(stats);
+      setTimeSlots(generateTimeSlots());
+      setOrderCounts(getOrderCounts());
+    });
 
     // Clean up
     return () => {
