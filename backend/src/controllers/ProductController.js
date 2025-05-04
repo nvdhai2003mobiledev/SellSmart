@@ -1172,6 +1172,104 @@ const publishProduct = async (req, res) => {
     }
 };
 
+// API endpoint để cập nhật sản phẩm từ modal chỉnh sửa
+const updateProductFromModal = async (req, res) => {
+    try {
+        const productId = req.params.id;
+        console.log("Bắt đầu cập nhật sản phẩm từ modal", { productId, body: req.body });
+
+        if (!mongoose.Types.ObjectId.isValid(productId)) {
+            return res.status(400).json({
+                success: false,
+                message: "ID sản phẩm không hợp lệ",
+            });
+        }
+
+        // Tìm sản phẩm cần cập nhật
+        const product = await Product.findById(productId);
+        if (!product) {
+            console.log("Không tìm thấy sản phẩm với ID:", productId);
+            return res.status(404).json({
+                success: false,
+                message: "Không tìm thấy sản phẩm",
+            });
+        }
+
+        // Xử lý upload ảnh nếu có
+        if (req.file) {
+            // Lưu đường dẫn ảnh mới
+            product.thumbnail = `/images/${req.file.filename}`;
+            console.log("Đã cập nhật ảnh sản phẩm:", product.thumbnail);
+        }
+
+        // Xử lý cập nhật giá cho sản phẩm không có biến thể
+        if (req.body.price) {
+            product.price = parseFloat(req.body.price);
+            console.log("Đã cập nhật giá sản phẩm:", product.price);
+        }
+
+        // Xử lý cập nhật giá cho các biến thể
+        if (req.body.variantPrices) {
+            try {
+                const variantPrices = JSON.parse(req.body.variantPrices);
+                console.log("Dữ liệu giá biến thể nhận được:", variantPrices);
+
+                // Kiểm tra sản phẩm có biến thể không
+                if (product.hasVariants) {
+                    // Cập nhật giá cho DetailsVariant
+                    if (product.detailsVariants && product.detailsVariants.length > 0) {
+                        for (const variantPrice of variantPrices) {
+                            const variant = product.detailsVariants.find(v => v._id.toString() === variantPrice.id);
+                            if (variant) {
+                                variant.price = parseFloat(variantPrice.price);
+                                console.log(`Cập nhật giá cho biến thể ${variantPrice.id}:`, variant.price);
+                            }
+                        }
+                    } 
+                    // Cập nhật giá cho variantDetails (cấu trúc cũ)
+                    else if (product.variantDetails && product.variantDetails.length > 0) {
+                        for (const variantPrice of variantPrices) {
+                            // Vì variantPrice.id có thể là index nếu là biến thể cũ
+                            const index = parseInt(variantPrice.id);
+                            if (!isNaN(index) && index >= 0 && index < product.variantDetails.length) {
+                                product.variantDetails[index].price = parseFloat(variantPrice.price);
+                                console.log(`Cập nhật giá cho biến thể index ${index}:`, product.variantDetails[index].price);
+                            }
+                            // Nếu là ID
+                            else if (mongoose.Types.ObjectId.isValid(variantPrice.id)) {
+                                const variant = product.variantDetails.find(v => v._id.toString() === variantPrice.id);
+                                if (variant) {
+                                    variant.price = parseFloat(variantPrice.price);
+                                    console.log(`Cập nhật giá cho biến thể ${variantPrice.id}:`, variant.price);
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error("Lỗi khi xử lý giá biến thể:", error);
+                // Tiếp tục xử lý ngay cả khi có lỗi
+            }
+        }
+
+        // Lưu các thay đổi
+        await product.save();
+        console.log("Đã cập nhật sản phẩm thành công:", productId);
+
+        res.status(200).json({
+            success: true,
+            message: "Cập nhật sản phẩm thành công",
+            data: product,
+        });
+    } catch (error) {
+        console.error("Lỗi khi cập nhật sản phẩm từ modal:", error);
+        res.status(500).json({
+            success: false,
+            message: "Lỗi khi cập nhật sản phẩm: " + error.message,
+        });
+    }
+};
+
 module.exports = {
     getProduct,
     getProductAsJson,
@@ -1184,5 +1282,6 @@ module.exports = {
     getDashboardStats,
     getOrderDistribution,
     getEmployeePerformance,
-    publishProduct
+    publishProduct,
+    updateProductFromModal: [upload.single("thumbnail"), updateProductFromModal]
 };
