@@ -178,8 +178,8 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label for="add_media" class="form-label">Link media (tùy chọn)</label>
-                        <input type="url" name="media" id="add_media" class="form-control" placeholder="https://example.com/resource">
+                        <label for="add_media" class="form-label">Link media <span class="text-danger">*</span></label>
+                        <input type="url" name="media" id="add_media" class="form-control" placeholder="https://example.com/resource" required>
                     </div>
                 </form>
             </div>
@@ -320,6 +320,25 @@
         
         // Save document (Add new)
         document.getElementById('saveDocumentBtn').addEventListener('click', function() {
+            const mediaInput = document.getElementById('add_media');
+            if (!mediaInput.value.trim()) {
+                // Hiển thị thông báo lỗi
+                mediaInput.classList.add('is-invalid');
+                if (!mediaInput.nextElementSibling || !mediaInput.nextElementSibling.classList.contains('invalid-feedback')) {
+                    const feedbackDiv = document.createElement('div');
+                    feedbackDiv.className = 'invalid-feedback';
+                    feedbackDiv.textContent = 'Vui lòng nhập Link media';
+                    mediaInput.after(feedbackDiv);
+                }
+                return; // Ngăn chặn submit form
+            }
+            
+            // Nếu đã nhập Link media, xóa thông báo lỗi (nếu có) và submit form
+            mediaInput.classList.remove('is-invalid');
+            if (mediaInput.nextElementSibling && mediaInput.nextElementSibling.classList.contains('invalid-feedback')) {
+                mediaInput.nextElementSibling.remove();
+            }
+            
             document.getElementById('addDocumentForm').submit();
         });
         
