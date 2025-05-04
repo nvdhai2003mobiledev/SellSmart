@@ -93,6 +93,7 @@
                             <th class="py-3 px-4 text-uppercase text-muted small fw-semibold">Nhà cung cấp</th>
                             <th class="py-3 px-4 text-uppercase text-muted small fw-semibold text-center">Trạng thái</th>
                             <th class="py-3 px-4 text-uppercase text-muted small fw-semibold text-center">Tồn kho</th>
+                            <th class="py-3 px-4 text-uppercase text-muted small fw-semibold text-center">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody id="productTableBody">
@@ -185,10 +186,14 @@
                                             <% } %>
                                         </td>
                                         <td class="py-3 px-4 text-center">
-                                            <div class="d-flex align-items-center justify-content-center gap-2">
+                                            <div class="d-flex align-items-center justify-content-center">
                                                 <span class="fw-medium">
                                                     <%= product.inventory || 0 %>
                                                 </span>
+                                            </div>
+                                        </td>
+                                        <td class="py-3 px-4 text-center">
+                                            <div class="d-flex align-items-center justify-content-center gap-2">
                                                 <button type="button" class="btn btn-sm btn-outline-primary edit-product-btn" 
                                                     onclick="event.stopPropagation(); openEditProductModal('<%= product._id %>')">
                                                     <i class="fas fa-edit"></i>
