@@ -232,8 +232,10 @@
     let itemsPerPage = 10;
     let filteredWarrantyRequests = [];
     
-    // Initialize on page load
+    // Automatically check for inactive warranty requests
     document.addEventListener('DOMContentLoaded', function() {
+        checkInactiveWarrantyRequests();
+        
         // Initialize pagination
         initializeWarrantyPagination();
         
@@ -332,6 +334,76 @@
                 indexCell.textContent = startIndex + index + 1;
             }
             tableBody.appendChild(row.cloneNode(true));
+        });
+    }
+    
+    // Function to check for inactive warranty requests
+    function checkInactiveWarrantyRequests() {
+        const rows = document.querySelectorAll('#warrantyTableBody tr:not(:first-child)');
+        const currentDate = new Date();
+        
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            if (cells.length >= 7) {
+                const requestId = row.querySelector('.btn-info').getAttribute('onclick').split("'")[1];
+                const statusCell = cells[6];
+                const statusBadge = statusCell.querySelector('.badge');
+                const statusText = statusBadge.textContent.trim();
+                
+                // Skip if already cancelled or completed
+                if (statusText === 'Đã hủy' || statusText === 'Hoàn thành') {
+                    return;
+                }
+                
+                // Get support date from the column
+                const supportDateText = cells[5].textContent.trim();
+                const supportDateParts = supportDateText.split('/');
+                // Vietnamese date format: DD/MM/YYYY
+                if (supportDateParts.length === 3) {
+                    const supportDate = new Date(
+                        supportDateParts[2], 
+                        supportDateParts[1] - 1, 
+                        supportDateParts[0]
+                    );
+                    
+                    // Calculate difference in days
+                    const diffTime = currentDate - supportDate;
+                    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                    
+                    // If more than 3 days with no status change, update to cancelled
+                    if (diffDays > 3) {
+                        // Update UI immediately
+                        statusBadge.className = 'badge bg-danger text-white';
+                        statusBadge.textContent = 'Đã hủy';
+                        
+                        // Send update to server
+                        updateRequestStatus(requestId, 'cancelled', 'Tự động hủy sau 3 ngày không có cập nhật');
+                    }
+                }
+            }
+        });
+    }
+    
+    // Function to update request status on the server
+    function updateRequestStatus(requestId, status, notes) {
+        // Create form data
+        const formData = new FormData();
+        formData.append('_method', 'PUT');
+        formData.append('status', status);
+        formData.append('notes', notes);
+        
+        // Send fetch request to update status
+        fetch(`/warranty-support/${requestId}`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) {
+                console.error('Failed to update status automatically');
+            }
+        })
+        .catch(error => {
+            console.error('Error updating status:', error);
         });
     }
     
