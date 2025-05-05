@@ -370,11 +370,11 @@
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">mã lô hàng</label>
-                                <input type="text" class="form-control" id="editBatchNumber" required>
+                                <input type="text" class="form-control" id="editBatchNumber" readonly>
                             </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Ngày nhập lô</label>
-                                <input type="date" class="form-control" id="editBatchDate" required>
+                            <!-- Ẩn trường ngày nhập lô theo yêu cầu nhưng giữ lại giá trị -->
+                            <div class="col-md-6 d-none">
+                                <input type="hidden" id="editBatchDate">
                             </div>
                         </div>
                         <div class="row">
@@ -398,23 +398,19 @@
                             </div>
                         </div>
                         <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Thuộc tính</label>
+                            <!-- Ẩn trường thuộc tính theo yêu cầu nhưng giữ lại giá trị -->
+                            <div class="d-none">
                                 <input type="hidden" id="editVariantDetails" name="variantDetails">
-                                <button type="button" class="btn btn-outline-secondary w-100" onclick="openVariantSelection()">
-                                    <i class="fas fa-list me-2"></i>Chọn thuộc tính
-                                </button>
-                                <div id="editSelectedVariantDisplay" class="mt-2"></div>
                             </div>
                         </div>
                         <div class="row edit-common-fields">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Số lượng</label>
-                                <input type="number" class="form-control" id="editQuantity" min="1" step="1" required>
+                                <input type="number" class="form-control" id="editQuantity" min="0" step="1" required>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Giá đơn vị</label>
-                                <input type="number" class="form-control" id="editPrice" min="0.01" step="0.01" required>
+                                <input type="number" class="form-control" id="editPrice" min="0" step="0.01" required>
                             </div>
                         </div>
                         <div class="mb-3">
@@ -425,41 +421,15 @@
                             <label class="form-label">Ghi chú</label>
                             <textarea class="form-control" id="editNote" rows="2" maxlength="200"></textarea>
                         </div>
-                        <div class="mb-3">
-                            <div class="form-check">
-                                <input type="checkbox" class="form-check-input has-variants" id="editHasVariants" name="editHasVariants">
-                                <label class="form-check-label" for="editHasVariants">Sản phẩm có biến thể</label>
-                            </div>
+                        <input type="hidden" id="editOriginalStatus">
+                        <div class="d-flex justify-content-end">
+                            <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">Hủy</button>
+                            <button type="submit" class="btn btn-warning">Lưu thay đổi</button>
                         </div>
-                        <div class="variants-section d-none">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h5 class="mb-0">Biến thể sản phẩm</h5>
-                                <button type="button" class="btn btn-primary select-variant">
-                                    <i class="fas fa-plus"></i> Chọn thuộc tính
-                                </button>
-                            </div>
-                            <div class="variants-list">
-                                <div class="variant-item mb-3 d-none">
-                                    <div class="row align-items-center">
-                                        <div class="col-md-4">
-                                            <input type="text" class="form-control variant-attribute" readonly>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <input type="number" class="form-control variant-quantity" placeholder="Số lượng" min="1" required>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <input type="number" class="form-control variant-price" placeholder="Giá" min="0.01" required>
-                                        </div>
-                                        <div class="col-md-2">
-                                            <button type="button" class="btn btn-danger remove-variant">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                        <!-- Hidden fields for debugging -->
+                        <div class="d-none">
+                            <span>Debug ID: <span id="debug-product-id"></span></span>
                         </div>
-                        <button type="submit" class="btn btn-warning" id="editSubmitBtn" disabled>Lưu thay đổi</button>
                     </form>
                 </div>
             </div>
@@ -1060,7 +1030,19 @@
         function validateNextBatchForm() {
             const batchNumber = $('#nextBatchNumber').val()?.trim();
             const batchDate = $('#nextBatchDate').val()?.trim();
+            const originalDate = $('#nextBatchDate').data('original-date');
             const hasProducts = $('.product-entry').length > 0;
+            
+            // Kiểm tra ngày nhập phải sau hoặc bằng ngày nhập lô ban đầu
+            if (originalDate && batchDate && new Date(batchDate) < new Date(originalDate)) {
+                showToast('error', 'Ngày nhập lô mới phải cùng ngày hoặc sau ngày nhập lô đầu tiên');
+                $('#nextBatchDate').addClass('is-invalid');
+                return false;
+            }
+            
+            // Xóa trạng thái không hợp lệ nếu ngày đã hợp lệ
+            $('#nextBatchDate').removeClass('is-invalid');
+            
             return batchNumber && batchDate && hasProducts;
         }
 
@@ -1156,6 +1138,8 @@
                 success: function(response) {
                     if (response.status === 'Ok' && response.inventory) {
                         const product = response.inventory;
+                        
+                        // Hiển thị thông tin chi tiết
                         let detailsHtml = `
                             <div class="row">
                                 <div class="col-md-6">
@@ -1170,15 +1154,16 @@
                                     <p><strong>Giá nhập trung bình:</strong> ${(product.total_price || 0).toLocaleString('vi-VN')} đ</p>
                                     <p><strong>Trạng thái:</strong> ${product.status === 'available' ? 'Còn hàng' : 'Hết hàng'}</p>
                                     <p><strong>mã lô hàng:</strong> ${product.batch_number}</p>
-                                    <p><strong>Ngày nhập:</strong> ${new Date(product.batch_date).toLocaleDateString('vi-VN')}</p>
+                                    <p><strong>Ngày nhập:</strong> ${new Date(product.batch_date).toLocaleDateString('vi-VN', { year: 'numeric', month: '2-digit', day: '2-digit' })}</p>
                                 </div>
                             </div>
                         `;
-
+                        
+                        // Nếu có biến thể, hiển thị thông tin biến thể
                         if (product.hasVariants && product.variantDetails?.length > 0) {
                             detailsHtml += `
                                 <div class="mt-4">
-                                    <h6 class="mb-3">Thông tin biến thể</h6>
+                                    <h6 class="mb-3 border-bottom pb-2">Thông tin biến thể</h6>
                                     <div class="table-responsive">
                                         <table class="table table-bordered">
                                             <thead>
@@ -1186,13 +1171,13 @@
                                                     <th>Thuộc tính</th>
                                                     <th>Số lượng</th>
                                                     <th>Giá nhập</th>
-                                                </tr  </tr>
+                                                </tr>
                                             </thead>
                                             <tbody>
                             `;
-
+                            
                             product.variantDetails.forEach(variant => {
-                                const attributes = Object.entries(variant.attributes)
+                                const attributes = Object.entries(variant.attributes || {})
                                     .map(([key, value]) => `${key}: ${value}`)
                                     .join(', ');
                                 detailsHtml += `
@@ -1203,7 +1188,7 @@
                                     </tr>
                                 `;
                             });
-
+                            
                             detailsHtml += `
                                             </tbody>
                                         </table>
@@ -1211,11 +1196,12 @@
                                 </div>
                             `;
                         }
-
+                        
+                        // Nếu có lịch sử nhập kho, hiển thị lịch sử nhập kho
                         if (product.batch_info?.length > 0) {
                             detailsHtml += `
                                 <div class="mt-4">
-                                    <h6 class="mb-3">Lịch sử nhập kho</h6>
+                                    <h6 class="mb-3 border-bottom pb-2">Lịch sử nhập kho</h6>
                                     <div class="table-responsive">
                                         <table class="table table-bordered">
                                             <thead>
@@ -1229,19 +1215,21 @@
                                             </thead>
                                             <tbody>
                             `;
-
+                            
                             product.batch_info.forEach(batch => {
+                                const dateFormatted = new Date(batch.import_date).toLocaleDateString('vi-VN', { year: 'numeric', month: '2-digit', day: '2-digit' });
+                                
                                 detailsHtml += `
                                     <tr>
                                         <td>${batch.batch_number}</td>
-                                        <td>${new Date(batch.batch_date).toLocaleDateString('vi-VN')}</td>
+                                        <td>${dateFormatted}</td>
                                         <td>${batch.quantity}</td>
-                                        <td>${(batch.price || 0).toLocaleString('vi-VN')} đ</td>
+                                        <td>${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(batch.price || 0)}</td>
                                         <td>${batch.note || ''}</td>
                                     </tr>
                                 `;
                             });
-
+                            
                             detailsHtml += `
                                             </tbody>
                                         </table>
@@ -1249,7 +1237,7 @@
                                 </div>
                             `;
                         }
-
+                        
                         $('#productDetailsModal .modal-title').text(`Chi tiết sản phẩm - ${product.product_name}`);
                         $('#productDetailsModal .modal-body').html(detailsHtml);
                         const modal = new bootstrap.Modal($('#productDetailsModal')[0]);
@@ -1264,6 +1252,411 @@
             });
         }
 
+        // Hàm chỉnh sửa sản phẩm
+        function editInventory(productId) {
+            if (!productId) {
+                showToast('error', 'Không tìm thấy thông tin sản phẩm');
+                return;
+            }
+            
+            // Trước tiên, kiểm tra xem sản phẩm đã được phát hành chưa
+            $.ajax({
+                url: `/inventory/check-published/${productId}`,
+                method: 'GET',
+                success: function(response) {
+                    if (response.status === 'Ok') {
+                        if (response.isPublished) {
+                            // Nếu sản phẩm đã được phát hành, hiển thị thông báo và không cho phép chỉnh sửa
+                            showToast('warning', 'Sản phẩm này đã được phát hành trên trang sản phẩm. Không thể chỉnh sửa!');
+                            return;
+                        } else {
+                            // Nếu sản phẩm chưa được phát hành, tiếp tục quá trình chỉnh sửa
+                            showEditForm(productId);
+                        }
+                    } else {
+                        showToast('error', 'Không thể kiểm tra trạng thái xuất bản của sản phẩm');
+                    }
+                },
+                error: function(xhr) {
+                    showToast('error', 'Lỗi khi kiểm tra trạng thái xuất bản của sản phẩm: ' + (xhr.responseJSON?.message || 'Vui lòng thử lại'));
+                }
+            });
+        }
+        
+        // Hàm hiển thị form chỉnh sửa và load dữ liệu
+        function showEditForm(productId) {
+            // Hiển thị loading và mở modal
+            $('#editInventoryModal').modal('show');
+            showToast('info', 'Đang tải thông tin sản phẩm...');
+            
+            // Kiểm tra ID hợp lệ
+            if (!productId) {
+                showToast('error', 'Không tìm thấy ID sản phẩm');
+                $('#editInventoryModal').modal('hide');
+                return;
+            }
+            
+            console.log('Đang tải sản phẩm với ID:', productId);
+            
+            // Tắt nút submit
+            $('#editInventoryForm button[type="submit"]').prop('disabled', true);
+            
+            // Lưu ID vào form và debug element
+            $('#editInventoryId').val(productId);
+            $('#debug-product-id').text(productId);
+            
+            $.ajax({
+                url: `/inventory/${productId}`,
+                method: 'GET',
+                success: function(response) {
+                    if (response.status === 'Ok' && response.inventory) {
+                        const product = response.inventory;
+                        
+                        // Điền thông tin cơ bản vào form
+                        $('#editProductName').val(product.product_name);
+                        $('#editProductCode').val(product.product_code);
+                        $('#editTypeProduct').val(product.typeProduct_id?._id || '');
+                        $('#editProvider').val(product.provider_id?._id || '');
+                        $('#editQuantity').val(product.quantity || 0);
+                        $('#editPrice').val(product.price || 0);
+                        $('#editNote').val(product.note || '');
+                        $('#editUnit').val(product.unit || 'cái');
+                        $('#editProductDescription').val(product.product_description || '');
+                        
+                        // Nếu có thông tin lô hàng đầu tiên
+                        if (product.batch_info && product.batch_info.length > 0) {
+                            const latestBatch = product.batch_info[product.batch_info.length - 1];
+                            $('#editBatchNumber').val(latestBatch.batch_number || '');
+                            
+                            // Format ngày nhập để hiển thị đúng trong input type="date"
+                            if (latestBatch.import_date) {
+                                const importDate = new Date(latestBatch.import_date);
+                                const formattedDate = importDate.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+                                $('#editBatchDate').val(formattedDate);
+                            }
+                        }
+                        
+                        // Xử lý thông tin biến thể nếu có
+                        if (product.hasVariants && product.variantDetails?.length > 0) {
+                            $('#editHasVariants').prop('checked', true);
+                            
+                            // Xóa dữ liệu biến thể cũ nếu có
+                            $('#editVariantsTable tbody').empty();
+                            
+                            // Hiển thị container biến thể
+                            $('#editVariantsContainer').removeClass('d-none');
+                            
+                            // Lặp qua từng biến thể để hiển thị
+                            product.variantDetails.forEach((variant, index) => {
+                                // Kiểm tra và chuẩn hóa dữ liệu thuộc tính
+                                let variantAttributes = variant.attributes;
+                                
+                                // Đảm bảo variantAttributes là đối tượng hợp lệ
+                                if (!variantAttributes || typeof variantAttributes !== 'object' || Array.isArray(variantAttributes)) {
+                                    console.warn('Thuộc tính biến thể không hợp lệ:', variantAttributes);
+                                    variantAttributes = {};
+                                }
+                                
+                                // Tạo chuỗi hiển thị thuộc tính và các input fields
+                                let attributesText = '';
+                                let attributesInputHtml = '';
+                                
+                                try {
+                                    // Lặp qua từng thuộc tính để tạo giao diện
+                                    Object.entries(variantAttributes).forEach(([key, value]) => {
+                                        // Thêm vào chuỗi hiển thị
+                                        if (attributesText) attributesText += ', ';
+                                        attributesText += `${key}: ${value}`;
+                                        
+                                        // Tạo input field cho thuộc tính này
+                                        attributesInputHtml += `
+                                            <div class="mb-2">
+                                                <label class="form-label">${key}</label>
+                                                <input type="text" class="form-control variant-attribute-value" 
+                                                    data-attribute-key="${key}" value="${value}" />
+                                            </div>
+                                        `;
+                                    });
+                                    
+                                    // Hiển thị thông báo nếu không có thuộc tính
+                                    if (!attributesText) {
+                                        attributesText = 'Không có thuộc tính';
+                                    }
+                                    
+                                    // JSON stringify an chuẩn hóa để không gây lỗi
+                                    const safeAttributesJson = JSON.stringify(variantAttributes);
+                                    
+                                    // Tạo HTML cho hàng biến thể
+                                    const variantHtml = `
+                                        <tr data-variant-index="${index}">
+                                            <td>
+                                                <div class="variant-attributes-container">
+                                                    <p class="mb-2"><strong>Thuộc tính:</strong> ${attributesText}</p>
+                                                    <div class="variant-attributes-inputs">
+                                                        ${attributesInputHtml}
+                                                    </div>
+                                                    <input type="hidden" class="variant-attributes-json" 
+                                                        value='${safeAttributesJson}'>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <input type="number" class="form-control variant-quantity" 
+                                                    value="${variant.quantity || 0}" min="0" step="1">
+                                            </td>
+                                            <td>
+                                                <input type="number" class="form-control variant-price" 
+                                                    value="${variant.price || 0}" min="0" step="1">
+                                            </td>
+                                        </tr>
+                                    `;
+                                    
+                                    // Thêm vào bảng
+                                    $('#editVariantsTable tbody').append(variantHtml);
+                                } catch (error) {
+                                    console.error('Lỗi khi xử lý biến thể:', error, variant);
+                                }
+                            });
+                            
+                            // Ẩn các trường nhập liệu thông thường nếu sản phẩm có biến thể
+                            $('.edit-common-fields').addClass('d-none');
+                        } else {
+                            $('#editHasVariants').prop('checked', false);
+                            $('#editVariantsContainer').addClass('d-none');
+                            
+                            // Hiển thị các trường nhập liệu thông thường
+                            $('.edit-common-fields').removeClass('d-none');
+                        }
+                        
+                        // Xóa dữ liệu lô hàng cũ
+                        $('#editBatchTable tbody').empty();
+                        
+                        // Lặp qua từng lô hàng để hiển thị
+                        if (product.batch_info && product.batch_info.length > 0) {
+                            $('#editBatchInfoContainer').removeClass('d-none');
+                            product.batch_info.forEach((batch) => {
+                                // Xử lý đúng trường ngày (ưu tiên batch_date nếu có, không thì dùng import_date)
+                                let dateToDisplay = batch.batch_date || batch.import_date;
+                                
+                                // Đảm bảo dateToDisplay là một đối tượng Date hợp lệ
+                                let displayDate;
+                                try {
+                                    displayDate = new Date(dateToDisplay);
+                                    // Kiểm tra nếu là Invalid Date
+                                    if (isNaN(displayDate.getTime())) {
+                                        displayDate = null;
+                                    }
+                                } catch (e) {
+                                    console.error("Lỗi khi xử lý ngày:", e);
+                                    displayDate = null;
+                                }
+                                
+                                // Format ngày theo định dạng dd/MM/yyyy
+                                let dateFormatted = displayDate ? 
+                                    `${displayDate.getDate().toString().padStart(2, '0')}/${(displayDate.getMonth() + 1).toString().padStart(2, '0')}/${displayDate.getFullYear()}` : 
+                                    'N/A';
+                                
+                                const batchHtml = `
+                                    <tr>
+                                        <td>${batch.batch_number}</td>
+                                        <td>${dateFormatted}</td>
+                                        <td>${batch.quantity}</td>
+                                        <td>${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(batch.price || 0)}</td>
+                                        <td>${batch.note || ''}</td>
+                                    </tr>
+                                `;
+                                
+                                $('#editBatchTable tbody').append(batchHtml);
+                            });
+                        } else {
+                            $('#editBatchInfoContainer').addClass('d-none');
+                        }
+                        
+                        // Set trạng thái
+                        const status = product.status === 'available' ? 'available' : 'outofstock';
+                        $('#editOriginalStatus').val(status);
+                        
+                        showToast('success', 'Đã tải thông tin sản phẩm');
+                        
+                        // Bật nút submit
+                        $('#editInventoryForm button[type="submit"]').prop('disabled', false);
+                    } else {
+                        showToast('error', 'Không thể tải thông tin sản phẩm');
+                        $('#editInventoryModal').modal('hide');
+                    }
+                },
+                error: function(xhr) {
+                    showToast('error', 'Lỗi khi tải thông tin sản phẩm: ' + (xhr.responseJSON?.message || 'Vui lòng thử lại'));
+                    $('#editInventoryModal').modal('hide');
+                }
+            });
+        }
+        
+        // Xử lý submit form chỉnh sửa
+        $('#editInventoryForm').on('submit', function(e) {
+            e.preventDefault();
+            
+            // Lấy ID sản phẩm từ form
+            const productId = $('#editInventoryId').val();
+            
+            // Debug log để xác định ID
+            console.log('Submit form với ID:', productId, 'Debug ID:', $('#debug-product-id').text());
+            
+            // Kiểm tra ID sản phẩm
+            if (!productId) {
+                showToast('error', 'Không tìm thấy ID sản phẩm. Vui lòng tải lại trang và thử lại.');
+                return false;
+            }
+            
+            try {
+                // Thu thập dữ liệu cơ bản từ form
+                const formData = {
+                    product_name: $('#editProductName').val()?.trim(),
+                    product_code: $('#editProductCode').val()?.trim(),
+                    typeProduct_id: $('#editTypeProduct').val(),
+                    provider_id: $('#editProvider').val(),
+                    unit: $('#editUnit').val()?.trim(),
+                    product_description: $('#editProductDescription').val()?.trim() || '',
+                    note: $('#editNote').val()?.trim() || ''
+                };
+                
+                // Kiểm tra dữ liệu cơ bản hợp lệ
+                if (!formData.product_name || !formData.product_code) {
+                    showToast('error', 'Vui lòng điền đầy đủ tên và mã sản phẩm');
+                    return false;
+                }
+                
+                // Kiểm tra xem sản phẩm có biến thể không
+                const hasVariants = $('#editHasVariants').is(':checked');
+                
+                if (hasVariants) {
+                    // Thu thập dữ liệu về biến thể
+                    const variantDetails = [];
+                    
+                    // Lặp qua từng dòng trong bảng biến thể
+                    $('#editVariantsTable tbody tr').each(function() {
+                        const $row = $(this);
+                        
+                        try {
+                            // Lấy thuộc tính gốc
+                            let attributesJson = $row.find('.variant-attributes-json').val() || '{}';
+                            let attributes = {};
+                            
+                            // Cố gắng parse JSON với xử lý lỗi tốt hơn
+                            try {
+                                attributes = JSON.parse(attributesJson);
+                                // Đảm bảo attributes luôn là một đối tượng
+                                if (typeof attributes !== 'object' || attributes === null) {
+                                    attributes = {};
+                                }
+                            } catch (jsonErr) {
+                                console.error('Lỗi khi parse JSON:', jsonErr, attributesJson);
+                                attributes = {}; // Sử dụng đối tượng trống nếu parse thất bại
+                            }
+                            
+                            // Cập nhật các giá trị thuộc tính đã sửa
+                            $row.find('.variant-attribute-value').each(function() {
+                                const $input = $(this);
+                                const key = $input.data('attribute-key');
+                                const value = $input.val();
+                                
+                                if (key && value !== undefined) {
+                                    attributes[key] = value;
+                                }
+                            });
+                            
+                            // Lấy số lượng và giá
+                            const quantity = parseInt($row.find('.variant-quantity').val());
+                            const price = parseInt($row.find('.variant-price').val());
+
+                            // Thêm vào danh sách biến thể
+                            variantDetails.push({
+                                attributes: attributes,
+                                quantity: quantity,
+                                price: price
+                            });
+                            
+                        } catch (err) {
+                            console.error('Lỗi khi xử lý biến thể:', err);
+                        }
+                    });
+                    
+                    // Cập nhật thông tin biến thể
+                    formData.hasVariants = true;
+                    formData.variantDetails = variantDetails;
+                    
+                    if (variantDetails.length === 0) {
+                        showToast('error', 'Không tìm thấy thông tin biến thể');
+                        return false;
+                    }
+                    
+                    // Tính tổng số lượng và giá trung bình
+                    const totalQuantity = variantDetails.reduce((sum, v) => sum + (parseInt(v.quantity) || 0), 0);
+                    const totalPriceValue = variantDetails.reduce((sum, v) => {
+                        const quantity = parseInt(v.quantity) || 0;
+                        const price = parseInt(v.price) || 0;
+                        return sum + (price * quantity);
+                    }, 0);
+                    const averagePrice = totalQuantity > 0 ? totalPriceValue / totalQuantity : 0;
+                    
+                    formData.quantity = totalQuantity;
+                    formData.price = averagePrice;
+                } else {
+                    // Nếu không có biến thể, lấy thông tin từ các trường thông thường
+                    formData.hasVariants = false;
+                    formData.quantity = parseInt($('#editQuantity').val());
+                    formData.price = parseInt($('#editPrice').val());
+                    formData.variantDetails = [];
+                }
+                
+                // Hiển thị loading
+                showToast('info', 'Đang cập nhật sản phẩm...');
+                
+                // Debug log để kiểm tra dữ liệu gửi đi
+                console.log('Gửi dữ liệu đến API:', `/inventory/update/${productId}`, JSON.stringify(formData));
+                
+                // Gửi dữ liệu cập nhật
+                $.ajax({
+                    url: `/inventory/update/${productId}`,
+                    method: 'PUT',
+                    contentType: 'application/json',
+                    data: JSON.stringify(formData),
+                    success: function(response) {
+                        console.log('Response success:', response);
+                        if (response.status === 'Ok') {
+                            showToast('success', 'Cập nhật sản phẩm thành công');
+                            $('#editInventoryModal').modal('hide');
+                            
+                            // Tải lại trang sau 1 giây
+                            setTimeout(() => {
+                                location.reload();
+                            }, 1000);
+                        } else {
+                            showToast('error', response.message || 'Lỗi khi cập nhật sản phẩm');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('API error:', xhr.status, xhr.responseText);
+                        let errorMsg = 'Lỗi khi cập nhật sản phẩm';
+                        
+                        try {
+                            if (xhr.responseText) {
+                                const responseJSON = JSON.parse(xhr.responseText);
+                                errorMsg = responseJSON.message || errorMsg;
+                            }
+                        } catch (e) {
+                            // Không làm gì nếu không parse được
+                        }
+                        
+                        showToast('error', errorMsg);
+                    }
+                });
+            } catch (error) {
+                console.error('Lỗi khi xử lý form:', error);
+                showToast('error', 'Đã xảy ra lỗi: ' + error.message);
+                return false;
+            }
+        });
+        
         // Thêm sản phẩm mới vào danh sách
         $('#addProductBtn').click(function() {
             const $productsList = $('#productsList');
@@ -1271,12 +1664,6 @@
             
             const $newProduct = `
                 <div class="product-item card mb-3">
-                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                        <h6 class="mb-0">Sản phẩm #${productCounter}</h6>
-                        <button type="button" class="btn btn-sm btn-outline-danger remove-product">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
                     <div class="card-body">
                         <div class="row g-3">
                             <div class="col-md-6">
@@ -1299,15 +1686,15 @@
                                     <% }); %>
                                 </select>
                             </div>
-                            <div class="col-md-6 common-fields">
+                            <div class="col-md-6 common-fields" style="display: none;">
                                 <label class="form-label">Số lượng <span class="text-danger">*</span></label>
-                                <input type="number" class="form-control product-quantity" min="1" step="1" required>
+                                <input type="number" class="form-control product-quantity" min="1" step="1" required value="1">
                             </div>
-                            <div class="col-md-6 common-fields">
+                            <div class="col-md-6 common-fields" style="display: none;">
                                 <div class="row">
                                     <div class="col-md-7">
                                         <label class="form-label">Giá <span class="text-danger">*</span></label>
-                                        <input type="number" class="form-control product-price" min="0.01" step="0.01" required>
+                                        <input type="number" class="form-control product-price" min="0.01" step="0.01" required value="0">
                                     </div>
                                     <div class="col-md-5">
                                         <label class="form-label">Đơn vị</label>
@@ -1316,11 +1703,9 @@
                                 </div>
                             </div>
                             <div class="col-12">
-                                <div class="form-check">
-                                    <input type="checkbox" class="form-check-input has-variants" id="productHasVariants-${productCounter}">
-                                    <label class="form-check-label" for="productHasVariants-${productCounter}">
-                                        Sản phẩm có biến thể
-                                    </label>
+                                <div class="form-check mb-3">
+                                    <input type="checkbox" class="form-check-input has-variants" id="hasVariants_${counter}" checked>
+                                    <label class="form-check-label">Sản phẩm này có biến thể khác nhau (kích thước, màu sắc...)</label>
                                 </div>
                             </div>
                             <div class="col-12 variants-section">
@@ -1403,11 +1788,11 @@
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label">Số lượng <span class="text-danger">*</span></label>
-                                        <input type="number" class="form-control variant-quantity" min="1" required>
+                                        <input type="number" class="form-control variant-quantity" placeholder="Số lượng" min="1" required>
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label">Giá <span class="text-danger">*</span></label>
-                                        <input type="number" class="form-control variant-price" min="0.01" required>
+                                        <input type="number" class="form-control variant-price" placeholder="Giá" min="0" required>
                                     </div>
                                     <div class="col-md-2">
                                         <button type="button" class="btn btn-danger remove-variant">
@@ -1489,7 +1874,7 @@
                 
                 const productName = $item.find('.product-name').val()?.trim();
                 const typeProductId = $item.find('.product-category').val();
-                
+
                 if (!productName) {
                     errorMessage = `Vui lòng nhập tên sản phẩm tại dòng ${index + 1}`;
                     hasError = true;
@@ -1507,7 +1892,7 @@
                 const baseProduct = {
                     product_name: productName,
                     product_code: $item.find('.product-code').val(),
-                    product_description: $item.find('.product-description').val()?.trim(),
+                    product_description: $item.find('.product-description').val()?.trim() || '',
                     typeProduct_id: typeProductId,
                     provider_id: batchProvider,
                     unit: $item.find('.product-unit').val()?.trim() || 'cái',
@@ -1522,7 +1907,7 @@
                         const $variant = $(this);
                         const quantity = parseInt($variant.find('.variant-quantity').val());
                         const price = parseFloat($variant.find('.variant-price').val());
-                        
+
                         if (!quantity || quantity <= 0) {
                             errorMessage = `Vui lòng nhập số lượng hợp lệ cho biến thể ${variantIndex + 1} của sản phẩm "${productName}"`;
                             variantError = true;
@@ -1561,14 +1946,14 @@
                     const price = parseFloat($item.find('.product-price').val());
                     
                     if (!quantity || quantity <= 0) {
-                        errorMessage = `Vui lòng nhập số lượng hợp lệ cho sản phẩm "${productName}"`;
+                        errorMessage = `Số lượng phải lớn hơn hoặc bằng 1 cho sản phẩm "${productName}"`;
                         hasError = true;
                         $item.find('.product-quantity').focus();
                         return false;
                     }
                     
                     if (!price || price <= 0) {
-                        errorMessage = `Vui lòng nhập giá hợp lệ cho sản phẩm "${productName}"`;
+                        errorMessage = `Giá phải lớn hơn hoặc bằng 0.01 cho sản phẩm "${productName}"`;
                         hasError = true;
                         $item.find('.product-price').focus();
                         return false;
@@ -1631,24 +2016,6 @@
                 $(this).attr('data-product-index', index);
                 $(this).find('.card-header h6').text(`Sản phẩm #${index + 1}`);
             });
-        }
-
-        // Hàm chỉnh sửa sản phẩm
-        function editInventory(productId) {
-            // Implement edit functionality here
-            console.log('Edit inventory:', productId);
-        }
-
-        // Hàm xóa sản phẩm
-        function deleteInventory(productId) {
-            // Implement delete functionality here
-            console.log('Delete inventory:', productId);
-        }
-
-        // Hàm mở cửa sổ chọn thuộc tính
-        function openVariantSelection() {
-            // Implement variant selection functionality here
-            console.log('Open variant selection');
         }
 
         // Xử lý lọc dữ liệu
@@ -1740,7 +2107,7 @@
             // Cập nhật số thứ tự cho các hàng đang hiển thị
             updateVisibleRowNumbers();
         }
-
+        
         // Cập nhật số thứ tự cho các hàng đang hiển thị
         function updateVisibleRowNumbers() {
             let visibleIndex = 1;
@@ -1802,6 +2169,11 @@
             $('#nextBatchNumber').val(batchData.batch_number);
             $('#nextBatchDate').val(batchData.import_date ? new Date(batchData.import_date).toISOString().split('T')[0] : '');
             $('#nextBatchNote').val(batchData.note || '');
+            
+            // Lưu trữ ngày nhập lô ban đầu để kiểm tra tính hợp lệ
+            const originalImportDate = batchData.import_date ? new Date(batchData.import_date).toISOString().split('T')[0] : '';
+            $('#nextBatchDate').attr('min', originalImportDate);
+            $('#nextBatchDate').data('original-date', originalImportDate);
             
             // Xóa các sản phẩm hiện tại
             $('#productEntries').empty();
@@ -1911,6 +2283,22 @@
             
             // Đặt ngày mặc định
             $('#nextBatchDate').val(new Date().toISOString().split('T')[0]);
+            
+            // Thêm sự kiện kiểm tra ngày
+            $('#nextBatchDate').off('change').on('change', function() {
+                const selectedDate = $(this).val();
+                const originalDate = $(this).data('original-date');
+                
+                if (originalDate && selectedDate) {
+                    if (new Date(selectedDate) < new Date(originalDate)) {
+                        $(this).addClass('is-invalid');
+                        $(this).next('.invalid-feedback').text('Ngày nhập lô mới phải cùng ngày hoặc sau ngày nhập lô đầu tiên');
+                        showToast('error', 'Ngày nhập lô mới phải cùng ngày hoặc sau ngày nhập lô đầu tiên');
+                    } else {
+                        $(this).removeClass('is-invalid');
+                    }
+                }
+            });
             
             // Tạo mã lô hàng
             generateAndSetBatchNumber();
