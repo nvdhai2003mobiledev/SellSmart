@@ -3,6 +3,46 @@ const Product = require('../models/Product');
 const Warranty = require('../models/Warranty');
 const Customer = require('../models/Customer');
 
+// Hàm tiện ích để gửi thông báo bảo hành
+async function sendWarrantyNotification(warrantyRequestId, customerName, productName, issue) {
+    try {
+        const notificationController = require('./NotificationController');
+        
+        // Tạo tiêu đề thông báo
+        const notificationTitle = `Yêu cầu bảo hành mới: ${warrantyRequestId}`;
+        
+        // Tạo nội dung thông báo
+        const truncatedIssue = issue.length > 50 ? issue.substring(0, 47) + '...' : issue;
+        const notificationBody = `${customerName} - ${productName} - ${truncatedIssue}`;
+        
+        // Dữ liệu bổ sung cho thông báo
+        const notificationData = {
+            screen: 'WarrantyRequestDetail',
+            warrantyRequestId: warrantyRequestId.toString(),
+            type: 'NEW_WARRANTY_REQUEST',
+            timestamp: Date.now().toString()
+        };
+        
+        console.log('Gửi thông báo bảo hành:', {
+            title: notificationTitle,
+            body: notificationBody,
+            data: notificationData
+        });
+        
+        // Gửi thông báo đến tất cả thiết bị
+        const notificationResult = await notificationController.sendNotificationToAll(
+            notificationTitle,
+            notificationBody,
+            notificationData
+        );
+        
+        console.log('Kết quả gửi thông báo:', notificationResult);
+    } catch (notificationError) {
+        console.error('Lỗi khi gửi thông báo bảo hành:', notificationError);
+        // Tiếp tục xử lý ngay cả khi gửi thông báo thất bại
+    }
+}
+
 exports.getWarrantySupportRequests = async (req, res) => {
   try {
     const warrantyRequests = await WarrantyRequest.find()
@@ -22,6 +62,7 @@ exports.getWarrantySupportRequests = async (req, res) => {
     res.redirect('/dashboard');
   }
 };
+
 exports.getWarrantySupportRequestsAsJson = async (req, res) => {
   try {
     const warrantyRequests = await WarrantyRequest.find()
@@ -40,6 +81,7 @@ exports.getWarrantySupportRequestsAsJson = async (req, res) => {
     });
   }
 };
+
 // Handle new warranty support request (from customers)
 exports.createWarrantyRequest = async (req, res) => {
   try {
@@ -92,20 +134,12 @@ exports.createWarrantyRequest = async (req, res) => {
     }
     
     // Check if product exists
-    try {
-      const product = await Product.findById(productId);
-      if (!product) {
-        console.log('Product not found:', productId);
-        return res.status(404).json({ 
-          success: false, 
-          message: 'Sản phẩm không tồn tại' 
-        });
-      }
-    } catch (err) {
-      console.log('Error finding product:', err);
-      return res.status(400).json({ 
+    const product = await Product.findById(productId);
+    if (!product) {
+      console.log('Product not found:', productId);
+      return res.status(404).json({ 
         success: false, 
-        message: 'ID sản phẩm không hợp lệ' 
+        message: 'Sản phẩm không tồn tại' 
       });
     }
     
@@ -122,6 +156,9 @@ exports.createWarrantyRequest = async (req, res) => {
     
     await warrantyRequest.save();
     console.log('Warranty request saved successfully:', warrantyRequest._id);
+    
+    // Gửi thông báo khi tạo yêu cầu bảo hành thành công
+    await sendWarrantyNotification(warrantyRequest._id, customerName, product.name, issue);
     
     res.status(201).json({ 
       success: true, 
