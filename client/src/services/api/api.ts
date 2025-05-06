@@ -9,8 +9,10 @@ import {EmployeeResponse} from '../../models/employee/employee';
 
 // Các tùy chọn khác (để khi cần thay đổi)
 // const BASE_URL = 'http://10.0.2.2:3000/'; // Cho Android Emulator
-const BASE_URL = 'http://10.0.2.2:5000/'; // Cho Android Emulator
+const BASE_URL = 'http://192.168.1.170:5000/'; // Server IP (works on real devices)
 // const BASE_URL = 'http://localhost:5000/'; // Cho máy local
+
+
 
 // API response types
 export interface GeneralApiResponse {

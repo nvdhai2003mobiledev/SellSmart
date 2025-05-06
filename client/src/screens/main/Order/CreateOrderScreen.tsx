@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useMemo} from 'react';
 import {
   View,
   Text as RNText,
@@ -11,14 +11,10 @@ import {
   FlatList,
   Dimensions,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import {
-  BaseLayout,
-  Input,
-  Header,
-  DynamicText,
-} from '../../../components';
+import {BaseLayout, Input, Header, DynamicText} from '../../../components';
 import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {observer} from 'mobx-react-lite';
 import {rootStore} from '../../../models/root-store';
@@ -66,6 +62,29 @@ interface CreateOrderParams {
   customer?: Customer;
 }
 
+// Utility function to determine if device is a tablet
+const isTablet = () => {
+  const {width, height} = Dimensions.get('window');
+  return Math.max(width, height) >= 768;
+};
+
+// Type safety for navigation params
+type NavigationParams = {
+  [Screen.CHOOSE_ORDER_PRODUCT]: {selectedProducts: Product[]};
+  [Screen.CUSTOMER_SELECTION]: {onSelect: (customer: Customer) => void};
+  [Screen.PAYMENT_METHODS]: {
+    orderId: string;
+    orderNumber: string;
+    totalAmount: number;
+    remainingAmount?: number;
+    isPartialPayment?: boolean;
+    isNewOrder: boolean;
+    onPaymentComplete: (method: PaymentMethodType, amount: number) => void;
+  };
+  [Screen.ORDER_DETAIL]: {orderId: string};
+  [Screen.ORDERLIST]: undefined;
+};
+
 const CreateOrderScreen = observer(() => {
   const navigation = useNavigation();
   const route =
@@ -75,7 +94,8 @@ const CreateOrderScreen = observer(() => {
     null,
   );
   const [notes, setNotes] = useState('');
-  const [_paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('cash');
+  const [_paymentMethod, setPaymentMethod] =
+    useState<PaymentMethodType>('cash');
   const [paymentStatus, setPaymentStatus] = useState<
     'paid' | 'unpaid' | 'partpaid'
   >('paid');
@@ -160,7 +180,12 @@ const CreateOrderScreen = observer(() => {
         console.log('Active promotions found:', activePromotions.length);
         setPromotions(activePromotions);
       } else {
-        console.error('Failed to fetch promotions:', response.problem, response.status, response.originalError);
+        console.error(
+          'Failed to fetch promotions:',
+          response.problem,
+          response.status,
+          response.originalError,
+        );
         setPromotionError('Không thể tải danh sách khuyến mãi');
       }
     } catch (error) {
@@ -264,29 +289,35 @@ const CreateOrderScreen = observer(() => {
     setSelectedPromotion(null);
   };
 
-  // Navigation functions
+  // Navigation functions with proper typing
   const navigateToProductSelection = () => {
     // Properly pass currently selected products to preserve selections
-    navigation.navigate(Screen.CHOOSE_ORDER_PRODUCT as any, {
-      selectedProducts,
-    });
+    navigation.navigate(
+      Screen.CHOOSE_ORDER_PRODUCT as keyof NavigationParams,
+      {
+        selectedProducts,
+      } as NavigationParams[typeof Screen.CHOOSE_ORDER_PRODUCT],
+    );
   };
 
   const navigateToSelectCustomer = () => {
     // Navigate to customer selection screen
-    navigation.navigate(Screen.CUSTOMER_SELECTION as any, {
-      onSelect: (customer: Customer) => setSelectedCustomer(customer),
-    });
+    navigation.navigate(
+      Screen.CUSTOMER_SELECTION as keyof NavigationParams,
+      {
+        onSelect: (customer: Customer) => setSelectedCustomer(customer),
+      } as NavigationParams[typeof Screen.CUSTOMER_SELECTION],
+    );
   };
 
   // Open promotion selection modal
   const openPromotionModal = () => {
     console.log('Opening promotion modal');
-    
+
     // Set modal visible immediately to ensure it shows up
     setShowPromotionModal(true);
     console.log('Modal visibility set to true: ', showPromotionModal);
-    
+
     // Then fetch promotions
     fetchPromotions()
       .then(() => {
@@ -304,7 +335,7 @@ const CreateOrderScreen = observer(() => {
     if (route.params?.selectedProducts) {
       setSelectedProducts(route.params.selectedProducts);
     }
-    
+
     // Handle customer if provided in the route params
     if (route.params?.customer) {
       setSelectedCustomer(route.params.customer);
@@ -361,7 +392,7 @@ const CreateOrderScreen = observer(() => {
       const total = selectedPromotion
         ? calculateTotal() - calculateDiscount()
         : calculateTotal();
-      
+
       // Xác định thông tin thanh toán
       const paidAmount = paymentDetails ? paymentDetails.amount : 0;
       const isFullyPaid = paidAmount >= total;
@@ -378,18 +409,23 @@ const CreateOrderScreen = observer(() => {
       // - 'pending': Chưa thanh toán
       // - 'waiting': Thanh toán một phần, chờ thanh toán đủ
       // - 'processing': Đã thanh toán đủ, đang xử lý
-      const orderStatus = paymentStatus === 'unpaid' 
-        ? 'pending' 
-        : paymentStatus === 'partpaid'
-        ? 'waiting'
-        : 'processing';
+      const orderStatus =
+        paymentStatus === 'unpaid'
+          ? 'pending'
+          : paymentStatus === 'partpaid'
+          ? 'waiting'
+          : 'processing';
 
       // Log thông tin thanh toán để debug
       console.log('===== Thông tin Hóa đơn trước khi gửi =====');
       console.log(`Khách hàng: ${selectedCustomer.fullName}`);
       console.log(`Sản phẩm: ${selectedProducts.length} items`);
       selectedProducts.forEach((product, index) => {
-        console.log(`${index + 1}. ${product.name} x ${product.quantity} (ID: ${product._id})`);
+        console.log(
+          `${index + 1}. ${product.name} x ${product.quantity} (ID: ${
+            product._id
+          })`,
+        );
         if (product.originalProductId) {
           console.log(`   Original Product ID: ${product.originalProductId}`);
         }
@@ -425,26 +461,37 @@ const CreateOrderScreen = observer(() => {
           // Start with productID from the product
           let productID = product._id;
           let variantID = product.variantId;
-          
+
           // If no originalProductId exists, but _id contains a dash, it was previously combined
-          if (!product.originalProductId && typeof product._id === 'string' && product._id.includes('-')) {
+          if (
+            !product.originalProductId &&
+            typeof product._id === 'string' &&
+            product._id.includes('-')
+          ) {
             const parts = product._id.split('-');
-            productID = parts[0];  // First part is the actual product ID
-            variantID = parts[1] || variantID;  // Second part is the variant ID if it exists
-            console.log(`Split combined ID: Original=${productID}, Variant=${variantID}`);
+            productID = parts[0]; // First part is the actual product ID
+            variantID = parts[1] || variantID; // Second part is the variant ID if it exists
+            console.log(
+              `Split combined ID: Original=${productID}, Variant=${variantID}`,
+            );
           }
-          
+
           // Ensure variant ID is properly formatted
-          if (variantID && typeof variantID === 'object' && variantID._id) {
+          if (
+            variantID &&
+            typeof variantID === 'object' &&
+            'id' in variantID &&
+            variantID._id
+          ) {
             variantID = variantID._id.toString();
           } else if (variantID) {
             variantID = variantID.toString();
           }
-          
+
           console.log(`Product in order: ${product.name}`);
           console.log(`Final ProductID: ${productID}`);
           console.log(`Final VariantID: ${variantID || 'None'}`);
-          
+
           return {
             productID: productID,
             name: product.name,
@@ -453,7 +500,7 @@ const CreateOrderScreen = observer(() => {
             inventory: product.inventory || Math.max(1, product.quantity),
             attributes: product.attributes || [],
             variantID: variantID || undefined,
-            product_code: product.product_code || undefined
+            product_code: product.product_code || undefined,
           };
         }),
         totalAmount: total,
@@ -542,11 +589,20 @@ const CreateOrderScreen = observer(() => {
 
         if (orderId) {
           // Điều hướng đến trang chi tiết Hóa đơn với ID Hóa đơn vừa tạo
-          navigation.navigate(Screen.ORDER_DETAIL, {orderId});
+          navigation.navigate(
+            Screen.ORDER_DETAIL as keyof NavigationParams,
+            {
+              orderId,
+            } as NavigationParams[typeof Screen.ORDER_DETAIL],
+          );
         } else {
           // Fallback nếu không lấy được ID Hóa đơn
           Alert.alert('Thành công', 'Hóa đơn đã được tạo thành công', [
-            {text: 'OK', onPress: () => navigation.navigate(Screen.ORDERLIST)},
+            {
+              text: 'OK',
+              onPress: () =>
+                navigation.navigate(Screen.ORDERLIST as keyof NavigationParams),
+            },
           ]);
         }
       } else {
@@ -589,7 +645,7 @@ const CreateOrderScreen = observer(() => {
       const total = selectedPromotion
         ? calculateTotal() - calculateDiscount()
         : calculateTotal();
-      
+
       // Xác định thông tin thanh toán
       const paidAmount = paymentDetails ? paymentDetails.amount : 0;
       const isFullyPaid = paidAmount >= total;
@@ -608,19 +664,28 @@ const CreateOrderScreen = observer(() => {
         products: selectedProducts.map(product => {
           let productID = product._id;
           let variantID = product.variantId;
-          
-          if (!product.originalProductId && typeof product._id === 'string' && product._id.includes('-')) {
+
+          if (
+            !product.originalProductId &&
+            typeof product._id === 'string' &&
+            product._id.includes('-')
+          ) {
             const parts = product._id.split('-');
             productID = parts[0];
             variantID = parts[1] || variantID;
           }
-          
-          if (variantID && typeof variantID === 'object' && variantID._id) {
+
+          if (
+            variantID &&
+            typeof variantID === 'object' &&
+            'id' in variantID &&
+            variantID._id
+          ) {
             variantID = variantID._id.toString();
           } else if (variantID) {
             variantID = variantID.toString();
           }
-          
+
           return {
             productID: productID,
             name: product.name,
@@ -629,7 +694,7 @@ const CreateOrderScreen = observer(() => {
             inventory: product.inventory || Math.max(1, product.quantity),
             attributes: product.attributes || [],
             variantID: variantID || undefined,
-            product_code: product.product_code || undefined
+            product_code: product.product_code || undefined,
           };
         }),
         totalAmount: total,
@@ -681,10 +746,19 @@ const CreateOrderScreen = observer(() => {
 
         if (orderId) {
           // Navigate to order detail screen
-          navigation.navigate(Screen.ORDER_DETAIL, {orderId});
+          navigation.navigate(
+            Screen.ORDER_DETAIL as keyof NavigationParams,
+            {
+              orderId,
+            } as NavigationParams[typeof Screen.ORDER_DETAIL],
+          );
         } else {
           Alert.alert('Thành công', 'Đơn hàng đã được lưu nháp', [
-            {text: 'OK', onPress: () => navigation.navigate(Screen.ORDERLIST)},
+            {
+              text: 'OK',
+              onPress: () =>
+                navigation.navigate(Screen.ORDERLIST as keyof NavigationParams),
+            },
           ]);
         }
       } else {
@@ -863,7 +937,12 @@ const CreateOrderScreen = observer(() => {
   };
 
   // Log modal state on each render for debugging
-  console.log('Render - showPromotionModal:', showPromotionModal, 'promotions:', promotions.length);
+  console.log(
+    'Render - showPromotionModal:',
+    showPromotionModal,
+    'promotions:',
+    promotions.length,
+  );
 
   return (
     <BaseLayout>
@@ -872,281 +951,664 @@ const CreateOrderScreen = observer(() => {
         showBackIcon={true}
         onPressBack={() => navigation.goBack()}
       />
-      <ScrollView contentContainerStyle={styles.scrollView}>
-        {/* Products Section - Đặt lên đầu tiên */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <DynamicText style={styles.sectionTitle}>Sản phẩm</DynamicText>
-            <TouchableOpacity
-              style={styles.editButton}
-              onPress={navigateToProductSelection}>
-              <DynamicText style={styles.editButtonText}>Thêm</DynamicText>
-            </TouchableOpacity>
-          </View>
-          {selectedProducts.length > 0 ? (
-            <View style={styles.productsList}>
-              {selectedProducts.map((product, index) =>
-                renderProductItem(product, index),
+      {isTabletDevice ? (
+        // Tablet layout - two columns
+        <View style={styles.tabletContainer}>
+          {/* Left Column - Products and Customer */}
+          <ScrollView
+            style={[styles.tabletColumn, {width: columnWidth}]}
+            contentContainerStyle={styles.tabletScrollViewContent}>
+            {/* Products Section */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <DynamicText style={styles.sectionTitle}>Sản phẩm</DynamicText>
+                <TouchableOpacity
+                  style={styles.editButton}
+                  onPress={navigateToProductSelection}>
+                  <DynamicText style={styles.editButtonText}>Thêm</DynamicText>
+                </TouchableOpacity>
+              </View>
+              {selectedProducts.length > 0 ? (
+                <View style={styles.productsList}>
+                  {selectedProducts.map((product, index) =>
+                    renderProductItem(product, index),
+                  )}
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.selectProductButton}
+                  onPress={navigateToProductSelection}>
+                  <DynamicText style={styles.selectProductText}>
+                    Thêm sản phẩm
+                  </DynamicText>
+                </TouchableOpacity>
               )}
             </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.selectProductButton}
-              onPress={navigateToProductSelection}>
-              <DynamicText style={styles.selectProductText}>
-                Thêm sản phẩm
-              </DynamicText>
-            </TouchableOpacity>
-          )}
-        </View>
 
-        {/* Customer Selection Section - Chuyển xuống sau sản phẩm */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <DynamicText style={styles.sectionTitle}>
-              Thông tin khách hàng
-            </DynamicText>
-            <TouchableOpacity
-              style={styles.editButton}
-              onPress={navigateToSelectCustomer}>
-              <DynamicText style={styles.editButtonText}>Chọn</DynamicText>
-            </TouchableOpacity>
-          </View>
-          {selectedCustomer ? (
-            <View style={styles.customerInfo}>
-              <DynamicText style={styles.customerName}>
-                {selectedCustomer.fullName}
-              </DynamicText>
-              <DynamicText style={styles.customerPhone}>
-                {selectedCustomer.phoneNumber}
-              </DynamicText>
-              <DynamicText style={styles.customerAddress}>
-                {selectedCustomer.address}
-              </DynamicText>
+            {/* Customer Selection Section */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <DynamicText style={styles.sectionTitle}>
+                  Thông tin khách hàng
+                </DynamicText>
+                <TouchableOpacity
+                  style={styles.editButton}
+                  onPress={navigateToSelectCustomer}>
+                  <DynamicText style={styles.editButtonText}>Chọn</DynamicText>
+                </TouchableOpacity>
+              </View>
+              {selectedCustomer ? (
+                <View style={styles.customerInfo}>
+                  <DynamicText style={styles.customerName}>
+                    {selectedCustomer.fullName}
+                  </DynamicText>
+                  <DynamicText style={styles.customerPhone}>
+                    {selectedCustomer.phoneNumber}
+                  </DynamicText>
+                  <DynamicText style={styles.customerAddress}>
+                    {selectedCustomer.address}
+                  </DynamicText>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.selectCustomerButton}
+                  onPress={navigateToSelectCustomer}>
+                  <DynamicText style={styles.selectCustomerText}>
+                    Chọn khách hàng
+                  </DynamicText>
+                </TouchableOpacity>
+              )}
             </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.selectCustomerButton}
-              onPress={navigateToSelectCustomer}>
-              <DynamicText style={styles.selectCustomerText}>
-                Chọn khách hàng
-              </DynamicText>
-            </TouchableOpacity>
-          )}
-        </View>
 
-        {/* Promotion Section - Only show if products are selected */}
-        {selectedProducts.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <DynamicText style={styles.sectionTitle}>Khuyến mãi</DynamicText>
-              <TouchableOpacity
-                style={styles.editButton}
-                onPress={openPromotionModal}>
-                <DynamicText style={styles.editButtonText}>Chọn</DynamicText>
-              </TouchableOpacity>
+            {/* Notes Section */}
+            <View style={styles.section}>
+              <DynamicText style={styles.sectionTitle}>Ghi chú</DynamicText>
+              <Input
+                placeholderText="Nhập ghi chú cho Hóa đơn"
+                value={notes}
+                onChangeText={setNotes}
+                inputContainerStyle={styles.notesInput}
+                multiline
+                numberOfLines={3}
+              />
             </View>
-            {selectedPromotion ? (
-              <View style={styles.selectedPromotionContainer}>
-                <View style={styles.promotionHeader}>
-                  <DynamicText style={styles.promotionName}>
-                    {selectedPromotion.name}
+          </ScrollView>
+
+          {/* Right Column - Payment, Promotion, Summary */}
+          <ScrollView
+            style={[styles.tabletColumn, {width: columnWidth}]}
+            contentContainerStyle={styles.tabletScrollViewContent}>
+            {/* Promotion Section */}
+            {selectedProducts.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <DynamicText style={styles.sectionTitle}>
+                    Khuyến mãi
                   </DynamicText>
                   <TouchableOpacity
-                    style={styles.removePromotionButton}
-                    onPress={removePromotion}>
-                    <DynamicText style={styles.removePromotionText}>
-                      ×
+                    style={styles.editButton}
+                    onPress={openPromotionModal}>
+                    <DynamicText style={styles.editButtonText}>
+                      Chọn
                     </DynamicText>
                   </TouchableOpacity>
                 </View>
-                <View style={styles.promotionDetails}>
-                  <DynamicText style={styles.promotionDetailText}>
-                    Giảm giá: {selectedPromotion.discount}%
+                {selectedPromotion ? (
+                  <View style={styles.selectedPromotionContainer}>
+                    <View style={styles.promotionHeader}>
+                      <DynamicText style={styles.promotionName}>
+                        {selectedPromotion.name}
+                      </DynamicText>
+                      <TouchableOpacity
+                        style={styles.removePromotionButton}
+                        onPress={removePromotion}>
+                        <DynamicText style={styles.removePromotionText}>
+                          ×
+                        </DynamicText>
+                      </TouchableOpacity>
+                    </View>
+                    <View style={styles.promotionDetails}>
+                      <DynamicText style={styles.promotionDetailText}>
+                        Giảm giá: {selectedPromotion.discount}%
+                      </DynamicText>
+                      <DynamicText style={styles.promotionDetailText}>
+                        Giảm tối đa:{' '}
+                        {formatCurrency(selectedPromotion.maxDiscount)}
+                      </DynamicText>
+                      <DynamicText style={styles.promotionDetailText}>
+                        Đơn tối thiểu:{' '}
+                        {formatCurrency(selectedPromotion.minOrderValue)}
+                      </DynamicText>
+                    </View>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.selectPromotionButton}
+                    onPress={openPromotionModal}>
+                    <DynamicText style={styles.selectPromotionText}>
+                      Chọn khuyến mãi
+                    </DynamicText>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+
+            {/* Payment Method Section */}
+            <View style={styles.section}>
+              <DynamicText style={styles.sectionTitle}>Thanh toán</DynamicText>
+              <View style={styles.paymentStatusContainer}>
+                <DynamicText style={styles.paymentStatusLabel}>
+                  Trạng thái thanh toán:
+                </DynamicText>
+                <View style={styles.paymentStatusOptions}>
+                  <TouchableOpacity
+                    style={[
+                      styles.paymentStatusOption,
+                      paymentStatus === 'paid' &&
+                        styles.selectedPaymentStatusOption,
+                    ]}
+                    onPress={() => {
+                      if (selectedProducts.length === 0) {
+                        Alert.alert(
+                          'Thông báo',
+                          'Vui lòng chọn sản phẩm trước khi thanh toán',
+                        );
+                        return;
+                      }
+
+                      const total = calculateTotal() - calculateDiscount();
+
+                      navigation.navigate(
+                        Screen.PAYMENT_METHODS as keyof NavigationParams,
+                        {
+                          orderId: 'new',
+                          orderNumber: 'tạm thời',
+                          totalAmount: total,
+                          isNewOrder: true,
+                          onPaymentComplete: (
+                            method: PaymentMethodType,
+                            amount: number,
+                          ) => {
+                            setPaymentStatus('paid');
+                            setPaymentMethod(method);
+                            setPaymentDetails({
+                              method: method,
+                              amount: amount,
+                              isPartial: amount < total,
+                            });
+                          },
+                        } as NavigationParams[typeof Screen.PAYMENT_METHODS],
+                      );
+                    }}>
+                    <DynamicText
+                      style={[
+                        styles.paymentStatusText,
+                        paymentStatus === 'paid' &&
+                          styles.selectedPaymentStatusText,
+                      ]}>
+                      Đã thanh toán
+                    </DynamicText>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.paymentStatusOption,
+                      paymentStatus === 'unpaid' &&
+                        styles.selectedPaymentStatusOption,
+                    ]}
+                    onPress={() => {
+                      setPaymentStatus('unpaid');
+                      setPaymentDetails(null);
+                    }}>
+                    <DynamicText
+                      style={[
+                        styles.paymentStatusText,
+                        paymentStatus === 'unpaid' &&
+                          styles.selectedPaymentStatusText,
+                      ]}>
+                      Thanh toán sau
+                    </DynamicText>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Only show payment methods if status is 'paid' */}
+              {paymentStatus === 'paid' && paymentDetails && (
+                <View style={styles.paymentDetailsContainer}>
+                  <View style={styles.paymentMethodsContainer}>
+                    <DynamicText style={styles.paymentMethodsLabel}>
+                      Phương thức thanh toán:
+                    </DynamicText>
+                    <DynamicText style={styles.paymentMethodValue}>
+                      {paymentDetails.method === 'cash'
+                        ? 'Tiền mặt'
+                        : paymentDetails.method === 'credit card'
+                        ? 'Chuyển khoản'
+                        : paymentDetails.method === 'e-wallet'
+                        ? 'Ví điện tử'
+                        : paymentDetails.method === 'debit card'
+                        ? 'Thanh toán thẻ'
+                        : paymentDetails.method}
+                    </DynamicText>
+                  </View>
+
+                  <View style={styles.paymentAmountContainer}>
+                    <DynamicText style={styles.paymentAmountLabel}>
+                      Số tiền đã thanh toán:
+                    </DynamicText>
+                    <DynamicText style={styles.paymentAmountValue}>
+                      {formatCurrency(paymentDetails.amount)}
+                    </DynamicText>
+                  </View>
+
+                  {paymentDetails.isPartial && (
+                    <View style={styles.partialPaymentNote}>
+                      <Icon
+                        name="information-circle-outline"
+                        size={16}
+                        color="#FFA500"
+                      />
+                      <DynamicText style={styles.partialPaymentText}>
+                        Thanh toán một phần. Số tiền còn lại sẽ được thu sau.
+                      </DynamicText>
+                    </View>
+                  )}
+
+                  <TouchableOpacity
+                    style={styles.changePaymentButton}
+                    onPress={() => {
+                      const total = calculateTotal() - calculateDiscount();
+
+                      navigation.navigate(
+                        Screen.PAYMENT_METHODS as keyof NavigationParams,
+                        {
+                          orderId: 'new',
+                          orderNumber: 'tạm thời',
+                          totalAmount: total,
+                          remainingAmount: paymentDetails.isPartial
+                            ? total - paymentDetails.amount
+                            : undefined,
+                          isPartialPayment: paymentDetails.isPartial,
+                          isNewOrder: true,
+                          onPaymentComplete: (
+                            method: PaymentMethodType,
+                            amount: number,
+                          ) => {
+                            setPaymentStatus('paid');
+                            setPaymentMethod(method);
+                            setPaymentDetails({
+                              method: method,
+                              amount: amount,
+                              isPartial: amount < total,
+                            });
+                          },
+                        } as NavigationParams[typeof Screen.PAYMENT_METHODS],
+                      );
+                    }}>
+                    <DynamicText style={styles.changePaymentText}>
+                      Thay đổi thanh toán
+                    </DynamicText>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+
+            {/* Order Summary Section */}
+            <View style={styles.section}>
+              <DynamicText style={styles.sectionTitle}>
+                Tổng Hóa đơn
+              </DynamicText>
+              <View style={styles.summaryContainer}>
+                <View style={styles.summaryRow}>
+                  <DynamicText style={styles.summaryLabel}>
+                    Tạm tính:
                   </DynamicText>
-                  <DynamicText style={styles.promotionDetailText}>
-                    Giảm tối đa: {formatCurrency(selectedPromotion.maxDiscount)}
-                  </DynamicText>
-                  <DynamicText style={styles.promotionDetailText}>
-                    Đơn tối thiểu:{' '}
-                    {formatCurrency(selectedPromotion.minOrderValue)}
+                  <DynamicText style={styles.summaryValue}>
+                    {formatCurrency(calculateTotal())}
                   </DynamicText>
                 </View>
+                {selectedPromotion && (
+                  <>
+                    <View style={styles.summaryRow}>
+                      <DynamicText style={styles.summaryLabel}>
+                        Giảm giá:
+                      </DynamicText>
+                      <DynamicText
+                        style={[styles.summaryValue, styles.discountText]}>
+                        -{formatCurrency(calculateDiscount())}
+                      </DynamicText>
+                    </View>
+                    <View style={styles.summaryRow}>
+                      <DynamicText style={styles.summaryLabel}>
+                        Tổng cộng:
+                      </DynamicText>
+                      <DynamicText
+                        style={[styles.summaryValue, styles.totalText]}>
+                        {formatCurrency(calculateTotal() - calculateDiscount())}
+                      </DynamicText>
+                    </View>
+                  </>
+                )}
+              </View>
+            </View>
+
+            {/* Action Buttons */}
+            <View style={styles.actionButtons}>
+              <TouchableOpacity
+                style={[
+                  styles.button,
+                  styles.saveDraftButton,
+                  paymentStatus === 'paid' && styles.disabledButton,
+                ]}
+                onPress={saveAsDraft}
+                disabled={paymentStatus === 'paid'}>
+                <DynamicText style={styles.saveDraftButtonText}>
+                  Lưu nháp
+                </DynamicText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.createOrderButton]}
+                onPress={handleCreateOrder}
+                disabled={!isValidOrder()}>
+                <DynamicText style={styles.createOrderButtonText}>
+                  Tạo Hóa đơn
+                </DynamicText>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </View>
+      ) : (
+        // Mobile layout - single column
+        <ScrollView contentContainerStyle={styles.scrollView}>
+          {/* Products Section - Đặt lên đầu tiên */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <DynamicText style={styles.sectionTitle}>Sản phẩm</DynamicText>
+              <TouchableOpacity
+                style={styles.editButton}
+                onPress={navigateToProductSelection}>
+                <DynamicText style={styles.editButtonText}>Thêm</DynamicText>
+              </TouchableOpacity>
+            </View>
+            {selectedProducts.length > 0 ? (
+              <View style={styles.productsList}>
+                {selectedProducts.map((product, index) =>
+                  renderProductItem(product, index),
+                )}
               </View>
             ) : (
               <TouchableOpacity
-                style={styles.selectPromotionButton}
-                onPress={openPromotionModal}>
-                <DynamicText style={styles.selectPromotionText}>
-                  Chọn khuyến mãi
+                style={styles.selectProductButton}
+                onPress={navigateToProductSelection}>
+                <DynamicText style={styles.selectProductText}>
+                  Thêm sản phẩm
                 </DynamicText>
               </TouchableOpacity>
             )}
           </View>
-        )}
 
-        {/* Payment Method Section */}
-        <View style={styles.section}>
-          <DynamicText style={styles.sectionTitle}>Thanh toán</DynamicText>
-          <View style={styles.paymentStatusContainer}>
-            <DynamicText style={styles.paymentStatusLabel}>
-              Trạng thái thanh toán:
-            </DynamicText>
-            <View style={styles.paymentStatusOptions}>
+          {/* Customer Selection Section - Chuyển xuống sau sản phẩm */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <DynamicText style={styles.sectionTitle}>
+                Thông tin khách hàng
+              </DynamicText>
               <TouchableOpacity
-                style={[
-                  styles.paymentStatusOption,
-                  paymentStatus === 'paid' &&
-                    styles.selectedPaymentStatusOption,
-                ]}
-                onPress={() => {
-                  // Chuyển tới màn hình thanh toán
-                  if (selectedProducts.length === 0) {
-                    Alert.alert(
-                      'Thông báo',
-                      'Vui lòng chọn sản phẩm trước khi thanh toán',
-                    );
-                    return;
-                  }
-
-                  const total = calculateTotal() - calculateDiscount();
-
-                  navigation.navigate(Screen.PAYMENT_METHODS, {
-                    orderId: 'new', // Đánh dấu đây là Hóa đơn mới
-                    orderNumber: 'tạm thời',
-                    totalAmount: total,
-                    isNewOrder: true,
-                    onPaymentComplete: (method, amount) => {
-                      setPaymentStatus('paid');
-                      setPaymentMethod(method);
-                      // Lưu thông tin thanh toán để hiển thị và sử dụng khi tạo Hóa đơn
-                      setPaymentDetails({
-                        method: method,
-                        amount: amount,
-                        isPartial: amount < total,
-                      });
-                    },
-                  });
-                }}>
-                <DynamicText
-                  style={[
-                    styles.paymentStatusText,
-                    paymentStatus === 'paid' &&
-                      styles.selectedPaymentStatusText,
-                  ]}>
-                  Đã thanh toán
-                </DynamicText>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.paymentStatusOption,
-                  paymentStatus === 'unpaid' &&
-                    styles.selectedPaymentStatusOption,
-                ]}
-                onPress={() => {
-                  setPaymentStatus('unpaid');
-                  setPaymentDetails(null);
-                }}>
-                <DynamicText
-                  style={[
-                    styles.paymentStatusText,
-                    paymentStatus === 'unpaid' &&
-                      styles.selectedPaymentStatusText,
-                  ]}>
-                  Thanh toán sau
-                </DynamicText>
+                style={styles.editButton}
+                onPress={navigateToSelectCustomer}>
+                <DynamicText style={styles.editButtonText}>Chọn</DynamicText>
               </TouchableOpacity>
             </View>
+            {selectedCustomer ? (
+              <View style={styles.customerInfo}>
+                <DynamicText style={styles.customerName}>
+                  {selectedCustomer.fullName}
+                </DynamicText>
+                <DynamicText style={styles.customerPhone}>
+                  {selectedCustomer.phoneNumber}
+                </DynamicText>
+                <DynamicText style={styles.customerAddress}>
+                  {selectedCustomer.address}
+                </DynamicText>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.selectCustomerButton}
+                onPress={navigateToSelectCustomer}>
+                <DynamicText style={styles.selectCustomerText}>
+                  Chọn khách hàng
+                </DynamicText>
+              </TouchableOpacity>
+            )}
           </View>
 
-          {/* Only show payment methods if status is 'paid' */}
-          {paymentStatus === 'paid' && paymentDetails && (
-            <View style={styles.paymentDetailsContainer}>
-              <View style={styles.paymentMethodsContainer}>
-                <DynamicText style={styles.paymentMethodsLabel}>
-                  Phương thức thanh toán:
+          {/* Promotion Section - Only show if products are selected */}
+          {selectedProducts.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <DynamicText style={styles.sectionTitle}>
+                  Khuyến mãi
                 </DynamicText>
-                <DynamicText style={styles.paymentMethodValue}>
-                  {paymentDetails.method === 'cash'
-                    ? 'Tiền mặt'
-                    : paymentDetails.method === 'credit card'
-                    ? 'Chuyển khoản'
-                    : paymentDetails.method === 'e-wallet'
-                    ? 'Ví điện tử'
-                    : paymentDetails.method === 'debit card'
-                    ? 'Thanh toán thẻ'
-                    : paymentDetails.method}
-                </DynamicText>
+                <TouchableOpacity
+                  style={styles.editButton}
+                  onPress={openPromotionModal}>
+                  <DynamicText style={styles.editButtonText}>Chọn</DynamicText>
+                </TouchableOpacity>
               </View>
-
-              <View style={styles.paymentAmountContainer}>
-                <DynamicText style={styles.paymentAmountLabel}>
-                  Số tiền đã thanh toán:
-                </DynamicText>
-                <DynamicText style={styles.paymentAmountValue}>
-                  {formatCurrency(paymentDetails.amount)}
-                </DynamicText>
-              </View>
-
-              {paymentDetails.isPartial && (
-                <View style={styles.partialPaymentNote}>
-                  <Icon
-                    name="information-circle-outline"
-                    size={16}
-                    color="#FFA500"
-                  />
-                  <DynamicText style={styles.partialPaymentText}>
-                    Thanh toán một phần. Số tiền còn lại sẽ được thu sau.
-                  </DynamicText>
+              {selectedPromotion ? (
+                <View style={styles.selectedPromotionContainer}>
+                  <View style={styles.promotionHeader}>
+                    <DynamicText style={styles.promotionName}>
+                      {selectedPromotion.name}
+                    </DynamicText>
+                    <TouchableOpacity
+                      style={styles.removePromotionButton}
+                      onPress={removePromotion}>
+                      <DynamicText style={styles.removePromotionText}>
+                        ×
+                      </DynamicText>
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.promotionDetails}>
+                    <DynamicText style={styles.promotionDetailText}>
+                      Giảm giá: {selectedPromotion.discount}%
+                    </DynamicText>
+                    <DynamicText style={styles.promotionDetailText}>
+                      Giảm tối đa:{' '}
+                      {formatCurrency(selectedPromotion.maxDiscount)}
+                    </DynamicText>
+                    <DynamicText style={styles.promotionDetailText}>
+                      Đơn tối thiểu:{' '}
+                      {formatCurrency(selectedPromotion.minOrderValue)}
+                    </DynamicText>
+                  </View>
                 </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.selectPromotionButton}
+                  onPress={openPromotionModal}>
+                  <DynamicText style={styles.selectPromotionText}>
+                    Chọn khuyến mãi
+                  </DynamicText>
+                </TouchableOpacity>
               )}
-
-              <TouchableOpacity
-                style={styles.changePaymentButton}
-                onPress={() => {
-                  const total = calculateTotal() - calculateDiscount();
-
-                  navigation.navigate(Screen.PAYMENT_METHODS, {
-                    orderId: 'new',
-                    orderNumber: 'tạm thời',
-                    totalAmount: total,
-                    remainingAmount: paymentDetails.isPartial
-                      ? total - paymentDetails.amount
-                      : undefined,
-                    isPartialPayment: paymentDetails.isPartial,
-                    isNewOrder: true,
-                    onPaymentComplete: (method, amount) => {
-                      setPaymentStatus('paid');
-                      setPaymentMethod(method);
-                      setPaymentDetails({
-                        method: method,
-                        amount: amount,
-                        isPartial: amount < total,
-                      });
-                    },
-                  });
-                }}>
-                <DynamicText style={styles.changePaymentText}>
-                  Thay đổi thanh toán
-                </DynamicText>
-              </TouchableOpacity>
             </View>
           )}
-        </View>
 
-        {/* Notes Section */}
-        <View style={styles.section}>
-          <DynamicText style={styles.sectionTitle}>Ghi chú</DynamicText>
-          <Input
-            placeholderText="Nhập ghi chú cho Hóa đơn"
-            value={notes}
-            onChangeText={setNotes}
-            inputContainerStyle={styles.notesInput}
-            multiline
-            numberOfLines={3}
-          />
-        </View>
+          {/* Payment Method Section */}
+          <View style={styles.section}>
+            <DynamicText style={styles.sectionTitle}>Thanh toán</DynamicText>
+            <View style={styles.paymentStatusContainer}>
+              <DynamicText style={styles.paymentStatusLabel}>
+                Trạng thái thanh toán:
+              </DynamicText>
+              <View style={styles.paymentStatusOptions}>
+                <TouchableOpacity
+                  style={[
+                    styles.paymentStatusOption,
+                    paymentStatus === 'paid' &&
+                      styles.selectedPaymentStatusOption,
+                  ]}
+                  onPress={() => {
+                    // Chuyển tới màn hình thanh toán
+                    if (selectedProducts.length === 0) {
+                      Alert.alert(
+                        'Thông báo',
+                        'Vui lòng chọn sản phẩm trước khi thanh toán',
+                      );
+                      return;
+                    }
+
+                    const total = calculateTotal() - calculateDiscount();
+
+                    navigation.navigate(
+                      Screen.PAYMENT_METHODS as keyof NavigationParams,
+                      {
+                        orderId: 'new',
+                        orderNumber: 'tạm thời',
+                        totalAmount: total,
+                        isNewOrder: true,
+                        onPaymentComplete: (
+                          method: PaymentMethodType,
+                          amount: number,
+                        ) => {
+                          setPaymentStatus('paid');
+                          setPaymentMethod(method);
+                          // Lưu thông tin thanh toán để hiển thị và sử dụng khi tạo Hóa đơn
+                          setPaymentDetails({
+                            method: method,
+                            amount: amount,
+                            isPartial: amount < total,
+                          });
+                        },
+                      } as NavigationParams[typeof Screen.PAYMENT_METHODS],
+                    );
+                  }}>
+                  <DynamicText
+                    style={[
+                      styles.paymentStatusText,
+                      paymentStatus === 'paid' &&
+                        styles.selectedPaymentStatusText,
+                    ]}>
+                    Đã thanh toán
+                  </DynamicText>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.paymentStatusOption,
+                    paymentStatus === 'unpaid' &&
+                      styles.selectedPaymentStatusOption,
+                  ]}
+                  onPress={() => {
+                    setPaymentStatus('unpaid');
+                    setPaymentDetails(null);
+                  }}>
+                  <DynamicText
+                    style={[
+                      styles.paymentStatusText,
+                      paymentStatus === 'unpaid' &&
+                        styles.selectedPaymentStatusText,
+                    ]}>
+                    Thanh toán sau
+                  </DynamicText>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Only show payment methods if status is 'paid' */}
+            {paymentStatus === 'paid' && paymentDetails && (
+              <View style={styles.paymentDetailsContainer}>
+                <View style={styles.paymentMethodsContainer}>
+                  <DynamicText style={styles.paymentMethodsLabel}>
+                    Phương thức thanh toán:
+                  </DynamicText>
+                  <DynamicText style={styles.paymentMethodValue}>
+                    {paymentDetails.method === 'cash'
+                      ? 'Tiền mặt'
+                      : paymentDetails.method === 'credit card'
+                      ? 'Chuyển khoản'
+                      : paymentDetails.method === 'e-wallet'
+                      ? 'Ví điện tử'
+                      : paymentDetails.method === 'debit card'
+                      ? 'Thanh toán thẻ'
+                      : paymentDetails.method}
+                  </DynamicText>
+                </View>
+
+                <View style={styles.paymentAmountContainer}>
+                  <DynamicText style={styles.paymentAmountLabel}>
+                    Số tiền đã thanh toán:
+                  </DynamicText>
+                  <DynamicText style={styles.paymentAmountValue}>
+                    {formatCurrency(paymentDetails.amount)}
+                  </DynamicText>
+                </View>
+
+                {paymentDetails.isPartial && (
+                  <View style={styles.partialPaymentNote}>
+                    <Icon
+                      name="information-circle-outline"
+                      size={16}
+                      color="#FFA500"
+                    />
+                    <DynamicText style={styles.partialPaymentText}>
+                      Thanh toán một phần. Số tiền còn lại sẽ được thu sau.
+                    </DynamicText>
+                  </View>
+                )}
+
+                <TouchableOpacity
+                  style={styles.changePaymentButton}
+                  onPress={() => {
+                    const total = calculateTotal() - calculateDiscount();
+
+                    navigation.navigate(
+                      Screen.PAYMENT_METHODS as keyof NavigationParams,
+                      {
+                        orderId: 'new',
+                        orderNumber: 'tạm thời',
+                        totalAmount: total,
+                        remainingAmount: paymentDetails.isPartial
+                          ? total - paymentDetails.amount
+                          : undefined,
+                        isPartialPayment: paymentDetails.isPartial,
+                        isNewOrder: true,
+                        onPaymentComplete: (
+                          method: PaymentMethodType,
+                          amount: number,
+                        ) => {
+                          setPaymentStatus('paid');
+                          setPaymentMethod(method);
+                          setPaymentDetails({
+                            method: method,
+                            amount: amount,
+                            isPartial: amount < total,
+                          });
+                        },
+                      } as NavigationParams[typeof Screen.PAYMENT_METHODS],
+                    );
+                  }}>
+                  <DynamicText style={styles.changePaymentText}>
+                    Thay đổi thanh toán
+                  </DynamicText>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+
+          {/* Notes Section */}
+          <View style={styles.section}>
+            <DynamicText style={styles.sectionTitle}>Ghi chú</DynamicText>
+            <Input
+              placeholderText="Nhập ghi chú cho Hóa đơn"
+              value={notes}
+              onChangeText={setNotes}
+              inputContainerStyle={styles.notesInput}
+              multiline
+              numberOfLines={3}
+            />
+          </View>
 
         {/* Order Summary Section */}
         <View style={styles.section}>
@@ -1198,30 +1660,31 @@ const CreateOrderScreen = observer(() => {
           </View>
         </View>
 
-        {/* Action Buttons */}
-        <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={[
-              styles.button,
-              styles.saveDraftButton,
-              paymentStatus === 'paid' && styles.disabledButton
-            ]}
-            onPress={saveAsDraft}
-            disabled={paymentStatus === 'paid'}>
-            <DynamicText style={styles.saveDraftButtonText}>
-              Lưu nháp
-            </DynamicText>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.button, styles.createOrderButton]}
-            onPress={handleCreateOrder}
-            disabled={!isValidOrder()}>
-            <DynamicText style={styles.createOrderButtonText}>
-              Tạo Hóa đơn
-            </DynamicText>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+          {/* Action Buttons */}
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={[
+                styles.button,
+                styles.saveDraftButton,
+                paymentStatus === 'paid' && styles.disabledButton,
+              ]}
+              onPress={saveAsDraft}
+              disabled={paymentStatus === 'paid'}>
+              <DynamicText style={styles.saveDraftButtonText}>
+                Lưu nháp
+              </DynamicText>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, styles.createOrderButton]}
+              onPress={handleCreateOrder}
+              disabled={!isValidOrder()}>
+              <DynamicText style={styles.createOrderButtonText}>
+                Tạo Hóa đơn
+              </DynamicText>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      )}
 
       {/* Promotion Selection Modal */}
       <Modal
@@ -1236,7 +1699,12 @@ const CreateOrderScreen = observer(() => {
           setShowPromotionModal(false);
         }}>
         <View style={[styles.modalOverlay, {zIndex: 1000}]}>
-          <View style={[styles.modalContent, {zIndex: 1001}]}>
+          <View
+            style={[
+              styles.modalContent,
+              isTabletDevice && styles.tabletModalContent,
+              {zIndex: 1001},
+            ]}>
             <View style={styles.modalHeader}>
               <DynamicText style={styles.modalTitle}>
                 Danh sách khuyến mãi
@@ -1275,6 +1743,10 @@ const CreateOrderScreen = observer(() => {
                 renderItem={({item}) => renderPromotionItem(item)}
                 keyExtractor={item => item._id}
                 contentContainerStyle={styles.promotionList}
+                numColumns={isTabletDevice ? 2 : 1}
+                columnWrapperStyle={
+                  isTabletDevice ? styles.tabletPromotionGrid : undefined
+                }
               />
             )}
           </View>
@@ -1568,7 +2040,7 @@ const styles = StyleSheet.create({
     maxHeight: '80%',
     padding: moderateScale(16),
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 10,
@@ -1691,6 +2163,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   paymentStatusOption: {
+    flex: 1,
     height: scaleHeight(80),
     justifyContent: 'center',
     paddingHorizontal: moderateScale(10),

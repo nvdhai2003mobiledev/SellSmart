@@ -9,4 +9,6 @@ export enum Images {
   AVATAR_BYEWIND = require('./avatar-byewind.png'),
   SHOP = require('./shop.png'),
   EDIT_BUTTON = require('./edit.png'),
+  QR_CODE = require('./qr_bank.jpg'),
+  PLACEHOLDER = require('./placeholder.jpg'),
 }

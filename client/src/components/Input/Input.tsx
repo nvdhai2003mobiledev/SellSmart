@@ -18,14 +18,7 @@ import {
   scaleWidth,
 } from '../../utils';
 import {Fonts} from '../../assets';
-import {
-  CloseCircle,
-  Eye,
-  EyeSlash,
-  User,
-  Message,
-  Lock,
-} from 'iconsax-react-native';
+import {CloseCircle, Eye, EyeSlash} from 'iconsax-react-native';
 import {DynamicText} from '../DynamicText/DynamicText.tsx';
 
 interface InputProps {
@@ -61,8 +54,6 @@ export const Input = React.memo((props: InputProps) => {
     autoFocus,
     keyboardType,
     EndIcon,
-    StartIcon,
-    inputType = 'default',
     onIconPress,
     showClearIcon = false,
     showPasswordIcon = false,
@@ -81,42 +72,6 @@ export const Input = React.memo((props: InputProps) => {
     onChangeText?.('');
   };
 
-  // Render icon theo inputType
-  const renderStartIcon = () => {
-    if (StartIcon) return StartIcon;
-
-    switch (inputType) {
-      case 'username':
-        return (
-          <User
-            size={scaledSize(24)}
-            color={color.accentColor.grayColor}
-            variant="Linear"
-          />
-        );
-      case 'email':
-        return (
-          <Message
-            size={scaledSize(24)}
-            color={color.accentColor.grayColor}
-            variant="Linear"
-          />
-        );
-      case 'password':
-        return (
-          <Lock
-            size={scaledSize(24)}
-            color={color.accentColor.grayColor}
-            variant="Linear"
-          />
-        );
-      default:
-        return null;
-    }
-  };
-
-  const startIcon = renderStartIcon();
-
   return (
     <View>
       <View
@@ -126,16 +81,12 @@ export const Input = React.memo((props: InputProps) => {
           !editable && styles.inputContainerDisabled,
           inputContainerStyle,
         ]}>
-        {startIcon && (
-          <View style={styles.startIconContainer}>{startIcon}</View>
-        )}
         <TextInput
           style={[
             styles.input,
             {color: textColor},
             multiline && styles.multilineInput,
             multiline && textAlignVertical && {textAlignVertical},
-            startIcon && styles.inputWithStartIcon,
             inputStyle,
           ]}
           placeholder={placeholderText}
@@ -155,7 +106,7 @@ export const Input = React.memo((props: InputProps) => {
             <TouchableOpacity onPress={clearInput}>
               <CloseCircle
                 color={color.accentColor.closeColor}
-                size={scaledSize(24)}
+                size={scaledSize(30)}
                 variant="Bulk"
               />
             </TouchableOpacity>
@@ -166,13 +117,13 @@ export const Input = React.memo((props: InputProps) => {
               {secureTextEntry ? (
                 <Eye
                   color={color.accentColor.grayColor}
-                  size={scaledSize(24)}
+                  size={scaledSize(30)}
                   variant="Linear"
                 />
               ) : (
                 <EyeSlash
                   color={color.accentColor.grayColor}
-                  size={scaledSize(24)}
+                  size={scaledSize(30)}
                   variant="Linear"
                 />
               )}

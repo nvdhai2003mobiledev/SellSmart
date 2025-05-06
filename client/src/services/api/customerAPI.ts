@@ -7,7 +7,7 @@ import { ApiEndpoint } from './api-endpoint';
 const ANDROID_BASE_URL = 'http://10.0.2.2';  // Android emulator localhost
 const IOS_BASE_URL = 'http://localhost';     // iOS simulator localhost
 const DEFAULT_BASE_URL = 'http://localhost'; // Fallback
-const TABLE_BASE_URL = 'http://192.168.0.126.43'; 
+const TABLE_BASE_URL = 'http://192.168.1.170'; // Server IP (works on real devices)
 // List of ports to try
 const PORTS = [5000, 3000, 8000, 8080];
 
@@ -20,7 +20,7 @@ const generateBaseUrls = (baseUrl: string) => {
 const getBaseUrls = () => {
   if (Platform.OS === 'android') {
     // return generateBaseUrls(TABLE_BASE_URL);
-    return generateBaseUrls(ANDROID_BASE_URL);
+    return generateBaseUrls(TABLE_BASE_URL);
   } else if (Platform.OS === 'ios') {
     return generateBaseUrls(IOS_BASE_URL);
   }

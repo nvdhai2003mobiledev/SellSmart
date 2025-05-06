@@ -40,17 +40,19 @@ export const BaseLayout = React.memo(
           backgroundColor={backgroundColor}
         />
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{flex: 1}}>
+          behavior="padding"
+          style={styles.container}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 25}>
           {scrollable ? (
             <ScrollView
               style={[styles.contentContainer, contentContainerStyle]}
               showsVerticalScrollIndicator={false}
-              scrollEnabled={scrollable}>
+              scrollEnabled={scrollable}
+              keyboardShouldPersistTaps="handled">
               <View>{children}</View>
             </ScrollView>
           ) : (
-            <View>{children}</View>
+            <View style={styles.flexContainer}>{children}</View>
           )}
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -62,6 +64,12 @@ const styles = StyleSheet.create({
   safeAreaStyle: {
     flex: 1,
     paddingHorizontal: scaleWidth(20),
+  },
+  container: {
+    flex: 1,
+  },
+  flexContainer: {
+    flex: 1,
   },
   contentContainer: {
     flexGrow: 1,

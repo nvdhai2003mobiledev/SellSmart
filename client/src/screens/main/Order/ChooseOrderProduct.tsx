@@ -7,8 +7,13 @@ import {
   ActivityIndicator,
   Alert,
   TextStyle,
+  Image,
 } from 'react-native';
-import {useNavigation, useRoute, NavigationProp} from '@react-navigation/native';
+import {
+  useNavigation,
+  useRoute,
+  NavigationProp,
+} from '@react-navigation/native';
 import {
   BaseLayout,
   Header,
@@ -21,6 +26,8 @@ import {
   Scan,
   ShoppingCart,
   TickCircle,
+  Element3,
+  Grid2,
 } from 'iconsax-react-native';
 import {Screen, RootStackParamList} from '../../../navigation/navigation.type';
 import {
@@ -30,11 +37,9 @@ import {
   scaleHeight,
   scaleWidth,
 } from '../../../utils';
-import {
-  fetchProductsfororder,
-} from '../../../services/api/productAPI';
+import {fetchProductsfororder} from '../../../services/api/productAPI';
 import AsyncImage from '../../bottomTab/Product/AsyncImage';
-import {Fonts} from '../../../assets';
+import {Fonts, Images} from '../../../assets';
 
 interface ProductVariant {
   _id: string;
@@ -68,15 +73,16 @@ const ChooseOrderProduct = () => {
     [],
   );
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
 
   // Helper function to map variant IDs to human-readable names
   const mapVariantIdToName = (variantId: string): string => {
     // Map common variant IDs to their proper names
     const variantIdMap: {[key: string]: string} = {
       '6800b2361185e9116e44520b': 'Màu sắc',
-      '6803cd9047ead40c2b03a4a7': 'Dung lượng'
+      '6803cd9047ead40c2b03a4a7': 'Dung lượng',
     };
-    
+
     return variantIdMap[variantId] || 'Thuộc tính';
   };
 
@@ -89,7 +95,7 @@ const ChooseOrderProduct = () => {
 
       if (products && Array.isArray(products)) {
         console.log(`Fetched ${products.length} products from API`);
-        
+
         // Process products to match our format
         const processedProducts: ProductVariant[] = [];
 
@@ -97,12 +103,12 @@ const ChooseOrderProduct = () => {
           console.log('Processing product:', product.name, {
             hasVariants: product.hasVariants || false,
             variantsCount: product.detailsVariants?.length || 0,
-            productId: product._id
+            productId: product._id,
           });
-          
+
           // Get thumbnail from product data
           const thumbnailUrl = product.thumbnail || '';
-          
+
           // Check if product has variants
           if (
             product.hasVariants &&
@@ -125,43 +131,56 @@ const ChooseOrderProduct = () => {
 
               // Extract attributes from the variant
               const attributes: Array<{name: string; value: string}> = [];
-              
+
               // Handle variant details when they come as variantDetails array
-              if (variant.variantDetails && Array.isArray(variant.variantDetails)) {
+              if (
+                variant.variantDetails &&
+                Array.isArray(variant.variantDetails)
+              ) {
                 variant.variantDetails.forEach((detail: any) => {
                   if (detail.name && detail.value) {
                     attributes.push({
                       name: detail.name,
-                      value: String(detail.value)
+                      value: String(detail.value),
                     });
                   } else if (detail.variantId && detail.value) {
                     // Try to map known variant IDs to names
                     attributes.push({
                       name: mapVariantIdToName(detail.variantId),
-                      value: String(detail.value)
+                      value: String(detail.value),
                     });
                   }
                 });
               }
-              
+
               // Handle variant attributes in direct attributes object format (as seen in MongoDB data)
-              if (variant.attributes && typeof variant.attributes === 'object') {
+              if (
+                variant.attributes &&
+                typeof variant.attributes === 'object'
+              ) {
                 // Process attributes object
                 Object.entries(variant.attributes).forEach(([key, value]) => {
-                  if (key === 'Color' || key.toLowerCase() === 'color' || key === 'Màu sắc') {
+                  if (
+                    key === 'Color' ||
+                    key.toLowerCase() === 'color' ||
+                    key === 'Màu sắc'
+                  ) {
                     attributes.push({
                       name: 'Màu sắc',
-                      value: String(value)
+                      value: String(value),
                     });
-                  } else if (key === 'Dung lượng' || key.toLowerCase() === 'capacity') {
+                  } else if (
+                    key === 'Dung lượng' ||
+                    key.toLowerCase() === 'capacity'
+                  ) {
                     attributes.push({
                       name: 'Dung lượng',
-                      value: String(value)
+                      value: String(value),
                     });
                   } else {
                     attributes.push({
                       name: key,
-                      value: String(value)
+                      value: String(value),
                     });
                   }
                 });
@@ -172,7 +191,7 @@ const ChooseOrderProduct = () => {
               if (attributes.length === 0 && product.hasVariants) {
                 attributes.push({
                   name: 'Biến thể',
-                  value: `#${index + 1}`
+                  value: `#${index + 1}`,
                 });
               }
 
@@ -194,7 +213,11 @@ const ChooseOrderProduct = () => {
           } else {
             // Product without variants
             // Skip if no inventory or price is not available
-            if (!product.inventory || product.inventory <= 0 || !product.price) {
+            if (
+              !product.inventory ||
+              product.inventory <= 0 ||
+              !product.price
+            ) {
               return;
             }
 
@@ -214,7 +237,7 @@ const ChooseOrderProduct = () => {
         });
 
         console.log(`Processed ${processedProducts.length} products`);
-        
+
         // Sort products by name and then by price
         processedProducts.sort((a, b) => {
           // First sort by name
@@ -222,16 +245,16 @@ const ChooseOrderProduct = () => {
           if (nameComparison !== 0) {
             return nameComparison;
           }
-          
+
           // Then by variant status (non-variants first)
           if (a.isVariant !== b.isVariant) {
             return a.isVariant ? 1 : -1;
           }
-          
+
           // Then by price
           return a.price - b.price;
         });
-        
+
         setAllProducts(processedProducts);
         setFilteredProducts(processedProducts);
       } else {
@@ -240,7 +263,10 @@ const ChooseOrderProduct = () => {
       }
     } catch (error) {
       console.error('Error fetching product data:', error);
-      Alert.alert('Error', 'An unexpected error occurred while loading product data.');
+      Alert.alert(
+        'Error',
+        'An unexpected error occurred while loading product data.',
+      );
     } finally {
       setLoading(false);
     }
@@ -249,22 +275,28 @@ const ChooseOrderProduct = () => {
   // Initialize selected products from route params if available
   useEffect(() => {
     // If products are passed from order screen, process them to match our format
-    if (routeParams?.selectedProducts && routeParams.selectedProducts.length > 0) {
-      console.log('Received selected products from order screen:', routeParams.selectedProducts.length);
-      
+    if (
+      routeParams?.selectedProducts &&
+      routeParams.selectedProducts.length > 0
+    ) {
+      console.log(
+        'Received selected products from order screen:',
+        routeParams.selectedProducts.length,
+      );
+
       // Convert products from order screen format to our format
       const processedProducts = routeParams.selectedProducts.map(product => {
         // Extract original ID and variantId from the combined ID if necessary
         let originalId = product._id;
         let variantId = product.variantId;
-        
+
         // If _id contains a dash, it was previously combined (e.g., "originalId-variantId")
         if (typeof originalId === 'string' && originalId.includes('-')) {
           const parts = originalId.split('-');
           originalId = parts[0];
           variantId = parts[1];
         }
-        
+
         // Create a product variant structure that matches our format
         return {
           _id: originalId,
@@ -280,7 +312,7 @@ const ChooseOrderProduct = () => {
           original_price: product.original_price || 0,
         };
       });
-      
+
       setSelectedProducts(processedProducts);
     }
 
@@ -347,10 +379,10 @@ const ChooseOrderProduct = () => {
     const productsForOrder = selectedProducts.map(product => {
       // For variant products, we need to clearly identify both the original productId and the variantId
       // The backend needs these to be separate values, but we combine them here for unique identification
-      const uniqueId = product.variantId 
-        ? `${product._id}-${product.variantId}` 
+      const uniqueId = product.variantId
+        ? `${product._id}-${product.variantId}`
         : product._id;
-        
+
       console.log(`Product for order: ${product.name}`);
       console.log(`Original ID: ${product._id}`);
       console.log(`Variant ID: ${product.variantId || 'N/A'}`);
@@ -362,7 +394,7 @@ const ChooseOrderProduct = () => {
       if (thumbnailForDisplay && !thumbnailForDisplay.startsWith('http')) {
         thumbnailForDisplay = `http://10.0.2.2:5000${thumbnailForDisplay}`;
       }
-      
+
       return {
         ...product,
         _id: uniqueId, // Use the unique ID as the product ID for identification
@@ -373,7 +405,7 @@ const ChooseOrderProduct = () => {
         original_price: product.original_price || 0 // Ensure original_price is passed to order screen
       };
     });
-    
+
     // Navigate with properly typed parameters
     navigation.navigate(Screen.CREATEORDER, {
       selectedProducts: productsForOrder,
@@ -394,10 +426,7 @@ const ChooseOrderProduct = () => {
     return (
       <View style={{flexDirection: 'row', flexWrap: 'wrap'}}>
         {attributes.map((attr, index) => (
-          <DynamicText
-            key={index}
-            style={styles.variantText}
-            numberOfLines={1}>
+          <DynamicText key={index} style={styles.variantText} numberOfLines={1}>
             {attr.name}: {attr.value}
             {index < attributes.length - 1 ? ', ' : ''}
           </DynamicText>
@@ -406,61 +435,79 @@ const ChooseOrderProduct = () => {
     );
   };
 
-  const renderProductItem = ({item}: {item: ProductVariant}) => {
+  const renderProductItem = ({
+    item,
+    index,
+  }: {
+    item: ProductVariant;
+    index: number;
+  }) => {
     // Check if this item is selected
     const isSelected = isProductSelected(item);
-    
+
     // Create image URL with fallback if needed
     let imageSource;
-    if (item.thumbnail) {
-      imageSource = item.thumbnail.startsWith('http') 
-        ? {uri: item.thumbnail} 
-        : {uri: `http://10.0.2.2:5000${item.thumbnail}`};
+    if (item.thumbnail && item.thumbnail.trim() !== '') {
+      imageSource = item.thumbnail.startsWith('http')
+        ? {uri: item.thumbnail}
+        : {uri: `http://192.168.73.111:5000${item.thumbnail}`};
     } else {
-      // Fallback to empty view instead of placeholder image
+      // Use placeholder image
       imageSource = null;
     }
 
-    return (
-      <TouchableOpacity
-        style={[
-          styles.productItem,
-          isSelected && styles.selectedProductItem,
-          item.isVariant && styles.variantProductItem,
-        ]}
-        onPress={() => toggleProductSelection(item)}>
-        <View style={{flexDirection: 'row', alignItems: 'center'}}>
-          <View style={styles.checkboxContainer}>
-            <View
-              style={[
-                styles.checkbox,
-                isSelected && styles.checkedCheckbox,
-              ]}>
-              {isSelected && (
-                <TickCircle size={16} color="#fff" variant="Bold" />
-              )}
+    if (viewMode === 'grid') {
+      // Grid mode rendering
+      return (
+        <TouchableOpacity
+          style={[
+            styles.gridItem,
+            isSelected && styles.selectedProductItem,
+            item.isVariant && styles.variantProductItem,
+            {
+              marginRight: (index + 1) % 3 !== 0 ? scaleWidth(8) : 0,
+            },
+          ]}
+          onPress={() => toggleProductSelection(item)}>
+          <View style={styles.gridImageContainer}>
+            {isSelected && <View style={styles.selectedOverlay} />}
+            <View style={styles.gridCheckboxContainer}>
+              <View
+                style={[styles.checkbox, isSelected && styles.checkedCheckbox]}>
+                {isSelected && (
+                  <TickCircle size={16} color="#fff" variant="Bold" />
+                )}
+              </View>
             </View>
+            {imageSource ? (
+              <AsyncImage
+                source={imageSource}
+                style={styles.gridImage}
+                loadingColor={color.primaryColor}
+                retryable={true}
+              />
+            ) : (
+              <Image
+                source={Images.PLACEHOLDER}
+                style={styles.gridImage}
+                resizeMode="cover"
+              />
+            )}
           </View>
 
-          {imageSource ? (
-            <AsyncImage
-              source={imageSource}
-              style={styles.productImage}
-            />
-          ) : (
-            <View style={[styles.productImage, {backgroundColor: '#f5f5f5', justifyContent: 'center', alignItems: 'center'}]}>
-              <DynamicText style={{fontSize: 30, color: '#999'}}>{item.name[0]}</DynamicText>
-            </View>
-          )}
-
-          <View style={styles.productDetails}>
+          <View style={styles.gridDetails}>
             <DynamicText style={styles.productName} numberOfLines={1}>
               {item.name}
             </DynamicText>
-            
-            {renderVariantDetails(item.attributes)}
-            
-            <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4}}>
+
+            {item.attributes.length > 0 && (
+              <DynamicText style={styles.variantText} numberOfLines={1}>
+                {item.attributes[0].name}: {item.attributes[0].value}
+                {item.attributes.length > 1 ? '...' : ''}
+              </DynamicText>
+            )}
+
+            <View style={styles.productFooter}>
               <DynamicText style={styles.productPrice}>
                 {formatCurrency(item.price)}
               </DynamicText>
@@ -468,12 +515,75 @@ const ChooseOrderProduct = () => {
                 Còn {item.inventory} sp
               </DynamicText>
             </View>
-            
-            {item.product_code && (
-              <DynamicText style={styles.productCode}>
-                Mã: {item.product_code}
-              </DynamicText>
+          </View>
+        </TouchableOpacity>
+      );
+    }
+
+    // List mode rendering (existing code)
+    return (
+      <TouchableOpacity
+        style={[
+          styles.productItem,
+          {
+            backgroundColor: 'white',
+            borderWidth: 0.5,
+            borderColor: '#e0e0e0',
+          },
+          isSelected && styles.selectedProductItem,
+          item.isVariant && styles.variantProductItem,
+        ]}
+        onPress={() => toggleProductSelection(item)}>
+        <View style={{flexDirection: 'row', alignItems: 'center'}}>
+          <View style={styles.checkboxContainer}>
+            <View
+              style={[styles.checkbox, isSelected && styles.checkedCheckbox]}>
+              {isSelected && (
+                <TickCircle size={16} color="#fff" variant="Bold" />
+              )}
+            </View>
+          </View>
+
+          <View style={styles.productImageContainer}>
+            {imageSource ? (
+              <AsyncImage
+                source={imageSource}
+                style={styles.productImage}
+                loadingColor={color.primaryColor}
+                retryable={true}
+              />
+            ) : (
+              <Image
+                source={Images.PLACEHOLDER}
+                style={styles.productImage}
+                resizeMode="cover"
+              />
             )}
+          </View>
+
+          <View style={styles.productDetails}>
+            <View style={styles.productHeader}>
+              <DynamicText style={styles.productName} numberOfLines={1}>
+                {item.name}
+              </DynamicText>
+
+              {item.product_code && (
+                <DynamicText style={styles.productCode}>
+                  Mã: {item.product_code}
+                </DynamicText>
+              )}
+            </View>
+
+            {renderVariantDetails(item.attributes)}
+
+            <View style={styles.productFooter}>
+              <DynamicText style={styles.productPrice}>
+                {formatCurrency(item.price)}
+              </DynamicText>
+              <DynamicText style={styles.inventory}>
+                Còn {item.inventory} sp
+              </DynamicText>
+            </View>
           </View>
         </View>
       </TouchableOpacity>
@@ -481,14 +591,14 @@ const ChooseOrderProduct = () => {
   };
 
   return (
-    <BaseLayout contentContainerStyle={styles.container}>
+    <BaseLayout>
       <Header
         title="Chọn sản phẩm"
         showBackIcon
         onPressBack={() => navigation.goBack()}
       />
 
-      {/* Search Bar */}
+      {/* Search Bar and View Switcher */}
       <View style={styles.searchContainer}>
         <View style={styles.searchBarWrapper}>
           <Input
@@ -508,25 +618,42 @@ const ChooseOrderProduct = () => {
         <TouchableOpacity style={styles.scanButton}>
           <Scan size={20} color={color.primaryColor} variant="Bold" />
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.viewModeButton}
+          onPress={() => setViewMode(viewMode === 'list' ? 'grid' : 'list')}>
+          {viewMode === 'list' ? (
+            <Grid2 size={20} color={color.primaryColor} variant="Bold" />
+          ) : (
+            <Element3 size={20} color={color.primaryColor} variant="Bold" />
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* Product List */}
+
       {loading ? (
-        <ActivityIndicator
-          size="large"
-          color={color.primaryColor}
-          style={styles.loader}
-        />
+        <View style={styles.loadingBox}>
+          <ActivityIndicator size="large" color={color.primaryColor} />
+          <DynamicText style={styles.loadingText}>Đang tải...</DynamicText>
+        </View>
       ) : (
         <FlatList
+          key={viewMode} // Force re-render when view mode changes
           data={filteredProducts}
           renderItem={renderProductItem}
-          keyExtractor={item => 
+          keyExtractor={item =>
             item.variantId ? `${item._id}-${item.variantId}` : item._id
           }
+          numColumns={3}
           contentContainerStyle={[
-            styles.productsList, 
-            { paddingBottom: scaleHeight(320) }
+            styles.productsList,
+            filteredProducts.length === 0 && {
+              flex: 1,
+              justifyContent: 'center',
+            },
+            {paddingBottom: scaleHeight(170)},
+            viewMode === 'grid' && styles.gridList,
           ]}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
@@ -539,8 +666,9 @@ const ChooseOrderProduct = () => {
           }
         />
       )}
+
       {/* Bottom Bar with Selected Count and Confirm Button */}
-<View style={styles.bottomContainer}>
+      <View style={styles.bottomContainer}>
         <View style={styles.selectedInfo}>
           <DynamicText style={styles.selectedCount}>
             Đã chọn: {selectedProducts.length} sản phẩm
@@ -554,8 +682,6 @@ const ChooseOrderProduct = () => {
           disabled={selectedProducts.length === 0}
         />
       </View>
-
-      
     </BaseLayout>
   );
 };
@@ -563,7 +689,6 @@ const ChooseOrderProduct = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: color.backgroundColor,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -571,7 +696,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: scaleWidth(12),
     height: scaleHeight(100),
-    marginBottom: scaleHeight(10),
+    marginBottom: scaleHeight(30),
   },
   searchBarWrapper: {
     flex: 1,
@@ -579,60 +704,96 @@ const styles = StyleSheet.create({
   searchInputContainer: {
     height: scaleHeight(100),
     backgroundColor: color.inputColor,
+    borderRadius: moderateScale(8),
   },
   searchInputStyle: {
-    fontSize: scaledSize(20),
+    fontSize: scaledSize(22),
   },
   scanButton: {
-    width: scaleWidth(40),
-    height: scaleWidth(40),
+    width: scaleWidth(38),
+    height: scaleWidth(38),
     borderRadius: moderateScale(8),
     backgroundColor: color.inputColor,
     justifyContent: 'center',
     alignItems: 'center',
+    borderColor: 'rgba(0, 0, 0, 0.2)',
+    borderWidth: 0.5,
+  },
+  viewModeButton: {
+    width: scaleWidth(38),
+    height: scaleWidth(38),
+    borderRadius: moderateScale(8),
+    backgroundColor: color.inputColor,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderColor: 'rgba(0, 0, 0, 0.2)',
+    borderWidth: 0.5,
   },
   productsList: {
-    paddingLeft: scaleWidth(5),
-    paddingRight: scaleWidth(16),
+    paddingHorizontal: scaleWidth(16),
   },
   productItem: {
     backgroundColor: 'white',
     borderRadius: moderateScale(8),
-    marginBottom: scaleHeight(8),
+    marginBottom: scaleHeight(16),
     padding: scaleWidth(10),
     borderWidth: 0.5,
-    borderColor: '#e0e0e0',
-    marginVertical: scaleHeight(10),
+    borderColor: 'rgba(0, 0, 0, 0.01)',
+    overflow: 'hidden',
+    elevation: 1,
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.1,
+    shadowColor: 'rgba(0, 0, 0, 0.01)',
   },
   selectedProductItem: {
     backgroundColor: '#E1F5FE',
     borderColor: color.primaryColor,
     borderWidth: 1,
   },
-  variantProductItem: {
-    marginLeft: scaleWidth(10),
-    borderLeftWidth: 3,
-    borderLeftColor: color.primaryColor,
+  variantProductItem: {},
+  productImageContainer: {
+    width: scaleWidth(48),
+    height: scaleWidth(48),
+    borderRadius: moderateScale(6),
+    marginRight: scaleWidth(12),
+    overflow: 'hidden',
   },
   productImage: {
     width: scaleWidth(48),
     height: scaleWidth(48),
     borderRadius: moderateScale(6),
-    marginRight: scaleWidth(12),
   },
   productDetails: {
     flex: 1,
+    justifyContent: 'space-between',
+  },
+  productHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   productName: {
-    fontSize: scaledSize(25),
+    fontSize: scaledSize(22),
     fontFamily: Fonts.Inter_Regular,
-    marginBottom: scaleHeight(2),
+    flex: 1,
+  },
+  productCode: {
+    fontSize: scaledSize(16),
+    fontFamily: Fonts.Inter_Regular,
+    color: '#999',
+    marginLeft: scaleWidth(8),
   },
   variantText: {
-    fontSize: scaledSize(20),
+    fontSize: scaledSize(18),
     fontFamily: Fonts.Inter_Regular,
     color: '#666',
-    marginBottom: scaleHeight(2),
+    marginTop: scaleHeight(2),
+  },
+  productFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: scaleHeight(4),
   },
   productPrice: {
     fontSize: scaledSize(20),
@@ -640,22 +801,16 @@ const styles = StyleSheet.create({
     color: color.primaryColor,
   },
   inventory: {
-    fontSize: scaledSize(20),
-    fontFamily: Fonts.Inter_Regular,
-    color: '#666',
-  },
-  productCode: {
     fontSize: scaledSize(18),
     fontFamily: Fonts.Inter_Regular,
-    color: '#999',
-    marginTop: scaleHeight(2),
+    color: '#666',
   },
   checkboxContainer: {
     marginRight: scaleWidth(8),
   },
   checkbox: {
-    width: scaleWidth(22),
-    height: scaleWidth(22),
+    width: scaleWidth(18),
+    height: scaleWidth(18),
     borderRadius: moderateScale(4),
     borderWidth: 1,
     borderColor: '#ddd',
@@ -668,42 +823,47 @@ const styles = StyleSheet.create({
   },
   bottomContainer: {
     position: 'absolute',
-    bottom: 90,
-    left: 0,
-    right: 0,
-    padding: scaleWidth(16),
+    bottom: 0,
+    left: -20,
+    right: -20,
     backgroundColor: 'white',
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     height: scaleHeight(150),
-
+    paddingHorizontal: scaleWidth(28),
   },
   selectedInfo: {
     flex: 1,
   },
   selectedCount: {
-    fontSize: scaledSize(16),
+    fontSize: scaledSize(22),
     fontFamily: Fonts.Inter_SemiBold,
     color: color.accentColor.darkColor,
   },
   confirmButton: {
-    height: scaleHeight(100),
-    width: scaleWidth(120),
     backgroundColor: color.primaryColor,
     borderRadius: moderateScale(8),
+    width: scaleWidth(120),
+    height: scaleHeight(90),
   },
   confirmButtonText: {
-    fontSize: scaledSize(16),
+    fontSize: scaledSize(20),
     fontFamily: Fonts.Inter_SemiBold,
     color: 'white',
   },
-  loader: {
+  loadingBox: {
     flex: 1,
+    height: '100%',
+    width: '100%',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: scaleHeight(10),
+    color: color.primaryColor,
+    fontSize: scaledSize(18),
+    fontFamily: Fonts.Inter_SemiBold,
   },
   emptyContainer: {
     alignItems: 'center',
@@ -715,6 +875,54 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.Inter_Regular,
     color: color.accentColor.grayColor,
     marginTop: scaleHeight(12),
+  },
+  gridList: {
+    paddingHorizontal: scaleWidth(16),
+    paddingTop: scaleHeight(10),
+    paddingBottom: scaleHeight(170),
+  },
+  gridItem: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderRadius: moderateScale(8),
+    marginBottom: scaleHeight(20),
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+    overflow: 'hidden',
+    elevation: 1,
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.1,
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    width: `${100 / 3 - 2}%`,
+  },
+  gridImageContainer: {
+    width: '100%',
+    height: scaleWidth(150),
+    position: 'relative',
+  },
+  gridImage: {
+    width: '100%',
+    height: '100%',
+    borderTopLeftRadius: moderateScale(8),
+    borderTopRightRadius: moderateScale(8),
+  },
+  selectedOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 153, 255, 0.3)',
+    zIndex: 1,
+  },
+  gridCheckboxContainer: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    zIndex: 2,
+  },
+  gridDetails: {
+    padding: scaleWidth(6),
   },
 });
 

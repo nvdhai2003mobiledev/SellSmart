@@ -10,15 +10,14 @@ import {
   Dimensions,
   RefreshControl,
   Image,
-  Platform,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import {useFocusEffect} from '@react-navigation/native';
 import {
   ShoppingCart,
   CloseCircle,
-  Add,
   SearchNormal,
   Filter,
   ArrowRotateRight,
@@ -26,6 +25,9 @@ import {
   Profile2User,
   ArrowDown2,
   TickSquare,
+  Grid2,
+  Element3,
+  Add,
 } from 'iconsax-react-native';
 import {observer} from 'mobx-react-lite';
 import {layStore, taiLaiSanPham} from '../../../models/product/product-store';
@@ -46,13 +48,10 @@ import {
   Header,
   Input,
 } from '../../../components';
-import {Fonts} from '../../../assets';
+import {Fonts, Images} from '../../../assets';
 import {create} from 'apisauce';
-import {rootStore} from '../../../models/root-store';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import FastImage from 'react-native-fast-image';
-import {Api} from '../../../services/api/api';
-import {ApiEndpoint} from '../../../services/api/api-endpoint';
 import productAPI from '../../../services/api/productAPI';
 
 // Define fonts object locally if the import is causing issues
@@ -90,11 +89,28 @@ const SelectDropdown = ({
   const displayText = selectedOption ? selectedOption.label : placeholder;
 
   return (
-    <View style={styles.selectContainer}>
+    <View style={{marginBottom: moderateScale(16)}}>
       <TouchableOpacity
-        style={styles.selectField}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          height: scaleHeight(110),
+          paddingHorizontal: moderateScale(16),
+          borderWidth: 1,
+          borderColor: 'rgba(0, 0, 0, 0.1)',
+          borderRadius: moderateScale(8),
+          backgroundColor: color.accentColor.whiteColor,
+        }}
         onPress={() => setShowOptions(true)}>
-        <Text style={styles.selectText}>{displayText}</Text>
+        <Text
+          style={{
+            fontSize: moderateScale(12),
+            fontFamily: Fonts.Inter_Regular,
+            color: color.accentColor.darkColor,
+          }}>
+          {displayText}
+        </Text>
         <ArrowDown2 size={16} color={color.accentColor.grayColor} />
       </TouchableOpacity>
 
@@ -207,6 +223,24 @@ interface CartItem {
   selected: boolean;
 }
 
+// Function to get the correct server URL based on device type
+const getServerBaseUrl = () => {
+  // Set this to true if testing on emulator, false for real device
+  const isEmulator = false;
+
+  if (Platform.OS === 'android') {
+    return isEmulator
+      ? 'http://10.0.2.2:5000' // Android Emulator special IP
+      : 'http://192.168.1.170:5000'; // Real device - use actual server IP
+  } else if (Platform.OS === 'ios') {
+    return isEmulator
+      ? 'http://localhost:5000' // iOS Simulator
+      : 'http://192.168.1.170:5000'; // Real device - use actual server IP
+  }
+
+  return 'http://192.168.1.170:5000'; // Default fallback
+};
+
 const ProductScreen = observer(() => {
   const navigation = useNavigation<any>();
   const [store] = useState(() => {
@@ -226,10 +260,14 @@ const ProductScreen = observer(() => {
   const [totalCartItems, setTotalCartItems] = useState(0);
   const [variantSelectionVisible, setVariantSelectionVisible] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<any>(null);
-  const [selectedVariants, setSelectedVariants] = useState<Record<string, boolean>>({});
+  const [selectedVariants, setSelectedVariants] = useState<
+    Record<string, boolean>
+  >({});
   const [cartModalVisible, setCartModalVisible] = useState(false);
   const [isSelectingForCheckout, setIsSelectingForCheckout] = useState(false);
-  const [checkoutSelectedItems, setCheckoutSelectedItems] = useState<Record<string, boolean>>({});
+  const [checkoutSelectedItems, setCheckoutSelectedItems] = useState<
+    Record<string, boolean>
+  >({});
 
   // Search and filter state
   const [searchText, setSearchText] = useState('');
@@ -256,6 +294,9 @@ const ProductScreen = observer(() => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
 
+  // Add view mode toggle
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
+
   // Lọc danh sách sản phẩm dựa trên điều kiện tìm kiếm và bộ lọc
   const filterProducts = useCallback(
     (products: any[], search: string, category: string, provider: string) => {
@@ -264,7 +305,7 @@ const ProductScreen = observer(() => {
         console.warn('products không phải là mảng:', products);
         return [];
       }
-      
+
       // Tạo bản sao của mảng để tránh thay đổi mảng gốc
       let filtered = [...products];
       console.log(`Bắt đầu lọc ${filtered.length} sản phẩm`);
@@ -273,38 +314,55 @@ const ProductScreen = observer(() => {
       if (search && search.trim()) {
         const searchLower = search.toLowerCase().trim();
         console.log(`Đang tìm kiếm với từ khóa: "${searchLower}"`);
-        
+
         filtered = filtered.filter(item => {
           if (!item) return false;
-          
+
           // Tìm theo tên sản phẩm
-          const name = typeof item.name === 'string' ? item.name.toLowerCase() : '';
-          
+          const name =
+            typeof item.name === 'string' ? item.name.toLowerCase() : '';
+
           // Tìm theo ID sản phẩm
           const id = item._id ? item._id.toLowerCase() : '';
-          
+
           // Tìm theo mã sản phẩm (product_code)
-          const productCode = item.product_code ? item.product_code.toLowerCase() : '';
-          
+          const productCode = item.product_code
+            ? item.product_code.toLowerCase()
+            : '';
+
           // Kiểm tra các trường cơ bản
-          if (name.includes(searchLower) || id.includes(searchLower) || productCode.includes(searchLower)) {
+          if (
+            name.includes(searchLower) ||
+            id.includes(searchLower) ||
+            productCode.includes(searchLower)
+          ) {
             return true;
           }
-          
+
           // Tìm trong các thuộc tính biến thể nếu có
-          if (item.hasVariants && item.detailsVariants && Array.isArray(item.detailsVariants)) {
+          if (
+            item.hasVariants &&
+            item.detailsVariants &&
+            Array.isArray(item.detailsVariants)
+          ) {
             for (const variant of item.detailsVariants) {
               if (!variant) continue;
-              
+
               // Kiểm tra attributes
               if (variant.attributes) {
                 // Nếu attributes là MobX Map
-                if (variant.attributes.entries && typeof variant.attributes.entries === 'function') {
+                if (
+                  variant.attributes.entries &&
+                  typeof variant.attributes.entries === 'function'
+                ) {
                   try {
                     // Sử dụng for...of thay vì forEach để tránh lỗi
                     for (const key of variant.attributes.keys()) {
                       const value = variant.attributes.get(key);
-                      if (typeof value === 'string' && value.toLowerCase().includes(searchLower)) {
+                      if (
+                        typeof value === 'string' &&
+                        value.toLowerCase().includes(searchLower)
+                      ) {
                         return true;
                       }
                     }
@@ -313,10 +371,16 @@ const ProductScreen = observer(() => {
                   }
                 }
                 // Nếu attributes là object thông thường
-                else if (typeof variant.attributes === 'object' && variant.attributes !== null) {
+                else if (
+                  typeof variant.attributes === 'object' &&
+                  variant.attributes !== null
+                ) {
                   const values = Object.values(variant.attributes);
                   for (const value of values) {
-                    if (typeof value === 'string' && value.toLowerCase().includes(searchLower)) {
+                    if (
+                      typeof value === 'string' &&
+                      value.toLowerCase().includes(searchLower)
+                    ) {
                       return true;
                     }
                   }
@@ -324,58 +388,58 @@ const ProductScreen = observer(() => {
               }
             }
           }
-          
+
           return false;
         });
-        
+
         console.log(`Sau khi tìm kiếm: ${filtered.length} sản phẩm`);
       }
 
       // Apply category filter
       if (category && category !== 'all') {
         console.log(`Đang lọc theo danh mục: ${category}`);
-        
+
         filtered = filtered.filter(item => {
           if (!item || !item.category) return false;
-          
+
           const categoryName =
             typeof item.category === 'string'
               ? item.category
               : item.category?.name || '';
           return categoryName === category;
         });
-        
+
         console.log(`Sau khi lọc danh mục: ${filtered.length} sản phẩm`);
       }
 
       // Apply provider filter
       if (provider && provider !== 'all') {
         console.log(`Đang lọc theo nhà cung cấp: ${provider}`);
-        
+
         filtered = filtered.filter(item => {
           if (!item || !item.providerId) return false;
-          
+
           const providerName =
             typeof item.providerId === 'string'
               ? item.providerId
               : item.providerId?.fullName || '';
           return providerName === provider;
         });
-        
+
         console.log(`Sau khi lọc nhà cung cấp: ${filtered.length} sản phẩm`);
       }
 
       // Sắp xếp sản phẩm: ưu tiên sản phẩm có tồn kho > 0
       filtered.sort((a, b) => {
         if (!a || !b) return 0;
-        
+
         const aInventory = a.inventory || 0;
         const bInventory = b.inventory || 0;
-        
+
         // Ưu tiên sản phẩm có tồn kho
         if (aInventory > 0 && bInventory === 0) return -1;
         if (aInventory === 0 && bInventory > 0) return 1;
-        
+
         // Nếu cùng trạng thái tồn kho, sắp xếp theo tên
         return (a.name || '').localeCompare(b.name || '');
       });
@@ -420,7 +484,7 @@ const ProductScreen = observer(() => {
           label: cat,
           value: cat,
         }))
-      : [{ label: 'Đang tải danh mục...', value: 'all' }];
+      : [{label: 'Đang tải danh mục...', value: 'all'}];
   }, [getUniqueCategories]);
 
   // Combined providers from products and additional sources
@@ -431,7 +495,7 @@ const ProductScreen = observer(() => {
           label: provider,
           value: provider,
         }))
-      : [{ label: 'Đang tải nhà cung cấp...', value: 'all' }];
+      : [{label: 'Đang tải nhà cung cấp...', value: 'all'}];
   }, [getUniqueProviders]);
 
   // Danh sách products đã được lọc theo bộ lọc hiện tại
@@ -440,12 +504,12 @@ const ProductScreen = observer(() => {
     if (!store.products || store.products.length === 0) {
       return [];
     }
-    
+
     // Chuyển đổi MST array sang mảng JavaScript thông thường
     // Sử dụng JSON.parse(JSON.stringify()) để tạo bản sao sâu của dữ liệu
     // Điều này giúp đảm bảo dữ liệu được làm mới hoàn toàn và không bị ảnh hưởng bởi các tham chiếu
     const productsArray = JSON.parse(JSON.stringify(store.products));
-    
+
     // Lọc sản phẩm theo các điều kiện
     const filtered = filterProducts(
       productsArray,
@@ -453,15 +517,15 @@ const ProductScreen = observer(() => {
       selectedFilter,
       selectedProvider,
     );
-    
+
     console.log('Lọc sản phẩm:', {
       tổng: store.products.length,
       sau_khi_lọc: filtered.length,
       từ_khóa: searchText,
       danh_mục: selectedFilter,
-      nhà_cung_cấp: selectedProvider
+      nhà_cung_cấp: selectedProvider,
     });
-    
+
     return filtered;
   }, [
     // Sử dụng JSON.stringify(store.products) thay vì store.products trực tiếp
@@ -607,7 +671,7 @@ const ProductScreen = observer(() => {
       return () => {
         // Cleanup khi màn hình mất focus
       };
-    }, [])
+    }, []),
   );
 
   // Refresh products khi kéo xuống
@@ -631,39 +695,45 @@ const ProductScreen = observer(() => {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       console.log('loadData: Đang tải lại dữ liệu sản phẩm...');
-      
+
       // Sử dụng taiLaiSanPham từ store để đảm bảo dữ liệu được làm mới hoàn toàn
       // Với cấu hình cache-busting để tránh cache
       await taiLaiSanPham();
-      
-      console.log('loadData: Đã tải lại sản phẩm thành công, đang tải danh mục và nhà cung cấp...');
-      
+
+      console.log(
+        'loadData: Đã tải lại sản phẩm thành công, đang tải danh mục và nhà cung cấp...',
+      );
+
       // Load categories and providers in parallel
       // Thêm timestamp để tránh cache
       const timestamp = Date.now();
       const cacheParams = `?_t=${timestamp}`;
-      
+
       const [categoriesData, providersData] = await Promise.all([
         productAPI.fetchCategories(cacheParams),
-        productAPI.fetchProviders(cacheParams)
+        productAPI.fetchProviders(cacheParams),
       ]);
-      
+
       // Format categories
-      const formattedCategories = categoriesData.map((cat: { name: string; _id: string }) => ({
-        label: cat.name,
-        value: cat._id
-      }));
+      const formattedCategories = categoriesData.map(
+        (cat: {name: string; _id: string}) => ({
+          label: cat.name,
+          value: cat._id,
+        }),
+      );
       setCategories(formattedCategories);
-      
+
       // Format providers
-      const formattedProviders = providersData.map((provider: { fullName: string; _id: string }) => ({
-        label: provider.fullName,
-        value: provider._id
-      }));
+      const formattedProviders = providersData.map(
+        (provider: {fullName: string; _id: string}) => ({
+          label: provider.fullName,
+          value: provider._id,
+        }),
+      );
       setProviders(formattedProviders);
-      
+
       console.log('loadData: Đã tải xong tất cả dữ liệu');
       setIsLoading(false);
     } catch (error) {
@@ -696,9 +766,9 @@ const ProductScreen = observer(() => {
     const product = store.products.find(p => p._id === productId);
     if (product) {
       const existingItemIndex = cartItemsDetail.findIndex(
-        item => 
-          item.productId === productId && 
-          (variant ? item.variantId === variant._id : !item.variantId)
+        item =>
+          item.productId === productId &&
+          (variant ? item.variantId === variant._id : !item.variantId),
       );
 
       if (existingItemIndex >= 0) {
@@ -707,18 +777,36 @@ const ProductScreen = observer(() => {
         updatedCartItems[existingItemIndex].quantity += 1;
         setCartItemsDetail(updatedCartItems);
       } else {
-        // Add new cart item
-        setCartItemsDetail([
-          ...cartItemsDetail,
-          {
-            productId,
-            variantId: variant ? variant._id : undefined,
-            product,
-            variant,
-            quantity: 1,
-            selected: true,
+        // Create a compatible CartItem object with safe type conversions
+        const newCartItem: CartItem = {
+          productId,
+          variantId: variant ? variant._id : undefined,
+          product: {
+            _id: product._id,
+            name: product.name,
+            thumbnail: product.thumbnail || undefined,
+            category:
+              typeof product.category === 'string'
+                ? {_id: product.category, name: product.category}
+                : product.category || {_id: '', name: 'Không phân loại'},
+            providerId:
+              typeof product.providerId === 'string'
+                ? {_id: product.providerId, fullName: product.providerId}
+                : product.providerId || {_id: '', fullName: 'Không có'},
+            status: product.status || 'available',
+            hasVariants: !!product.hasVariants,
+            price: product.price || 0,
+            inventory: product.inventory || 0,
+            warrantyPeriod: product.warrantyPeriod || 0,
+            inventoryId: product.inventoryId || '',
+            isPublished: true, // Default value to satisfy type
           },
-        ]);
+          variant,
+          quantity: 1,
+          selected: true,
+        };
+
+        setCartItemsDetail([...cartItemsDetail, newCartItem]);
       }
     }
 
@@ -762,30 +850,34 @@ const ProductScreen = observer(() => {
   const toggleVariantSelection = (variantId: string) => {
     setSelectedVariants(prev => ({
       ...prev,
-      [variantId]: !prev[variantId]
+      [variantId]: !prev[variantId],
     }));
   };
 
   // Add multiple selected variants to cart
   const addSelectedVariantsToCart = () => {
     if (!selectedProduct) return;
-    
-    const selectedVariantIds = Object.keys(selectedVariants).filter(id => selectedVariants[id]);
-    
+
+    const selectedVariantIds = Object.keys(selectedVariants).filter(
+      id => selectedVariants[id],
+    );
+
     if (selectedVariantIds.length === 0) {
       // If no variants selected, show alert
       Alert.alert('Thông báo', 'Vui lòng chọn ít nhất một biến thể');
       return;
     }
-    
+
     // Add each selected variant to cart
     selectedVariantIds.forEach(variantId => {
-      const variant = selectedProduct.detailsVariants.find((v: any) => v._id === variantId);
+      const variant = selectedProduct.detailsVariants.find(
+        (v: any) => v._id === variantId,
+      );
       if (variant) {
         addToCart(selectedProduct._id, variant);
       }
     });
-    
+
     // Close the variant selection modal
     setVariantSelectionVisible(false);
   };
@@ -793,33 +885,33 @@ const ProductScreen = observer(() => {
   // Update item quantity in the cart
   const updateCartItemQuantity = (index: number, newQuantity: number) => {
     if (newQuantity < 1) return;
-    
+
     const updatedCartItems = [...cartItemsDetail];
     const item = updatedCartItems[index];
-    
+
     // Check inventory limit
-    const inventoryLimit = item.variant 
-      ? (item.variant.inventory || Infinity) 
-      : (item.product.inventory || Infinity);
-      
+    const inventoryLimit = item.variant
+      ? item.variant.inventory || Infinity
+      : item.product.inventory || Infinity;
+
     if (newQuantity > inventoryLimit) {
       Alert.alert('Thông báo', 'Số lượng không thể vượt quá tồn kho');
       return;
     }
-    
+
     // Update in detailed cart
     updatedCartItems[index].quantity = newQuantity;
     setCartItemsDetail(updatedCartItems);
-    
+
     // Update in simple cart
-    const cartKey = item.variantId 
-      ? `${item.productId}_${item.variantId}` 
+    const cartKey = item.variantId
+      ? `${item.productId}_${item.variantId}`
       : item.productId;
-    
+
     const newCartItems = {...cartItems};
     newCartItems[cartKey] = newQuantity;
     setCartItems(newCartItems);
-    
+
     // Recalculate total
     const newTotal = Object.values(newCartItems).reduce(
       (sum, quantity) => sum + quantity,
@@ -832,27 +924,27 @@ const ProductScreen = observer(() => {
   const removeFromCart = (index: number) => {
     const updatedCartItems = [...cartItemsDetail];
     const itemToRemove = updatedCartItems[index];
-    
+
     // Remove from detailed cart
     updatedCartItems.splice(index, 1);
     setCartItemsDetail(updatedCartItems);
-    
+
     // Remove from simple cart
-    const cartKey = itemToRemove.variantId 
-      ? `${itemToRemove.productId}_${itemToRemove.variantId}` 
+    const cartKey = itemToRemove.variantId
+      ? `${itemToRemove.productId}_${itemToRemove.variantId}`
       : itemToRemove.productId;
-    
+
     const newCartItems = {...cartItems};
     delete newCartItems[cartKey];
     setCartItems(newCartItems);
-    
+
     // Recalculate total
     const newTotal = Object.values(newCartItems).reduce(
       (sum, quantity) => sum + quantity,
       0,
     );
     setTotalCartItems(newTotal);
-    
+
     // If cart is empty, close cart modal
     if (updatedCartItems.length === 0) {
       setCartModalVisible(false);
@@ -872,44 +964,44 @@ const ProductScreen = observer(() => {
       Alert.alert('Thông báo', 'Giỏ hàng đang trống');
       return;
     }
-    
+
     // Open cart modal for selection
     setIsSelectingForCheckout(true);
     setCartModalVisible(true);
-    
+
     // Initialize selection state based on current cart items
     const initialSelection = {};
     cartItemsDetail.forEach(item => {
       // Use a unique key combining product ID and variant ID if exists
-      const itemKey = item.variantId 
-        ? `${item.productId}_${item.variantId}` 
+      const itemKey = item.variantId
+        ? `${item.productId}_${item.variantId}`
         : item.productId;
-      
+
       // Default to selected
       initialSelection[itemKey] = true;
     });
-    
+
     setCheckoutSelectedItems(initialSelection);
   };
 
   // Toggle selection of an item in the cart modal
   const toggleItemSelectionForCheckout = (item: CartItem) => {
-    const itemKey = item.variantId 
-      ? `${item.productId}_${item.variantId}` 
+    const itemKey = item.variantId
+      ? `${item.productId}_${item.variantId}`
       : item.productId;
-    
+
     setCheckoutSelectedItems(prev => ({
       ...prev,
-      [itemKey]: !prev[itemKey]
+      [itemKey]: !prev[itemKey],
     }));
   };
 
   // Check if an item is selected in the checkout modal
   const isItemSelectedForCheckout = (item: CartItem): boolean => {
-    const itemKey = item.variantId 
-      ? `${item.productId}_${item.variantId}` 
+    const itemKey = item.variantId
+      ? `${item.productId}_${item.variantId}`
       : item.productId;
-    
+
     return !!checkoutSelectedItems[itemKey];
   };
 
@@ -917,34 +1009,37 @@ const ProductScreen = observer(() => {
   const processCheckout = () => {
     // Get selected items based on checkout selection state
     const selectedItems = cartItemsDetail.filter(item => {
-      const itemKey = item.variantId 
-        ? `${item.productId}_${item.variantId}` 
+      const itemKey = item.variantId
+        ? `${item.productId}_${item.variantId}`
         : item.productId;
-      
+
       return checkoutSelectedItems[itemKey];
     });
-    
+
     if (selectedItems.length === 0) {
       Alert.alert('Thông báo', 'Vui lòng chọn ít nhất một sản phẩm');
       return;
     }
-    
+
     // Convert to format expected by CreateOrderScreen
     const productsForOrder = selectedItems.map(item => {
       // Determine price based on variant or base product
       const price = item.variant ? item.variant.price : item.product.price;
-      
+
       // Create attributes array from variant if exists
-      let attributes: Array<{name: string, value: string | string[]}> = [];
+      let attributes: Array<{name: string; value: string | string[]}> = [];
       if (item.variant && item.variant.attributes) {
         // Handle attributes from MobX Map or regular object
-        if (item.variant.attributes.entries && typeof item.variant.attributes.entries === 'function') {
+        if (
+          item.variant.attributes.entries &&
+          typeof item.variant.attributes.entries === 'function'
+        ) {
           // MobX Map
           for (const [key, value] of item.variant.attributes.entries()) {
             if (key !== '_id') {
               attributes.push({
                 name: key,
-                value: value
+                value: value,
               });
             }
           }
@@ -954,31 +1049,35 @@ const ProductScreen = observer(() => {
             if (key !== '_id') {
               attributes.push({
                 name: key,
-                value: value as string
+                value: value as string,
               });
             }
           });
         }
       }
-      
+
       return {
-        _id: item.variantId ? `${item.productId}-${item.variantId}` : item.productId,
+        _id: item.variantId
+          ? `${item.productId}-${item.variantId}`
+          : item.productId,
         originalProductId: item.productId,
         variantId: item.variantId,
         name: item.product.name,
         price: price,
-        inventory: item.variant ? (item.variant.inventory || 0) : (item.product.inventory || 0),
+        inventory: item.variant
+          ? item.variant.inventory || 0
+          : item.product.inventory || 0,
         quantity: item.quantity,
         thumbnail: item.product.thumbnail,
-        attributes: attributes
+        attributes: attributes,
       };
     });
-    
+
     // Navigate to CreateOrderScreen with selected products
     navigation.navigate(Screen.CREATEORDER, {
       selectedProducts: productsForOrder,
     });
-    
+
     // Close cart modal
     setCartModalVisible(false);
     setIsSelectingForCheckout(false);
@@ -988,13 +1087,13 @@ const ProductScreen = observer(() => {
   const selectAllItems = () => {
     const allSelected = {};
     cartItemsDetail.forEach(item => {
-      const itemKey = item.variantId 
-        ? `${item.productId}_${item.variantId}` 
+      const itemKey = item.variantId
+        ? `${item.productId}_${item.variantId}`
         : item.productId;
-      
+
       allSelected[itemKey] = true;
     });
-    
+
     setCheckoutSelectedItems(allSelected);
   };
 
@@ -1002,13 +1101,13 @@ const ProductScreen = observer(() => {
   const deselectAllItems = () => {
     const allDeselected = {};
     cartItemsDetail.forEach(item => {
-      const itemKey = item.variantId 
-        ? `${item.productId}_${item.variantId}` 
+      const itemKey = item.variantId
+        ? `${item.productId}_${item.variantId}`
         : item.productId;
-      
+
       allDeselected[itemKey] = false;
     });
-    
+
     setCheckoutSelectedItems(allDeselected);
   };
 
@@ -1021,181 +1120,230 @@ const ProductScreen = observer(() => {
     // Log dữ liệu gốc để debug
     console.log('=== DỮ LIỆU GỐC SẢN PHẨM ===');
     console.log(JSON.stringify(item, null, 2));
-    
+
     // Tạo đối tượng để lưu thông tin chi tiết về biến thể
-    const variantInfo = item.hasVariants && item.detailsVariants ? 
-      item.detailsVariants.map((variant: any, index: number) => {
-        // Log từng biến thể để debug với định dạng đẹp hơn
-        console.log(`=== CHI TIẾT BIẾN THỂ ${index} ===`);
-        console.log(JSON.stringify(variant, null, 2));
-        
-        // Xử lý trường hợp attributes có thể là undefined, null, hoặc object
-        const attributesObj: Record<string, string> = {};
-        let variantNameStr = '';
-        
-        // Kiểm tra cấu trúc của biến thể
-        console.log(`Các key trong biến thể ${index}:`, Object.keys(variant));
-        
-        // Vấn đề chính: Có sự khác biệt giữa mô hình trong product.ts và dữ liệu thực tế từ API
-        // Mô hình mong đợi variantDetails, nhưng dữ liệu thực tế có attributes
-        
-        // Trường hợp 1: Biến thể có trường attributes
-        if (variant.attributes) {
-          console.log(`Tìm thấy trường attributes trong biến thể ${index}:`, variant.attributes);
-          
-          // Kiểm tra nếu attributes là MobX Map (có phương thức entries, keys, get)
-          if (variant.attributes.entries && typeof variant.attributes.entries === 'function') {
-            try {
-              // Đây là MobX Map
-              // Sử dụng toán tử as để đảm bảo TypeScript hiểu đây là MobX Map
-              const mobxMap = variant.attributes as {
-                keys: () => IterableIterator<string>;
-                get: (key: string) => string;
-              };
-              
-              // Lấy danh sách các key
-              const keys: string[] = [];
-              for (const key of mobxMap.keys()) {
-                keys.push(key);
-              }
-              console.log(`Các key trong MobX Map attributes:`, keys);
-              
-              // Tạo object từ MobX Map
-              for (const key of keys) {
-                const value = mobxMap.get(key);
-                if (typeof value === 'string') {
-                  attributesObj[key] = value;
+    const variantInfo =
+      item.hasVariants && item.detailsVariants
+        ? item.detailsVariants.map((variant: any, index: number) => {
+            // Log từng biến thể để debug với định dạng đẹp hơn
+            console.log(`=== CHI TIẾT BIẾN THỂ ${index} ===`);
+            console.log(JSON.stringify(variant, null, 2));
+
+            // Xử lý trường hợp attributes có thể là undefined, null, hoặc object
+            const attributesObj: Record<string, string> = {};
+            let variantNameStr = '';
+
+            // Kiểm tra cấu trúc của biến thể
+            console.log(
+              `Các key trong biến thể ${index}:`,
+              Object.keys(variant),
+            );
+
+            // Vấn đề chính: Có sự khác biệt giữa mô hình trong product.ts và dữ liệu thực tế từ API
+            // Mô hình mong đợi variantDetails, nhưng dữ liệu thực tế có attributes
+
+            // Trường hợp 1: Biến thể có trường attributes
+            if (variant.attributes) {
+              console.log(
+                `Tìm thấy trường attributes trong biến thể ${index}:`,
+                variant.attributes,
+              );
+
+              // Kiểm tra nếu attributes là MobX Map (có phương thức entries, keys, get)
+              if (
+                variant.attributes.entries &&
+                typeof variant.attributes.entries === 'function'
+              ) {
+                try {
+                  // Đây là MobX Map
+                  // Sử dụng toán tử as để đảm bảo TypeScript hiểu đây là MobX Map
+                  const mobxMap = variant.attributes as {
+                    keys: () => IterableIterator<string>;
+                    get: (key: string) => string;
+                  };
+
+                  // Lấy danh sách các key
+                  const keys: string[] = [];
+                  for (const key of mobxMap.keys()) {
+                    keys.push(key);
+                  }
+                  console.log(`Các key trong MobX Map attributes:`, keys);
+
+                  // Tạo object từ MobX Map
+                  for (const key of keys) {
+                    const value = mobxMap.get(key);
+                    if (typeof value === 'string') {
+                      attributesObj[key] = value;
+                    }
+                  }
+
+                  // Tạo tên biến thể từ attributes
+                  const nameFragments: string[] = [];
+                  for (const key of keys) {
+                    if (key !== '_id') {
+                      const value = mobxMap.get(key);
+                      nameFragments.push(`${key}: ${value}`);
+                    }
+                  }
+                  variantNameStr = nameFragments.join(', ');
+                } catch (error) {
+                  console.error('Lỗi khi xử lý MobX Map:', error);
                 }
               }
-              
-              // Tạo tên biến thể từ attributes
-              const nameFragments: string[] = [];
-              for (const key of keys) {
-                if (key !== '_id') {
-                  const value = mobxMap.get(key);
-                  nameFragments.push(`${key}: ${value}`);
+              // Nếu attributes là object thông thường
+              else if (
+                typeof variant.attributes === 'object' &&
+                variant.attributes !== null
+              ) {
+                try {
+                  // Sao chép các thuộc tính từ object
+                  Object.entries(variant.attributes).forEach(([key, value]) => {
+                    if (typeof value === 'string') {
+                      attributesObj[key] = value;
+                    }
+                  });
+
+                  // Tạo tên biến thể từ attributes
+                  variantNameStr = Object.entries(attributesObj)
+                    .filter(([key, value]) => key !== '_id' && value) // Loại bỏ _id và các giá trị null/undefined
+                    .map(([key, value]) => `${key}: ${value}`)
+                    .join(', ');
+                } catch (error) {
+                  console.error('Lỗi khi xử lý attributes object:', error);
                 }
               }
-              variantNameStr = nameFragments.join(', ');
-            } catch (error) {
-              console.error('Lỗi khi xử lý MobX Map:', error);
             }
-          } 
-          // Nếu attributes là object thông thường
-          else if (typeof variant.attributes === 'object' && variant.attributes !== null) {
-            try {
-              // Sao chép các thuộc tính từ object
-              Object.entries(variant.attributes).forEach(([key, value]) => {
-                if (typeof value === 'string') {
-                  attributesObj[key] = value;
+
+            // Trường hợp 2: Biến thể có trường variantDetails (theo mô hình product.ts)
+            if (
+              !variantNameStr &&
+              variant.variantDetails &&
+              Array.isArray(variant.variantDetails)
+            ) {
+              console.log(
+                `Tìm thấy trường variantDetails trong biến thể ${index}:`,
+                variant.variantDetails,
+              );
+
+              try {
+                // Tạo tên biến thể từ variantDetails
+                const details = variant.variantDetails.filter(
+                  (detail: any) => detail && detail.value,
+                );
+                if (details.length > 0) {
+                  variantNameStr = details
+                    .map((detail: any) => detail.value)
+                    .join(', ');
                 }
-              });
-              
-              // Tạo tên biến thể từ attributes
-              variantNameStr = Object.entries(attributesObj)
-                .filter(([key, value]) => key !== '_id' && value) // Loại bỏ _id và các giá trị null/undefined
-                .map(([key, value]) => `${key}: ${value}`)
-                .join(', ');
-            } catch (error) {
-              console.error('Lỗi khi xử lý attributes object:', error);
-            }
-          }
-        }
-        
-        // Trường hợp 2: Biến thể có trường variantDetails (theo mô hình product.ts)
-        if (!variantNameStr && variant.variantDetails && Array.isArray(variant.variantDetails)) {
-          console.log(`Tìm thấy trường variantDetails trong biến thể ${index}:`, variant.variantDetails);
-          
-          try {
-            // Tạo tên biến thể từ variantDetails
-            const details = variant.variantDetails.filter((detail: any) => detail && detail.value);
-            if (details.length > 0) {
-              variantNameStr = details
-                .map((detail: any) => detail.value)
-                .join(', ');
-            }
-          } catch (error) {
-            console.error('Lỗi khi xử lý variantDetails:', error);
-          }
-        }
-        
-        // Trường hợp 3: Thuộc tính được lưu trực tiếp trong biến thể
-        if (!variantNameStr) {
-          // Danh sách các key cần loại trừ (không phải thuộc tính)
-          const excludedKeys = ['price', 'original_price', 'inventory', '_id', 'attributes', 'variantDetails', '__v'];
-          
-          try {
-            // Kiểm tra cụ thể các trường hợp đặc biệt
-            const variantAny = variant as any;
-            
-            if (variantAny['Loại Máy'] || variantAny['Chất Liệu']) {
-              console.log(`Tìm thấy thuộc tính trực tiếp trong biến thể ${index}`);
-              
-              if (variantAny['Loại Máy']) {
-                attributesObj['Loại Máy'] = variantAny['Loại Máy'];
-                variantNameStr += (variantNameStr ? ', ' : '') + `Loại Máy: ${variantAny['Loại Máy']}`;
+              } catch (error) {
+                console.error('Lỗi khi xử lý variantDetails:', error);
               }
-              
-              if (variantAny['Chất Liệu']) {
-                attributesObj['Chất Liệu'] = variantAny['Chất Liệu'];
-                variantNameStr += (variantNameStr ? ', ' : '') + `Chất Liệu: ${variantAny['Chất Liệu']}`;
-              }
-            } else {
-              // Thu thập tất cả các key không phải là thuộc tính hệ thống
-              Object.keys(variant).forEach(key => {
-                if (!excludedKeys.includes(key) && typeof variantAny[key] === 'string') {
-                  const attrValue = variantAny[key];
-                  attributesObj[key] = attrValue;
-                  variantNameStr += (variantNameStr ? ', ' : '') + `${key}: ${attrValue}`;
+            }
+
+            // Trường hợp 3: Thuộc tính được lưu trực tiếp trong biến thể
+            if (!variantNameStr) {
+              // Danh sách các key cần loại trừ (không phải thuộc tính)
+              const excludedKeys = [
+                'price',
+                'original_price',
+                'inventory',
+                '_id',
+                'attributes',
+                'variantDetails',
+                '__v',
+              ];
+
+              try {
+                // Kiểm tra cụ thể các trường hợp đặc biệt
+                const variantAny = variant as any;
+
+                if (variantAny['Loại Máy'] || variantAny['Chất Liệu']) {
+                  console.log(
+                    `Tìm thấy thuộc tính trực tiếp trong biến thể ${index}`,
+                  );
+
+                  if (variantAny['Loại Máy']) {
+                    attributesObj['Loại Máy'] = variantAny['Loại Máy'];
+                    variantNameStr +=
+                      (variantNameStr ? ', ' : '') +
+                      `Loại Máy: ${variantAny['Loại Máy']}`;
+                  }
+
+                  if (variantAny['Chất Liệu']) {
+                    attributesObj['Chất Liệu'] = variantAny['Chất Liệu'];
+                    variantNameStr +=
+                      (variantNameStr ? ', ' : '') +
+                      `Chất Liệu: ${variantAny['Chất Liệu']}`;
+                  }
+                } else {
+                  // Thu thập tất cả các key không phải là thuộc tính hệ thống
+                  Object.keys(variant).forEach(key => {
+                    if (
+                      !excludedKeys.includes(key) &&
+                      typeof variantAny[key] === 'string'
+                    ) {
+                      const attrValue = variantAny[key];
+                      attributesObj[key] = attrValue;
+                      variantNameStr +=
+                        (variantNameStr ? ', ' : '') + `${key}: ${attrValue}`;
+                    }
+                  });
                 }
-              });
+              } catch (error) {
+                console.error('Lỗi khi xử lý thuộc tính trực tiếp:', error);
+              }
             }
-          } catch (error) {
-            console.error('Lỗi khi xử lý thuộc tính trực tiếp:', error);
-          }
-        }
-        
-        // Trường hợp 4: Sử dụng các thuộc tính đặc biệt nếu có
-        if (!variantNameStr && variant._id) {
-          variantNameStr = `ID: ${variant._id}`;
-        }
-        
-        // Nếu vẫn không có tên biến thể
-        if (!variantNameStr) {
-          variantNameStr = 'Biến thể không tên';
-        }
-        
-        // Log kết quả xử lý biến thể
-        console.log(`Kết quả xử lý biến thể ${index}:`, {
-          attributes: attributesObj,
-          variantName: variantNameStr
-        });
-        
-        return {
-          attributes: attributesObj,
-          price: variant.price || 0,
-          original_price: variant.original_price || 0,
-          quantity: variant.inventory || 0,
-          _id: variant._id || '',
-          variantName: variantNameStr || 'Biến thể không tên'
-        };
-      }) : [];
-    
+
+            // Trường hợp 4: Sử dụng các thuộc tính đặc biệt nếu có
+
+            // Trường hợp 4: Sử dụng các thuộc tính đặc biệt nếu có
+            if (!variantNameStr && variant._id) {
+              variantNameStr = `ID: ${variant._id}`;
+            }
+
+            // Nếu vẫn không có tên biến thể
+            if (!variantNameStr) {
+              variantNameStr = 'Biến thể không tên';
+            }
+
+            // Log kết quả xử lý biến thể
+            console.log(`Kết quả xử lý biến thể ${index}:`, {
+              attributes: attributesObj,
+              variantName: variantNameStr,
+            });
+
+            return {
+              attributes: attributesObj,
+              price: variant.price || 0,
+              original_price: variant.original_price || 0,
+              quantity: variant.inventory || 0,
+              _id: variant._id || '',
+              variantName: variantNameStr || 'Biến thể không tên',
+            };
+          })
+        : [];
+
     // Tính tổng số lượng hàng tồn kho
-    const totalInventory = item.hasVariants && item.detailsVariants
-      ? item.detailsVariants.reduce((sum: number, variant: any) => sum + (variant.inventory || 0), 0)
-      : (item.inventory || 0);
-      
+    const totalInventory =
+      item.hasVariants && item.detailsVariants
+        ? item.detailsVariants.reduce(
+            (sum: number, variant: any) => sum + (variant.inventory || 0),
+            0,
+          )
+        : item.inventory || 0;
+
     // Tạo đối tượng provider chi tiết
-    const providerDetail = typeof item.providerId === 'string'
-      ? { id: item.providerId, name: item.providerId }
-      : { id: item.providerId?._id, name: item.providerId?.fullName };
-      
+    const providerDetail =
+      typeof item.providerId === 'string'
+        ? {id: item.providerId, name: item.providerId}
+        : {id: item.providerId?._id, name: item.providerId?.fullName};
+
     // Tạo đối tượng category chi tiết
-    const categoryDetail = typeof item.category === 'string'
-      ? { id: item.category, name: item.category }
-      : { id: item.category?._id, name: item.category?.name };
-    
+    const categoryDetail =
+      typeof item.category === 'string'
+        ? {id: item.category, name: item.category}
+        : {id: item.category?._id, name: item.category?.name};
+
     // Tạo object chi tiết sản phẩm để log
     const productDetails = {
       id: item._id,
@@ -1221,14 +1369,14 @@ const ProductScreen = observer(() => {
       deviceInfo: {
         width: Dimensions.get('window').width,
         height: Dimensions.get('window').height,
-        isTablet: Dimensions.get('window').width > 768
-      }
+        isTablet: Dimensions.get('window').width > 768,
+      },
     };
-    
+
     // Log chi tiết sản phẩm với định dạng đẹp hơn
     console.log('=== CHI TIẾT SẢN PHẨM ===');
     console.log(JSON.stringify(productDetails, null, 2));
-    
+
     setSelectedProduct(item);
     setModalVisible(true);
   };
@@ -1256,7 +1404,7 @@ const ProductScreen = observer(() => {
       const response = await fetch('http://10.0.2.2:5000/api/products/json', {
         method: 'GET',
         headers: {
-          'Accept': 'application/json',
+          Accept: 'application/json',
           'Content-Type': 'application/json',
         },
       });
@@ -1270,7 +1418,10 @@ const ProductScreen = observer(() => {
           console.log('setProducts with array:', data.data);
         } else if (data.data.productsWithPriceAndInventory) {
           setProducts(data.data.productsWithPriceAndInventory);
-          console.log('setProducts with productsWithPriceAndInventory:', data.data.productsWithPriceAndInventory);
+          console.log(
+            'setProducts with productsWithPriceAndInventory:',
+            data.data.productsWithPriceAndInventory,
+          );
         } else {
           setProducts([]);
           console.log('setProducts with empty array');
@@ -1289,109 +1440,211 @@ const ProductScreen = observer(() => {
 
   // Hàm lấy giá bán hiển thị
   const getDisplayPrice = (item: any) => {
-    if (item.hasVariants && Array.isArray(item.detailsVariants) && item.detailsVariants.length > 0) {
+    if (
+      item.hasVariants &&
+      Array.isArray(item.detailsVariants) &&
+      item.detailsVariants.length > 0
+    ) {
       return Math.min(...item.detailsVariants.map((v: any) => v.price));
     }
     return item.price;
   };
 
-  const renderItem = ({item}: {item: Product}) => {
+  // Format currency display
+  const formatCurrency = (amount: number) => {
+    return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',') + 'đ';
+  };
+
+  const renderItem = ({item, index}: {item: Product; index: number}) => {
     // Kiểm tra item có hợp lệ không
     if (!item) {
       console.warn('renderItem nhận item không hợp lệ:', item);
       return null;
     }
-    
+
     // Chỉ hiển thị sản phẩm đã có giá bán (price > 0)
     if (!item.price || item.price <= 0) {
       return null;
     }
 
-    const hasVariants = item.hasVariants && item.variantDetails && item.variantDetails.length > 0;
-    const totalInventory = hasVariants 
-      ? item.variantDetails?.reduce((sum, v) => sum + v.quantity, 0) 
+    const hasVariants =
+      item.hasVariants && item.variantDetails && item.variantDetails.length > 0;
+    const totalInventory = hasVariants
+      ? item.variantDetails?.reduce((sum, v) => sum + v.quantity, 0)
       : item.inventory;
-    
-    const getImageSource = (): ImageSource | undefined => {
-      if (!item.thumbnail) return undefined;
-      
+
+    const getImageSource = (): any => {
+      if (!item.thumbnail) return Images.PLACEHOLDER;
+
       // Nếu là URL đầy đủ
       if (item.thumbnail.startsWith('http')) {
-        return { uri: item.thumbnail };
+        return {uri: item.thumbnail};
       }
-      
+
       // Nếu là đường dẫn tương đối từ backend
       if (item.thumbnail.startsWith('/')) {
-        return { uri: `http://10.0.2.2:5000${item.thumbnail}` };
+        return {uri: `${getServerBaseUrl()}${item.thumbnail}`};
       }
-      
-      return undefined;
+
+      return Images.PLACEHOLDER;
     };
 
     const imageSource = getImageSource();
-    const categoryName = typeof item.category === 'string' ? item.category : item.category?.name || 'Không phân loại';
+    const categoryName =
+      typeof item.category === 'string'
+        ? item.category
+        : item.category?.name || 'Không phân loại';
 
-    return (
-      <TouchableOpacity 
-        style={styles.productCard}
-        onPress={() => showProductDetails(item)}
-      >
-        {imageSource ? (
-          <FastImage 
-            source={imageSource}
-            style={[styles.productImage as any]}
-            resizeMode={FastImage.resizeMode.cover}
-          />
-        ) : (
-          <View style={[styles.productImage, styles.noImageContainer]}>
-            <Ionicons name="image-outline" size={40} color="#ccc" />
-          </View>
-        )}
-        
-        <View style={styles.productInfo}>
-          <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
-          <Text style={styles.categoryText}>{categoryName}</Text>
-          
-          <View style={styles.productDetails}>
-            {item.warrantyPeriod && (
-              <View style={styles.detailRow}>
-                <Ionicons name="shield-checkmark-outline" size={16} color="#666" />
-                <Text style={styles.detailText}>BH: {item.warrantyPeriod} tháng</Text>
+    // Grid view rendering
+    if (viewMode === 'grid') {
+      return (
+        <TouchableOpacity
+          style={[
+            styles.gridItem,
+            // {
+            //   marginRight: (index + 1) % 3 !== 0 ? scaleWidth(8) : 0,
+            // },
+          ]}
+          onPress={() => showProductDetails(item)}>
+          <View style={styles.gridImageContainer}>
+            {imageSource ? (
+              <AsyncImage
+                source={imageSource}
+                style={styles.gridImage}
+                loadingColor={color.primaryColor}
+                retryable={true}
+              />
+            ) : (
+              <View style={[styles.gridImage, styles.noImageContainer]}>
+                <Ionicons name="image-outline" size={40} color="#ccc" />
               </View>
             )}
-            
-            <View style={styles.detailRow}>
-              <Ionicons name="cube-outline" size={16} color="#666" />
-              <Text style={styles.detailText}>Còn: {totalInventory}</Text>
+
+            {/* Display inventory badge on top of image */}
+            <View style={styles.inventoryBadge}>
+              <DynamicText style={styles.inventoryBadgeText}>
+                {(totalInventory || 0) > 0
+                  ? `Còn: ${totalInventory || 0}`
+                  : 'Hết hàng'}
+              </DynamicText>
             </View>
           </View>
-          
-          {hasVariants && Array.isArray((item as any).detailsVariants) && (item as any).detailsVariants.length > 0 ? (
-            <View>
-              <Text style={styles.variantText}>{(item as any).detailsVariants.length} biến thể</Text>
-              <Text style={styles.priceText}>
-                Từ: {Math.min(...((item as any).detailsVariants as any[]).map((v: any) => v.price)).toLocaleString('vi-VN')}đ
+
+          <View style={styles.gridDetails}>
+            <View style={styles.gridCategoryRow}>
+              <DynamicText style={styles.categoryText} numberOfLines={1}>
+                {categoryName}
+              </DynamicText>
+            </View>
+
+            <DynamicText style={styles.gridProductName} numberOfLines={2}>
+              {item.name}
+            </DynamicText>
+
+            <View style={styles.gridPriceRow}>
+              {hasVariants &&
+              Array.isArray((item as any).detailsVariants) &&
+              (item as any).detailsVariants.length > 0 ? (
+                <Text style={styles.priceText}>
+                  {formatCurrency(
+                    Math.min(
+                      ...((item as any).detailsVariants as any[]).map(
+                        (v: any) => v.price,
+                      ),
+                    ),
+                  )}
+                  <Text style={styles.variantText}>
+                    {' '}
+                    ({(item as any).detailsVariants.length} biến thể)
+                  </Text>
+                </Text>
+              ) : (
+                <DynamicText style={styles.priceText}>
+                  {formatCurrency(getDisplayPrice(item))}
+                </DynamicText>
+              )}
+
+              <TouchableOpacity
+                style={styles.addToCartGridButton}
+                onPress={e => handleAddToCartClick(item, e)}>
+                <Add
+                  size={20}
+                  color={color.accentColor.whiteColor}
+                  variant="Linear"
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      );
+    }
+
+    // List view rendering
+    return (
+      <TouchableOpacity
+        style={styles.listItem}
+        onPress={() => showProductDetails(item)}>
+        <View style={{flexDirection: 'row', alignItems: 'center'}}>
+          <View style={styles.productImageContainer}>
+            {imageSource ? (
+              <FastImage
+                source={imageSource}
+                style={styles.productImage}
+                resizeMode={FastImage.resizeMode.cover}
+              />
+            ) : (
+              <View style={[styles.productImage, styles.noImageContainer]}>
+                <Ionicons name="image-outline" size={24} color="#ccc" />
+              </View>
+            )}
+          </View>
+
+          <View style={styles.productDetails}>
+            <View style={styles.productHeader}>
+              <Text style={styles.productName} numberOfLines={1}>
+                {item.name}
               </Text>
             </View>
-          ) : hasVariants && Array.isArray((item as any).variantDetails) && (item as any).variantDetails.length > 0 ? (
-            <View>
-              <Text style={styles.variantText}>{(item as any).variantDetails.length} biến thể</Text>
-              <Text style={styles.priceText}>
-                Từ: {Math.min(...((item as any).variantDetails as any[]).map((v: any) => v.price)).toLocaleString('vi-VN')}đ
-              </Text>
+
+            <Text style={styles.categoryText}>{categoryName}</Text>
+
+            <View style={styles.productFooter}>
+              {hasVariants &&
+              Array.isArray((item as any).detailsVariants) &&
+              (item as any).detailsVariants.length > 0 ? (
+                <View>
+                  <Text style={styles.variantText}>
+                    {(item as any).detailsVariants.length} biến thể
+                  </Text>
+                  <Text style={styles.priceText}>
+                    Từ:{' '}
+                    {formatCurrency(
+                      Math.min(
+                        ...((item as any).detailsVariants as any[]).map(
+                          (v: any) => v.price,
+                        ),
+                      ),
+                    )}
+                  </Text>
+                </View>
+              ) : (
+                <Text style={styles.priceText}>
+                  {formatCurrency(getDisplayPrice(item))}
+                </Text>
+              )}
+
+              <View style={styles.inventoryAndButtonContainer}>
+                <DynamicText style={styles.inventoryText}>
+                  Còn: {totalInventory}
+                </DynamicText>
+                <TouchableOpacity
+                  style={styles.addToCartListButton}
+                  onPress={e => handleAddToCartClick(item, e)}>
+                  <Ionicons name="add-circle" size={28} color="#007AFF" />
+                </TouchableOpacity>
+              </View>
             </View>
-          ) : (
-            <Text style={styles.priceText}>
-              {getDisplayPrice(item)?.toLocaleString('vi-VN')}đ
-            </Text>
-          )}
-          
-          <TouchableOpacity 
-            style={styles.addToCartButton}
-            onPress={(e) => handleAddToCartClick(item, e)}
-          >
-            <Ionicons name="add-circle" size={24} color="#007AFF" />
-          </TouchableOpacity>
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -1413,9 +1666,7 @@ const ProductScreen = observer(() => {
   return (
     <BaseLayout style={styles.container}>
       {/* Header Title */}
-      <View style={styles.headerTitleWrapper}>
-        <Text style={styles.headerTitleText}>Sản phẩm</Text>
-      </View>
+      <Header title="Sản phẩm" />
 
       {/* Search and Filter Bar */}
       <View style={styles.searchContainer}>
@@ -1428,27 +1679,43 @@ const ProductScreen = observer(() => {
             inputContainerStyle={styles.searchInput}
           />
         </View>
+
+        <TouchableOpacity
+          style={styles.viewModeButton}
+          onPress={() => setViewMode(viewMode === 'list' ? 'grid' : 'list')}>
+          {viewMode === 'list' ? (
+            <Grid2 size={20} color={color.primaryColor} variant="Bold" />
+          ) : (
+            <Element3 size={20} color={color.primaryColor} variant="Bold" />
+          )}
+        </TouchableOpacity>
+
         <TouchableOpacity
           style={styles.filterButton}
           onPress={toggleFilterModal}>
           <Filter color={color.accentColor.whiteColor} size={24} />
         </TouchableOpacity>
-      </View>
 
-      {/* Checkout Button Below Search/Filter */}
-      {totalCartItems > 0 && (
-        <View style={styles.checkoutButtonWrapperFixed}>
-          <TouchableOpacity 
-            style={styles.checkoutButtonFullFixed} 
+        {totalCartItems > 0 && (
+          <TouchableOpacity
+            style={styles.headerCartButton}
             onPress={() => setCartModalVisible(true)}>
-            <ShoppingCart size={scaledSize(24)} color="#fff" variant="Bold" />
-            <Text style={styles.checkoutButtonTextFullFixed}>Giỏ hàng</Text>
-            <View style={styles.cartBadgeFullFixed}>
-              <Text style={styles.cartBadgeTextFullFixed}>{totalCartItems}</Text>
+            <ShoppingCart
+              size={20}
+              color={color.accentColor.whiteColor}
+              variant="Bold"
+            />
+            <View style={styles.headerCartBadge}>
+              <DynamicText style={styles.headerCartBadgeText}>
+                {totalCartItems}
+              </DynamicText>
             </View>
           </TouchableOpacity>
-        </View>
-      )}
+        )}
+      </View>
+
+      {/* REMOVE Checkout Button Below Search/Filter */}
+      {/* Old floating checkout button code removed */}
 
       {/* Active Filters Display */}
       {(selectedFilter !== 'all' || selectedProvider !== 'all') && (
@@ -1499,15 +1766,19 @@ const ProductScreen = observer(() => {
         ) : (
           <>
             <FlatList
+              key={viewMode} // Force re-render when view mode changes
               data={filteredProducts as any}
               renderItem={renderItem}
               keyExtractor={item => item._id}
-              numColumns={4}
+              numColumns={viewMode === 'grid' ? 3 : 1}
               contentContainerStyle={[
                 styles.productList,
-                {paddingBottom: moderateScale(100)},
+                {paddingBottom: moderateScale(120)},
+                viewMode === 'grid' && styles.gridList,
               ]}
-              columnWrapperStyle={styles.columnWrapper}
+              columnWrapperStyle={
+                viewMode === 'grid' ? styles.columnWrapper : undefined
+              }
               ListEmptyComponent={renderEmptyList}
               ListFooterComponent={() =>
                 totalCartItems > 0 ? (
@@ -1551,25 +1822,46 @@ const ProductScreen = observer(() => {
         visible={isFilterModalVisible}
         onRequestClose={() => setIsFilterModalVisible(false)}>
         <View style={styles.modalContainer}>
-          <View style={[styles.modalContent, styles.filterModalContent]}>
+          <View
+            style={[
+              styles.filterModalContent,
+              isTablet ? styles.tabletFilterModalContent : null,
+            ]}>
+            {/* Modal Header */}
             <View style={styles.filterModalHeader}>
-              <Text style={styles.filterModalTitle}>Bộ lọc sản phẩm</Text>
+              <DynamicText style={styles.filterModalTitle}>
+                Lọc sản phẩm
+              </DynamicText>
               <TouchableOpacity
-                style={styles.closeButton}
+                style={styles.closeFilterButton}
                 onPress={() => setIsFilterModalVisible(false)}>
-                <CloseCircle size={24} color="#666" variant="Bold" />
+                <CloseCircle
+                  size={22}
+                  color={color.accentColor.darkColor}
+                  variant="Bold"
+                />
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.filterScrollView}>
+            {/* Modal Content */}
+            <ScrollView
+              style={styles.filterScrollView}
+              showsVerticalScrollIndicator={false}>
+              {/* Bộ lọc danh mục */}
               <View style={styles.filterSection}>
                 <View style={styles.filterSectionHeader}>
-                  <Category2 size={20} color="#333" />
-                  <Text style={styles.filterSectionTitle}>Danh mục</Text>
+                  <Category2
+                    size={20}
+                    color={color.primaryColor}
+                    variant="Bold"
+                  />
+                  <DynamicText style={styles.filterSectionTitle}>
+                    Danh mục
+                  </DynamicText>
                 </View>
                 <SelectDropdown
                   options={[
-                    {label: 'Tất cả', value: 'all'},
+                    {label: 'Tất cả danh mục', value: 'all'},
                     ...productCategories,
                   ]}
                   selectedValue={selectedFilter}
@@ -1578,14 +1870,21 @@ const ProductScreen = observer(() => {
                 />
               </View>
 
+              {/* Bộ lọc nhà cung cấp */}
               <View style={styles.filterSection}>
                 <View style={styles.filterSectionHeader}>
-                  <Profile2User size={20} color="#333" />
-                  <Text style={styles.filterSectionTitle}>Nhà cung cấp</Text>
+                  <Profile2User
+                    size={20}
+                    color={color.primaryColor}
+                    variant="Bold"
+                  />
+                  <DynamicText style={styles.filterSectionTitle}>
+                    Nhà cung cấp
+                  </DynamicText>
                 </View>
                 <SelectDropdown
                   options={[
-                    {label: 'Tất cả', value: 'all'},
+                    {label: 'Tất cả nhà cung cấp', value: 'all'},
                     ...productProviders,
                   ]}
                   selectedValue={selectedProvider}
@@ -1594,33 +1893,49 @@ const ProductScreen = observer(() => {
                 />
               </View>
 
+              {/* Tùy chọn hiển thị */}
               <View style={styles.filterSection}>
                 <View style={styles.filterSectionHeader}>
-                  <Ionicons name="options-outline" size={20} color="#333" />
-                  <Text style={styles.filterSectionTitle}>Tùy chọn hiển thị</Text>
+                  <Ionicons
+                    name="options-outline"
+                    size={20}
+                    color={color.primaryColor}
+                  />
+                  <DynamicText style={styles.filterSectionTitle}>
+                    Tùy chọn hiển thị
+                  </DynamicText>
                 </View>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.filterOptionRow}
-                  onPress={() => {}}
-                >
-                  <TickSquare size={24} color="#007AFF" variant="Bold" />
-                  <Text style={styles.optionText}>Chỉ hiển thị sản phẩm có tồn kho</Text>
+                  onPress={() => {}}>
+                  <View style={styles.checkboxContainer}>
+                    <TickSquare
+                      size={20}
+                      color={color.primaryColor}
+                      variant="Bold"
+                    />
+                  </View>
+                  <DynamicText style={styles.optionText}>
+                    Chỉ hiển thị sản phẩm có tồn kho
+                  </DynamicText>
                 </TouchableOpacity>
               </View>
             </ScrollView>
 
+            {/* Filter Action Buttons */}
             <View style={styles.filterModalFooter}>
               <Button
                 buttonContainerStyle={styles.resetFiltersButton}
                 onPress={resetFilters}
-                title="Đặt lại"
                 titleStyle={styles.resetFiltersText}
+                title="Đặt lại"
               />
+
               <Button
                 buttonContainerStyle={styles.applyFiltersButton}
-                onPress={() => setIsFilterModalVisible(false)}
-                title="Áp dụng"
                 titleStyle={styles.applyFiltersText}
+                title="Áp dụng"
+                onPress={() => setIsFilterModalVisible(false)}
               />
             </View>
           </View>
@@ -1628,174 +1943,6 @@ const ProductScreen = observer(() => {
       </Modal>
 
       {/* Product Detail Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setModalVisible(false)}>
-              <CloseCircle size={24} color="#666" variant="Bold" />
-            </TouchableOpacity>
-
-            {selectedProduct && (
-              <ScrollView style={styles.detailsScrollView}>
-                <AsyncImage
-                  source={{
-                    uri: selectedProduct.thumbnail || '',
-                  }}
-                  style={styles.detailImage}
-                  resizeMode="contain"
-                />
-                <View style={styles.detailInfo}>
-                  <Text style={styles.detailName}>{selectedProduct.name}</Text>
-                  <Text style={styles.detailCategory}>
-                    Danh mục:{' '}
-                    {typeof selectedProduct.category === 'string'
-                      ? selectedProduct.category
-                      : selectedProduct.category?.name || 'Không phân loại'}
-                  </Text>
-                  <Text style={styles.detailProvider}>
-                    Nhà cung cấp:{' '}
-                    {typeof selectedProduct.providerId === 'string'
-                      ? selectedProduct.providerId
-                      : selectedProduct.providerId?.fullName || 'Không có'}
-                  </Text>
-                  <Text style={styles.detailPrice}>
-                    {selectedProduct.hasVariants &&
-                    selectedProduct.detailsVariants &&
-                    selectedProduct.detailsVariants.length > 0
-                      ? `${selectedProduct.detailsVariants[0].price.toLocaleString(
-                          'vi-VN',
-                        )} đ`
-                      : selectedProduct.price
-                      ? `${selectedProduct.price.toLocaleString('vi-VN')} đ`
-                      : 'Liên hệ'}
-                  </Text>
-
-                  <View style={styles.variantsContainer}>
-                    {selectedProduct.hasVariants &&
-                      selectedProduct.detailsVariants &&
-                      selectedProduct.detailsVariants.length > 0 && (
-                        <>
-                          <Text style={styles.variantsTitle}>
-                            Biến thể sản phẩm
-                          </Text>
-                          {selectedProduct.detailsVariants.map(
-                            (variant: any, index: number) => {
-                              // Xử lý tên biến thể
-                              let variantNameText = '';
-                              
-                              // Nếu đã có variantName đã được xử lý trước đó
-                              if (variant.variantName && typeof variant.variantName === 'string') {
-                                variantNameText = variant.variantName;
-                              }
-                              // Nếu có attributes dạng MobX Map
-                              else if (variant.attributes && variant.attributes.entries && typeof variant.attributes.entries === 'function') {
-                                try {
-                                  const mobxMap = variant.attributes as {
-                                    keys: () => IterableIterator<string>;
-                                    get: (key: string) => string;
-                                  };
-                                  
-                                  const keys: string[] = [];
-                                  for (const key of mobxMap.keys()) {
-                                    if (key !== '_id') keys.push(key);
-                                  }
-                                  
-                                  variantNameText = keys
-                                    .map(key => `${key}: ${mobxMap.get(key)}`)
-                                    .join(', ');
-                                } catch (error) {
-                                  console.error('Lỗi khi xử lý attributes:', error);
-                                }
-                              }
-                              // Nếu có attributes dạng object thông thường
-                              else if (variant.attributes && typeof variant.attributes === 'object') {
-                                try {
-                                  variantNameText = Object.entries(variant.attributes)
-                                    .filter(([key, value]) => key !== '_id' && value)
-                                    .map(([key, value]) => `${key}: ${value}`)
-                                    .join(', ');
-                                } catch (error) {
-                                  console.error('Lỗi khi xử lý attributes object:', error);
-                                }
-                              }
-                              // Nếu không có cách nào khác, sử dụng hàm getVariantName
-                              else {
-                                variantNameText = getVariantName(variant) || 'Biến thể không tên';
-                              }
-                              
-                              // Đảm bảo luôn có tên biến thể
-                              if (!variantNameText) {
-                                variantNameText = 'Biến thể không tên';
-                              }
-
-                              // Kiểm tra biến thể đã có trong giỏ hàng chưa
-                              const isInCart = isVariantInCart(selectedProduct._id, variant._id);
-                              
-                              return (
-                                <View
-                                  key={index}
-                                  style={[
-                                    styles.variantItem,
-                                    isInCart && styles.variantItemInCart
-                                  ]}>
-                                  <Text style={styles.variantName}>
-                                    {variantNameText}
-                                  </Text>
-                                  <Text style={styles.variantPrice}>
-                                    {variant.price.toLocaleString('vi-VN')} đ
-                                  </Text>
-                                  {isInCart ? (
-                                    <View style={styles.addedVariantIndicator}>
-                                      <Text style={styles.addedVariantText}>Đã thêm</Text>
-                                      <TickSquare
-                                        size={16}
-                                        color="#4CD964"
-                                        variant="Bold"
-                                      />
-                                    </View>
-                                  ) : (
-                                    <TouchableOpacity
-                                      style={styles.addVariantButton}
-                                      onPress={() =>
-                                        addToCart(selectedProduct._id, variant)
-                                      }>
-                                      <Text style={styles.addVariantButtonText}>
-                                        Thêm
-                                      </Text>
-                                    </TouchableOpacity>
-                                  )}
-                                </View>
-                              );
-                            }
-                          )}
-                        </>
-                      )}
-                  </View>
-
-                  {(!selectedProduct.hasVariants ||
-                    !selectedProduct.detailsVariants ||
-                    selectedProduct.detailsVariants.length === 0) && (
-                    <Button
-                      buttonContainerStyle={styles.addToCartButton}
-                      onPress={() => addToCart(selectedProduct._id)}
-                      title="Thêm vào giỏ hàng"
-                      titleStyle={styles.addToCartButtonText}
-                    />
-                  )}
-                </View>
-              </ScrollView>
-            )}
-          </View>
-        </View>
-      </Modal>
-
-      {/* Variant Selection Modal */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -1849,8 +1996,12 @@ const ProductScreen = observer(() => {
                   {selectedProduct.detailsVariants &&
                     selectedProduct.detailsVariants.map(
                       (variant: any, index: number) => {
-                        const isSelected = selectedVariants[variant._id] === true;
-                        const isAlreadyInCart = isVariantInCart(selectedProduct._id, variant._id);
+                        const isSelected =
+                          selectedVariants[variant._id] === true;
+                        const isAlreadyInCart = isVariantInCart(
+                          selectedProduct._id,
+                          variant._id,
+                        );
                         return (
                           <TouchableOpacity
                             key={index}
@@ -1945,7 +2096,9 @@ const ProductScreen = observer(() => {
             ]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
-                {isSelectingForCheckout ? 'Chọn sản phẩm để thanh toán' : 'Giỏ hàng'}
+                {isSelectingForCheckout
+                  ? 'Chọn sản phẩm để thanh toán'
+                  : 'Giỏ hàng'}
               </Text>
               <TouchableOpacity
                 style={styles.closeButton}
@@ -1967,7 +2120,8 @@ const ProductScreen = observer(() => {
                 {isSelectingForCheckout && (
                   <View style={styles.selectionControls}>
                     <Text style={styles.selectedCountText}>
-                      Đã chọn: {getSelectedItemsCount()}/{cartItemsDetail.length} sản phẩm
+                      Đã chọn: {getSelectedItemsCount()}/
+                      {cartItemsDetail.length} sản phẩm
                     </Text>
                     <View style={styles.selectionButtons}>
                       <TouchableOpacity
@@ -1978,7 +2132,9 @@ const ProductScreen = observer(() => {
                       <TouchableOpacity
                         style={styles.deselectAllButton}
                         onPress={deselectAllItems}>
-                        <Text style={styles.selectButtonText}>Bỏ chọn tất cả</Text>
+                        <Text style={styles.selectButtonText}>
+                          Bỏ chọn tất cả
+                        </Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -1993,10 +2149,11 @@ const ProductScreen = observer(() => {
                         <TouchableOpacity
                           style={styles.checkboxContainer}
                           onPress={() => toggleItemSelectionForCheckout(item)}>
-                          <View 
+                          <View
                             style={[
-                              styles.checkbox, 
-                              isItemSelectedForCheckout(item) && styles.checkboxSelected
+                              styles.checkbox,
+                              isItemSelectedForCheckout(item) &&
+                                styles.checkboxSelected,
                             ]}>
                             {isItemSelectedForCheckout(item) && (
                               <TickSquare
@@ -2008,55 +2165,83 @@ const ProductScreen = observer(() => {
                           </View>
                         </TouchableOpacity>
                       )}
-                      
+
                       {item.product.thumbnail ? (
-                        <Image 
-                          source={{uri: item.product.thumbnail}} 
+                        <Image
+                          source={{uri: item.product.thumbnail}}
                           style={styles.cartItemImage}
                           resizeMode="cover"
                         />
                       ) : (
-                        <View style={[styles.cartItemImage, styles.noImageContainer]}>
-                          <Ionicons name="image-outline" size={24} color="#ccc" />
+                        <View
+                          style={[
+                            styles.cartItemImage,
+                            styles.noImageContainer,
+                          ]}>
+                          <Ionicons
+                            name="image-outline"
+                            size={24}
+                            color="#ccc"
+                          />
                         </View>
                       )}
-                      
+
                       <View style={styles.cartItemInfo}>
                         <Text style={styles.cartItemName} numberOfLines={1}>
                           {item.product.name}
                         </Text>
-                        
+
                         {item.variant && (
-                          <Text style={styles.cartItemVariant} numberOfLines={1}>
+                          <Text
+                            style={styles.cartItemVariant}
+                            numberOfLines={1}>
                             {getVariantName(item.variant)}
                           </Text>
                         )}
-                        
+
                         <Text style={styles.cartItemPrice}>
-                          {(item.variant ? item.variant.price : item.product.price).toLocaleString('vi-VN')}đ
+                          {(item.variant
+                            ? item.variant.price
+                            : item.product.price
+                          ).toLocaleString('vi-VN')}
+                          đ
                         </Text>
-                        
+
                         <View style={styles.cartItemActions}>
                           <View style={styles.quantityControls}>
                             <TouchableOpacity
                               style={styles.quantityButton}
-                              onPress={() => updateCartItemQuantity(index, item.quantity - 1)}>
-                              <Ionicons name="remove" size={16} color="#007AFF" />
+                              onPress={() =>
+                                updateCartItemQuantity(index, item.quantity - 1)
+                              }>
+                              <Ionicons
+                                name="remove"
+                                size={16}
+                                color="#007AFF"
+                              />
                             </TouchableOpacity>
-                            
-                            <Text style={styles.cartItemQuantity}>{item.quantity}</Text>
-                            
+
+                            <Text style={styles.cartItemQuantity}>
+                              {item.quantity}
+                            </Text>
+
                             <TouchableOpacity
                               style={styles.quantityButton}
-                              onPress={() => updateCartItemQuantity(index, item.quantity + 1)}>
+                              onPress={() =>
+                                updateCartItemQuantity(index, item.quantity + 1)
+                              }>
                               <Ionicons name="add" size={16} color="#007AFF" />
                             </TouchableOpacity>
                           </View>
-                          
+
                           <TouchableOpacity
                             style={styles.removeItemButton}
                             onPress={() => removeFromCart(index)}>
-                            <CloseCircle size={20} color="#FF3B30" variant="Bold" />
+                            <CloseCircle
+                              size={20}
+                              color="#FF3B30"
+                              variant="Bold"
+                            />
                           </TouchableOpacity>
                         </View>
                       </View>
@@ -2064,7 +2249,7 @@ const ProductScreen = observer(() => {
                   )}
                   contentContainerStyle={styles.cartItemsList}
                 />
-                
+
                 <View style={styles.cartSummaryContainer}>
                   <View style={styles.cartTotalRow}>
                     <Text style={styles.cartTotalLabel}>Tổng số lượng:</Text>
@@ -2072,23 +2257,31 @@ const ProductScreen = observer(() => {
                       {totalCartItems} sản phẩm
                     </Text>
                   </View>
-                  
+
                   <View style={styles.cartTotalRow}>
                     <Text style={styles.cartTotalLabel}>Tạm tính:</Text>
                     <Text style={styles.cartTotalValue}>
-                      {cartItemsDetail.reduce(
-                        (sum, item) => sum + (item.variant ? item.variant.price : item.product.price) * item.quantity,
-                        0
-                      ).toLocaleString('vi-VN')}đ
+                      {cartItemsDetail
+                        .reduce(
+                          (sum, item) =>
+                            sum +
+                            (item.variant
+                              ? item.variant.price
+                              : item.product.price) *
+                              item.quantity,
+                          0,
+                        )
+                        .toLocaleString('vi-VN')}
+                      đ
                     </Text>
                   </View>
                 </View>
-                
+
                 {isSelectingForCheckout ? (
                   <TouchableOpacity
                     style={[
                       styles.checkoutButton,
-                      getSelectedItemsCount() === 0 && styles.disabledButton
+                      getSelectedItemsCount() === 0 && styles.disabledButton,
                     ]}
                     onPress={processCheckout}
                     disabled={getSelectedItemsCount() === 0}>
@@ -2121,7 +2314,6 @@ export default ProductScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
   },
   header: {
     flexDirection: 'row',
@@ -2132,7 +2324,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: moderateScale(20),
-    fontFamily: fonts.Inter_SemiBold,
+    fontFamily: Fonts.Inter_SemiBold,
     color: color.accentColor.darkColor,
     flex: 1,
   },
@@ -2184,50 +2376,37 @@ const styles = StyleSheet.create({
     color: color.accentColor.whiteColor,
     fontFamily: Fonts.Inter_SemiBold,
   },
-  cartButton: {
-    width: moderateScale(30),
-    height: moderateScale(30),
-    borderRadius: moderateScale(8),
-    backgroundColor: color.primaryColor,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  cartBadge: {
-    position: 'absolute',
-    top: -5,
-    right: -5,
-    backgroundColor: '#FF3B30',
-    width: moderateScale(20),
-    height: moderateScale(20),
-    borderRadius: moderateScale(10),
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cartBadgeText: {
-    color: color.accentColor.whiteColor,
-    fontSize: moderateScale(10),
-    fontFamily: Fonts.Inter_Bold,
-  },
 
   // Search and filter styles
-  searchFilterContainer: {
+  searchContainer: {
     flexDirection: 'row',
     paddingHorizontal: moderateScale(16),
-    marginBottom: moderateScale(10),
-    alignItems: 'center',
-    gap: moderateScale(8),
-  },
-  searchContainer: {
-    flex: 1,
-    flexDirection: 'row',
     gap: moderateScale(10),
-    marginBottom: moderateScale(20),
     zIndex: 10,
+    alignItems: 'center',
+    marginBottom: moderateScale(28),
+  },
+  searchInputContainer: {
+    flex: 1,
+  },
+  searchInput: {
+    height: scaleHeight(100),
+    backgroundColor: color.inputColor,
+    borderRadius: moderateScale(8),
+  },
+  viewModeButton: {
+    width: scaleWidth(38),
+    height: scaleWidth(38),
+    borderRadius: moderateScale(8),
+    backgroundColor: color.inputColor,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderColor: 'rgba(0, 0, 0, 0.2)',
+    borderWidth: 0.5,
   },
   filterButton: {
-    width: moderateScale(30),
-    height: moderateScale(30),
+    width: scaleWidth(38),
+    height: scaleWidth(38),
     borderRadius: moderateScale(8),
     backgroundColor: color.primaryColor,
     justifyContent: 'center',
@@ -2274,92 +2453,263 @@ const styles = StyleSheet.create({
   resetText: {
     fontSize: moderateScale(12),
     color: color.primaryColor,
-    fontFamily: '500',
+    fontFamily: Fonts.Inter_SemiBold,
   },
-  filterModalContent: {
-    height: '70%',
+
+  // Product list styles
+  productList: {
+    paddingHorizontal: moderateScale(16),
+    paddingBottom: moderateScale(120),
+    flexGrow: 1,
+    backgroundColor: '#F5F7FA',
   },
-  filterModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingBottom: moderateScale(16),
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
+  gridList: {},
+  columnWrapper: {
+    justifyContent: 'flex-start',
+    gap: moderateScale(10),
   },
-  filterModalTitle: {
-    fontSize: moderateScale(18),
+
+  // Grid view styles
+  gridItem: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderRadius: moderateScale(8),
+    marginBottom: scaleHeight(28),
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+    overflow: 'hidden',
+    elevation: 1,
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.1,
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    width: `${100 / 3 - 2}%`,
+  },
+  gridImageContainer: {
+    width: '100%',
+    height: scaleWidth(120),
+    position: 'relative',
+  },
+  gridImage: {
+    width: '100%',
+    height: '100%',
+    borderTopLeftRadius: moderateScale(8),
+    borderTopRightRadius: moderateScale(8),
+  },
+  gridDetails: {
+    padding: scaleWidth(8),
+  },
+  gridProductName: {
+    fontSize: scaledSize(22),
     fontFamily: Fonts.Inter_SemiBold,
     color: color.accentColor.darkColor,
+    marginVertical: moderateScale(4),
   },
-  filterScrollView: {
-    flex: 1,
-  },
-  filterSection: {
-    marginBottom: moderateScale(20),
-  },
-  filterSectionHeader: {
-    flexDirection: 'row',
+  addToCartGridButton: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: moderateScale(12),
-    gap: moderateScale(8),
+    zIndex: 1,
+    backgroundColor: color.primaryColor,
+    borderRadius: 8,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.2,
+    shadowRadius: 1.5,
   },
-  filterSectionTitle: {
-    fontSize: moderateScale(16),
-    fontWeight: '500',
-    color: color.accentColor.darkColor,
+  inventoryBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
-  selectContainer: {
-    marginBottom: moderateScale(16),
-  },
-  selectField: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    height: scaleHeight(90),
-    paddingHorizontal: moderateScale(16),
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.1)',
-    borderRadius: moderateScale(8),
-    backgroundColor: color.accentColor.whiteColor,
-  },
-  selectText: {
-    fontSize: moderateScale(14),
-    fontFamily: Fonts.Inter_Regular,
-    color: color.accentColor.darkColor,
-  },
-  filterModalFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: moderateScale(16),
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0, 0, 0, 0.1)',
-  },
-  resetFiltersButton: {
-    flex: 1,
-    alignItems: 'center',
-    marginRight: moderateScale(8),
-    borderWidth: 1,
-    borderColor: color.accentColor.grayColor,
-    borderRadius: moderateScale(8),
-    backgroundColor: color.accentColor.grayColor,
-  },
-  resetFiltersText: {
-    fontSize: scaledSize(20),
-    fontWeight: '500',
+  inventoryBadgeText: {
     color: color.accentColor.whiteColor,
+    fontSize: moderateScale(8),
+    fontFamily: Fonts.Inter_Regular,
   },
-  applyFiltersButton: {
-    flex: 2,
+  gridCategoryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  gridPriceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: moderateScale(4),
+  },
+
+  // List view styles
+  listItem: {
+    backgroundColor: 'white',
+    borderRadius: moderateScale(8),
+    marginBottom: scaleHeight(16),
+    padding: scaleWidth(10),
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+    elevation: 1,
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.1,
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  productImageContainer: {
+    width: scaleWidth(60),
+    height: scaleWidth(60),
+    borderRadius: moderateScale(6),
+    marginRight: scaleWidth(12),
+    overflow: 'hidden',
+  },
+  productImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: moderateScale(6),
+  },
+  productDetails: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  productHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  productName: {
+    fontSize: scaledSize(22),
+    fontFamily: Fonts.Inter_SemiBold,
+    color: color.accentColor.darkColor,
+    flex: 1,
+  },
+  productFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: scaleHeight(4),
+  },
+  inventoryAndButtonContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  addToCartListButton: {
+    width: 30,
+    height: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // Common styles
+  categoryText: {
+    fontSize: moderateScale(10),
+    color: color.accentColor.grayColor,
+    marginBottom: moderateScale(4),
+  },
+  priceText: {
+    fontSize: scaledSize(20),
+    fontFamily: Fonts.Inter_SemiBold,
+    color: color.primaryColor,
+  },
+  inventoryText: {
+    fontSize: scaledSize(16),
+    color: '#666',
+    fontFamily: Fonts.Inter_Regular,
+  },
+  variantText: {
+    fontSize: moderateScale(12),
+    color: color.accentColor.grayColor,
+  },
+  noImageContainer: {
+    backgroundColor: '#f5f5f5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // Checkout button styles
+  checkoutButtonWrapperFixed: {
+    width: '100%',
+    alignItems: 'center',
+    marginTop: moderateScale(8),
+    marginBottom: moderateScale(10),
+    zIndex: 1,
+  },
+  checkoutButtonFullFixed: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: color.primaryColor,
-    borderRadius: moderateScale(8),
+    borderRadius: moderateScale(20),
+    paddingVertical: moderateScale(8),
+    paddingHorizontal: moderateScale(20),
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    position: 'relative',
   },
-  applyFiltersText: {
-    fontSize: scaledSize(20),
-    fontFamily: Fonts.Inter_SemiBold,
+  checkoutButtonTextFullFixed: {
     color: color.accentColor.whiteColor,
+    fontSize: moderateScale(15),
+    fontFamily: Fonts.Inter_SemiBold,
+    marginLeft: moderateScale(8),
+    marginRight: moderateScale(8),
+  },
+  cartBadgeFullFixed: {
+    position: 'absolute',
+    top: -7,
+    right: -7,
+    backgroundColor: '#FF3B30',
+    width: moderateScale(18),
+    height: moderateScale(18),
+    borderRadius: moderateScale(9),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cartBadgeTextFullFixed: {
+    color: color.accentColor.whiteColor,
+    fontSize: moderateScale(10),
+    fontFamily: Fonts.Inter_Bold,
+  },
+  floatingCheckoutContainer: {
+    width: '100%',
+    marginTop: moderateScale(28),
+    marginBottom: moderateScale(30),
+    paddingVertical: moderateScale(12),
+    paddingHorizontal: moderateScale(16),
+  },
+  cartSummary: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cartItemCount: {
+    fontSize: moderateScale(14),
+    fontWeight: '500',
+    color: color.accentColor.darkColor,
+  },
+  checkoutButton: {
+    height: scaleHeight(80),
+    backgroundColor: color.primaryColor,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: moderateScale(20),
+    borderRadius: moderateScale(8),
+    gap: moderateScale(8),
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+  },
+  checkoutButtonText: {
+    color: color.accentColor.whiteColor,
+    fontSize: scaledSize(24),
+    fontFamily: Fonts.Inter_SemiBold,
   },
 
   // Existing modal styles
@@ -2370,7 +2720,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
-    width: '90%',
+    width: '50%',
     maxHeight: '100%',
     backgroundColor: color.accentColor.whiteColor,
     borderRadius: moderateScale(16),
@@ -2448,208 +2798,29 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(0, 0, 0, 0.1)',
     backgroundColor: 'rgba(0, 0, 0, 0.02)',
   },
-  variantName: {
-    fontSize: moderateScale(14),
-    color: color.accentColor.darkColor,
-    fontFamily: Fonts.Inter_Regular,
-  },
-  variantPrice: {
-    fontSize: moderateScale(14),
-    fontFamily: Fonts.Inter_SemiBold,
-    color: color.primaryColor,
-  },
-  addVariantButton: {
-    backgroundColor: color.primaryColor,
-    paddingHorizontal: moderateScale(16),
-    height: scaleHeight(80),
-    borderRadius: moderateScale(10),
-    marginLeft: moderateScale(10),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addVariantButtonText: {
-    color: color.accentColor.whiteColor,
-    fontSize: moderateScale(12),
-    fontFamily: Fonts.Inter_SemiBold,
-  },
-  addToCartButton: {
-    position: 'absolute',
-    bottom: 8,
-    right: 8,
-    padding: 4,
-  },
-  addToCartButtonText: {
-    color: color.accentColor.whiteColor,
-    fontSize: moderateScale(16),
-    fontFamily: Fonts.Inter_SemiBold,
-  },
-  productList: {
-    marginTop: moderateScale(30),
-    paddingBottom: moderateScale(120),
-    flexGrow: 1,
-    backgroundColor: '#F5F7FA',
-  },
-  productCard: {
-    backgroundColor: color.accentColor.whiteColor,
-    borderRadius: moderateScale(12),
-    maxWidth: '22%',
-    minWidth: '22%',
-    marginHorizontal: 0,
-    overflow: 'hidden',
-    borderWidth: 0.5,
-    borderColor: 'rgba(0, 0, 0, 0.1)',
-    shadowColor: 'rgba(0, 0, 0, 0.1)',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  productImage: {
-    width: '100%',
-    aspectRatio: 1,
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
-  },
-  productInfo: {
-    padding: moderateScale(12),
-  },
-  productName: {
-    fontSize: scaledSize(24),
-    fontFamily: Fonts.Inter_SemiBold,
-    color: color.accentColor.darkColor,
-    height: moderateScale(36),
-    marginBottom: moderateScale(4),
-  },
-  warrantyText: {
-    fontSize: scaledSize(18),
-    color: '#FF8F00',
-    fontWeight: '500',
-  },
-  priceText: {
-    fontSize: scaledSize(24),
-    fontFamily: Fonts.Inter_SemiBold,
-    color: color.primaryColor,
-    marginBottom: moderateScale(2),
-  },
-  variantText: {
-    fontSize: moderateScale(14),
-    color: color.accentColor.grayColor,
-  },
-  variantModalContent: {
-    padding: moderateScale(20),
-  },
-  variantModalTitle: {
-    fontSize: moderateScale(18),
-    fontFamily: Fonts.Inter_SemiBold,
-    color: color.accentColor.darkColor,
-    marginBottom: moderateScale(15),
-    textAlign: 'center',
-  },
-  productNameInVariantModal: {
-    fontSize: moderateScale(16),
-    fontFamily: Fonts.Inter_Regular,
-    color: color.accentColor.darkColor,
-    textAlign: 'center',
-    marginBottom: moderateScale(20),
-  },
-  variantList: {
-    maxHeight: scaleHeight(300),
-  },
-  variantSelectItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: moderateScale(15),
-    borderRadius: moderateScale(10),
-    marginVertical: moderateScale(6),
-    backgroundColor: 'rgba(0, 0, 0, 0.02)',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.1)',
-  },
-  selectedVariantItem: {
+  selectedOptionItem: {
     backgroundColor: 'rgba(0, 122, 255, 0.05)',
-    borderColor: color.primaryColor,
   },
-  variantSelectInfo: {
-    flex: 1,
-  },
-  variantSelectName: {
-    fontSize: moderateScale(14),
+  optionText: {
+    fontSize: moderateScale(12),
     fontFamily: Fonts.Inter_Regular,
     color: color.accentColor.darkColor,
-    marginBottom: moderateScale(5),
   },
-  variantSelectPrice: {
-    fontSize: moderateScale(16),
-    fontFamily: Fonts.Inter_SemiBold,
+  selectedOptionText: {
+    fontWeight: '500',
     color: color.primaryColor,
-  },
-  selectedVariantCheckmark: {
-    width: moderateScale(24),
-    height: moderateScale(24),
-    borderRadius: moderateScale(12),
-    backgroundColor: color.primaryColor,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: moderateScale(10),
-  },
-  checkmarkText: {
-    color: color.accentColor.whiteColor,
-    fontFamily: Fonts.Inter_Bold,
-  },
-  addVariantToCartButton: {
-    flex: 2,
-    backgroundColor: color.primaryColor,
-    height: scaleHeight(100),
-    borderRadius: moderateScale(10),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  disabledButton: {
-    backgroundColor: 'rgba(0, 122, 255, 0.6)',
-  },
-  optionsOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: moderateScale(20),
-  },
-  optionsContainer: {
-    width: '90%',
-    maxHeight: '70%',
-    backgroundColor: color.accentColor.whiteColor,
-    borderRadius: moderateScale(12),
-    padding: moderateScale(16),
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  optionsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingBottom: moderateScale(12),
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
-    marginBottom: moderateScale(8),
   },
   optionsTitle: {
-    fontSize: moderateScale(16),
+    fontSize: moderateScale(14),
     fontFamily: Fonts.Inter_SemiBold,
     color: color.accentColor.darkColor,
-  },
-  optionsList: {
-    maxHeight: moderateScale(300),
   },
   optionItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: moderateScale(12),
-    paddingHorizontal: moderateScale(8),
+    paddingVertical: moderateScale(14),
+    paddingHorizontal: moderateScale(16),
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0, 0, 0, 0.05)',
   },
@@ -2657,7 +2828,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 122, 255, 0.05)',
   },
   optionText: {
-    fontSize: moderateScale(14),
+    fontSize: moderateScale(12),
     fontFamily: Fonts.Inter_Regular,
     color: color.accentColor.darkColor,
   },
@@ -2692,48 +2863,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: moderateScale(16),
     paddingBottom: moderateScale(120),
   },
-  searchInputContainer: {
-    flex: 1,
-  },
-  searchInput: {
-    // Add any necessary styles for the search input container
-  },
-  floatingCheckoutContainer: {
-    width: '100%',
-    marginTop: moderateScale(28),
-    marginBottom: moderateScale(30),
-    paddingVertical: moderateScale(12),
-    paddingHorizontal: moderateScale(16),
-  },
-  cartSummary: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  cartItemCount: {
-    fontSize: moderateScale(14),
-    fontWeight: '500',
-    color: color.accentColor.darkColor,
-  },
-  checkoutButton: {
-    height: scaleHeight(80),
-    backgroundColor: color.primaryColor,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: moderateScale(20),
-    borderRadius: moderateScale(8),
-    gap: moderateScale(8),
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-  },
-  checkoutButtonText: {
-    color: color.accentColor.whiteColor,
-    fontSize: scaledSize(24),
-    fontFamily: Fonts.Inter_SemiBold,
-  },
+
   tabletFilterModal: {
     width: '70%',
     maxWidth: moderateScale(600),
@@ -2750,12 +2880,7 @@ const styles = StyleSheet.create({
     color: color.accentColor.grayColor,
     textAlign: 'center',
   },
-  columnWrapper: {
-    justifyContent: 'flex-start',
-    paddingHorizontal: moderateScale(16),
-    marginBottom: moderateScale(4),
-    gap: moderateScale(10),
-  },
+
   variantProductHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2862,11 +2987,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: moderateScale(4),
   },
-  noImageContainer: {
-    backgroundColor: '#f5f5f5',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+
   addToCartBtn: {
     backgroundColor: color.primaryColor,
     paddingVertical: 8,
@@ -2879,9 +3000,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
   },
-  productDetails: {
-    marginVertical: 8,
-  },
+
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2892,64 +3011,7 @@ const styles = StyleSheet.create({
     color: '#666',
     marginLeft: 4,
   },
-  categoryText: {
-    fontSize: moderateScale(12),
-    color: color.accentColor.grayColor,
-    marginBottom: moderateScale(2),
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: moderateScale(16),
-    marginTop: moderateScale(10),
-    marginBottom: moderateScale(10),
-  },
-  checkoutButtonWrapperFixed: {
-    width: '100%',
-    alignItems: 'center',
-    marginTop: moderateScale(28),
-    marginBottom: moderateScale(10),
-    zIndex: 1,
-  },
-  checkoutButtonFullFixed: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: color.primaryColor,
-    borderRadius: moderateScale(20),
-    paddingVertical: moderateScale(8),
-    paddingHorizontal: moderateScale(20),
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    position: 'relative',
-  },
-  checkoutButtonTextFullFixed: {
-    color: color.accentColor.whiteColor,
-    fontSize: moderateScale(15),
-    fontFamily: Fonts.Inter_SemiBold,
-    marginLeft: moderateScale(8),
-    marginRight: moderateScale(8),
-  },
-  cartBadgeFullFixed: {
-    position: 'absolute',
-    top: -7,
-    right: -7,
-    backgroundColor: '#FF3B30',
-    width: moderateScale(18),
-    height: moderateScale(18),
-    borderRadius: moderateScale(9),
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cartBadgeTextFullFixed: {
-    color: color.accentColor.whiteColor,
-    fontSize: moderateScale(10),
-    fontFamily: Fonts.Inter_Bold,
-  },
+
   headerTitleWrapper: {
     width: '100%',
     alignItems: 'center',
@@ -3165,7 +3227,148 @@ const styles = StyleSheet.create({
     fontSize: moderateScale(12),
     fontFamily: fonts.Inter_SemiBold,
   },
-  disabledButton: {
-    opacity: 0.6,
+
+  filterModalContent: {
+    width: '90%',
+    maxWidth: moderateScale(800),
+    maxHeight: '75%',
+    backgroundColor: color.accentColor.whiteColor,
+    borderRadius: moderateScale(16),
+    overflow: 'hidden',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 5},
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  filterModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: moderateScale(16),
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
+    backgroundColor: color.accentColor.whiteColor,
+    position: 'relative',
+  },
+  filterModalTitle: {
+    fontSize: moderateScale(18),
+    fontFamily: Fonts.Inter_SemiBold,
+    color: color.accentColor.darkColor,
+    textAlign: 'center',
+  },
+  closeFilterButton: {
+    position: 'absolute',
+    right: moderateScale(16),
+    padding: moderateScale(4),
+  },
+  filterScrollView: {
+    padding: moderateScale(20),
+  },
+  filterSection: {
+    marginBottom: moderateScale(24),
+  },
+  filterSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: moderateScale(10),
+    paddingBottom: moderateScale(6),
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.03)',
+    gap: moderateScale(8),
+  },
+  filterSectionTitle: {
+    fontSize: moderateScale(14),
+    fontFamily: Fonts.Inter_SemiBold,
+    color: color.accentColor.darkColor,
+  },
+  checkboxContainer: {
+    width: moderateScale(32),
+    height: moderateScale(32),
+    backgroundColor: 'rgba(0, 122, 255, 0.05)',
+    borderRadius: moderateScale(8),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  filterOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: moderateScale(12),
+    paddingHorizontal: moderateScale(16),
+    backgroundColor: 'rgba(0, 0, 0, 0.02)',
+    borderRadius: moderateScale(12),
+    marginTop: moderateScale(10),
+    gap: moderateScale(12),
+  },
+  optionText: {
+    fontSize: moderateScale(15),
+    fontFamily: Fonts.Inter_Regular,
+    color: color.accentColor.darkColor,
+  },
+  filterModalFooter: {
+    flexDirection: 'row',
+    padding: moderateScale(16),
+    paddingBottom: moderateScale(20),
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.05)',
+    backgroundColor: color.accentColor.whiteColor,
+    gap: moderateScale(12),
+  },
+  resetFiltersButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.15)',
+    backgroundColor: color.accentColor.grayColor,
+    height: scaleHeight(100),
+  },
+  resetFiltersText: {
+    fontSize: moderateScale(12),
+    fontFamily: Fonts.Inter_SemiBold,
+    color: color.accentColor.darkColor,
+  },
+  applyFiltersButton: {
+    flex: 2,
+    backgroundColor: color.primaryColor,
+    height: scaleHeight(100),
+  },
+  applyFiltersText: {
+    fontSize: moderateScale(16),
+    fontFamily: Fonts.Inter_SemiBold,
+    color: color.accentColor.whiteColor,
+  },
+
+  // New cart button in header
+  headerCartButton: {
+    width: scaleWidth(40),
+    height: scaleWidth(40),
+    borderRadius: moderateScale(8),
+    backgroundColor: color.primaryColor,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  headerCartBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: '#FF3B30',
+    minWidth: moderateScale(18),
+    height: moderateScale(18),
+    borderRadius: moderateScale(9),
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 2,
+    borderWidth: 1.5,
+    borderColor: '#fff',
+  },
+  headerCartBadgeText: {
+    color: color.accentColor.whiteColor,
+    fontSize: moderateScale(10),
+    textAlign: 'center',
+    fontFamily: Fonts.Inter_SemiBold,
+  },
+  tabletFilterModalContent: {
+    width: '60%',
+    maxWidth: moderateScale(450),
   },
 });

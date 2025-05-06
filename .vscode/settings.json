@@ -1,7 +1,6 @@
 {
-  "cSpell.words": [
-    "Pressable"
-  ],
+  "cSpell.words": ["Pressable"],
   "java.configuration.updateBuildConfiguration": "interactive",
-  "java.compile.nullAnalysis.mode": "automatic"
+  "java.compile.nullAnalysis.mode": "automatic",
+  "git.ignoreLimitWarning": true
 }

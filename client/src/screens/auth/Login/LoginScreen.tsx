@@ -13,7 +13,7 @@ import {Api} from '../../../services/api/api';
 import {ApiEndpoint} from '../../../services/api/api-endpoint';
 import {observer} from 'mobx-react-lite';
 import {Platform} from 'react-native';
-import { taiLaiSanPham } from '../../../models/product/product-store';
+import {taiLaiSanPham} from '../../../models/product/product-store';
 
 interface LoginForm {
   usernameOrEmail: string;
@@ -129,7 +129,7 @@ const LoginScreen = observer(() => {
   };
 
   return (
-    <BaseLayout style={styles.container}>
+    <BaseLayout style={styles.container} scrollable={true}>
       <Image source={Images.LOGO_TEXT} style={styles.logoImage} />
       <DynamicText style={styles.welcomeText}>Chào mừng trở lại!</DynamicText>
       <DynamicText style={styles.descriptionText}>
@@ -152,6 +152,7 @@ const LoginScreen = observer(() => {
                 value={value}
                 showClearIcon={true}
                 error={errors.usernameOrEmail?.message}
+                inputContainerStyle={{height: scaleHeight(100)}}
               />
             </View>
           )}
@@ -183,6 +184,7 @@ const LoginScreen = observer(() => {
               onTogglePassword={togglePasswordVisibility}
               secureTextEntry={!isPasswordVisible}
               error={errors.password?.message}
+              inputContainerStyle={{height: scaleHeight(100)}}
             />
           )}
         />
@@ -256,6 +258,7 @@ const styles = StyleSheet.create({
     width: '100%',
     alignSelf: 'center',
     justifyContent: 'center',
+    height: scaleHeight(100),
   },
   forgotPassword: {
     alignSelf: 'center',
