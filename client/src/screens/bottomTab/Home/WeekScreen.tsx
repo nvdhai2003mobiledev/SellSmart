@@ -116,6 +116,7 @@ const WeekScreen = observer(() => {
     for (let i = 0; i < 7; i++) {
       const date = new Date(startOfWeek);
       date.setDate(startOfWeek.getDate() + i);
+      date.setHours(0, 0, 0, 0);
 
       // Tính doanh thu cho ngày cụ thể từ dữ liệu Hóa đơn
       const dayRevenue = calculateDayRevenue(date);
@@ -157,13 +158,18 @@ const WeekScreen = observer(() => {
 
     // Lọc Hóa đơn trong ngày và đã thanh toán
     const dayOrders = rootStore.orders.orders.filter((order: any) => {
-      const orderDate = new Date(order.createdAt);
-      return (
-        orderDate >= startOfDay &&
-        orderDate <= endOfDay &&
-        order.status !== 'canceled' &&
-        (order.paymentStatus === 'paid' || order.paymentStatus === 'partpaid')
-      );
+      try {
+        const orderDate = new Date(order.createdAt);
+        return (
+          orderDate >= startOfDay &&
+          orderDate <= endOfDay &&
+          order.status !== 'canceled' &&
+          (order.paymentStatus === 'paid' || order.paymentStatus === 'partpaid')
+        );
+      } catch (error) {
+        console.error('Error parsing order date in calculateDayRevenue:', error);
+        return false;
+      }
     });
 
     // Tính tổng doanh thu
@@ -188,12 +194,17 @@ const WeekScreen = observer(() => {
 
     // Đếm Hóa đơn không bị hủy
     return rootStore.orders.orders.filter((order: any) => {
-      const orderDate = new Date(order.createdAt);
-      return (
-        orderDate >= startOfDay &&
-        orderDate <= endOfDay &&
-        order.status !== 'canceled'
-      );
+      try {
+        const orderDate = new Date(order.createdAt);
+        return (
+          orderDate >= startOfDay &&
+          orderDate <= endOfDay &&
+          order.status !== 'canceled'
+        );
+      } catch (error) {
+        console.error('Error parsing order date in countOrdersForDay:', error);
+        return false;
+      }
     }).length;
   };
 
@@ -258,24 +269,40 @@ const WeekScreen = observer(() => {
   };
 
   useEffect(() => {
-    // Fetch orders if not already loaded
-    if (rootStore.orders.orders.length === 0) {
-      rootStore.orders.fetchOrders();
-    }
+    // Xác định ngày bắt đầu và kết thúc tuần
+    const now = new Date();
+    const day = now.getDay();
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Sunday
+    
+    // Get start of week (Monday)
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(diff);
+    startOfWeek.setHours(0, 0, 0, 0);
+    
+    // Get end of week (Sunday)
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
 
-    // Update revenue stats
-    const updateStats = () => {
+    // Fetch orders if not already loaded
+    rootStore.orders.fetchOrders(
+      startOfWeek.toISOString(), 
+      endOfWeek.toISOString()
+    ).then(() => {
+      // Update revenue stats
       const stats = getWeeklyRevenueStats();
       setRevenueStats(stats);
       setWeekDays(generateWeekDays());
       setOrderCounts(getWeekOrderCounts());
-    };
-
-    // Initial update
-    updateStats();
+    });
 
     // Set up tracking for changes
-    setupRevenueTracking(updateStats);
+    setupRevenueTracking(() => {
+      const stats = getWeeklyRevenueStats();
+      setRevenueStats(stats);
+      setWeekDays(generateWeekDays());
+      setOrderCounts(getWeekOrderCounts());
+    });
 
     // Clean up
     return () => {
@@ -333,10 +360,14 @@ const WeekScreen = observer(() => {
             const diff = now.getDate() - day + (day === 0 ? -6 : 1);
             const monday = new Date(now);
             monday.setDate(diff);
+            monday.setHours(0, 0, 0, 0);
+            
+            const endOfWeek = new Date();
+            endOfWeek.setHours(23, 59, 59, 999);
             
             navigation.navigate(Screen.REVENUE, {
-              startDate: monday,
-              endDate: now,
+              startDate: monday.toISOString(),
+              endDate: endOfWeek.toISOString(),
             });
           }}>
           <View style={styles.mainCardHeader}>
