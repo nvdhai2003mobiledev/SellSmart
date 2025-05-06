@@ -102,7 +102,8 @@ const createOrder = async (req, res) => {
       status,
       employeeID,
       promotionID,
-      originalAmount
+      originalAmount,
+      totalProfit
     } = req.body;
 
     if (
@@ -139,6 +140,7 @@ const createOrder = async (req, res) => {
     console.log(`Promotion ID: ${promotionID || 'Không có'}`);
     console.log(`Original Amount: ${originalAmount || 'Không có'}`);
     console.log(`Total Amount: ${totalAmount}`);
+    console.log(`Total Profit: ${totalProfit || 'Không có thông tin lợi nhuận'}`);
     
     // Tính giá gốc từ danh sách sản phẩm nếu không có originalAmount
     const calculatedTotal = products.reduce(
@@ -212,6 +214,7 @@ const createOrder = async (req, res) => {
       notes,
       paidAmount: paidAmount || 0,
       paymentDetails: paymentDetails || [],
+      totalProfit: totalProfit || 0, // Thêm lợi nhuận vào đơn hàng
     };
     
     if (promotionID) {

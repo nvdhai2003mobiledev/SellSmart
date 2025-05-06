@@ -73,12 +73,40 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="text-muted mb-1">Hóa Đơn</h6>
-                            <h3 class="mb-0" id="totalOrders">0</h3>
-                            <small class="text-success">+8% so với hôm qua</small>
+                            <h6 class="text-muted mb-1">Lợi Nhuận</h6>
+                            <h3 class="mb-0" id="totalProfit">0 ₫</h3>
+                            <small class="text-success">+0% so với hôm qua</small>
                         </div>
-                        <div class="stats-icon bg-warning">
-                            <i class="fas fa-shopping-cart"></i>
+                        <div class="stats-icon bg-success">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stats-card h-100">
+                <div class="card-body">
+                    <div class="d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div>
+                                <h6 class="text-muted mb-1">Hóa Đơn & Sản Phẩm</h6>
+                                <h3 class="mb-0" id="totalOrders">0</h3>
+                                <small class="text-success">+8% so với hôm qua</small>
+                            </div>
+                            <div class="stats-icon bg-warning">
+                                <i class="fas fa-shopping-cart"></i>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center mt-2">
+                            <div class="me-2">
+                                <i class="fas fa-box text-info"></i>
+                            </div>
+                            <div>
+                                <span class="text-muted">Sản phẩm:</span>
+                                <span id="totalProducts" class="ms-1 fw-bold">0</span>
+                                <small class="text-success ms-1">+5%</small>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -95,22 +123,6 @@
                         </div>
                         <div class="stats-icon bg-success">
                             <i class="fas fa-users"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card stats-card h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-muted mb-1">Sản Phẩm</h6>
-                            <h3 class="mb-0" id="totalProducts">0</h3>
-                            <small class="text-success">+5% so với hôm qua</small>
-                        </div>
-                        <div class="stats-icon bg-info">
-                            <i class="fas fa-box"></i>
                         </div>
                     </div>
                 </div>
@@ -166,12 +178,13 @@
                                     <th>Sản phẩm</th>
                                     <th>Đã bán</th>
                                     <th>Doanh thu</th>
+                                    <th>Lợi nhuận</th>
                                     <th>Tồn kho</th>
                                 </tr>
                             </thead>
                             <tbody id="bestSellingProducts">
                                 <tr>
-                                    <td colspan="4" class="text-center">
+                                    <td colspan="5" class="text-center">
                                         <div class="spinner-border text-primary" role="status">
                                             <span class="visually-hidden">Loading...</span>
                                         </div>
@@ -1343,7 +1356,7 @@ async function fetchBestSellingProducts(dateRange) {
     try {
         console.log('Fetching best-selling products with date range:', dateRange);
         const tableBody = document.getElementById('bestSellingProducts');
-        tableBody.innerHTML = '<tr><td colspan="4" class="text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="5" class="text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></td></tr>';
         
         const url = new URL('/products/sales', window.location.origin);
         
@@ -1363,7 +1376,7 @@ async function fetchBestSellingProducts(dateRange) {
         tableBody.innerHTML = '';
         
         if (data.data.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="4" class="text-center">Không có dữ liệu sản phẩm</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="5" class="text-center">Không có dữ liệu sản phẩm</td></tr>';
             return;
         }
         
@@ -1396,6 +1409,7 @@ async function fetchBestSellingProducts(dateRange) {
                 </td>
                 <td>${product.totalSold || 0}</td>
                 <td>${formatter.format(product.revenue || 0)}</td>
+                <td>${formatter.format(product.profit || 0)}</td>
                 <td>${product.inventory || 0}</td>
             `;
             
@@ -1404,7 +1418,7 @@ async function fetchBestSellingProducts(dateRange) {
     } catch (error) {
         console.error('Error fetching best selling products:', error);
         document.getElementById('bestSellingProducts').innerHTML = 
-            `<tr><td colspan="4" class="text-center">Lỗi khi tải dữ liệu: ${error.message}</td></tr>`;
+            `<tr><td colspan="5" class="text-center">Lỗi khi tải dữ liệu: ${error.message}</td></tr>`;
     }
 }
 
@@ -1450,6 +1464,11 @@ async function fetchDashboardStats(dateRange) {
             const totalRevenueElement = document.getElementById('totalRevenue');
             totalRevenueElement.textContent = formatter.format(stats.totalRevenue);
             updateChangePercentage(totalRevenueElement, stats.percentageChanges.revenue);
+            
+            // Cập nhật lợi nhuận
+            const totalProfitElement = document.getElementById('totalProfit');
+            totalProfitElement.textContent = formatter.format(stats.totalProfit || 0);
+            updateChangePercentage(totalProfitElement, stats.percentageChanges.profit || 0);
             
             // Cập nhật đơn hàng
             const totalOrdersElement = document.getElementById('totalOrders');
