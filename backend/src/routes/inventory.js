@@ -106,6 +106,9 @@ router.get("/available", async (req, res) => {
 // Route lấy danh sách tất cả sản phẩm duy nhất để nhập lô hàng mới
 router.get("/products-for-batch", InventoryController.getProductsForBatch);
 
+// Route lấy danh sách mã lô hàng gần đây để gợi ý tìm kiếm
+router.get("/recent-batch-numbers", InventoryController.getRecentBatchNumbers);
+
 // Route lấy mã sản phẩm cuối cùng - Không cần xác thực
 router.get("/last-code", async (req, res) => {
     try {

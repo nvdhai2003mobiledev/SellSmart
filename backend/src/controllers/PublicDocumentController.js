@@ -4,6 +4,7 @@ const Product = require('../models/Product');
 
 exports.getPublicDocuments = async (req, res) => {
   try {
+    // Lấy các tài liệu có liên kết với sản phẩm
     const documents = await Document.find({ product_id: { $exists: true, $ne: null } })
       .populate({
         path: 'product_id',
@@ -13,7 +14,16 @@ exports.getPublicDocuments = async (req, res) => {
       .select('title description media product_id');
 
     const validDocuments = documents.filter(doc => doc.product_id !== null);
-    res.render('publicDocuments', { documents: validDocuments });
+    
+    // Lấy tất cả sản phẩm đã được phát hành (published products)
+    const publishedProducts = await Product.find({ isPublished: true })
+      .select('_id name thumbnail')
+      .lean();
+    
+    res.render('publicDocuments', { 
+      documents: validDocuments,
+      publishedProducts: publishedProducts  // Truyền danh sách sản phẩm đã phát hành
+    });
   } catch (error) {
     console.error('Lỗi khi lấy tài liệu:', error);
     res.status(500).send('Lỗi server');

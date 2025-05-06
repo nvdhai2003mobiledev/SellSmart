@@ -45,7 +45,8 @@
                 <table class="table table-hover align-middle mb-0">
                     <thead class="bg-light">
                         <tr>
-                            <th class="py-3 px-4">Tên</th>
+                            <th class="py-3 px-4">STT</th>
+                            <th class="py-3 px-4">Tên khuyến mãi</th>
                             <th class="py-3 px-4">Giảm giá</th>
                             <th class="py-3 px-4">Giá trị đơn tối thiểu</th>
                             <th class="py-3 px-4">Giảm giá tối đa</th>
@@ -57,7 +58,7 @@
                     </thead>
                     <tbody id="promotionList">
                     <% if (promotions && Array.isArray(promotions)) { %>
-                        <% promotions.forEach(promo => { %>
+                        <% promotions.forEach((promo, index) => { %>
                             <%
                                 const currentDate = new Date(); // Ngày hiện tại thực tế từ server
                                 const startDate = new Date(promo.startDate);
@@ -70,6 +71,7 @@
                                 }
                             %>
                             <tr data-id="<%= promo._id %>">
+                                <td class="py-3 px-4"><%= index + 1 %></td>
                                 <td class="py-3 px-4"><div class="fw-semibold"><%= promo.name || 'N/A' %></div></td>
                                 <td class="py-3 px-4 text-center"><div class="fw-semibold text-primary"><%= promo.discount ? promo.discount + '%' : 'N/A' %></div></td>
                                 <td class="py-3 px-4 text-end"><%= promo.minOrderValue?.toLocaleString() || 'N/A' %> VNĐ</td>
@@ -96,13 +98,13 @@
                                             data-start-date="<%= promo.startDate ? new Date(promo.startDate).toISOString().split('T')[0] : '' %>"
                                             data-end-date="<%= promo.endDate ? new Date(promo.endDate).toISOString().split('T')[0] : '' %>">
                                         <i class="fas fa-edit"></i>
-                                   
+                                    </button>
                                 </td>
                             </tr>
                         <% }) %>
                     <% } else { %>
                         <tr>
-                            <td colspan="8" class="text-center py-4">
+                            <td colspan="9" class="text-center py-4">
                                 <div class="alert alert-info mb-0">
                                     <i class="fas fa-info-circle me-2"></i>Chưa có dữ liệu khuyến mãi
                                 </div>
@@ -519,7 +521,7 @@
       }
       
       if (search) {
-        const rowName = row.find('td:first-child').text().toLowerCase();
+        const rowName = row.find('td:nth-child(2)').text().toLowerCase();
         searchMatch = rowName.includes(search);
       }
       
