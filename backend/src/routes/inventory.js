@@ -106,6 +106,9 @@ router.get("/available", async (req, res) => {
 // Route lấy danh sách tất cả sản phẩm duy nhất để nhập lô hàng mới
 router.get("/products-for-batch", InventoryController.getProductsForBatch);
 
+// Route lấy danh sách mã lô hàng gần đây để gợi ý tìm kiếm
+router.get("/recent-batch-numbers", InventoryController.getRecentBatchNumbers);
+
 // Route lấy mã sản phẩm cuối cùng - Không cần xác thực
 router.get("/last-code", async (req, res) => {
     try {
@@ -271,8 +274,109 @@ router.post("/next-batch", async (req, res) => {
 // Route thêm sản phẩm mới vào kho - Không yêu cầu xác thực để dễ test
 router.post("/create", InventoryController.importInventory);
 
-// Route cập nhật sản phẩm trong kho - Yêu cầu xác thực
-router.put("/update/:id", protect, InventoryController.updateInventory);
+// Route cập nhật sản phẩm trong kho - Không yêu cầu xác thực để dễ test
+router.put("/update/:id", async (req, res) => {
+    try {
+        const inventoryId = req.params.id;
+        const updateData = req.body;
+        
+        // Validate ObjectId
+        if (!mongoose.Types.ObjectId.isValid(inventoryId)) {
+            return res.status(400).json({
+                status: "Error",
+                message: "ID sản phẩm không hợp lệ"
+            });
+        }
+        
+        // Tìm sản phẩm cần cập nhật
+        const existingInventory = await Inventory.findById(inventoryId);
+        if (!existingInventory) {
+            return res.status(404).json({
+                status: "Error",
+                message: "Không tìm thấy sản phẩm"
+            });
+        }
+        
+        // Kiểm tra xem sản phẩm đã được xuất bản chưa
+        const Product = mongoose.model('Product');
+        const publishedProduct = await Product.findOne({ inventoryId: inventoryId });
+        if (publishedProduct) {
+            return res.status(400).json({
+                status: "Error",
+                message: "Sản phẩm này đã được phát hành, không thể chỉnh sửa"
+            });
+        }
+        
+        // Cập nhật thông tin cơ bản
+        existingInventory.product_name = updateData.product_name;
+        existingInventory.product_code = updateData.product_code;
+        // Giữ nguyên trạng thái hiện tại nếu không được cung cấp
+        if (updateData.status) {
+            // Đảm bảo status hợp lệ theo model
+            if (updateData.status === 'Còn hàng' || updateData.status === 'Sắp hết') {
+                existingInventory.status = 'available';
+            } else if (updateData.status === 'Hết hàng' || updateData.status === 'Ngừng kinh doanh') {
+                existingInventory.status = 'unavailable';
+            }
+            // Trường hợp status đã là giá trị hợp lệ ('available' hoặc 'unavailable')
+            else if (updateData.status === 'available' || updateData.status === 'unavailable') {
+                existingInventory.status = updateData.status;
+            }
+            // Nếu không phải các trường hợp trên, giữ nguyên status
+        }
+        existingInventory.note = updateData.note || '';
+        existingInventory.product_description = updateData.product_description || '';
+        
+        if (updateData.typeProduct_id) {
+            existingInventory.typeProduct_id = updateData.typeProduct_id;
+        }
+        
+        if (updateData.provider_id) {
+            existingInventory.provider_id = updateData.provider_id;
+        }
+        
+        if (updateData.unit) {
+            existingInventory.unit = updateData.unit;
+        }
+        
+        // Cập nhật biến thể nếu có
+        if (updateData.hasVariants && Array.isArray(updateData.variantDetails) && updateData.variantDetails.length > 0) {
+            existingInventory.hasVariants = true;
+            existingInventory.variantDetails = updateData.variantDetails;
+            
+            // Tính tổng số lượng và giá trung bình
+            const totalQuantity = updateData.variantDetails.reduce((sum, v) => sum + (v.quantity || 0), 0);
+            existingInventory.quantity = totalQuantity;
+            
+            // Tính giá trung bình có trọng số
+            const totalValue = updateData.variantDetails.reduce((sum, v) => sum + (v.price || 0) * (v.quantity || 0), 0);
+            if (totalQuantity > 0) {
+                existingInventory.price = totalValue / totalQuantity;
+            }
+        } else {
+            // Sản phẩm không có biến thể
+            existingInventory.hasVariants = false;
+            existingInventory.variantDetails = [];
+            existingInventory.quantity = updateData.quantity || 0;
+            existingInventory.price = updateData.price || 0;
+        }
+        
+        // Lưu lại sản phẩm đã cập nhật
+        await existingInventory.save();
+        
+        return res.json({
+            status: "Ok",
+            message: "Cập nhật sản phẩm thành công",
+            inventory: existingInventory
+        });
+    } catch (error) {
+        console.error("Lỗi khi cập nhật sản phẩm:", error);
+        return res.status(500).json({
+            status: "Error",
+            message: "Lỗi server: " + error.message
+        });
+    }
+});
 
 // Route xóa sản phẩm khỏi kho - Yêu cầu xác thực
 router.delete("/delete/:id", protect, InventoryController.deleteInventory);
@@ -287,7 +391,40 @@ router.get("/typeproduct/:id/variants", VariantController.getVariantsAsJson);
 // 🚀 Routes cho DetailsVariant (Chi tiết biến thể) - Không cần xác thực
 router.get("/variant/:id/details", DetailsVariantController.getDetailsByProduct);
 
-// Route động (đặt sau các route tĩnh) - Không cần xác thực
+// Route chi tiết sản phẩm trong kho
 router.get("/:id", InventoryController.getInventoryDetail);
+
+// Route kiểm tra xem sản phẩm đã được phát hành chưa
+router.get("/check-published/:id", async (req, res) => {
+    try {
+        const inventoryId = req.params.id;
+        
+        // Validate ObjectId
+        if (!mongoose.Types.ObjectId.isValid(inventoryId)) {
+            return res.status(400).json({
+                status: "Error",
+                message: "ID sản phẩm không hợp lệ",
+                isPublished: false
+            });
+        }
+        
+        // Tìm trong bảng Product xem có sản phẩm nào tham chiếu đến inventoryId này không
+        const Product = mongoose.model('Product');
+        const publishedProduct = await Product.findOne({ inventoryId: inventoryId });
+        
+        return res.json({
+            status: "Ok",
+            isPublished: !!publishedProduct,
+            productId: publishedProduct?._id || null
+        });
+    } catch (error) {
+        console.error("Lỗi khi kiểm tra trạng thái xuất bản:", error);
+        res.status(500).json({
+            status: "Error",
+            message: "Lỗi server: " + error.message,
+            isPublished: false
+        });
+    }
+});
 
 module.exports = router;

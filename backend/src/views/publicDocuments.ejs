@@ -316,9 +316,11 @@
               <label for="product" class="form-label">Sản phẩm cần bảo hành <span class="text-danger">*</span></label>
               <select class="form-select" id="product" name="productId" required>
                 <option value="">Chọn sản phẩm</option>
-                <% Object.entries(productDocs).forEach(([productId, product]) => { %>
-                  <option value="<%= productId %>"><%= product.name %></option>
-                <% }); %>
+                <% if (publishedProducts && publishedProducts.length > 0) { %>
+                  <% publishedProducts.forEach(product => { %>
+                    <option value="<%= product._id %>"><%= product.name %></option>
+                  <% }); %>
+                <% } %>
               </select>
               <div class="invalid-feedback">Vui lòng chọn sản phẩm cần bảo hành.</div>
             </div>

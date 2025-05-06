@@ -10,7 +10,8 @@ const documentRouter = require("./document"); // Giữ từ HEAD
 const promotionRouter = require("./promotion");
 const warrantyRouter = require("./warranty");
 const inventoryRouter = require("./inventory");
-const warrantyRoutes = require("./warrantyRoutes")
+const warrantyRoutes = require("./warrantyRoutes");
+const profileRouter = require("./profile"); // Giữ từ HEAD
 const routes = (app) => {
   app.use("/", authRouter);
   app.use("/dashboard", dashboardRouter);
@@ -25,7 +26,7 @@ const routes = (app) => {
   app.use("/promotions", promotionRouter);
   app.use("/warranty", warrantyRouter);
   app.use("/warranty-support", warrantyRoutes);
-
+  app.use("/profiles", profileRouter);
   return app;
 };
 module.exports = routes;

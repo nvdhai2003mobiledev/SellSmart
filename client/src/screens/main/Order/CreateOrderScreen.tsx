@@ -119,33 +119,16 @@ const CreateOrderScreen = observer(() => {
   // Thêm state để lưu tổng lợi nhuận
   const [totalProfit, setTotalProfit] = useState<number>(0);
 
-  // Get dimensions for responsive layout
-  const {width: windowWidth, height: windowHeight} = useWindowDimensions();
-
-  // Determine if the current device is a tablet
-  const isTabletDevice = useMemo(() => {
-    return Math.max(windowWidth, windowHeight) >= 768;
-  }, [windowWidth, windowHeight]);
-
-  // Calculate column widths for tablet layout
-  const columnWidth = useMemo(() => {
-    if (isTabletDevice) {
-      return (windowWidth - moderateScale(48)) / 2; // Account for padding
-    }
-    return windowWidth - moderateScale(32); // Full width minus padding for phones
-  }, [windowWidth, isTabletDevice]);
-
+  // At the beginning of the component, add:
+  const windowWidth = Dimensions.get('window').width;
+  const windowHeight = Dimensions.get('window').height;
+  
+  // Then add code after useState declarations:
+  
   // Device specific modal adjustments
   // const isIOS = Platform.OS === 'ios';
   useEffect(() => {
-    console.log(
-      'Device info - Width:',
-      windowWidth,
-      'Height:',
-      windowHeight,
-      'Platform:',
-      Platform.OS,
-    );
+    console.log('Device info - Width:', windowWidth, 'Height:', windowHeight, 'Platform:', Platform.OS);
   }, [windowWidth, windowHeight]);
 
   // Calculate totals
@@ -224,27 +207,15 @@ const CreateOrderScreen = observer(() => {
   const calculateProductProfit = (product: Product) => {
     // Kiểm tra giá nhập có khả dụng không
     if (!product.original_price || product.original_price <= 0) {
-      console.log(
-        `Sản phẩm ${product.name} không có giá nhập hoặc giá nhập = 0, sử dụng giá nhập mặc định`,
-      );
+      console.log(`Sản phẩm ${product.name} không có giá nhập hoặc giá nhập = 0, sử dụng giá nhập mặc định`);
       // Log để debug
-      console.log(
-        `Sản phẩm: ${product.name}, ID: ${product._id}, Giá bán: ${
-          product.price
-        }, Giá nhập: ${product.original_price || 'N/A'}`,
-      );
-
+      console.log(`Sản phẩm: ${product.name}, ID: ${product._id}, Giá bán: ${product.price}, Giá nhập: ${product.original_price || 'N/A'}`);
+      
       // Nếu không có giá nhập, giả định lợi nhuận là 5% giá bán
       return product.price * product.quantity * 0.05;
     }
-
-    console.log(
-      `Tính lợi nhuận cho ${product.name}: (${product.price} - ${
-        product.original_price
-      }) * ${product.quantity} = ${
-        (product.price - product.original_price) * product.quantity
-      }`,
-    );
+    
+    console.log(`Tính lợi nhuận cho ${product.name}: (${product.price} - ${product.original_price}) * ${product.quantity} = ${(product.price - product.original_price) * product.quantity}`);
     return (product.price - product.original_price) * product.quantity;
   };
 
@@ -300,18 +271,11 @@ const CreateOrderScreen = observer(() => {
       return;
     }
 
-    const discountAmount = Math.min(
-      (total * promotion.discount) / 100,
-      promotion.maxDiscount,
-    );
+    const discountAmount = Math.min((total * promotion.discount) / 100, promotion.maxDiscount);
     if (totalProfit < discountAmount) {
       Alert.alert(
         'Không thể áp dụng khuyến mãi',
-        `Lợi nhuận (${formatCurrency(
-          totalProfit,
-        )}) không đủ để áp dụng khuyến mãi (${formatCurrency(
-          discountAmount,
-        )}).`,
+        `Lợi nhuận (${formatCurrency(totalProfit)}) không đủ để áp dụng khuyến mãi (${formatCurrency(discountAmount)}).`,
       );
       return;
     }
@@ -567,8 +531,8 @@ const CreateOrderScreen = observer(() => {
             }
           : null,
         // Tính lợi nhuận sau khi áp dụng khuyến mãi nếu có
-        totalProfit: selectedPromotion
-          ? totalProfit - calculateDiscount()
+        totalProfit: selectedPromotion 
+          ? totalProfit - calculateDiscount() 
           : totalProfit,
       };
 
@@ -812,88 +776,73 @@ const CreateOrderScreen = observer(() => {
     // Tính lợi nhuận riêng cho sản phẩm này
     const productProfit = calculateProductProfit(product);
     const isProfitPositive = productProfit > 0;
-
+    
     return (
-      <View key={product._id || index} style={styles.productContainer}>
-        {/* Thumbnail image with proper URL handling */}
-        {product.thumbnail ? (
-          <Image
-            source={{uri: product.thumbnail}}
-            style={styles.productImage}
-            resizeMode="cover"
-          />
-        ) : (
-          <View
-            style={[
-              styles.productImage,
-              {
-                backgroundColor: '#f5f5f5',
-                justifyContent: 'center',
-                alignItems: 'center',
-              },
-            ]}>
-            <RNText style={{fontSize: 18, color: '#999'}}>
-              {product.name?.[0] || '?'}
-            </RNText>
-          </View>
-        )}
-
-        <View style={styles.productDetails}>
-          <DynamicText style={styles.productName}>{product.name}</DynamicText>
-          <DynamicText style={styles.productVariant}>
-            {product.attributes
-              ?.map(
-                attr =>
-                  `${attr.name}: ${
-                    Array.isArray(attr.value)
-                      ? attr.value.join(', ')
-                      : attr.value
-                  }`,
-              )
-              .join(' | ')}
+    <View key={product._id || index} style={styles.productContainer}>
+      {/* Thumbnail image with proper URL handling */}
+      {product.thumbnail ? (
+        <Image 
+          source={{ uri: product.thumbnail }} 
+          style={styles.productImage}
+          resizeMode="cover"
+        />
+      ) : (
+        <View style={[styles.productImage, {backgroundColor: '#f5f5f5', justifyContent: 'center', alignItems: 'center'}]}>
+          <RNText style={{fontSize: 18, color: '#999'}}>{product.name?.[0] || '?'}</RNText>
+        </View>
+      )}
+      
+      <View style={styles.productDetails}>
+        <DynamicText style={styles.productName}>{product.name}</DynamicText>
+        <DynamicText style={styles.productVariant}>
+          {product.attributes
+            ?.map(
+              attr =>
+                `${attr.name}: ${
+                  Array.isArray(attr.value) ? attr.value.join(', ') : attr.value
+                }`,
+            )
+            .join(' | ')}
+        </DynamicText>
+        <View style={styles.priceRow}>
+          <DynamicText style={styles.productPrice}>
+            {formatCurrency(product.price)}
           </DynamicText>
-          <View style={styles.priceRow}>
-            <DynamicText style={styles.productPrice}>
-              {formatCurrency(product.price)}
-            </DynamicText>
-            {/* Ẩn hiển thị lợi nhuận theo yêu cầu */}
-            {/* {product.original_price > 0 && (
+          {/* Ẩn hiển thị lợi nhuận theo yêu cầu */}
+          {/* {product.original_price > 0 && (
             <DynamicText style={[styles.productProfit, isProfitPositive ? styles.positiveProfit : styles.negativeProfit]}>
               {' '} ({isProfitPositive ? '+' : ''}{formatCurrency(productProfit)})
             </DynamicText>
           )} */}
-          </View>
-          <View style={styles.quantityContainer}>
-            <TouchableOpacity
-              onPress={() => decreaseQuantity(index)}
-              style={styles.quantityButton}>
-              <DynamicText style={styles.quantityButtonText}>-</DynamicText>
-            </TouchableOpacity>
-            <DynamicText style={styles.productQuantity}>
-              {product.quantity}
-            </DynamicText>
-            <TouchableOpacity
-              onPress={() => increaseQuantity(index)}
-              style={styles.quantityButton}>
-              <DynamicText style={styles.quantityButtonText}>+</DynamicText>
-            </TouchableOpacity>
-          </View>
         </View>
-        <TouchableOpacity onPress={() => removeProduct(index)}>
-          <DynamicText style={styles.removeText}>×</DynamicText>
-        </TouchableOpacity>
+        <View style={styles.quantityContainer}>
+          <TouchableOpacity
+            onPress={() => decreaseQuantity(index)}
+            style={styles.quantityButton}>
+            <DynamicText style={styles.quantityButtonText}>-</DynamicText>
+          </TouchableOpacity>
+          <DynamicText style={styles.productQuantity}>
+            {product.quantity}
+          </DynamicText>
+          <TouchableOpacity
+            onPress={() => increaseQuantity(index)}
+            style={styles.quantityButton}>
+            <DynamicText style={styles.quantityButtonText}>+</DynamicText>
+          </TouchableOpacity>
+        </View>
       </View>
-    );
-  };
+      <TouchableOpacity onPress={() => removeProduct(index)}>
+        <DynamicText style={styles.removeText}>×</DynamicText>
+      </TouchableOpacity>
+    </View>
+  );
+};
 
   // Cập nhật hàm renderPromotionItem để hiển thị đúng tình trạng điều kiện
   const renderPromotionItem = (item: IPromotion) => {
     const total = calculateTotal();
-    const discountAmount = Math.min(
-      (total * item.discount) / 100,
-      item.maxDiscount,
-    );
-
+    const discountAmount = Math.min((total * item.discount) / 100, item.maxDiscount);
+    
     // Kiểm tra 2 điều kiện: giá trị đơn hàng và lợi nhuận
     const isMinOrderMet = total >= item.minOrderValue;
     const isProfitEnough = totalProfit >= discountAmount;
@@ -901,7 +850,7 @@ const CreateOrderScreen = observer(() => {
 
     let statusText = '';
     let statusColor = '';
-
+    
     if (!isMinOrderMet) {
       statusText = `Đơn tối thiểu ${formatCurrency(item.minOrderValue)}`;
       statusColor = '#dc3545'; // Red
@@ -912,7 +861,7 @@ const CreateOrderScreen = observer(() => {
       statusText = 'Đang diễn ra';
       statusColor = '#28a745'; // Green
     }
-
+    
     return (
       <TouchableOpacity
         style={[
@@ -946,7 +895,9 @@ const CreateOrderScreen = observer(() => {
           <View
             style={[
               styles.statusBadge,
-              isEligible ? styles.eligibleBadge : styles.ineligibleBadge,
+              isEligible
+                ? styles.eligibleBadge
+                : styles.ineligibleBadge,
             ]}>
             <DynamicText style={[styles.statusText, {color: statusColor}]}>
               {statusText}
@@ -1659,40 +1610,55 @@ const CreateOrderScreen = observer(() => {
             />
           </View>
 
-          {/* Order Summary Section */}
-          <View style={styles.section}>
-            <DynamicText style={styles.sectionTitle}>Tổng Hóa đơn</DynamicText>
-            <View style={styles.summaryContainer}>
-              <View style={styles.summaryRow}>
-                <DynamicText style={styles.summaryLabel}>Tạm tính:</DynamicText>
-                <DynamicText style={styles.summaryValue}>
-                  {formatCurrency(calculateTotal())}
-                </DynamicText>
-              </View>
-              {selectedPromotion && (
-                <>
-                  <View style={styles.summaryRow}>
-                    <DynamicText style={styles.summaryLabel}>
-                      Giảm giá:
-                    </DynamicText>
-                    <DynamicText
-                      style={[styles.summaryValue, styles.discountText]}>
-                      -{formatCurrency(calculateDiscount())}
-                    </DynamicText>
-                  </View>
-                  <View style={styles.summaryRow}>
-                    <DynamicText style={styles.summaryLabel}>
-                      Tổng cộng:
-                    </DynamicText>
-                    <DynamicText
-                      style={[styles.summaryValue, styles.totalText]}>
-                      {formatCurrency(calculateTotal() - calculateDiscount())}
-                    </DynamicText>
-                  </View>
-                </>
-              )}
+        {/* Order Summary Section */}
+        <View style={styles.section}>
+          <DynamicText style={styles.sectionTitle}>Tổng Hóa đơn</DynamicText>
+          <View style={styles.summaryContainer}>
+            <View style={styles.summaryRow}>
+              <DynamicText style={styles.summaryLabel}>Tạm tính:</DynamicText>
+              <DynamicText style={styles.summaryValue}>
+                {formatCurrency(calculateTotal())}
+              </DynamicText>
             </View>
+            {/* Ẩn hiển thị tổng lợi nhuận */}
+            {/* <View style={styles.summaryRow}>
+              <DynamicText style={styles.summaryLabel}>Lợi nhuận:</DynamicText>
+              <DynamicText style={[styles.summaryValue, styles.profitText]}>
+                {formatCurrency(totalProfit)}
+              </DynamicText>
+            </View> */}
+            {selectedPromotion && (
+              <>
+                <View style={styles.summaryRow}>
+                  <DynamicText style={styles.summaryLabel}>
+                    Giảm giá:
+                  </DynamicText>
+                  <DynamicText
+                    style={[styles.summaryValue, styles.discountText]}>
+                    -{formatCurrency(calculateDiscount())}
+                  </DynamicText>
+                </View>
+                <View style={styles.summaryRow}>
+                  <DynamicText style={styles.summaryLabel}>
+                    Tổng cộng:
+                  </DynamicText>
+                  <DynamicText style={[styles.summaryValue, styles.totalText]}>
+                    {formatCurrency(calculateTotal() - calculateDiscount())}
+                  </DynamicText>
+                </View>
+                {/* Ẩn hiển thị lợi nhuận sau khuyến mãi */}
+                {/* <View style={styles.summaryRow}>
+                  <DynamicText style={styles.summaryLabel}>
+                    Lợi nhuận sau KM:
+                  </DynamicText>
+                  <DynamicText style={[styles.summaryValue, styles.profitText]}>
+                    {formatCurrency(totalProfit - calculateDiscount())}
+                  </DynamicText>
+                </View> */}
+              </>
+            )}
           </View>
+        </View>
 
           {/* Action Buttons */}
           <View style={styles.actionButtons}>
@@ -2275,29 +2241,6 @@ const styles = StyleSheet.create({
   profitText: {
     color: '#28a745',
     fontFamily: Fonts.Inter_SemiBold,
-  },
-  tabletContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: moderateScale(16),
-    paddingTop: moderateScale(16),
-    paddingBottom: moderateScale(50),
-    marginBottom: moderateScale(50),
-  },
-  tabletColumn: {
-    flex: 1,
-    marginHorizontal: moderateScale(8),
-  },
-  tabletScrollViewContent: {
-    paddingBottom: moderateScale(50),
-  },
-  tabletPromotionGrid: {
-    justifyContent: 'space-between',
-  },
-  tabletModalContent: {
-    width: '80%',
-    maxWidth: 800,
-    alignSelf: 'center',
   },
 });
 

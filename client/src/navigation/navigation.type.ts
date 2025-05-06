@@ -143,8 +143,8 @@ export type RootStackParamList = {
   };
   [Screen.ADD_PROVIDER]: undefined;
   [Screen.REVENUE]: {
-    startDate: Date;
-    endDate: Date;
+    startDate: string;
+    endDate: string;
   };
   [Screen.DAY_RANGE]: undefined;
 };

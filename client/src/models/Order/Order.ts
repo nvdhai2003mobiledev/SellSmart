@@ -1,5 +1,5 @@
 import { types, Instance, flow, cast } from 'mobx-state-tree';
-import { fetchOrders, deleteOrder, createOrder } from '../../services/api/ordersApi';
+import { fetchOrders, deleteOrder, createOrder, fetchPaginatedOrders } from '../../services/api/ordersApi';
 
 // Product item within an order
 const ProductAttribute = types.model({
@@ -111,12 +111,27 @@ export const OrderStore = types
       self.isLoading = false;
       self.error = '';
     },
-    fetchOrders: flow(function* () {
+    fetchOrders: flow(function* (startDate?: string, endDate?: string) {
       self.isLoading = true;
       self.error = '';
       
       try {
-        const ordersData = yield fetchOrders();
+        // Nếu có tham số ngày, sử dụng fetchPaginatedOrders với filter
+        let ordersData;
+        if (startDate && endDate) {
+          console.log(`Fetching orders for date range: ${startDate} to ${endDate}`);
+          const result = yield fetchPaginatedOrders(1, 1000, { 
+            startDate, 
+            endDate,
+            excludeStatus: 'draft'
+          });
+          ordersData = result.orders;
+          console.log(`Fetched ${ordersData.length} orders for date range`);
+        } else {
+          // Gọi API không có filter nếu không có tham số ngày
+          const result = yield fetchPaginatedOrders(1, 1000);
+          ordersData = result.orders;
+        }
         
         console.log('Received orders data:', ordersData);
         

@@ -647,6 +647,7 @@ const getProductSales = async (req, res) => {
         const products = await Product.find()
             .populate("providerId")
             .populate("category")
+            .populate("inventoryId")
             .populate("detailsVariants");
 
         // Lấy các đơn hàng trong khoảng thời gian đã chọn
@@ -654,7 +655,13 @@ const getProductSales = async (req, res) => {
             createdAt: { $gte: startDate, $lte: endDate },
             status: { $ne: 'canceled' }, // Không tính đơn hàng đã hủy
             paymentStatus: 'paid' // Chỉ tính đơn hàng đã thanh toán
-        }).populate('products.productID');
+        }).populate({
+            path: 'products.productID',
+            populate: {
+                path: 'inventoryId',
+                model: 'Inventory'
+            }
+        }).populate('products.variantID');
         
         console.log(`Found ${orders.length} orders in the selected period`);
 
@@ -662,15 +669,121 @@ const getProductSales = async (req, res) => {
         const productSales = products.map(product => {
             let totalSold = 0;
             let revenue = 0;
+            let profit = 0;
             let productVariants = []; // Chứa các biến thể đã bán
 
             orders.forEach(order => {
+                // Check if the order has a discount
+                const hasDiscount = order.originalAmount && order.originalAmount > order.totalAmount;
+                const discountAmount = hasDiscount ? (order.originalAmount - order.totalAmount) : 0;
+                
+                // Calculate the total order value
+                const orderTotal = order.originalAmount || order.totalAmount;
+                
+                if (hasDiscount && product._id.toString() === '65fe7eeea47f4b43ed33e8a3') {
+                    console.log(`\n===== Phân tích lợi nhuận sản phẩm ${product.name} trong đơn hàng có KM =====`);
+                    console.log(`ID đơn: ${order._id}`);
+                    console.log(`Tổng đơn gốc: ${orderTotal}`);
+                    console.log(`Tổng sau giảm: ${order.totalAmount}`);
+                    console.log(`Giảm giá: ${discountAmount}`);
+                }
+                
                 order.products.forEach(orderProduct => {
                     if (orderProduct.productID && orderProduct.productID._id.toString() === product._id.toString()) {
-                        totalSold += orderProduct.quantity || 0;
-                        revenue += (orderProduct.price * orderProduct.quantity) || 0;
+                        // Update total sold quantity
+                        const quantity = orderProduct.quantity || 0;
+                        totalSold += quantity;
                         
-                        // Theo dõi các biến thể đã bán
+                        // Calculate product revenue (price * quantity)
+                        const sellingPrice = orderProduct.price || 0;
+                        const productRevenue = sellingPrice * quantity;
+                        revenue += productRevenue;
+                        
+                        // Calculate cost price from inventory
+                        let costPrice = 0;
+                        
+                        // Get inventory data
+                        const inventory = product.inventoryId;
+                        
+                        if (inventory && typeof inventory === 'object') {
+                            // If product has variants, find the matching variant
+                            if (product.hasVariants && inventory.variantDetails && inventory.variantDetails.length > 0) {
+                                // Find the matching variant based on attributes
+                                if (orderProduct.attributes && orderProduct.attributes.length > 0) {
+                                    // Create a string representation of the variant attributes for comparison
+                                    const orderVariantKey = orderProduct.attributes.map(attr => 
+                                        `${attr.name}:${Array.isArray(attr.value) ? attr.value.join(',') : attr.value}`
+                                    ).sort().join('|');
+                                    
+                                    // Find matching variant in inventory
+                                    const matchingVariant = inventory.variantDetails.find(variant => {
+                                        if (!variant.attributes) return false;
+                                        
+                                        // Create a comparable string for this inventory variant
+                                        const variantKey = Object.entries(variant.attributes).map(([key, value]) => 
+                                            `${key}:${Array.isArray(value) ? value.join(',') : value}`
+                                        ).sort().join('|');
+                                        
+                                        return variantKey.includes(orderVariantKey) || orderVariantKey.includes(variantKey);
+                                    });
+                                    
+                                    if (matchingVariant) {
+                                        costPrice = matchingVariant.price || 0;
+                                        if (hasDiscount && product._id.toString() === '65fe7eeea47f4b43ed33e8a3') {
+                                            console.log(`Tìm thấy biến thể phù hợp trong kho, giá vốn: ${costPrice}`);
+                                        }
+                                    } else {
+                                        // Fallback to product's original price
+                                        costPrice = product.original_price || 0;
+                                        if (hasDiscount && product._id.toString() === '65fe7eeea47f4b43ed33e8a3') {
+                                            console.log(`Không tìm thấy biến thể, sử dụng giá vốn sản phẩm: ${costPrice}`);
+                                        }
+                                    }
+                                }
+                            } else {
+                                // For non-variant products, use the inventory's average cost
+                                costPrice = inventory.total_price || product.original_price || 0;
+                                if (hasDiscount && product._id.toString() === '65fe7eeea47f4b43ed33e8a3') {
+                                    console.log(`Sản phẩm không có biến thể, giá vốn trung bình: ${costPrice}`);
+                                }
+                            }
+                        } else {
+                            // If no inventory data, fallback to product's original price
+                            costPrice = product.original_price || 0;
+                            if (hasDiscount && product._id.toString() === '65fe7eeea47f4b43ed33e8a3') {
+                                console.log(`Không tìm thấy dữ liệu kho, sử dụng giá vốn mặc định: ${costPrice}`);
+                            }
+                        }
+                        
+                        // Calculate discount allocation if there is a discount
+                        let productDiscount = 0;
+                        if (hasDiscount && orderTotal > 0) {
+                            const proportion = productRevenue / orderTotal;
+                            productDiscount = proportion * discountAmount;
+                        }
+                        
+                        // Calculate actual revenue after discount
+                        const revenueAfterDiscount = productRevenue - productDiscount;
+                        
+                        // Calculate profit for this product in this order
+                        const productCost = costPrice * quantity;
+                        const productProfit = revenueAfterDiscount - productCost;
+                        
+                        if (hasDiscount && product._id.toString() === '65fe7eeea47f4b43ed33e8a3') {
+                            console.log(`\n--- Chi tiết tính lợi nhuận trong đơn hàng có KM ---`);
+                            console.log(`Giá bán: ${sellingPrice} x Số lượng: ${quantity} = Tổng bán: ${productRevenue}`);
+                            console.log(`Tỷ lệ trên tổng đơn: ${(productRevenue/orderTotal * 100).toFixed(2)}%`);
+                            console.log(`Giảm giá phân bổ: ${productDiscount} (${(productRevenue/orderTotal * 100).toFixed(2)}% của ${discountAmount})`);
+                            console.log(`Doanh thu sau giảm: ${revenueAfterDiscount} (${productRevenue} - ${productDiscount})`);
+                            console.log(`Giá vốn: ${costPrice} x ${quantity} = ${productCost}`);
+                            console.log(`Lợi nhuận: ${productProfit} (${revenueAfterDiscount} - ${productCost})`);
+                            console.log(`=== Kết thúc phân tích lợi nhuận ===\n`);
+                        }
+                        
+                        // Add to total profit
+                        profit += productProfit;
+                        
+                        // Track variants sold
                         if (orderProduct.attributes && orderProduct.attributes.length > 0) {
                             productVariants.push({
                                 quantity: orderProduct.quantity,
@@ -707,6 +820,7 @@ const getProductSales = async (req, res) => {
                 sku: product.sku || product.productCode || product._id.toString().substring(0, 8),
                 totalSold,
                 revenue,
+                profit,
                 inventory: totalInventory,
                 attributes: displayVariants
             };
@@ -768,12 +882,24 @@ const getDashboardStats = async (req, res) => {
         const currentPeriodOrders = await Order.find({
             createdAt: { $gte: startDate, $lte: endDate },
             status: { $ne: 'canceled' }
-        });
+        }).populate({
+            path: 'products.productID',
+            populate: {
+                path: 'inventoryId',
+                model: 'Inventory'
+            }
+        }).populate('products.variantID');
 
         const previousPeriodOrders = await Order.find({
             createdAt: { $gte: previousPeriodStartDate, $lte: previousPeriodEndDate },
             status: { $ne: 'canceled' }
-        });
+        }).populate({
+            path: 'products.productID',
+            populate: {
+                path: 'inventoryId',
+                model: 'Inventory'
+            }
+        }).populate('products.variantID');
 
         // Calculate revenue from paid orders
         const currentPeriodRevenue = currentPeriodOrders
@@ -783,6 +909,192 @@ const getDashboardStats = async (req, res) => {
         const previousPeriodRevenue = previousPeriodOrders
             .filter(order => order.paymentStatus === 'paid')
             .reduce((sum, order) => sum + (order.totalAmount || 0), 0);
+
+        // Calculate profit from paid orders using the totalProfit field when available
+        let currentPeriodProfit = 0;
+        let previousPeriodProfit = 0;
+
+        // Process current period orders for profit calculation
+        for (const order of currentPeriodOrders.filter(order => order.paymentStatus === 'paid')) {
+            // Use stored totalProfit if available
+            if (order.totalProfit && order.totalProfit > 0) {
+                console.log(`Using stored profit for order ${order._id}: ${order.totalProfit}`);
+                currentPeriodProfit += order.totalProfit;
+                continue;
+            }
+            
+            // Fall back to calculation if totalProfit is not available
+            let orderProfit = 0;
+            
+            // Kiểm tra nếu đơn hàng có giảm giá
+            const hasDiscount = order.originalAmount && order.originalAmount > order.totalAmount;
+            const discountAmount = hasDiscount ? (order.originalAmount - order.totalAmount) : 0;
+            
+            // Calculate the proportion for each product based on their value
+            const orderTotal = order.originalAmount || order.totalAmount;
+            
+            for (const product of order.products) {
+                // Skip if no product ID or not a populated object
+                if (!product.productID || typeof product.productID !== 'object') continue;
+                
+                // Get product cost price (original_price) from inventory
+                let costPrice = 0;
+                const sellingPrice = product.price || 0;
+                const quantity = product.quantity || 0;
+                
+                // Get inventory data if available
+                const inventory = product.productID.inventoryId;
+                
+                if (inventory && typeof inventory === 'object') {
+                    // If product has variants, find the matching variant in inventory
+                    if (product.productID.hasVariants && inventory.variantDetails && inventory.variantDetails.length > 0) {
+                        // Find the matching variant based on attributes
+                        if (product.attributes && product.attributes.length > 0) {
+                            // Create a string representation of the variant attributes for comparison
+                            const orderVariantKey = product.attributes.map(attr => 
+                                `${attr.name}:${Array.isArray(attr.value) ? attr.value.join(',') : attr.value}`
+                            ).sort().join('|');
+                            
+                            // Find matching variant in inventory
+                            const matchingVariant = inventory.variantDetails.find(variant => {
+                                if (!variant.attributes) return false;
+                                
+                                // Create a comparable string for this inventory variant
+                                const variantKey = Object.entries(variant.attributes).map(([key, value]) => 
+                                    `${key}:${Array.isArray(value) ? value.join(',') : value}`
+                                ).sort().join('|');
+                                
+                                return variantKey.includes(orderVariantKey) || orderVariantKey.includes(variantKey);
+                            });
+                            
+                            if (matchingVariant) {
+                                costPrice = matchingVariant.price || 0;
+                            } else {
+                                // Fallback to product's original price
+                                costPrice = product.productID.original_price || 0;
+                            }
+                        }
+                    } else {
+                        // For non-variant products, use the inventory's average cost
+                        costPrice = inventory.total_price || product.productID.original_price || 0;
+                    }
+                } else {
+                    // If no inventory data, fallback to product's original price
+                    costPrice = product.productID.original_price || 0;
+                }
+                
+                // Calculate product revenue (price * quantity)
+                const productRevenue = sellingPrice * quantity;
+                
+                // Calculate product's proportion of the total order
+                const proportion = orderTotal > 0 ? productRevenue / orderTotal : 0;
+                
+                // Calculate discount allocated to this product
+                const productDiscount = proportion * discountAmount;
+                
+                // Calculate actual revenue after discount
+                const productRevenueAfterDiscount = productRevenue - productDiscount;
+                
+                // Calculate profit: revenue after discount - cost
+                const productCost = costPrice * quantity;
+                const productProfit = productRevenueAfterDiscount - productCost;
+                
+                // Add to order profit
+                orderProfit += productProfit;
+            }
+            
+            // Add this order's profit to total
+            currentPeriodProfit += orderProfit;
+        }
+        
+        // Process previous period orders for profit calculation (same logic)
+        for (const order of previousPeriodOrders.filter(order => order.paymentStatus === 'paid')) {
+            // Use stored totalProfit if available
+            if (order.totalProfit && order.totalProfit > 0) {
+                previousPeriodProfit += order.totalProfit;
+                continue;
+            }
+            
+            // Fall back to calculation if totalProfit is not available
+            let orderProfit = 0;
+            const hasDiscount = order.originalAmount && order.originalAmount > order.totalAmount;
+            const discountAmount = hasDiscount ? (order.originalAmount - order.totalAmount) : 0;
+            
+            const orderTotal = order.originalAmount || order.totalAmount;
+            
+            for (const product of order.products) {
+                // Skip if no product ID or not a populated object
+                if (!product.productID || typeof product.productID !== 'object') continue;
+                
+                // Get product cost price (original_price) from inventory
+                let costPrice = 0;
+                const sellingPrice = product.price || 0;
+                const quantity = product.quantity || 0;
+                
+                // Get inventory data if available
+                const inventory = product.productID.inventoryId;
+                
+                if (inventory && typeof inventory === 'object') {
+                    // If product has variants, find the matching variant in inventory
+                    if (product.productID.hasVariants && inventory.variantDetails && inventory.variantDetails.length > 0) {
+                        // Find the matching variant based on attributes
+                        if (product.attributes && product.attributes.length > 0) {
+                            // Create a string representation of the variant attributes for comparison
+                            const orderVariantKey = product.attributes.map(attr => 
+                                `${attr.name}:${Array.isArray(attr.value) ? attr.value.join(',') : attr.value}`
+                            ).sort().join('|');
+                            
+                            // Find matching variant in inventory
+                            const matchingVariant = inventory.variantDetails.find(variant => {
+                                if (!variant.attributes) return false;
+                                
+                                // Create a comparable string for this inventory variant
+                                const variantKey = Object.entries(variant.attributes).map(([key, value]) => 
+                                    `${key}:${Array.isArray(value) ? value.join(',') : value}`
+                                ).sort().join('|');
+                                
+                                return variantKey.includes(orderVariantKey) || orderVariantKey.includes(variantKey);
+                            });
+                            
+                            if (matchingVariant) {
+                                costPrice = matchingVariant.price || 0;
+                            } else {
+                                // Fallback to product's original price
+                                costPrice = product.productID.original_price || 0;
+                            }
+                        }
+                    } else {
+                        // For non-variant products, use the inventory's average cost
+                        costPrice = inventory.total_price || product.productID.original_price || 0;
+                    }
+                } else {
+                    // If no inventory data, fallback to product's original price
+                    costPrice = product.productID.original_price || 0;
+                }
+                
+                // Calculate product revenue (price * quantity)
+                const productRevenue = sellingPrice * quantity;
+                
+                // Calculate product's proportion of the total order
+                const proportion = orderTotal > 0 ? productRevenue / orderTotal : 0;
+                
+                // Calculate discount allocated to this product
+                const productDiscount = proportion * discountAmount;
+                
+                // Calculate actual revenue after discount
+                const productRevenueAfterDiscount = productRevenue - productDiscount;
+                
+                // Calculate profit: revenue after discount - cost
+                const productCost = costPrice * quantity;
+                const productProfit = productRevenueAfterDiscount - productCost;
+                
+                // Add to order profit
+                orderProfit += productProfit;
+            }
+            
+            // Add this order's profit to total
+            previousPeriodProfit += orderProfit;
+        }
 
         // Get total customers and new customers in the period
         const totalCustomers = await Customer.countDocuments();
@@ -812,11 +1124,13 @@ const getDashboardStats = async (req, res) => {
 
         const stats = {
             totalRevenue: currentPeriodRevenue,
+            totalProfit: currentPeriodProfit,
             totalOrders: currentPeriodOrders.length,
             totalCustomers: newCustomers,
             totalProducts: productsSold,
             percentageChanges: {
                 revenue: calculatePercentageChange(currentPeriodRevenue, previousPeriodRevenue),
+                profit: calculatePercentageChange(currentPeriodProfit, previousPeriodProfit),
                 orders: calculatePercentageChange(currentPeriodOrders.length, previousPeriodOrders.length),
                 customers: calculatePercentageChange(newCustomers, previousPeriodNewCustomers),
                 products: calculatePercentageChange(productsSold, previousPeriodProductsSold)
@@ -824,10 +1138,9 @@ const getDashboardStats = async (req, res) => {
         };
 
         console.log('Dashboard Stats:', {
-            currentPeriodRevenue,
-            previousPeriodRevenue,
-            currentPeriodOrders: currentPeriodOrders.length,
-            previousPeriodOrders: previousPeriodOrders.length,
+            totalRevenue: currentPeriodRevenue,
+            totalProfit: currentPeriodProfit,
+            totalOrders: currentPeriodOrders.length,
             percentageChanges: stats.percentageChanges
         });
 
@@ -1172,6 +1485,104 @@ const publishProduct = async (req, res) => {
     }
 };
 
+// API endpoint để cập nhật sản phẩm từ modal chỉnh sửa
+const updateProductFromModal = async (req, res) => {
+    try {
+        const productId = req.params.id;
+        console.log("Bắt đầu cập nhật sản phẩm từ modal", { productId, body: req.body });
+
+        if (!mongoose.Types.ObjectId.isValid(productId)) {
+            return res.status(400).json({
+                success: false,
+                message: "ID sản phẩm không hợp lệ",
+            });
+        }
+
+        // Tìm sản phẩm cần cập nhật
+        const product = await Product.findById(productId);
+        if (!product) {
+            console.log("Không tìm thấy sản phẩm với ID:", productId);
+            return res.status(404).json({
+                success: false,
+                message: "Không tìm thấy sản phẩm",
+            });
+        }
+
+        // Xử lý upload ảnh nếu có
+        if (req.file) {
+            // Lưu đường dẫn ảnh mới
+            product.thumbnail = `/images/${req.file.filename}`;
+            console.log("Đã cập nhật ảnh sản phẩm:", product.thumbnail);
+        }
+
+        // Xử lý cập nhật giá cho sản phẩm không có biến thể
+        if (req.body.price) {
+            product.price = parseFloat(req.body.price);
+            console.log("Đã cập nhật giá sản phẩm:", product.price);
+        }
+
+        // Xử lý cập nhật giá cho các biến thể
+        if (req.body.variantPrices) {
+            try {
+                const variantPrices = JSON.parse(req.body.variantPrices);
+                console.log("Dữ liệu giá biến thể nhận được:", variantPrices);
+
+                // Kiểm tra sản phẩm có biến thể không
+                if (product.hasVariants) {
+                    // Cập nhật giá cho DetailsVariant
+                    if (product.detailsVariants && product.detailsVariants.length > 0) {
+                        for (const variantPrice of variantPrices) {
+                            const variant = product.detailsVariants.find(v => v._id.toString() === variantPrice.id);
+                            if (variant) {
+                                variant.price = parseFloat(variantPrice.price);
+                                console.log(`Cập nhật giá cho biến thể ${variantPrice.id}:`, variant.price);
+                            }
+                        }
+                    } 
+                    // Cập nhật giá cho variantDetails (cấu trúc cũ)
+                    else if (product.variantDetails && product.variantDetails.length > 0) {
+                        for (const variantPrice of variantPrices) {
+                            // Vì variantPrice.id có thể là index nếu là biến thể cũ
+                            const index = parseInt(variantPrice.id);
+                            if (!isNaN(index) && index >= 0 && index < product.variantDetails.length) {
+                                product.variantDetails[index].price = parseFloat(variantPrice.price);
+                                console.log(`Cập nhật giá cho biến thể index ${index}:`, product.variantDetails[index].price);
+                            }
+                            // Nếu là ID
+                            else if (mongoose.Types.ObjectId.isValid(variantPrice.id)) {
+                                const variant = product.variantDetails.find(v => v._id.toString() === variantPrice.id);
+                                if (variant) {
+                                    variant.price = parseFloat(variantPrice.price);
+                                    console.log(`Cập nhật giá cho biến thể ${variantPrice.id}:`, variant.price);
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error("Lỗi khi xử lý giá biến thể:", error);
+                // Tiếp tục xử lý ngay cả khi có lỗi
+            }
+        }
+
+        // Lưu các thay đổi
+        await product.save();
+        console.log("Đã cập nhật sản phẩm thành công:", productId);
+
+        res.status(200).json({
+            success: true,
+            message: "Cập nhật sản phẩm thành công",
+            data: product,
+        });
+    } catch (error) {
+        console.error("Lỗi khi cập nhật sản phẩm từ modal:", error);
+        res.status(500).json({
+            success: false,
+            message: "Lỗi khi cập nhật sản phẩm: " + error.message,
+        });
+    }
+};
+
 module.exports = {
     getProduct,
     getProductAsJson,
@@ -1184,5 +1595,6 @@ module.exports = {
     getDashboardStats,
     getOrderDistribution,
     getEmployeePerformance,
-    publishProduct
+    publishProduct,
+    updateProductFromModal: [upload.single("thumbnail"), updateProductFromModal]
 };

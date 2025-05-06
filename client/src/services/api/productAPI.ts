@@ -38,6 +38,8 @@ interface Product {
     inventory: number;
   }>;
   detailsVariants?: Array<any>;
+  original_price?: number;
+  hasVariants?: boolean;
 }
 
 // Tạo instance API public không yêu cầu token
@@ -217,39 +219,86 @@ export const fetchProductsfororder= async () => {
       ok: response.ok
     });
 
+    // Xử lý và log data từ response
+    let products: any[] = [];
+
     // Xử lý các định dạng response khác nhau
     if (response.ok && response.data?.success && Array.isArray(response.data.data)) {
       console.log('Lấy sản phẩm thành công (format success)');
-      return response.data.data || [];
+      products = response.data.data || [];
     } else if (response.ok && Array.isArray(response.data?.data)) {
       // API trả về theo format cũ
       console.log('Lấy sản phẩm thành công (format array)');
-      return response.data.data || [];
+      products = response.data.data || [];
     } else if (response.ok && response.data?.status === 'Ok' && Array.isArray(response.data.data)) {
       // API trả về theo format status: 'Ok'
       console.log('Lấy sản phẩm thành công (format Ok)');
-      return response.data.data || [];
+      products = response.data.data || [];
     } else if (response.ok && Array.isArray(response.data)) {
       // API trả về mảng trực tiếp
       console.log('Lấy sản phẩm thành công (format array direct)');
-      return response.data || [];
+      products = response.data || [];
     } else if (response.ok && response.data && typeof response.data === 'object') {
       // Trả về trong trường hợp định dạng không rõ ràng nhưng có dữ liệu
       console.log('Nhận được dữ liệu với định dạng khác, cố gắng xử lý...');
       
       // Kiểm tra xem có định dạng đặc biệt nào không
       if (response.data.productsWithPriceAndInventory && Array.isArray(response.data.productsWithPriceAndInventory)) {
-        return response.data.productsWithPriceAndInventory;
+        products = response.data.productsWithPriceAndInventory;
       } else if (response.data.products && Array.isArray(response.data.products)) {
-        return response.data.products;
+        products = response.data.products;
+      } else {
+        // Nếu không tìm thấy định dạng nào phù hợp, trả về đối tượng chính
+        products = [response.data];
       }
-      
-      // Nếu không tìm thấy định dạng nào phù hợp, trả về đối tượng chính
-      return response.data;
     } else {
       console.error('Không thể lấy danh sách sản phẩm:', response.problem, response.data);
       throw new Error('Định dạng dữ liệu không hợp lệ');
     }
+
+    // Log chi tiết về cấu trúc dữ liệu sản phẩm để debug
+    console.log(`Số lượng sản phẩm: ${products.length}`);
+    
+    // Log chi tiết 2 sản phẩm đầu tiên để kiểm tra cấu trúc
+    products.slice(0, 2).forEach((product, index) => {
+      console.log(`Thông tin sản phẩm ${index}: ${product.name}`);
+      console.log(`- ID: ${product._id}`);
+      console.log(`- Giá bán: ${product.price}`);
+      console.log(`- Giá nhập: ${product.original_price}`);
+      console.log(`- Có biến thể: ${product.hasVariants ? 'Có' : 'Không'}`);
+      
+      // Log biến thể nếu có
+      if (product.hasVariants && Array.isArray(product.detailsVariants)) {
+        console.log(`- Số lượng biến thể: ${product.detailsVariants.length}`);
+        
+        product.detailsVariants.slice(0, 2).forEach((variant: any, vIndex: number) => {
+          console.log(`  Biến thể ${vIndex}:`);
+          console.log(`  - ID: ${variant._id}`);
+          console.log(`  - Giá bán: ${variant.price}`);
+          console.log(`  - Giá nhập: ${variant.original_price}`);
+          console.log(`  - Tồn kho: ${variant.inventory}`);
+          
+          // Log thuộc tính
+          if (variant.attributes) {
+            const attrType = typeof variant.attributes;
+            console.log(`  - Loại thuộc tính: ${attrType}`);
+            
+            if (attrType === 'object' && variant.attributes.entries) {
+              console.log(`  - Thuộc tính: Map với ${Array.from(variant.attributes.entries()).length} phần tử`);
+            } else if (attrType === 'object') {
+              console.log(`  - Thuộc tính: ${Object.keys(variant.attributes).join(', ')}`);
+              for (const [key, value] of Object.entries(variant.attributes)) {
+                console.log(`    + ${key}: ${value}`);
+              }
+            }
+          }
+        });
+      }
+      
+      console.log('-----------------------------------');
+    });
+
+    return products;
   } catch (error) {
     console.error('Lỗi trong fetchProductsfororder:', error);
     throw error instanceof Error

@@ -76,17 +76,19 @@ const DayScreen = observer(() => {
   // Tính toán số Hóa đơn theo từng loại
   const getOrderCounts = () => {
     try {
+      // Xác định ngày hiện tại (start và end của ngày)
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
+      const todayEnd = new Date(today);
+      todayEnd.setHours(23, 59, 59, 999);
 
       // Lọc Hóa đơn trong ngày hôm nay với xử lý lỗi parse ngày
       const todayOrders = rootStore.orders.orders.filter((order: any) => {
         try {
           const orderDate = new Date(order.createdAt);
-          return orderDate >= today && orderDate < tomorrow;
+          return orderDate >= today && orderDate <= todayEnd;
         } catch (error) {
+          console.error('Error parsing order date:', error);
           console.error('Error parsing order date:', error);
           return false;
         }
@@ -154,15 +156,21 @@ const DayScreen = observer(() => {
       { label: '19h-21h', startHour: 19, endHour: 20, revenue: 0, orderCount: 0 },
     ];
 
+    // Xác định ngày hiện tại (start và end của ngày)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const todayEnd = new Date(today);
+    todayEnd.setHours(23, 59, 59, 999);
 
     // Filter orders for today
     const todayOrders = rootStore.orders.orders.filter((order: any) => {
-      const orderDate = new Date(order.createdAt);
-      return orderDate >= today && orderDate < tomorrow && order.status !== 'canceled';
+      try {
+        const orderDate = new Date(order.createdAt);
+        return orderDate >= today && orderDate <= todayEnd && order.status !== 'canceled';
+      } catch (error) {
+        console.error('Error parsing order date in generateTimeSlots:', error);
+        return false;
+      }
     });
 
     // Calculate revenue for each time slot
@@ -170,10 +178,15 @@ const DayScreen = observer(() => {
     
     slots.forEach((slot, index) => {
       const slotOrders = todayOrders.filter((order: any) => {
-        const orderDate = new Date(order.createdAt);
-        const orderHour = orderDate.getHours();
-        // Include orders from startHour to endHour+1 (to cover 2 hours)
-        return orderHour >= slot.startHour && orderHour <= slot.endHour + 1;
+        try {
+          const orderDate = new Date(order.createdAt);
+          const orderHour = orderDate.getHours();
+          // Include orders from startHour to endHour+1 (to cover 2 hours)
+          return orderHour >= slot.startHour && orderHour <= slot.endHour + 1;
+        } catch (error) {
+          console.error('Error parsing order date in slot filtering:', error);
+          return false;
+        }
       });
 
       // Calculate revenue for this slot
@@ -212,24 +225,31 @@ const DayScreen = observer(() => {
   };
 
   useEffect(() => {
-    // Fetch orders if not already loaded
-    if (rootStore.orders.orders.length === 0) {
-      rootStore.orders.fetchOrders();
-    }
-
-    // Update revenue stats
-    const updateStats = () => {
+    // Xác định ngày hiện tại
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(today);
+    todayEnd.setHours(23, 59, 59, 999);
+    
+    // Fetch orders với ngày hôm nay
+    rootStore.orders.fetchOrders(
+      today.toISOString(), 
+      todayEnd.toISOString()
+    ).then(() => {
+      // Update revenue stats
       const stats = getDailyRevenueStats();
       setRevenueStats(stats);
       setTimeSlots(generateTimeSlots());
       setOrderCounts(getOrderCounts());
-    };
-
-    // Initial update
-    updateStats();
-
+    });
+    
     // Set up tracking for changes
-    setupRevenueTracking(updateStats);
+    setupRevenueTracking(() => {
+      const stats = getDailyRevenueStats();
+      setRevenueStats(stats);
+      setTimeSlots(generateTimeSlots());
+      setOrderCounts(getOrderCounts());
+    });
 
     // Clean up
     return () => {
@@ -269,9 +289,13 @@ const DayScreen = observer(() => {
           style={styles.mainCard}
           onPress={() => {
             const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const todayEnd = new Date(today);
+            todayEnd.setHours(23, 59, 59, 999);
+            
             navigation.navigate(Screen.REVENUE, {
-              startDate: today,
-              endDate: today,
+              startDate: today.toISOString(),
+              endDate: todayEnd.toISOString(),
             });
           }}>
           <View style={styles.mainCardHeader}>

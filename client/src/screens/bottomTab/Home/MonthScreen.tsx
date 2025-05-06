@@ -118,11 +118,14 @@ const MonthScreen: React.FC = observer(() => {
     // Create data for each week
     for (let weekNum = 1; weekNum <= 5; weekNum++) {
       const startDate = new Date(currentYear, currentMonth, (weekNum - 1) * 7 + 1);
+      startDate.setHours(0, 0, 0, 0);
       let endDate = new Date(currentYear, currentMonth, weekNum * 7);
+      endDate.setHours(23, 59, 59, 999);
       
       // Adjust end date if it goes beyond the month
       if (endDate > lastDay) {
         endDate = new Date(lastDay);
+        endDate.setHours(23, 59, 59, 999);
       }
 
       // Only include weeks that are actually in this month
@@ -163,13 +166,18 @@ const MonthScreen: React.FC = observer(() => {
     
     // Filter orders within date range that are paid and not canceled
     const weekOrders = rootStore.orders.orders.filter((order: any) => {
-      const orderDate = new Date(order.createdAt);
-      return (
-        orderDate >= start &&
-        orderDate <= end &&
-        order.status !== 'canceled' &&
-        (order.paymentStatus === 'paid' || order.paymentStatus === 'partpaid')
-      );
+      try {
+        const orderDate = new Date(order.createdAt);
+        return (
+          orderDate >= start &&
+          orderDate <= end &&
+          order.status !== 'canceled' &&
+          (order.paymentStatus === 'paid' || order.paymentStatus === 'partpaid')
+        );
+      } catch (error) {
+        console.error('Error parsing order date in calculateWeekRevenue:', error);
+        return false;
+      }
     });
     
     // Calculate total revenue
@@ -188,12 +196,17 @@ const MonthScreen: React.FC = observer(() => {
     
     // Count non-canceled orders
     return rootStore.orders.orders.filter((order: any) => {
-      const orderDate = new Date(order.createdAt);
-      return (
-        orderDate >= start &&
-        orderDate <= end &&
-        order.status !== 'canceled'
-      );
+      try {
+        const orderDate = new Date(order.createdAt);
+        return (
+          orderDate >= start &&
+          orderDate <= end &&
+          order.status !== 'canceled'
+        );
+      } catch (error) {
+        console.error('Error parsing order date in countOrdersForWeek:', error);
+        return false;
+      }
     }).length;
   };
   
@@ -288,24 +301,38 @@ const MonthScreen: React.FC = observer(() => {
   };
 
   useEffect(() => {
-    // Fetch orders if not already loaded
-    if (rootStore.orders.orders.length === 0) {
-      rootStore.orders.fetchOrders();
-    }
+    // Xác định ngày bắt đầu và kết thúc tháng
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    
+    // Create start of month
+    const startOfMonth = new Date(currentYear, currentMonth, 1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    
+    // Create end of month
+    const endOfMonth = new Date(currentYear, currentMonth + 1, 0);
+    endOfMonth.setHours(23, 59, 59, 999);
 
-    // Update revenue stats
-    const updateStats = () => {
+    // Fetch orders for the current month
+    rootStore.orders.fetchOrders(
+      startOfMonth.toISOString(), 
+      endOfMonth.toISOString()
+    ).then(() => {
+      // Update revenue stats
       const stats = getMonthlyRevenueStats();
       setRevenueStats(stats);
       setWeekData(generateWeekData());
       setOrderCounts(getMonthOrderCounts());
-    };
-
-    // Initial update
-    updateStats();
+    });
 
     // Set up tracking for changes
-    setupRevenueTracking(updateStats);
+    setupRevenueTracking(() => {
+      const stats = getMonthlyRevenueStats();
+      setRevenueStats(stats);
+      setWeekData(generateWeekData());
+      setOrderCounts(getMonthOrderCounts());
+    });
 
     // Clean up
     return () => {
@@ -327,10 +354,14 @@ const MonthScreen: React.FC = observer(() => {
           onPress={() => {
             const now = new Date();
             const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            startOfMonth.setHours(0, 0, 0, 0);
+            
+            const today = new Date();
+            today.setHours(23, 59, 59, 999);
             
             navigation.navigate(Screen.REVENUE, {
-              startDate: startOfMonth,
-              endDate: now,
+              startDate: startOfMonth.toISOString(),
+              endDate: today.toISOString(),
             });
           }}>
           <View style={styles.mainCardHeader}>

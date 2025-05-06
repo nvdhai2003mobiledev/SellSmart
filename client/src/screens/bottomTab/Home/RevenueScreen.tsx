@@ -4,7 +4,6 @@ import {BaseLayout, DynamicText, Header} from '../../../components';
 import {color, moderateScale} from '../../../utils';
 import {observer} from 'mobx-react-lite';
 import {
-  getRevenueStatsByDateRange,
   formatCurrency,
   RevenueStats,
 } from '../../../services/revenueService';
@@ -23,13 +22,21 @@ import {OrderInstance} from '../../../models/Order/Order';
 
 type NavigationProps = NativeStackNavigationProp<RootStackParamList>;
 
+// Define an interface for order items
+interface OrderItem {
+  productId: string;
+  quantity: number;
+  price: number;
+  [key: string]: any;
+}
+
 const RevenueScreen = observer(() => {
   const navigation = useNavigation<NavigationProps>();
   const route = useRoute();
-  const params = route.params as {startDate: Date; endDate: Date} | undefined;
+  const params = route.params as {startDate: string; endDate: string} | undefined;
   
-  const startDate = useMemo(() => params?.startDate || new Date(), [params?.startDate]);
-  const endDate = useMemo(() => params?.endDate || new Date(), [params?.endDate]);
+  const startDate = useMemo(() => params?.startDate ? new Date(params.startDate) : new Date(), [params?.startDate]);
+  const endDate = useMemo(() => params?.endDate ? new Date(params.endDate) : new Date(), [params?.endDate]);
   
   const [revenueStats, setRevenueStats] = useState<RevenueStats>({
     totalRevenue: 0,
@@ -40,36 +47,117 @@ const RevenueScreen = observer(() => {
   const [filteredOrders, setFilteredOrders] = useState<OrderInstance[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const updateStats = useCallback(() => {
-    // Set proper time ranges for date objects
-    const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999); // Set to end of day
+  // Calculate revenue stats directly from filtered orders
+  const calculateRevenueStats = (orders: OrderInstance[]): RevenueStats => {
+    // Filter out canceled orders
+    const validOrders = orders.filter(order => order.status !== 'canceled');
     
-    const start = new Date(startDate);
-    start.setHours(0, 0, 0, 0); // Set to start of day
+    // Calculate total revenue
+    const totalRevenue = validOrders.reduce((sum, order) => {
+      if (order.paymentStatus === 'paid') {
+        return sum + order.totalAmount;
+      } else if (order.paymentStatus === 'partpaid') {
+        return sum + (order.paidAmount || 0);
+      }
+      return sum;
+    }, 0);
     
-    // Calculate stats for the selected date range with proper time ranges
-    const stats = getRevenueStatsByDateRange(start, end);
-    setRevenueStats(stats);
+    // Count total products sold
+    const totalProductsSold = validOrders.reduce((sum, order) => {
+      // Safely access items property with type casting if necessary
+      const orderItems = order.items as OrderItem[] || [];
+      return sum + (orderItems.reduce((itemSum: number, item: OrderItem) => itemSum + item.quantity, 0));
+    }, 0);
+    
+    // Calculate average order value
+    const averageOrderValue = validOrders.length > 0 ? totalRevenue / validOrders.length : 0;
+    
+    return {
+      totalRevenue,
+      averageOrderValue,
+      totalProductsSold,
+      orderCount: validOrders.length,
+    };
+  };
 
-    // Get orders for the selected date range
-    const orders = rootStore.orders.orders.filter((order: OrderInstance) => {
-      const orderDate = new Date(order.createdAt);
-      return orderDate >= start && orderDate <= end;
-    });
-    
-    setFilteredOrders(orders);
+  const updateStats = useCallback(() => {
+    try {
+      // Create copies of dates to avoid mutation
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+
+      // Set the start date to the beginning of the day (00:00:00.000)
+      start.setHours(0, 0, 0, 0);
+      
+      // Set the end date to the end of the day (23:59:59.999)
+      end.setHours(23, 59, 59, 999);
+      
+      console.log(`Filtering orders from ${start.toISOString()} to ${end.toISOString()}`);
+
+      // Filter orders based on their creation timestamp
+      const orders = rootStore.orders.orders.filter((order: OrderInstance) => {
+        try {
+          const orderDate = new Date(order.createdAt);
+          
+          // Check if order date is within range (inclusive of start and end dates)
+          const isInRange = orderDate >= start && orderDate <= end;
+          
+          if (isInRange) {
+            console.log(`Order ${order.orderID} (${orderDate.toISOString()}) is in range`);
+          }
+          
+          return isInRange;
+        } catch (error) {
+          console.error(`Error parsing date for order ${order.orderID}:`, error);
+          return false;
+        }
+      });
+      
+      console.log(`Found ${orders.length} orders matching date range out of ${rootStore.orders.orders.length} total`);
+      
+      // Sort orders by creation date, newest first
+      const sortedOrders = [...orders].sort((a, b) => {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+      
+      // Calculate revenue stats from the filtered orders
+      const stats = calculateRevenueStats(orders);
+      console.log('Calculated revenue stats:', stats);
+      
+      setRevenueStats(stats);
+      setFilteredOrders(sortedOrders);
+    } catch (error) {
+      console.error('Error updating stats:', error);
+    }
   }, [startDate, endDate]);
 
   useEffect(() => {
     // Load orders if not already loaded
     if (rootStore.orders.orders.length === 0) {
       setLoading(true);
-      rootStore.orders.fetchOrders().then(() => {
+      console.log('No orders found, fetching orders...');
+      
+      // Get the start and end of the full date range for fetching
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      
+      // Fetch orders for the specific date range
+      rootStore.orders.fetchOrders(
+        start.toISOString(), 
+        end.toISOString()
+      ).then(() => {
+        console.log(`Fetched ${rootStore.orders.orders.length} orders`);
         updateStats();
+        setLoading(false);
+      }).catch((error: unknown) => {
+        console.error('Error fetching orders:', error);
         setLoading(false);
       });
     } else {
+      console.log(`Using ${rootStore.orders.orders.length} existing orders`);
       updateStats();
       setLoading(false);
     }

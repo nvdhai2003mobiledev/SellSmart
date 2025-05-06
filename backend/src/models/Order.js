@@ -49,7 +49,9 @@ const OrderSchema = new mongoose.Schema({
     discountAmount: { type: Number }
   },
   // Store original amount before discount
-  originalAmount: { type: Number }
+  originalAmount: { type: Number },
+  // Store total profit calculated from app
+  totalProfit: { type: Number, default: 0 }
 }, { timestamps: true });
 
 OrderSchema.pre('save', async function(next) {
