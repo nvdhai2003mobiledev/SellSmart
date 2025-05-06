@@ -42,6 +42,7 @@
     "react-native-fast-image": "^8.6.3",
     "react-native-flash-message": "^0.4.2",
     "react-native-image-picker": "^8.2.0",
+    "react-native-linear-gradient": "^2.8.3",
     "react-native-onboarding-swiper": "^1.3.0",
     "react-native-pager-view": "^6.7.0",
     "react-native-permissions": "^5.2.6",

@@ -42,7 +42,7 @@ export const Header = (props: HeaderProps) => {
       <View style={styles.leftContainer}>
         {showBackIcon && (
           <ArrowLeft2
-            size={scaledSize(28)}
+            size={scaledSize(36)}
             color={textColor}
             variant="Linear"
             onPress={onPressBack}

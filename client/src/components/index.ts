@@ -4,3 +4,4 @@ export * from './BaseLayout/BaseLayout';
 export * from './DynamicText/DynamicText';
 export * from './Header/Header';
 export * from './EmptyState/EmptyState';
+export * from './Modal/CustomModal';

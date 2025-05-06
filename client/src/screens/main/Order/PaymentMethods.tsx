@@ -4,19 +4,21 @@ import {
   StyleSheet,
   Alert,
   TextInput,
-  ScrollView,
   TouchableOpacity,
   Modal,
   Dimensions,
-  SafeAreaView,
+  Image,
 } from 'react-native';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import {observer} from 'mobx-react-lite';
 import Icon from 'react-native-vector-icons/Ionicons';
-import {Header, DynamicText} from '../../../components';
+import {Header, DynamicText, BaseLayout} from '../../../components';
 import {color, moderateScale} from '../../../utils';
 import {updateOrderPayment} from '../../../services/api/ordersApi';
 import {rootStore} from '../../../models/root-store';
+import LinearGradient from 'react-native-linear-gradient';
+import {Fonts} from '../../../assets/fonts';
+import {Images} from '../../../assets/images';
 
 // Lấy kích thước màn hình để điều chỉnh style phù hợp
 const {width} = Dimensions.get('window');
@@ -39,7 +41,6 @@ const PaymentMethods = observer(() => {
   // Extract parameters from route
   const {
     orderId,
-    orderNumber,
     totalAmount,
     remainingAmount,
     isPartialPayment = false,
@@ -65,11 +66,24 @@ const PaymentMethods = observer(() => {
     }
   }, [amountToPay]);
 
-  // Format currency function
+  // Format currency function with dot separator for thousands
   const formatCurrency = (amount: number | string) => {
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-    if (isNaN(numAmount)) return '0đ';
-    return numAmount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',') + 'đ';
+    if (isNaN(numAmount)) return '0 ₫';
+    return numAmount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' ₫';
+  };
+
+  // Format displayed amount for input
+  const formatDisplayAmount = (amount: string) => {
+    // Remove non-numeric characters and convert to number
+    const numericValue = amount.replace(/[^0-9]/g, '');
+    if (numericValue === '') return '';
+
+    // Format with dots
+    const formattedValue = parseInt(numericValue)
+      .toString()
+      .replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return formattedValue;
   };
 
   // Payment methods available
@@ -145,7 +159,7 @@ const PaymentMethods = observer(() => {
       if (response.ok) {
         // Refresh order data in store
         await rootStore.orders.fetchOrders();
-        
+
         // Gọi callback nếu được cung cấp (để có thể cập nhật trạng thái ở màn hình gọi)
         if (onPaymentComplete) {
           onPaymentComplete(selectedMethod, amount);
@@ -153,16 +167,16 @@ const PaymentMethods = observer(() => {
 
         // Hiển thị thông báo thành công với chi tiết thanh toán
         Alert.alert(
-          'Thành công', 
-          isPartialPay 
+          'Thành công',
+          isPartialPay
             ? 'Thanh toán một phần đã được ghi nhận. Đơn hàng đã được chuyển sang trạng thái "Chờ xử lý"'
-            : 'Thanh toán đã được ghi nhận thành công. Đơn hàng đã được chuyển sang trạng thái "Đã xử lý"', 
+            : 'Thanh toán đã được ghi nhận thành công. Đơn hàng đã được chuyển sang trạng thái "Đã xử lý"',
           [
             {
               text: 'Xem chi tiết đơn hàng',
               onPress: () => navigation.navigate('ORDER_DETAIL', {orderId}),
             },
-          ]
+          ],
         );
       } else {
         const errorData = response.data as {message?: string} | undefined;
@@ -209,116 +223,156 @@ const PaymentMethods = observer(() => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <BaseLayout scrollable>
       <Header
         title={getPaymentTitle()}
         showBackIcon
         onPressBack={() => navigation.goBack()}
-        showRightIcon
-        RightIcon={
-          <Icon name="checkmark" size={24} color={color.primaryColor} />
-        }
-        onPressRight={handlePayment}
       />
+      {/* Phần hiển thị số tiền thanh toán */}
+      <LinearGradient
+        colors={['#ECF6FF', '#F9FCFF']}
+        style={[
+          styles.sectionCard,
+          styles.amountContainer,
+          isTablet && styles.tabletAmountContainer,
+        ]}>
+        <DynamicText style={styles.amountLabel}>Số tiền thanh toán</DynamicText>
+        <View style={styles.amountInputWrapper}>
+          <View style={styles.currencySymbolContainer}>
+            <TextInput
+              style={[styles.amountInput, isTablet && styles.tabletAmountInput]}
+              keyboardType="numeric"
+              value={formatDisplayAmount(paymentAmount)}
+              onChangeText={handleAmountChange}
+              placeholder="0"
+              placeholderTextColor="#999"
+            />
+            <DynamicText style={styles.currencySymbol}>₫</DynamicText>
+          </View>
+        </View>
 
-      <View style={styles.mainContainer}>
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={[
-            styles.scrollViewContent,
-            isTablet && styles.tabletScrollViewContent,
-          ]}>
-          {/* Phần hiển thị số tiền thanh toán */}
-          <View
-            style={[
-              styles.amountContainer,
-              isTablet && styles.tabletAmountContainer,
-            ]}>
-            <DynamicText style={styles.amountLabel}>
-              Số tiền thanh toán
+        {remainingAmount !== undefined && (
+          <View style={styles.remainingAmountContainer}>
+            <DynamicText style={styles.remainingText}>
+              Số tiền cần thanh toán: {formatCurrency(remainingAmount)}
             </DynamicText>
-            <View style={styles.amountInputWrapper}>
-              <TextInput
-                style={[
-                  styles.amountInput,
-                  isTablet && styles.tabletAmountInput,
-                ]}
-                keyboardType="numeric"
-                value={paymentAmount}
-                onChangeText={handleAmountChange}
-                placeholder="0"
-                placeholderTextColor="#999"
-              />
-            </View>
-
-            {remainingAmount !== undefined && (
-              <View style={styles.remainingAmountContainer}>
-                <DynamicText style={styles.remainingText}>
-                  Số tiền cần thanh toán: {formatCurrency(remainingAmount)}
-                </DynamicText>
-                {totalAmount !== remainingAmount && (
-                  <DynamicText style={styles.previousPaymentText}>
-                    Đã thanh toán trước đó:{' '}
-                    {formatCurrency(totalAmount - remainingAmount)}
-                  </DynamicText>
-                )}
-              </View>
+            {totalAmount !== remainingAmount && (
+              <DynamicText style={styles.previousPaymentText}>
+                Đã thanh toán trước đó:{' '}
+                {formatCurrency(totalAmount - remainingAmount)}
+              </DynamicText>
             )}
           </View>
+        )}
+      </LinearGradient>
 
-          {/* Phần nhập tham chiếu */}
-          <View style={[styles.noteSection, isTablet && styles.tabletSection]}>
-            <DynamicText style={styles.sectionTitle}>Tham chiếu</DynamicText>
-            <TextInput
-              style={styles.noteInput}
-              placeholder="Nhập tham chiếu"
-              value={paymentNote}
-              onChangeText={setPaymentNote}
-            />
-          </View>
+      {/* Phần nhập tham chiếu */}
+      <View style={[styles.sectionCard, isTablet && styles.tabletSection]}>
+        <DynamicText style={styles.sectionTitle}>Tham chiếu</DynamicText>
+        <TextInput
+          style={styles.noteInput}
+          placeholder="Nhập tham chiếu thanh toán (tùy chọn)"
+          value={paymentNote}
+          onChangeText={setPaymentNote}
+        />
+      </View>
 
-          {/* Phần chọn phương thức thanh toán */}
-          <View
-            style={[styles.methodsSection, isTablet && styles.tabletSection]}>
-            <DynamicText style={styles.sectionTitle}>
-              Phương thức thanh toán
-            </DynamicText>
+      {/* Phần chọn phương thức thanh toán dạng hàng ngang */}
+      <View style={[styles.sectionCard, isTablet && styles.tabletSection]}>
+        <DynamicText style={styles.sectionTitle}>
+          Phương thức thanh toán
+        </DynamicText>
 
-            {paymentMethods.map(method => (
+        <View style={styles.paymentMethodsRow}>
+          {paymentMethods.map(method => {
+            const isSelected = selectedMethod === method.id;
+            return (
               <TouchableOpacity
                 key={method.id}
-                style={styles.methodItem}
+                style={[
+                  styles.paymentMethodCard,
+                  isSelected && styles.selectedPaymentMethodCard,
+                ]}
                 onPress={() => setSelectedMethod(method.id)}>
-                <View style={styles.methodItemLeft}>
-                  <View style={styles.methodIconContainer}>
-                    <Icon name={method.icon} size={24} color="#4CAF50" />
-                  </View>
-                  <DynamicText style={styles.methodLabel}>
-                    {method.label}
-                  </DynamicText>
+                <View
+                  style={[
+                    styles.methodIconContainer,
+                    isSelected && styles.selectedMethodIconContainer,
+                  ]}>
+                  <Icon
+                    name={method.icon}
+                    size={24}
+                    color={isSelected ? '#FFFFFF' : color.primaryColor}
+                  />
                 </View>
-
-                <View style={styles.radioButton}>
-                  {selectedMethod === method.id && (
-                    <View style={styles.radioButtonInner} />
-                  )}
-                </View>
+                <DynamicText
+                  style={[
+                    styles.paymentMethodLabel,
+                    isSelected && styles.selectedPaymentMethodLabel,
+                  ]}>
+                  {method.label}
+                </DynamicText>
               </TouchableOpacity>
-            ))}
-          </View>
-        </ScrollView>
+            );
+          })}
+        </View>
 
+        {/* Hiển thị mã QR khi phương thức chuyển khoản được chọn */}
+        {selectedMethod === 'credit card' && (
+          <View style={styles.qrCodeContainer}>
+            <DynamicText style={styles.qrCodeTitle}>
+              Quét mã QR để chuyển khoản
+            </DynamicText>
+            <View style={styles.qrCodeImageContainer}>
+              <Image
+                source={Images.QR_CODE}
+                style={styles.qrCodeImage}
+                resizeMode="contain"
+              />
+            </View>
+            <DynamicText style={styles.qrCodeHint}>
+              Sau khi chuyển khoản, vui lòng nhập số tiền và bấm "Hoàn tất thanh
+              toán"
+            </DynamicText>
+          </View>
+        )}
+      </View>
+
+      {/* Button Section - Cancel and Complete Payment Buttons */}
+      <View
+        style={[
+          styles.buttonContainer,
+          isTablet && styles.tabletButtonContainer,
+        ]}>
+        {/* Cancel Button */}
         <TouchableOpacity
+          style={[
+            styles.cancelPaymentButton,
+            isTablet && styles.tabletCancelButton,
+          ]}
+          onPress={() => navigation.goBack()}>
+          <DynamicText style={styles.cancelPaymentText}>Hủy</DynamicText>
+        </TouchableOpacity>
+
+        {/* Complete Payment Button */}
+        <LinearGradient
+          colors={['#007AFF', '#0055FF']}
+          start={{x: 0, y: 0}}
+          end={{x: 1, y: 0}}
           style={[
             styles.completeButton,
             isTablet && styles.tabletCompleteButton,
-          ]}
-          onPress={handlePayment}
-          disabled={isSubmitting}>
-          <DynamicText style={styles.completeButtonText}>
-            {isSubmitting ? 'Đang xử lý...' : 'Hoàn tất'}
-          </DynamicText>
-        </TouchableOpacity>
+          ]}>
+          <TouchableOpacity
+            style={styles.completeButtonTouchable}
+            onPress={handlePayment}
+            disabled={isSubmitting}>
+            <DynamicText style={styles.completeButtonText}>
+              {isSubmitting ? 'Đang xử lý...' : 'Hoàn tất thanh toán'}
+            </DynamicText>
+          </TouchableOpacity>
+        </LinearGradient>
       </View>
 
       {/* Confirmation Modal */}
@@ -344,11 +398,13 @@ const PaymentMethods = observer(() => {
               </DynamicText>
 
               {isPartialPaymentNow() && (
-                <DynamicText style={styles.confirmationPartial}>
-                  Đây là thanh toán một phần ({calculatePaymentPercentage()}%).
-                  Đơn hàng sẽ được đánh dấu là "Thanh toán một phần" và 
-                  chuyển sang trạng thái "Chờ xử lý".
-                </DynamicText>
+                <View style={styles.partialPaymentWarning}>
+                  <Icon name="alert-circle-outline" size={20} color="#FFA500" />
+                  <DynamicText style={styles.confirmationPartial}>
+                    Đây là thanh toán một phần ({calculatePaymentPercentage()}
+                    %). Đơn hàng sẽ được đánh dấu là "Thanh toán một phần".
+                  </DynamicText>
+                </View>
               )}
             </View>
 
@@ -359,26 +415,28 @@ const PaymentMethods = observer(() => {
                 <DynamicText style={styles.cancelButtonText}>Hủy</DynamicText>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.modalButton, styles.confirmButton]}
-                onPress={processPayment}>
-                <DynamicText style={styles.confirmButtonText}>
-                  Xác nhận
-                </DynamicText>
-              </TouchableOpacity>
+              <LinearGradient
+                colors={['#007AFF', '#0055FF']}
+                start={{x: 0, y: 0}}
+                end={{x: 1, y: 0}}
+                style={[styles.modalButton, styles.confirmButton]}>
+                <TouchableOpacity
+                  style={styles.confirmButtonTouchable}
+                  onPress={processPayment}>
+                  <DynamicText style={styles.confirmButtonText}>
+                    Xác nhận
+                  </DynamicText>
+                </TouchableOpacity>
+              </LinearGradient>
             </View>
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </BaseLayout>
   );
 });
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
   mainContainer: {
     flex: 1,
     display: 'flex',
@@ -390,151 +448,165 @@ const styles = StyleSheet.create({
   },
   scrollViewContent: {
     paddingBottom: moderateScale(20),
+    padding: moderateScale(16),
   },
   tabletScrollViewContent: {
-    paddingHorizontal: moderateScale(16),
+    paddingHorizontal: moderateScale(20),
   },
-  container: {
-    flexGrow: 1,
-    backgroundColor: '#f5f5f5',
+  sectionCard: {
+    backgroundColor: '#fff',
+    borderRadius: moderateScale(12),
+    padding: moderateScale(16),
+    marginBottom: moderateScale(16),
+    shadowColor: 'rgba(0, 0, 0, 0.08)',
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.03)',
   },
   amountContainer: {
-    padding: moderateScale(16),
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-    marginBottom: moderateScale(8),
+    padding: moderateScale(20),
   },
   tabletAmountContainer: {
-    padding: moderateScale(24),
-    marginBottom: moderateScale(16),
+    padding: moderateScale(28),
   },
   amountLabel: {
     fontSize: moderateScale(16),
-    fontWeight: 'bold',
     color: color.accentColor.darkColor,
-    marginBottom: moderateScale(8),
+    marginBottom: moderateScale(16),
+    fontFamily: Fonts.Inter_SemiBold,
   },
   amountInputWrapper: {
-    marginBottom: moderateScale(8),
+    marginBottom: moderateScale(12),
     width: '100%',
+    alignItems: 'center',
+  },
+  currencySymbolContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   amountInput: {
     fontSize: moderateScale(40),
-    fontWeight: 'bold',
     color: color.accentColor.darkColor,
     textAlign: 'center',
-    width: '100%',
+    fontFamily: Fonts.Inter_Bold,
+  },
+  currencySymbol: {
+    fontSize: moderateScale(36),
+    color: color.accentColor.darkColor,
+    marginLeft: moderateScale(4),
+    fontFamily: Fonts.Inter_Bold,
   },
   tabletAmountInput: {
     fontSize: moderateScale(50),
     marginVertical: moderateScale(16),
   },
   remainingAmountContainer: {
-    marginTop: moderateScale(12),
-    backgroundColor: '#f8f8f8',
-    padding: moderateScale(10),
-    borderRadius: moderateScale(8),
+    marginTop: moderateScale(16),
+    backgroundColor: 'rgba(0, 122, 255, 0.08)',
+    padding: moderateScale(12),
+    borderRadius: moderateScale(10),
     width: '100%',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 122, 255, 0.2)',
   },
   remainingText: {
     fontSize: moderateScale(16),
     color: color.primaryColor,
-    fontWeight: 'bold',
     textAlign: 'center',
+    fontFamily: Fonts.Inter_SemiBold,
   },
   previousPaymentText: {
     fontSize: moderateScale(14),
     color: color.accentColor.grayColor,
     marginTop: moderateScale(4),
     textAlign: 'center',
-  },
-  noteSection: {
-    backgroundColor: '#fff',
-    padding: moderateScale(16),
-    marginTop: moderateScale(8),
-    borderRadius: moderateScale(8),
-    marginHorizontal: moderateScale(8),
+    fontFamily: Fonts.Inter_Regular,
   },
   tabletSection: {
     padding: moderateScale(24),
-    marginTop: moderateScale(16),
-    borderRadius: moderateScale(12),
   },
   sectionTitle: {
     fontSize: moderateScale(16),
-    fontWeight: 'bold',
     color: color.accentColor.darkColor,
     marginBottom: moderateScale(16),
+    fontFamily: Fonts.Inter_SemiBold,
   },
   noteInput: {
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
-    paddingVertical: moderateScale(8),
+    paddingVertical: moderateScale(10),
     fontSize: moderateScale(16),
+    fontFamily: Fonts.Inter_Regular,
   },
-  methodsSection: {
-    backgroundColor: '#fff',
-    padding: moderateScale(16),
-    marginTop: moderateScale(16),
-    borderRadius: moderateScale(8),
-    marginHorizontal: moderateScale(8),
-  },
-  methodItem: {
+  paymentMethodsRow: {
     flexDirection: 'row',
+    paddingVertical: moderateScale(8),
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: moderateScale(12),
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    marginBottom: moderateScale(12),
   },
-  methodItemLeft: {
-    flexDirection: 'row',
+  paymentMethodCard: {
+    backgroundColor: 'rgba(0, 122, 255, 0.05)',
+    borderRadius: moderateScale(10),
+    padding: moderateScale(16),
     alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 122, 255, 0.1)',
+    width: '23%',
+  },
+  selectedPaymentMethodCard: {
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    borderColor: color.primaryColor,
   },
   methodIconContainer: {
-    width: moderateScale(40),
-    height: moderateScale(40),
-    borderRadius: moderateScale(20),
-    backgroundColor: '#E8F5E9',
+    width: moderateScale(44),
+    height: moderateScale(44),
+    borderRadius: moderateScale(22),
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: moderateScale(16),
+    marginBottom: moderateScale(8),
   },
-  methodLabel: {
-    fontSize: moderateScale(16),
+  selectedMethodIconContainer: {
+    backgroundColor: color.primaryColor,
+  },
+  paymentMethodLabel: {
+    fontSize: moderateScale(14),
     color: color.accentColor.darkColor,
+    fontFamily: Fonts.Inter_Regular,
+    textAlign: 'center',
+    marginTop: moderateScale(4),
   },
-  radioButton: {
-    width: moderateScale(24),
-    height: moderateScale(24),
-    borderRadius: moderateScale(12),
-    borderWidth: 2,
-    borderColor: '#007AFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  radioButtonInner: {
-    width: moderateScale(12),
-    height: moderateScale(12),
-    borderRadius: moderateScale(6),
-    backgroundColor: '#007AFF',
+  selectedPaymentMethodLabel: {
+    color: color.primaryColor,
+    fontFamily: Fonts.Inter_SemiBold,
   },
   completeButton: {
-    backgroundColor: '#007AFF',
-    padding: moderateScale(16),
+    marginHorizontal: 0,
+    marginTop: 0,
+    marginBottom: 0,
+    borderRadius: moderateScale(12),
+    overflow: 'hidden',
+    flex: 2,
+  },
+  completeButtonTouchable: {
+    width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 'auto',
+    paddingVertical: moderateScale(12),
   },
   tabletCompleteButton: {
-    padding: moderateScale(20),
+    marginBottom: 0,
   },
   completeButtonText: {
     color: '#fff',
     fontSize: moderateScale(16),
-    fontWeight: 'bold',
+    fontFamily: Fonts.Inter_SemiBold,
   },
   modalOverlay: {
     flex: 1,
@@ -545,35 +617,55 @@ const styles = StyleSheet.create({
   modalContainer: {
     width: '90%',
     backgroundColor: '#fff',
-    borderRadius: moderateScale(12),
-    padding: moderateScale(20),
+    borderRadius: moderateScale(16),
+    padding: moderateScale(24),
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 8,
   },
   tabletModalContainer: {
-    width: '70%',
+    width: '60%',
     maxWidth: 500,
     padding: moderateScale(30),
   },
   modalTitle: {
-    fontSize: moderateScale(18),
-    fontWeight: 'bold',
+    fontSize: moderateScale(20),
     color: color.accentColor.darkColor,
-    marginBottom: moderateScale(16),
+    marginBottom: moderateScale(20),
     textAlign: 'center',
+    fontFamily: Fonts.Inter_Bold,
   },
   modalContent: {
-    marginBottom: moderateScale(20),
+    marginBottom: moderateScale(24),
   },
   confirmationText: {
     fontSize: moderateScale(16),
     color: color.accentColor.darkColor,
     textAlign: 'center',
-    marginBottom: moderateScale(12),
+    marginBottom: moderateScale(16),
+    fontFamily: Fonts.Inter_Regular,
+  },
+  partialPaymentWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 165, 0, 0.1)',
+    padding: moderateScale(12),
+    borderRadius: moderateScale(8),
+    borderWidth: 1,
+    borderColor: 'rgba(255, 165, 0, 0.3)',
   },
   confirmationPartial: {
+    flex: 1,
     fontSize: moderateScale(14),
     color: '#FFA500',
-    textAlign: 'center',
     fontStyle: 'italic',
+    marginLeft: moderateScale(8),
+    fontFamily: Fonts.Inter_Regular,
   },
   modalButtons: {
     flexDirection: 'row',
@@ -581,11 +673,9 @@ const styles = StyleSheet.create({
   },
   modalButton: {
     flex: 1,
-    height: moderateScale(44),
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: moderateScale(8),
+    borderRadius: moderateScale(10),
     marginHorizontal: moderateScale(8),
+    overflow: 'hidden',
   },
   cancelButton: {
     backgroundColor: '#f0f0f0',
@@ -593,14 +683,91 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontSize: moderateScale(16),
     color: color.accentColor.darkColor,
+    textAlign: 'center',
+    paddingVertical: moderateScale(14),
+    fontFamily: Fonts.Inter_Regular,
   },
   confirmButton: {
-    backgroundColor: '#007AFF',
+    overflow: 'hidden',
+  },
+  confirmButtonTouchable: {
+    width: '100%',
+    paddingVertical: moderateScale(14),
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   confirmButtonText: {
     fontSize: moderateScale(16),
     color: '#fff',
-    fontWeight: 'bold',
+    fontFamily: Fonts.Inter_Bold,
+  },
+  qrCodeContainer: {
+    marginTop: moderateScale(16),
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.05)',
+    paddingTop: moderateScale(16),
+  },
+  qrCodeTitle: {
+    fontSize: moderateScale(16),
+    color: color.accentColor.darkColor,
+    marginBottom: moderateScale(16),
+    fontFamily: Fonts.Inter_SemiBold,
+    textAlign: 'center',
+  },
+  qrCodeImageContainer: {
+    backgroundColor: '#fff',
+    padding: moderateScale(16),
+    borderRadius: moderateScale(12),
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  qrCodeImage: {
+    width: moderateScale(220),
+    height: moderateScale(220),
+  },
+  qrCodeHint: {
+    fontSize: moderateScale(14),
+    color: color.accentColor.grayColor,
+    marginTop: moderateScale(16),
+    textAlign: 'center',
+    fontFamily: Fonts.Inter_Regular,
+    paddingHorizontal: moderateScale(16),
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginVertical: moderateScale(16),
+    gap: moderateScale(12),
+  },
+  tabletButtonContainer: {
+    marginBottom: moderateScale(24),
+  },
+  cancelPaymentButton: {
+    backgroundColor: '#f0f0f0',
+    padding: moderateScale(12),
+    borderRadius: moderateScale(10),
+    flex: 1,
+  },
+  tabletCancelButton: {
+    padding: moderateScale(14),
+  },
+  cancelPaymentText: {
+    fontSize: moderateScale(16),
+    color: color.accentColor.darkColor,
+    textAlign: 'center',
+    fontFamily: Fonts.Inter_Regular,
   },
 });
 
