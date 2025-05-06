@@ -1020,6 +1020,46 @@ const getProductsForBatch = async (req, res) => {
     }
 };
 
+// Lấy danh sách mã lô hàng gần đây để gợi ý tìm kiếm
+async function getRecentBatchNumbers(req, res) {
+    try {
+        // Tìm tất cả các sản phẩm trong kho
+        const inventories = await Inventory.find()
+            .sort({ createdAt: -1 })
+            .limit(100) // Giới hạn để tối ưu hiệu suất
+            .lean();
+
+        // Tạo một Set để lưu trữ các mã lô hàng duy nhất
+        const batchNumbersSet = new Set();
+        
+        // Duyệt qua từng sản phẩm và thêm mã lô hàng vào Set
+        inventories.forEach(inventory => {
+            if (inventory.batch_info && Array.isArray(inventory.batch_info)) {
+                inventory.batch_info.forEach(batch => {
+                    if (batch.batch_number) {
+                        batchNumbersSet.add(batch.batch_number);
+                    }
+                });
+            }
+        });
+
+        // Chuyển đổi Set thành mảng và lấy tối đa 10 mã lô hàng
+        const batchNumbers = Array.from(batchNumbersSet).slice(0, 10);
+
+        // Trả về danh sách mã lô hàng
+        res.json({
+            status: 'Ok',
+            batchNumbers
+        });
+    } catch (error) {
+        console.error('Lỗi khi lấy danh sách mã lô hàng gần đây:', error);
+        res.status(500).json({
+            status: 'Error',
+            message: 'Lỗi khi lấy danh sách mã lô hàng gần đây: ' + error.message
+        });
+    }
+}
+
 module.exports = {
     importInventory,
     updateInventory,
@@ -1029,5 +1069,6 @@ module.exports = {
     deleteInventory,
     getLastProductCode,
     getProductsForBatch,
+    getRecentBatchNumbers,
     sendBatchNotification,
 };

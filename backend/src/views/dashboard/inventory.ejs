@@ -160,7 +160,10 @@
                             <div class="col-md-6">
                                 <label class="form-label required">mã lô hàng</label>
                                 <div class="input-group">
-                                    <input type="text" class="form-control" id="nextBatchNumber" required>
+                                    <input type="text" class="form-control" id="nextBatchNumber" list="batchSuggestions" placeholder="Nhập mã lô hàng" required autocomplete="off">
+                                    <datalist id="batchSuggestions">
+                                        <!-- Gợi ý mã lô hàng sẽ được thêm vào đây bằng JavaScript -->
+                                    </datalist>
                                     <button type="button" class="btn btn-primary" id="searchBatchBtn">
                                         <i class="fas fa-search"></i> Tìm
                                     </button>
@@ -170,7 +173,7 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label required">Ngày nhập</label>
-                                <input type="date" class="form-control" id="nextBatchDate" required>
+                                <input type="date" class="form-control" id="nextBatchDate" required min="2024-03-16">
                                 <div class="invalid-feedback">Vui lòng chọn ngày nhập</div>
                             </div>
                         </div>
@@ -226,6 +229,7 @@
                                     <div class="col-md-6">
                                         <label class="form-label">Ngày nhập <span class="text-danger">*</span></label>
                                         <input type="date" class="form-control" id="batchDate" required>
+                                        <div class="invalid-feedback">Vui lòng chọn ngày nhập</div>
                                     </div>
                                 </div>
                                 <div class="row mt-3">
@@ -514,13 +518,14 @@
         window.productCounter = 0;
         window.selectedProduct = null;
         window.selectedVariant = null;
-        
+        window.recentBatchNumbers = []; // Biến lưu trữ mã lô hàng gần đây
+        window.batchValidated = false;
+        window.validatedBatchNumber = null;
+
         // Pagination variables
         let currentPageIndex = 1;
         let itemsPerPage = 10;
         let filteredInventories = [];
-        window.batchValidated = false;
-        window.validatedBatchNumber = null;
 
         // Hàm làm tròn số với số chữ số thập phân xác định
         function roundNumber(num, decimals = 2) {
@@ -537,6 +542,9 @@
             
             // Khởi tạo pagination
             initializeInventoryPagination();
+            
+            // Tải các mã lô hàng gần đây để gợi ý
+            loadRecentBatchNumbers();
         });
 
         // Khởi tạo pagination
@@ -983,17 +991,6 @@
                             setTimeout(() => location.reload(), 1000);
                         } else {
                             showToast('error', response.message || 'Có lỗi xảy ra khi nhập kho');
-                            $('.product-entry').each(function(index) {
-                                const productId = $(this).find('.previous-product').val();
-                                const error = response.errors?.find(err => err.includes(productId));
-                                if (error) {
-                                    $(this).find('.variant-info').append(`
-                                        <div class="alert alert-danger mt-2">
-                                            <strong>Lỗi:</strong> ${error}
-                                        </div>
-                                    `);
-                                }
-                            });
                         }
                     },
                     error: function(xhr, status, error) {
@@ -1016,7 +1013,7 @@
                 });
             } catch (error) {
                 console.error('Lỗi trong handleNextBatchSubmit:', error);
-                showToast('error', 'Có lỗi xảy ra khi xử lý form: ' + error.message);
+                showToast('error', 'Đã xảy ra lỗi: ' + error.message);
             }
         }
 
@@ -1147,8 +1144,20 @@
                                     <p><strong>Tổng số lượng:</strong> ${product.total_quantity}</p>
                                     <p><strong>Giá nhập trung bình:</strong> ${(product.total_price || 0).toLocaleString('vi-VN')} đ</p>
                                     <p><strong>Trạng thái:</strong> ${product.status === 'available' ? 'Còn hàng' : 'Hết hàng'}</p>
-                                    <p><strong>mã lô hàng:</strong> ${product.batch_number}</p>
-                                    <p><strong>Ngày nhập:</strong> ${new Date(product.batch_date).toLocaleDateString('vi-VN', { year: 'numeric', month: '2-digit', day: '2-digit' })}</p>
+                                    <p><strong>mã lô hàng:</strong> ${product.batch_number || 'N/A'}</p>
+                                    
+                                    <!-- Xử lý an toàn với ngày nhập -->
+                                    <p><strong>Ngày nhập:</strong> ${(() => {
+                                        if (!product.batch_date) return 'N/A';
+                                        try {
+                                            const batchDate = new Date(product.batch_date);
+                                            if (isNaN(batchDate.getTime())) return 'N/A';
+                                            return batchDate.toLocaleDateString('vi-VN', { year: 'numeric', month: '2-digit', day: '2-digit' });
+                                        } catch (error) {
+                                            console.error('Lỗi định dạng ngày:', error);
+                                            return 'N/A';
+                                        }
+                                    })()}</p>
                                 </div>
                             </div>
                         `;
@@ -1211,7 +1220,19 @@
                             `;
                             
                             product.batch_info.forEach(batch => {
-                                const dateFormatted = new Date(batch.import_date).toLocaleDateString('vi-VN', { year: 'numeric', month: '2-digit', day: '2-digit' });
+                                // Xử lý ngày tháng an toàn
+                                let dateFormatted = 'N/A';
+                                if (batch.batch_date) {
+                                    try {
+                                        // Kiểm tra xem batch_date có phải là chuỗi ISO hoặc timestamp
+                                        const batchDate = new Date(batch.batch_date);
+                                        if (!isNaN(batchDate.getTime())) {
+                                            dateFormatted = batchDate.toLocaleDateString('vi-VN', { year: 'numeric', month: '2-digit', day: '2-digit' });
+                                        }
+                                    } catch (error) {
+                                        console.error('Lỗi định dạng ngày:', error);
+                                    }
+                                }
                                 
                                 detailsHtml += `
                                     <tr>
@@ -1323,8 +1344,8 @@
                             $('#editBatchNumber').val(latestBatch.batch_number || '');
                             
                             // Format ngày nhập để hiển thị đúng trong input type="date"
-                            if (latestBatch.import_date) {
-                                const importDate = new Date(latestBatch.import_date);
+                            if (latestBatch.batch_date) {
+                                const importDate = new Date(latestBatch.batch_date);
                                 const formattedDate = importDate.toISOString().split('T')[0]; // Format: YYYY-MM-DD
                                 $('#editBatchDate').val(formattedDate);
                             }
@@ -1428,31 +1449,24 @@
                         if (product.batch_info && product.batch_info.length > 0) {
                             $('#editBatchInfoContainer').removeClass('d-none');
                             product.batch_info.forEach((batch) => {
-                                // Xử lý đúng trường ngày (ưu tiên batch_date nếu có, không thì dùng import_date)
-                                let dateToDisplay = batch.batch_date || batch.import_date;
-                                
-                                // Đảm bảo dateToDisplay là một đối tượng Date hợp lệ
-                                let displayDate;
-                                try {
-                                    displayDate = new Date(dateToDisplay);
-                                    // Kiểm tra nếu là Invalid Date
-                                    if (isNaN(displayDate.getTime())) {
-                                        displayDate = null;
+                                // Xử lý ngày tháng an toàn
+                                let dateToDisplay = 'N/A';
+                                if (batch.batch_date) {
+                                    try {
+                                        // Kiểm tra xem batch_date có phải là chuỗi ISO hoặc timestamp
+                                        const batchDate = new Date(batch.batch_date);
+                                        if (!isNaN(batchDate.getTime())) {
+                                            dateToDisplay = batchDate.toLocaleDateString('vi-VN', { year: 'numeric', month: '2-digit', day: '2-digit' });
+                                        }
+                                    } catch (error) {
+                                        console.error('Lỗi định dạng ngày:', error);
                                     }
-                                } catch (e) {
-                                    console.error("Lỗi khi xử lý ngày:", e);
-                                    displayDate = null;
                                 }
-                                
-                                // Format ngày theo định dạng dd/MM/yyyy
-                                let dateFormatted = displayDate ? 
-                                    `${displayDate.getDate().toString().padStart(2, '0')}/${(displayDate.getMonth() + 1).toString().padStart(2, '0')}/${displayDate.getFullYear()}` : 
-                                    'N/A';
                                 
                                 const batchHtml = `
                                     <tr>
                                         <td>${batch.batch_number}</td>
-                                        <td>${dateFormatted}</td>
+                                        <td>${dateToDisplay}</td>
                                         <td>${batch.quantity}</td>
                                         <td>${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(batch.price || 0)}</td>
                                         <td>${batch.note || ''}</td>
@@ -2054,60 +2068,53 @@
         function applyFilters() {
             const nameFilter = $('#filterName').val().toLowerCase();
             const codeFilter = $('#filterCode').val().toLowerCase();
+            const categoryFilter = $('#filterCategory').val();
             const statusFilter = $('#filterStatus').val();
-            const minPrice = $('#filterMinPrice').val() ? parseFloat($('#filterMinPrice').val()) : 0;
-            const maxPrice = $('#filterMaxPrice').val() ? parseFloat($('#filterMaxPrice').val()) : Infinity;
-            const minStock = $('#filterMinStock').val() ? parseInt($('#filterMinStock').val()) : 0;
-            const maxStock = $('#filterMaxStock').val() ? parseInt($('#filterMaxStock').val()) : Infinity;
-
+            
+            // Lọc dữ liệu dựa trên giá trị nhập vào
             $('#inventoryTable tbody tr').each(function() {
                 const $row = $(this);
-                const name = $row.find('td:nth-child(2)').text().toLowerCase();
-                const code = $row.find('td:nth-child(3)').text().toLowerCase();
-                const category = $row.find('td:nth-child(4)').text();
-                const stockText = $row.find('td:nth-child(6) .badge').text().trim();
-                const stockQuantity = parseInt(stockText.split(' ')[0]);
-                const statusBadge = $row.find('td:nth-child(8) .badge');
-                const status = statusBadge.hasClass('bg-success') ? 'available' : 'outofstock';
+                const name = $row.find('td:nth-child(2)').text().toLowerCase(); // Cột tên sản phẩm
+                const code = $row.find('td:nth-child(3)').text().toLowerCase(); // Cột mã sản phẩm
+                const category = $row.find('td:nth-child(4)').text().trim(); // Cột danh mục
+                const status = $row.find('td:nth-child(5) .badge').hasClass('bg-success') ? 'available' : 'outofstock'; // Cột trạng thái
                 
-                // Xuất giá từ text của cột giá
-                let priceText = $row.find('td:nth-child(7)').text().trim();
-                // Lấy số từ chuỗi giá
-                let price;
-                
-                if (priceText.includes('-')) {
-                    // Nếu là khoảng giá, lấy giá thấp nhất
-                    const priceParts = priceText.split('-');
-                    price = parseFloat(priceParts[0].replace(/[^0-9]/g, ''));
-                } else {
-                    // Nếu là một giá đơn
-                    price = parseFloat(priceText.replace(/[^0-9]/g, ''));
-                }
-
+                // Kiểm tra từng điều kiện lọc
                 const nameMatch = name.includes(nameFilter);
                 const codeMatch = code.includes(codeFilter);
-                const categoryMatch = !$('#filterCategory').val() || category === $('#filterCategory').val();
+                const categoryMatch = !categoryFilter || category === categoryFilter;
                 const statusMatch = !statusFilter || status === statusFilter;
-                const priceMatch = (!minPrice || price >= minPrice) && (!maxPrice || price <= maxPrice);
-                const stockMatch = (!minStock || stockQuantity >= minStock) && (!maxStock || stockQuantity <= maxStock);
-
-                if (nameMatch && codeMatch && categoryMatch && statusMatch && priceMatch && stockMatch) {
+                
+                // Hiển thị hoặc ẩn dòng dựa vào kết quả lọc
+                if (nameMatch && codeMatch && categoryMatch && statusMatch) {
                     $row.show();
                 } else {
                     $row.hide();
                 }
             });
-
-            // Cập nhật số thứ tự cho các hàng đang hiển thị
-            updateVisibleRowNumbers();
+            
+            // Cập nhật số lượng hiển thị
+            updateVisibleItems();
         }
         
-        // Cập nhật số thứ tự cho các hàng đang hiển thị
-        function updateVisibleRowNumbers() {
-            let visibleIndex = 1;
-            $('#inventoryTable tbody tr:visible').each(function() {
-                $(this).find('td:first-child').text(visibleIndex++);
+        // Cập nhật hiển thị số lượng mục
+        function updateVisibleItems() {
+            const visibleCount = $('#inventoryTable tbody tr:visible').length;
+            $('#totalItems').text(visibleCount);
+            
+            // Cập nhật số thứ tự cho các hàng đang hiển thị
+            $('#inventoryTable tbody tr:visible').each(function(index) {
+                $(this).find('td:first-child').text(index + 1);
             });
+            
+            // Hiển thị thông báo nếu không có kết quả
+            if (visibleCount === 0) {
+                if ($('#inventoryTable tbody tr.no-data').length === 0) {
+                    $('#inventoryTable tbody').append('<tr class="no-data"><td colspan="6" class="text-center py-3">Không tìm thấy sản phẩm nào phù hợp</td></tr>');
+                }
+            } else {
+                $('#inventoryTable tbody tr.no-data').remove();
+            }
         }
     </script>
 
@@ -2127,6 +2134,10 @@
                         // Đánh dấu batch đã được xác nhận
                         window.batchValidated = true;
                         window.validatedBatchNumber = batchNumber;
+                        
+                        // Tự động cập nhật ngày nhập thành ngày hiện tại
+                        const today = new Date().toISOString().split('T')[0];
+                        $('#nextBatchDate').val(today);
                         
                         // Hiển thị thông báo xác nhận
                         $('#batchValidationMessage').html(`
@@ -2161,11 +2172,13 @@
             
             // Nạp dữ liệu cơ bản của lô hàng
             $('#nextBatchNumber').val(batchData.batch_number);
-            $('#nextBatchDate').val(batchData.import_date ? new Date(batchData.import_date).toISOString().split('T')[0] : '');
+            // Đặt ngày nhập là ngày hiện tại thay vì ngày từ dữ liệu
+            const today = new Date().toISOString().split('T')[0];
+            $('#nextBatchDate').val(today);
             $('#nextBatchNote').val(batchData.note || '');
             
             // Lưu trữ ngày nhập lô ban đầu để kiểm tra tính hợp lệ
-            const originalImportDate = batchData.import_date ? new Date(batchData.import_date).toISOString().split('T')[0] : '';
+            const originalImportDate = batchData.batch_date ? new Date(batchData.batch_date).toISOString().split('T')[0] : '';
             $('#nextBatchDate').attr('min', originalImportDate);
             $('#nextBatchDate').data('original-date', originalImportDate);
             
@@ -2275,14 +2288,31 @@
             // Thêm sản phẩm đầu tiên
             addNewProductEntry();
             
-            // Đặt ngày mặc định
-            $('#nextBatchDate').val(new Date().toISOString().split('T')[0]);
+            // Đặt ngày mặc định là ngày hiện tại
+            const today = new Date().toISOString().split('T')[0];
+            $('#nextBatchDate').val(today);
+            
+            // Đặt thuộc tính min để không cho phép chọn ngày trong quá khứ
+            $('#nextBatchDate').attr('min', today);
             
             // Thêm sự kiện kiểm tra ngày
             $('#nextBatchDate').off('change').on('change', function() {
                 const selectedDate = $(this).val();
-                const originalDate = $(this).data('original-date');
+                const todayDate = new Date().toISOString().split('T')[0];
                 
+                // Kiểm tra xem ngày được chọn có nhỏ hơn ngày hiện tại không
+                if (selectedDate && new Date(selectedDate) < new Date(todayDate)) {
+                    $(this).addClass('is-invalid');
+                    $(this).next('.invalid-feedback').text('Vui lòng chọn ngày hiện tại hoặc trong tương lai');
+                    showToast('error', 'Không thể chọn ngày trong quá khứ');
+                    // Đặt lại về ngày hiện tại
+                    $(this).val(todayDate);
+                } else {
+                    $(this).removeClass('is-invalid');
+                }
+                
+                // Kiểm tra với ngày ban đầu nếu đang làm việc với lô đã có
+                const originalDate = $(this).data('original-date');
                 if (originalDate && selectedDate) {
                     if (new Date(selectedDate) < new Date(originalDate)) {
                         $(this).addClass('is-invalid');
@@ -2316,7 +2346,28 @@
             $('#batchImportForm')[0].reset();
             
             // Đặt ngày mặc định
-            $('#batchDate').val(new Date().toISOString().split('T')[0]);
+            const today = new Date().toISOString().split('T')[0];
+            $('#batchDate').val(today);
+            
+            // Đặt thuộc tính min để không cho phép chọn ngày trong quá khứ
+            $('#batchDate').attr('min', today);
+            
+            // Thêm sự kiện kiểm tra ngày
+            $('#batchDate').off('change').on('change', function() {
+                const selectedDate = $(this).val();
+                const todayDate = new Date().toISOString().split('T')[0];
+                
+                // Kiểm tra xem ngày được chọn có nhỏ hơn ngày hiện tại không
+                if (selectedDate && new Date(selectedDate) < new Date(todayDate)) {
+                    $(this).addClass('is-invalid');
+                    $(this).next('.invalid-feedback').text('Vui lòng chọn ngày hiện tại hoặc trong tương lai');
+                    showToast('error', 'Không thể chọn ngày trong quá khứ');
+                    // Đặt lại về ngày hiện tại
+                    $(this).val(todayDate);
+                } else {
+                    $(this).removeClass('is-invalid');
+                }
+            });
             
             // Tạo mã lô hàng
             generateRandomBatchNumber();
@@ -2330,6 +2381,61 @@
             const modal = new bootstrap.Modal($('#batchImportModal'));
             modal.show();
         }
+    </script>
+
+    <script>
+        // Hàm tải danh sách mã lô hàng gần đây để gợi ý
+        function loadRecentBatchNumbers() {
+            fetch('/inventory/recent-batch-numbers')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'Ok' && Array.isArray(data.batchNumbers)) {
+                        window.recentBatchNumbers = data.batchNumbers;
+                        updateBatchSuggestions();
+                    }
+                })
+                .catch(error => {
+                    console.error('Lỗi khi tải mã lô hàng:', error);
+                });
+        }
+
+        // Hàm cập nhật gợi ý mã lô hàng
+        function updateBatchSuggestions() {
+            const datalist = document.getElementById('batchSuggestions');
+            if (!datalist) return;
+            
+            // Xóa các gợi ý cũ
+            datalist.innerHTML = '';
+            
+            // Thêm các gợi ý mới
+            window.recentBatchNumbers.forEach(batchNumber => {
+                const option = document.createElement('option');
+                option.value = batchNumber;
+                datalist.appendChild(option);
+            });
+        }
+
+        // Thêm xử lý sự kiện khi người dùng nhập vào ô tìm kiếm mã lô hàng
+        $('#nextBatchNumber').on('input', function() {
+            const input = $(this).val().trim().toLowerCase();
+            
+            if (input.length > 0) {
+                // Lọc các mã lô hàng phù hợp với input
+                const filteredSuggestions = window.recentBatchNumbers.filter(
+                    batch => batch.toLowerCase().includes(input)
+                );
+                
+                // Cập nhật danh sách gợi ý
+                const datalist = document.getElementById('batchSuggestions');
+                datalist.innerHTML = '';
+                
+                filteredSuggestions.forEach(batchNumber => {
+                    const option = document.createElement('option');
+                    option.value = batchNumber;
+                    datalist.appendChild(option);
+                });
+            }
+        });
     </script>
 
     <style>
