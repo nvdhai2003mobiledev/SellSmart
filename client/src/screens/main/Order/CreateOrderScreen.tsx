@@ -44,6 +44,8 @@ interface Product {
   variantId?: string;
   originalProductId?: string;
   product_code?: string;
+  original_price?: number; // Giá nhập
+  profit?: number; // Lợi nhuận
 }
 
 // Customer type definition
@@ -94,6 +96,9 @@ const CreateOrderScreen = observer(() => {
     isPartial: boolean;
   } | null>(null);
 
+  // Thêm state để lưu tổng lợi nhuận
+  const [totalProfit, setTotalProfit] = useState<number>(0);
+
   // At the beginning of the component, add:
   const windowWidth = Dimensions.get('window').width;
   const windowHeight = Dimensions.get('window').height;
@@ -101,10 +106,10 @@ const CreateOrderScreen = observer(() => {
   // Then add code after useState declarations:
   
   // Device specific modal adjustments
-  const isIOS = Platform.OS === 'ios';
+  // const isIOS = Platform.OS === 'ios';
   useEffect(() => {
     console.log('Device info - Width:', windowWidth, 'Height:', windowHeight, 'Platform:', Platform.OS);
-  }, []);
+  }, [windowWidth, windowHeight]);
 
   // Calculate totals
   const calculateTotal = () => {
@@ -173,7 +178,62 @@ const CreateOrderScreen = observer(() => {
     }
   }, [selectedProducts]);
 
-  // Apply selected promotion
+  // Hàm tính lợi nhuận cho một sản phẩm
+  const calculateProductProfit = (product: Product) => {
+    // Kiểm tra giá nhập có khả dụng không
+    if (!product.original_price || product.original_price <= 0) {
+      console.log(`Sản phẩm ${product.name} không có giá nhập hoặc giá nhập = 0, sử dụng giá nhập mặc định`);
+      // Log để debug
+      console.log(`Sản phẩm: ${product.name}, ID: ${product._id}, Giá bán: ${product.price}, Giá nhập: ${product.original_price || 'N/A'}`);
+      
+      // Nếu không có giá nhập, giả định lợi nhuận là 5% giá bán
+      return product.price * product.quantity * 0.05;
+    }
+    
+    console.log(`Tính lợi nhuận cho ${product.name}: (${product.price} - ${product.original_price}) * ${product.quantity} = ${(product.price - product.original_price) * product.quantity}`);
+    return (product.price - product.original_price) * product.quantity;
+  };
+
+  // Hàm tính % lợi nhuận cho một sản phẩm (hiện không sử dụng, giữ lại cho tương lai)
+  /* 
+  const calculateProfitPercentage = (product: Product) => {
+    if (!product.original_price || product.original_price <= 0) return 5; // Giá trị mặc định 5%
+    
+    // Tính % lợi nhuận = (Giá bán - Giá nhập) / Giá nhập * 100
+    return ((product.price - product.original_price) / product.original_price) * 100;
+  };
+  */
+
+  // Cập nhật lợi nhuận khi sản phẩm thay đổi
+  useEffect(() => {
+    const profit = selectedProducts.reduce((sum, product) => {
+      const productProfit = calculateProductProfit(product);
+      console.log(`Lợi nhuận của ${product.name}: ${productProfit}`);
+      return sum + productProfit;
+    }, 0);
+    console.log(`Tổng lợi nhuận: ${profit}`);
+    setTotalProfit(profit);
+  }, [selectedProducts]);
+
+  // Hàm kiểm tra điều kiện khuyến mãi dựa trên lợi nhuận (sử dụng trong renderPromotionItem)
+  /* 
+  const isPromotionEligible = (promotion: IPromotion) => {
+    const total = calculateTotal();
+    if (total < promotion.minOrderValue) {
+      console.log(`Khuyến mãi ${promotion.name} không đủ điều kiện vì tổng Hóa đơn ${total} < ${promotion.minOrderValue}`);
+      return false;
+    }
+    
+    // Kiểm tra nếu lợi nhuận ít hơn giá trị giảm giá
+    const discountAmount = Math.min((total * promotion.discount) / 100, promotion.maxDiscount);
+    console.log(`Khuyến mãi ${promotion.name}: Lợi nhuận ${totalProfit}, Giảm giá ${discountAmount}`);
+    const result = totalProfit >= discountAmount;
+    console.log(`Kết quả kiểm tra: ${result ? 'Đủ điều kiện' : 'Không đủ điều kiện'}`);
+    return result;
+  };
+  */
+
+  // Cập nhật hàm applyPromotion
   const applyPromotion = (promotion: IPromotion) => {
     const total = calculateTotal();
     if (total < promotion.minOrderValue) {
@@ -185,6 +245,16 @@ const CreateOrderScreen = observer(() => {
       );
       return;
     }
+
+    const discountAmount = Math.min((total * promotion.discount) / 100, promotion.maxDiscount);
+    if (totalProfit < discountAmount) {
+      Alert.alert(
+        'Không thể áp dụng khuyến mãi',
+        `Lợi nhuận (${formatCurrency(totalProfit)}) không đủ để áp dụng khuyến mãi (${formatCurrency(discountAmount)}).`,
+      );
+      return;
+    }
+
     setSelectedPromotion(promotion);
     setShowPromotionModal(false);
   };
@@ -295,7 +365,7 @@ const CreateOrderScreen = observer(() => {
       // Xác định thông tin thanh toán
       const paidAmount = paymentDetails ? paymentDetails.amount : 0;
       const isFullyPaid = paidAmount >= total;
-      const isPartiallyPaid = paidAmount > 0 && paidAmount < total;
+      // const isPartiallyPaid = paidAmount > 0 && paidAmount < total;
 
       // Xác định trạng thái thanh toán
       const paymentStatus = !paymentDetails
@@ -333,7 +403,6 @@ const CreateOrderScreen = observer(() => {
       console.log(`Tổng tiền: ${total}`);
       console.log(`Số tiền đã thanh toán: ${paidAmount}`);
       console.log(`Đã thanh toán đủ: ${isFullyPaid ? 'Có' : 'Không'}`);
-      console.log(`Thanh toán một phần: ${isPartiallyPaid ? 'Có' : 'Không'}`);
       console.log(
         `Phương thức thanh toán: ${
           paymentDetails ? paymentDetails.method : 'Chưa thanh toán'
@@ -414,6 +483,10 @@ const CreateOrderScreen = observer(() => {
               discountAmount: calculateDiscount(),
             }
           : null,
+        // Tính lợi nhuận sau khi áp dụng khuyến mãi nếu có
+        totalProfit: selectedPromotion 
+          ? totalProfit - calculateDiscount() 
+          : totalProfit,
       };
 
       console.log(
@@ -520,7 +593,7 @@ const CreateOrderScreen = observer(() => {
       // Xác định thông tin thanh toán
       const paidAmount = paymentDetails ? paymentDetails.amount : 0;
       const isFullyPaid = paidAmount >= total;
-      const isPartiallyPaid = paidAmount > 0 && paidAmount < total;
+      // const isPartiallyPaid = paidAmount > 0 && paidAmount < total;
 
       // Xác định trạng thái thanh toán
       const paymentStatus = !paymentDetails
@@ -625,7 +698,12 @@ const CreateOrderScreen = observer(() => {
   };
 
   // Render product item in the list
-  const renderProductItem = (product: Product, index: number) => (
+  const renderProductItem = (product: Product, index: number) => {
+    // Tính lợi nhuận riêng cho sản phẩm này
+    const productProfit = calculateProductProfit(product);
+    const isProfitPositive = productProfit > 0;
+    
+    return (
     <View key={product._id || index} style={styles.productContainer}>
       {/* Thumbnail image with proper URL handling */}
       {product.thumbnail ? (
@@ -652,9 +730,17 @@ const CreateOrderScreen = observer(() => {
             )
             .join(' | ')}
         </DynamicText>
-        <DynamicText style={styles.productPrice}>
-          {formatCurrency(product.price)}
-        </DynamicText>
+        <View style={styles.priceRow}>
+          <DynamicText style={styles.productPrice}>
+            {formatCurrency(product.price)}
+          </DynamicText>
+          {/* Ẩn hiển thị lợi nhuận theo yêu cầu */}
+          {/* {product.original_price > 0 && (
+            <DynamicText style={[styles.productProfit, isProfitPositive ? styles.positiveProfit : styles.negativeProfit]}>
+              {' '} ({isProfitPositive ? '+' : ''}{formatCurrency(productProfit)})
+            </DynamicText>
+          )} */}
+        </View>
         <View style={styles.quantityContainer}>
           <TouchableOpacity
             onPress={() => decreaseQuantity(index)}
@@ -676,6 +762,105 @@ const CreateOrderScreen = observer(() => {
       </TouchableOpacity>
     </View>
   );
+};
+
+  // Cập nhật hàm renderPromotionItem để hiển thị đúng tình trạng điều kiện
+  const renderPromotionItem = (item: IPromotion) => {
+    const total = calculateTotal();
+    const discountAmount = Math.min((total * item.discount) / 100, item.maxDiscount);
+    
+    // Kiểm tra 2 điều kiện: giá trị đơn hàng và lợi nhuận
+    const isMinOrderMet = total >= item.minOrderValue;
+    const isProfitEnough = totalProfit >= discountAmount;
+    const isEligible = isMinOrderMet && isProfitEnough;
+
+    let statusText = '';
+    let statusColor = '';
+    
+    if (!isMinOrderMet) {
+      statusText = `Đơn tối thiểu ${formatCurrency(item.minOrderValue)}`;
+      statusColor = '#dc3545'; // Red
+    } else if (!isProfitEnough) {
+      statusText = `Lợi nhuận không đủ`;
+      statusColor = '#ffc107'; // Yellow
+    } else {
+      statusText = 'Đang diễn ra';
+      statusColor = '#28a745'; // Green
+    }
+    
+    return (
+      <TouchableOpacity
+        style={[
+          styles.promotionItem,
+          !isEligible && styles.ineligiblePromotion,
+        ]}
+        onPress={() => {
+          if (isEligible) {
+            applyPromotion(item);
+          } else {
+            if (!isMinOrderMet) {
+              Alert.alert(
+                'Không đủ điều kiện',
+                `Giá trị Hóa đơn phải từ ${formatCurrency(
+                  item.minOrderValue,
+                )} để áp dụng khuyến mãi này.`,
+              );
+            } else {
+              Alert.alert(
+                'Không thể áp dụng khuyến mãi',
+                `Khuyến mãi này không thể áp dụng vì không đủ điều kiện.`,
+              );
+            }
+          }
+        }}
+        disabled={!isEligible}>
+        <View style={styles.promotionItemHeader}>
+          <DynamicText style={styles.promotionItemName}>
+            {item.name}
+          </DynamicText>
+          <View
+            style={[
+              styles.statusBadge,
+              isEligible
+                ? styles.eligibleBadge
+                : styles.ineligibleBadge,
+            ]}>
+            <DynamicText style={[styles.statusText, {color: statusColor}]}>
+              {statusText}
+            </DynamicText>
+          </View>
+        </View>
+        <View style={styles.promotionItemDetails}>
+          <DynamicText style={styles.promotionItemDetail}>
+            Giảm giá: {item.discount}%
+          </DynamicText>
+          <DynamicText style={styles.promotionItemDetail}>
+            Đơn tối thiểu: {formatCurrency(item.minOrderValue)}
+          </DynamicText>
+          <DynamicText style={styles.promotionItemDetail}>
+            Giảm tối đa: {formatCurrency(item.maxDiscount)}
+          </DynamicText>
+          <DynamicText style={styles.promotionItemDetail}>
+            Giá trị giảm dự tính: {formatCurrency(discountAmount)}
+          </DynamicText>
+          {/* Ẩn hiển thị thông tin lợi nhuận không đủ */}
+          {/* {!isProfitEnough && isMinOrderMet && (
+            <DynamicText style={[styles.promotionItemDetail, {color: '#ffc107', fontFamily: Fonts.Inter_SemiBold}]}>
+              Lợi nhuận hiện tại: {formatCurrency(totalProfit)} (không đủ)
+            </DynamicText>
+          )} */}
+        </View>
+        <View style={styles.promotionDates}>
+          <DynamicText style={styles.dateText}>
+            Từ: {new Date(item.startDate).toLocaleDateString()}
+          </DynamicText>
+          <DynamicText style={styles.dateText}>
+            Đến: {new Date(item.endDate).toLocaleDateString()}
+          </DynamicText>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   // Log modal state on each render for debugging
   console.log('Render - showPromotionModal:', showPromotionModal, 'promotions:', promotions.length);
@@ -973,6 +1158,13 @@ const CreateOrderScreen = observer(() => {
                 {formatCurrency(calculateTotal())}
               </DynamicText>
             </View>
+            {/* Ẩn hiển thị tổng lợi nhuận */}
+            {/* <View style={styles.summaryRow}>
+              <DynamicText style={styles.summaryLabel}>Lợi nhuận:</DynamicText>
+              <DynamicText style={[styles.summaryValue, styles.profitText]}>
+                {formatCurrency(totalProfit)}
+              </DynamicText>
+            </View> */}
             {selectedPromotion && (
               <>
                 <View style={styles.summaryRow}>
@@ -992,6 +1184,15 @@ const CreateOrderScreen = observer(() => {
                     {formatCurrency(calculateTotal() - calculateDiscount())}
                   </DynamicText>
                 </View>
+                {/* Ẩn hiển thị lợi nhuận sau khuyến mãi */}
+                {/* <View style={styles.summaryRow}>
+                  <DynamicText style={styles.summaryLabel}>
+                    Lợi nhuận sau KM:
+                  </DynamicText>
+                  <DynamicText style={[styles.summaryValue, styles.profitText]}>
+                    {formatCurrency(totalProfit - calculateDiscount())}
+                  </DynamicText>
+                </View> */}
               </>
             )}
           </View>
@@ -1071,68 +1272,7 @@ const CreateOrderScreen = observer(() => {
             ) : (
               <FlatList
                 data={promotions}
-                renderItem={({item}) => {
-                  const isEligible = calculateTotal() >= item.minOrderValue;
-                  return (
-                    <TouchableOpacity
-                      style={[
-                        styles.promotionItem,
-                        !isEligible && styles.ineligiblePromotion,
-                      ]}
-                      onPress={() => {
-                        if (isEligible) {
-                          applyPromotion(item);
-                        } else {
-                          Alert.alert(
-                            'Không đủ điều kiện',
-                            `Giá trị Hóa đơn phải từ ${formatCurrency(
-                              item.minOrderValue,
-                            )} để áp dụng khuyến mãi này.`,
-                          );
-                        }
-                      }}
-                      disabled={!isEligible}>
-                      <View style={styles.promotionItemHeader}>
-                        <DynamicText style={styles.promotionItemName}>
-                          {item.name}
-                        </DynamicText>
-                        <View
-                          style={[
-                            styles.statusBadge,
-                            isEligible
-                              ? styles.eligibleBadge
-                              : styles.ineligibleBadge,
-                          ]}>
-                          <DynamicText style={styles.statusText}>
-                            {isEligible
-                              ? 'Đang diễn ra'
-                              : 'Đơn tối thiểu ' +
-                                formatCurrency(item.minOrderValue)}
-                          </DynamicText>
-                        </View>
-                      </View>
-                      <View style={styles.promotionItemDetails}>
-                        <DynamicText style={styles.promotionItemDetail}>
-                          Giảm giá: {item.discount}%
-                        </DynamicText>
-                        <DynamicText style={styles.promotionItemDetail}>
-                          Đơn tối thiểu: {formatCurrency(item.minOrderValue)}
-                        </DynamicText>
-                        <DynamicText style={styles.promotionItemDetail}>
-                          Giảm tối đa: {formatCurrency(item.maxDiscount)}
-                        </DynamicText>
-                      </View>
-                      <View style={styles.promotionDates}>
-                        <DynamicText style={styles.dateText}>
-                          Từ: {new Date(item.startDate).toLocaleDateString()}
-                        </DynamicText>
-                        <DynamicText style={styles.dateText}>
-                          Đến: {new Date(item.endDate).toLocaleDateString()}
-                        </DynamicText>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                }}
+                renderItem={({item}) => renderPromotionItem(item)}
                 keyExtractor={item => item._id}
                 contentContainerStyle={styles.promotionList}
               />
@@ -1243,10 +1383,30 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: moderateScale(2),
   },
+  priceRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    marginTop: moderateScale(4),
+  },
+  profitRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    marginTop: moderateScale(2),
+  },
   productPrice: {
     fontSize: moderateScale(14),
     color: '#007AFF',
-    marginTop: moderateScale(4),
+  },
+  productProfit: {
+    fontSize: moderateScale(12),
+  },
+  positiveProfit: {
+    color: '#28a745',
+  },
+  negativeProfit: {
+    color: '#dc3545',
   },
   quantityContainer: {
     flexDirection: 'row',
@@ -1604,6 +1764,10 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.5,
+  },
+  profitText: {
+    color: '#28a745',
+    fontFamily: Fonts.Inter_SemiBold,
   },
 });
 

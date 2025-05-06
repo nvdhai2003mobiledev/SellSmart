@@ -47,6 +47,7 @@ interface ProductVariant {
   quantity: number;
   isVariant: boolean;
   product_code?: string;
+  original_price?: number;
 }
 
 interface RouteParams {
@@ -118,6 +119,7 @@ const ChooseOrderProduct = () => {
               console.log(`Processing variant ${index} for ${product.name}:`, {
                 price: variant.price,
                 inventory: variant.inventory,
+                original_price: variant.original_price || 0,
                 variantDetails: variant.variantDetails
               });
 
@@ -186,6 +188,7 @@ const ChooseOrderProduct = () => {
                 attributes: attributes,
                 quantity: 1, // Default quantity
                 isVariant: true,
+                original_price: variant.original_price || 0,
               });
             });
           } else {
@@ -205,6 +208,7 @@ const ChooseOrderProduct = () => {
               attributes: [],
               quantity: 1, // Default quantity
               isVariant: false,
+              original_price: product.original_price || 0,
             });
           }
         });
@@ -272,7 +276,8 @@ const ChooseOrderProduct = () => {
           attributes: product.attributes || [],
           quantity: 1,
           isVariant: !!variantId,
-          product_code: product.product_code
+          product_code: product.product_code,
+          original_price: product.original_price || 0,
         };
       });
       
@@ -350,6 +355,7 @@ const ChooseOrderProduct = () => {
       console.log(`Original ID: ${product._id}`);
       console.log(`Variant ID: ${product.variantId || 'N/A'}`);
       console.log(`Combined ID: ${uniqueId}`);
+      console.log(`Original Price: ${product.original_price || 0}`);
       
       // Make sure thumbnail is properly formatted for display on the next screen
       let thumbnailForDisplay = product.thumbnail;
@@ -363,7 +369,8 @@ const ChooseOrderProduct = () => {
         originalProductId: product._id, // Keep the original product ID
         variantId: product.variantId, // Keep the variant ID separate
         thumbnail: thumbnailForDisplay,
-        quantity: 1 // Reset quantity to 1 for the order screen
+        quantity: 1, // Reset quantity to 1 for the order screen
+        original_price: product.original_price || 0 // Ensure original_price is passed to order screen
       };
     });
     

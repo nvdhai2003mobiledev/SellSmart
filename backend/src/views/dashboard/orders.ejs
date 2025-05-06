@@ -3,17 +3,17 @@
 <div class="main-content order-page">
   <div class="page-header">
   <div class="w-100 text-center">
-    <h1>Danh sách đơn hàng</h1>
+    <h1>Danh sách hóa đơn</h1>
   </div>
   </div>
 
-  <!-- Mục tìm kiếm đơn hàng -->
+  <!-- Mục tìm kiếm hóa đơn -->
   <div class="order-search-container">
-    <h3><i class="fas fa-search"></i> Tìm kiếm đơn hàng</h3>
+    <h3><i class="fas fa-search"></i> Tìm kiếm hóa đơn</h3>
     <div class="order-search-grid">
       <div>
-        <label for="searchOrderID">Mã đơn hàng:</label>
-        <input type="text" id="searchOrderID" class="order-search-input" placeholder="Nhập mã đơn hàng" value="<%= filters?.orderID || '' %>">
+        <label for="searchOrderID">Mã hóa đơn:</label>
+        <input type="text" id="searchOrderID" class="order-search-input" placeholder="Nhập mã hóa đơn" value="<%= filters?.orderID || '' %>">
       </div>
       <div>
         <label for="searchCustomerName">Tên khách hàng:</label>
@@ -64,7 +64,7 @@
   <table class="order-table">
     <thead>
       <tr>
-        <th>Mã đơn hàng</th>
+        <th>Mã hóa đơn</th>
         <th>Khách hàng</th>
         <th>SĐT</th>
         <th>Tổng tiền</th>
@@ -97,7 +97,8 @@
             <% const statusMap = {
               'pending': 'Chưa xử lý',
               'processing': 'Đã xử lý',
-              'canceled': 'Đã hủy'
+              'canceled': 'Đã hủy',
+              'draft': 'Đơn nháp',
             }; %>
                 <span class="order-status status-<%= order.status %>">
             <%= statusMap[order.status] || order.status %>
@@ -126,7 +127,7 @@
       <% }) %>
         <% } else { %>
           <tr>
-            <td colspan="8" class="text-center">Không tìm thấy đơn hàng nào</td>
+            <td colspan="8" class="text-center">Không tìm thấy hóa đơn nào</td>
           </tr>
         <% } %>
     </tbody>
@@ -137,7 +138,7 @@
   <% if (pagination && pagination.totalPages > 0) { %>
   <div class="pagination-container">
     <div class="pagination-info">
-      Hiển thị <%= orders.length %> trên tổng số <%= pagination.total %> đơn hàng
+      Hiển thị <%= orders.length %> trên tổng số <%= pagination.total %> hóa đơn
     </div>
     <div class="pagination-controls">
       <span>Trang:</span>
@@ -193,11 +194,11 @@
   <% } %>
     </div>
 
-<!-- Thêm modal chi tiết đơn hàng -->
+<!-- Thêm modal chi tiết hóa đơn -->
 <div id="orderDetailModal" class="modal">
   <div class="modal-content">
     <div class="modal-header">
-      <h2>Chi tiết đơn hàng <span id="modalOrderId"></span></h2>
+      <h2>Chi tiết hóa đơn <span id="modalOrderId"></span></h2>
       <span class="close">&times;</span>
     </div>
     <div class="modal-body">
@@ -209,7 +210,7 @@
           <h3>Thông tin chung</h3>
           <table class="detail-table">
             <tr>
-              <td class="detail-label">Mã đơn hàng:</td>
+              <td class="detail-label">Mã hóa đơn:</td>
               <td id="detail-orderID"></td>
           </tr>
           <tr>
@@ -322,7 +323,7 @@
     </div>
     <div class="modal-footer">
       <button id="modalPrintBtn" class="btn btn-success">
-        <i class="fas fa-print"></i> In đơn hàng
+        <i class="fas fa-print"></i> In hóa đơn
       </button>
       <button id="modalCloseBtn" class="btn btn-secondary">
         <i class="fas fa-times"></i> Đóng
@@ -865,7 +866,7 @@
     window.location.href = window.location.pathname;
   }
   
-  // Lưu trữ tất cả đơn hàng (only the current page)
+  // Lưu trữ tất cả hóa đơn (only the current page)
   let allOrders = [];
 
   // Khởi tạo trang
@@ -877,7 +878,7 @@
       
       const orderIdLink = row.cells[0].querySelector('a');
       const orderId = orderIdLink ? orderIdLink.href.split('/').pop() : '';
-      const fullOrderId = orderIdLink ? orderIdLink.title : ''; // Lấy mã đơn hàng đầy đủ từ title
+      const fullOrderId = orderIdLink ? orderIdLink.title : ''; // Lấy mã hóa đơn đầy đủ từ title
       
       const statusElement = row.cells[4].querySelector('.order-status');
       const statusClass = statusElement ? statusElement.classList[1].replace('status-', '') : '';
@@ -887,7 +888,7 @@
 
       const order = {
         _id: orderId,
-        orderID: fullOrderId, // Lưu mã đơn hàng đầy đủ để tìm kiếm
+        orderID: fullOrderId, // Lưu mã hóa đơn đầy đủ để tìm kiếm
         displayOrderID: row.cells[0].textContent.trim(), // Hiển thị mã rút gọn
         customerID: {
           fullName: row.cells[1].textContent.trim(),
@@ -903,7 +904,7 @@
       return order;
     }).filter(order => order !== null);
 
-    console.log("Tổng số đơn hàng trên trang hiện tại:", allOrders.length);
+    console.log("Tổng số hóa đơn trên trang hiện tại:", allOrders.length);
   };
 
   // Remove the client-side search functions that are being replaced by server-side search
@@ -1152,12 +1153,12 @@
           detailLoading.style.display = "none";
           detailContainer.style.display = "block";
         } else {
-          alert("Không thể tải thông tin đơn hàng");
+          alert("Không thể tải thông tin hóa đơn");
         }
       })
       .catch(error => {
         console.error('Error fetching order details:', error);
-        alert("Có lỗi xảy ra khi tải thông tin đơn hàng");
+        alert("Có lỗi xảy ra khi tải thông tin hóa đơn");
       });
   }
 
